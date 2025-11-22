@@ -1,3 +1,7 @@
+[![Build Status](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml/badge.svg)](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml)
+[![Docs](https://docs.rs/gpui-form/badge.svg)](https://docs.rs/gpui-form/)
+[![Crates.io](https://img.shields.io/crates/v/gpui-form.svg)](https://crates.io/crates/gpui-form)
+
 A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
 
 ## Currently Supported components
@@ -14,14 +18,6 @@ Compatibility of `gpui-form` versions:
 | `gpui-form` | `gpui-component` |
 | :---------- | :--------------- |
 | `0.4.0`       | `0.4.1`          |
-
-## Usage
-
-gpui-form is still in development, so you'll need to add it via git.
-
-```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form.git" }
-```
 
 ## Showcase
 
