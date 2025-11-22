@@ -1,4 +1,4 @@
-tldr, show me the app.
+tldr
 ```sh
 cargo run
 ```
