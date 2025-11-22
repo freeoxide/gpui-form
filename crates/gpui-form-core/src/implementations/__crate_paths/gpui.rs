@@ -585,6 +585,10 @@ pub const ListAlignment: crate_paths::Path = crate_paths::Path::new("gpui::ListA
 pub const ListHorizontalSizingBehavior: crate_paths::Path =
     crate_paths::Path::new("gpui::ListHorizontalSizingBehavior");
 
+/// pub enum `ListMeasuringBehavior`
+pub const ListMeasuringBehavior: crate_paths::Path =
+    crate_paths::Path::new("gpui::ListMeasuringBehavior");
+
 /// pub struct `ListOffset`
 pub const ListOffset: crate_paths::Path = crate_paths::Path::new("gpui::ListOffset");
 

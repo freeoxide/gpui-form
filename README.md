@@ -1,12 +1,12 @@
 A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
 
 ## Currently Supported components
-- Checkbox
-- Date Picker
-- Dropdown
-- Text Input
-- Number Input
-- Switch
+- [Checkbox](https://longbridge.github.io/gpui-component/docs/components/checkbox)
+- [Date Picker](https://longbridge.github.io/gpui-component/docs/components/date-picker)
+- [Select](https://longbridge.github.io/gpui-component/docs/components/select)
+- [Input](https://longbridge.github.io/gpui-component/docs/components/input)
+- [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
+- [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
 
 ## Usage
 
@@ -19,7 +19,7 @@ gpui-form = { git = "https://github.com/stayhydated/gpui-form.git" }
 ## Showcase
 declaring:
 ```rs
-#[derive(Clone, Debug, Default, DropdownItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
 #[fluent(display = "std")]
 pub enum PreferedLanguage {
     #[default]
@@ -28,7 +28,7 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, DropdownItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
 #[fluent(display = "std")]
 pub enum EnumCountry {
     #[default]
@@ -60,10 +60,10 @@ pub struct User {
     pub enable_notifications: bool,
 
     // Signals to use PreferedLanguage::default()
-    #[gpui_form(component(dropdown(default)))]
+    #[gpui_form(component(select(default)))]
     pub preferred: PreferedLanguage,
 
-    #[gpui_form(component(dropdown(searchable, index = EnumCountry::France)))]
+    #[gpui_form(component(select(searchable, index = EnumCountry::France)))]
     pub country: Option<EnumCountry>,
 
     #[gpui_form(component(date_picker))]

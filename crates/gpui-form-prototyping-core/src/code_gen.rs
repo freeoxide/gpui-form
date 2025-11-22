@@ -5,8 +5,9 @@ use quote::quote;
 
 use super::implementations::{
     ComponentIdentities, ComponentShape, FieldCodeGenerator, checkbox::CheckboxCodeGenerator,
-    date_picker::DatePickerCodeGenerator, dropdown::DropdownCodeGenerator,
-    input::InputCodeGenerator, number_input::NumberInputCodeGenerator, switch::SwitchCodeGenerator,
+    date_picker::DatePickerCodeGenerator, input::InputCodeGenerator,
+    number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
+    switch::SwitchCodeGenerator,
 };
 
 macro_rules! field_generator {
@@ -16,7 +17,7 @@ macro_rules! field_generator {
             ComponentsBehaviour::NumberInput => Box::new(NumberInputCodeGenerator),
             ComponentsBehaviour::Checkbox => Box::new(CheckboxCodeGenerator),
             ComponentsBehaviour::Switch => Box::new(SwitchCodeGenerator),
-            ComponentsBehaviour::Dropdown(_) => Box::new(DropdownCodeGenerator),
+            ComponentsBehaviour::Select(_) => Box::new(SelectCodeGenerator),
             ComponentsBehaviour::DatePicker => Box::new(DatePickerCodeGenerator),
         }
     }};

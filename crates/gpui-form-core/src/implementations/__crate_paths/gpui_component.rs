@@ -5,9 +5,6 @@ pub const AxisExt: crate_paths::Path = crate_paths::Path::new("gpui_component::A
 /// pub trait `Collapsible`
 pub const Collapsible: crate_paths::Path = crate_paths::Path::new("gpui_component::Collapsible");
 
-/// pub trait `ContextModal`
-pub const ContextModal: crate_paths::Path = crate_paths::Path::new("gpui_component::ContextModal");
-
 /// pub trait `Disableable`
 pub const Disableable: crate_paths::Path = crate_paths::Path::new("gpui_component::Disableable");
 
@@ -30,17 +27,23 @@ pub const IndexPath: crate_paths::Path = crate_paths::Path::new("gpui_component:
 pub const InteractiveElementExt: crate_paths::Path =
     crate_paths::Path::new("gpui_component::InteractiveElementExt");
 
-/// pub struct `Kbd`
-pub const Kbd: crate_paths::Path = crate_paths::Path::new("gpui_component::Kbd");
+/// pub trait `LengthExt`
+pub const LengthExt: crate_paths::Path = crate_paths::Path::new("gpui_component::LengthExt");
 
 /// pub struct `Measure`
 pub const Measure: crate_paths::Path = crate_paths::Path::new("gpui_component::Measure");
+
+/// pub trait `PixelsExt`
+pub const PixelsExt: crate_paths::Path = crate_paths::Path::new("gpui_component::PixelsExt");
 
 /// pub enum `Placement`
 pub const Placement: crate_paths::Path = crate_paths::Path::new("gpui_component::Placement");
 
 /// pub struct `Root`
 pub const Root: crate_paths::Path = crate_paths::Path::new("gpui_component::Root");
+
+/// pub struct `Rope`
+pub const Rope: crate_paths::Path = crate_paths::Path::new("gpui_component::Rope");
 
 /// pub trait `Selectable`
 pub const Selectable: crate_paths::Path = crate_paths::Path::new("gpui_component::Selectable");
@@ -84,6 +87,9 @@ pub const VirtualListScrollHandle: crate_paths::Path =
 
 /// pub struct `WindowBorder`
 pub const WindowBorder: crate_paths::Path = crate_paths::Path::new("gpui_component::WindowBorder");
+
+/// pub trait `WindowExt`
+pub const WindowExt: crate_paths::Path = crate_paths::Path::new("gpui_component::WindowExt");
 
 /// pub function `box_shadow`
 pub const box_shadow: crate_paths::Path = crate_paths::Path::new("gpui_component::box_shadow");
@@ -195,10 +201,6 @@ pub mod button {
     pub const DropdownButton: crate_paths::Path =
         crate_paths::Path::new("gpui_component::button::DropdownButton");
 
-    /// pub struct `InteractiveToggle`
-    pub const InteractiveToggle: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::button::InteractiveToggle");
-
     /// pub struct `Toggle`
     pub const Toggle: crate_paths::Path = crate_paths::Path::new("gpui_component::button::Toggle");
 
@@ -268,10 +270,11 @@ pub mod clipboard {
     /// pub struct `Clipboard`
     pub const Clipboard: crate_paths::Path =
         crate_paths::Path::new("gpui_component::clipboard::Clipboard");
-
-    /// pub struct `ClipboardState`
-    pub const ClipboardState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::clipboard::ClipboardState");
+}
+pub mod collapsible {
+    /// pub struct `Collapsible`
+    pub const Collapsible: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::collapsible::Collapsible");
 }
 pub mod color_picker {
     /// pub struct `ColorPicker`
@@ -289,19 +292,6 @@ pub mod color_picker {
     /// pub function `init`
     pub const init: crate_paths::Path =
         crate_paths::Path::new("gpui_component::color_picker::init");
-}
-pub mod context_menu {
-    /// pub struct `ContextMenu`
-    pub const ContextMenu: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::context_menu::ContextMenu");
-
-    /// pub trait `ContextMenuExt`
-    pub const ContextMenuExt: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::context_menu::ContextMenuExt");
-
-    /// pub struct `ContextMenuState`
-    pub const ContextMenuState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::context_menu::ContextMenuState");
 }
 pub mod date_picker {
     /// pub struct `DatePicker`
@@ -336,6 +326,14 @@ pub mod description_list {
     /// pub enum `DescriptionText`
     pub const DescriptionText: crate_paths::Path =
         crate_paths::Path::new("gpui_component::description_list::DescriptionText");
+}
+pub mod dialog {
+    /// pub struct `Dialog`
+    pub const Dialog: crate_paths::Path = crate_paths::Path::new("gpui_component::dialog::Dialog");
+
+    /// pub struct `DialogButtonProps`
+    pub const DialogButtonProps: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::dialog::DialogButtonProps");
 }
 pub mod divider {
     /// pub struct `Divider`
@@ -457,44 +455,10 @@ pub mod dock {
     pub const register_panel: crate_paths::Path =
         crate_paths::Path::new("gpui_component::dock::register_panel");
 }
-pub mod drawer {
-    /// pub struct `Drawer`
-    pub const Drawer: crate_paths::Path = crate_paths::Path::new("gpui_component::drawer::Drawer");
-}
-pub mod dropdown {
-    /// pub struct `Dropdown`
-    pub const Dropdown: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::Dropdown");
-
-    /// pub trait `DropdownDelegate`
-    pub const DropdownDelegate: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::DropdownDelegate");
-
-    /// pub enum `DropdownEvent`
-    pub const DropdownEvent: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::DropdownEvent");
-
-    /// pub trait `DropdownItem`
-    pub const DropdownItem: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::DropdownItem");
-
-    /// pub struct `DropdownItemGroup`
-    pub const DropdownItemGroup: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::DropdownItemGroup");
-
-    /// pub struct `DropdownState`
-    pub const DropdownState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::DropdownState");
-
-    /// pub enum `ListEvent`
-    pub const ListEvent: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::ListEvent");
-
-    /// pub struct `SearchableVec`
-    pub const SearchableVec: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::dropdown::SearchableVec");
-}
 pub mod form {
+    /// pub struct `Field`
+    pub const Field: crate_paths::Path = crate_paths::Path::new("gpui_component::form::Field");
+
     /// pub enum `FieldBuilder`
     pub const FieldBuilder: crate_paths::Path =
         crate_paths::Path::new("gpui_component::form::FieldBuilder");
@@ -502,13 +466,8 @@ pub mod form {
     /// pub struct `Form`
     pub const Form: crate_paths::Path = crate_paths::Path::new("gpui_component::form::Form");
 
-    /// pub struct `FormField`
-    pub const FormField: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::form::FormField");
-
-    /// pub function `form_field`
-    pub const form_field: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::form::form_field");
+    /// pub function `field`
+    pub const field: crate_paths::Path = crate_paths::Path::new("gpui_component::form::field");
 
     /// pub function `h_form`
     pub const h_form: crate_paths::Path = crate_paths::Path::new("gpui_component::form::h_form");
@@ -611,11 +570,6 @@ pub mod history {
     pub const HistoryItem: crate_paths::Path =
         crate_paths::Path::new("gpui_component::history::HistoryItem");
 }
-pub mod indicator {
-    /// pub struct `Indicator`
-    pub const Indicator: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::indicator::Indicator");
-}
 pub mod input {
     /// pub struct `Backspace`
     pub const Backspace: crate_paths::Path =
@@ -658,6 +612,10 @@ pub mod input {
     pub const DeleteToPreviousWordStart: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::DeleteToPreviousWordStart");
 
+    /// pub trait `DocumentColorProvider`
+    pub const DocumentColorProvider: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::input::DocumentColorProvider");
+
     /// pub struct `Enter`
     pub const Enter: crate_paths::Path = crate_paths::Path::new("gpui_component::input::Enter");
 
@@ -678,6 +636,9 @@ pub mod input {
     /// pub struct `IndentInline`
     pub const IndentInline: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::IndentInline");
+
+    /// pub struct `Input`
+    pub const Input: crate_paths::Path = crate_paths::Path::new("gpui_component::input::Input");
 
     /// pub enum `InputEvent`
     pub const InputEvent: crate_paths::Path =
@@ -798,18 +759,6 @@ pub mod input {
     pub const SelectAll: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::SelectAll");
 
-    /// pub struct `SelectDown`
-    pub const SelectDown: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::input::SelectDown");
-
-    /// pub struct `SelectLeft`
-    pub const SelectLeft: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::input::SelectLeft");
-
-    /// pub struct `SelectRight`
-    pub const SelectRight: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::input::SelectRight");
-
     /// pub struct `SelectToEnd`
     pub const SelectToEnd: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::SelectToEnd");
@@ -834,10 +783,6 @@ pub mod input {
     pub const SelectToStartOfLine: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::SelectToStartOfLine");
 
-    /// pub struct `SelectUp`
-    pub const SelectUp: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::input::SelectUp");
-
     /// pub struct `Selection`
     pub const Selection: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::Selection");
@@ -853,16 +798,16 @@ pub mod input {
     /// pub struct `TabSize`
     pub const TabSize: crate_paths::Path = crate_paths::Path::new("gpui_component::input::TabSize");
 
-    /// pub struct `TextInput`
-    pub const TextInput: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::input::TextInput");
-
     /// pub struct `ToggleCodeActions`
     pub const ToggleCodeActions: crate_paths::Path =
         crate_paths::Path::new("gpui_component::input::ToggleCodeActions");
 
     /// pub struct `Undo`
     pub const Undo: crate_paths::Path = crate_paths::Path::new("gpui_component::input::Undo");
+}
+pub mod kbd {
+    /// pub struct `Kbd`
+    pub const Kbd: crate_paths::Path = crate_paths::Path::new("gpui_component::kbd::Kbd");
 }
 pub mod label {
     /// pub enum `HighlightsMatch`
@@ -895,14 +840,39 @@ pub mod list {
     /// pub struct `ListSeparatorItem`
     pub const ListSeparatorItem: crate_paths::Path =
         crate_paths::Path::new("gpui_component::list::ListSeparatorItem");
-}
-pub mod modal {
-    /// pub struct `Modal`
-    pub const Modal: crate_paths::Path = crate_paths::Path::new("gpui_component::modal::Modal");
 
-    /// pub struct `ModalButtonProps`
-    pub const ModalButtonProps: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::modal::ModalButtonProps");
+    /// pub struct `ListState`
+    pub const ListState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::list::ListState");
+}
+pub mod menu {
+    /// pub struct `AppMenuBar`
+    pub const AppMenuBar: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::AppMenuBar");
+
+    /// pub struct `ContextMenu`
+    pub const ContextMenu: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::ContextMenu");
+
+    /// pub trait `ContextMenuExt`
+    pub const ContextMenuExt: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::ContextMenuExt");
+
+    /// pub struct `ContextMenuState`
+    pub const ContextMenuState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::ContextMenuState");
+
+    /// pub trait `DropdownMenu`
+    pub const DropdownMenu: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::DropdownMenu");
+
+    /// pub struct `PopupMenu`
+    pub const PopupMenu: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::PopupMenu");
+
+    /// pub enum `PopupMenuItem`
+    pub const PopupMenuItem: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::menu::PopupMenuItem");
 }
 pub mod notification {
     /// pub struct `Notification`
@@ -922,9 +892,6 @@ pub mod plot {
     pub const AXIS_GAP: crate_paths::Path =
         crate_paths::Path::new("gpui_component::plot::AXIS_GAP");
 
-    /// pub struct `Axis`
-    pub const Axis: crate_paths::Path = crate_paths::Path::new("gpui_component::plot::Axis");
-
     /// pub struct `AxisText`
     pub const AxisText: crate_paths::Path =
         crate_paths::Path::new("gpui_component::plot::AxisText");
@@ -939,6 +906,10 @@ pub mod plot {
     /// pub trait `Plot`
     pub const Plot: crate_paths::Path = crate_paths::Path::new("gpui_component::plot::Plot");
 
+    /// pub struct `PlotAxis`
+    pub const PlotAxis: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::plot::PlotAxis");
+
     /// pub enum `StrokeStyle`
     pub const StrokeStyle: crate_paths::Path =
         crate_paths::Path::new("gpui_component::plot::StrokeStyle");
@@ -950,9 +921,9 @@ pub mod plot {
     /// pub function `polygon`
     pub const polygon: crate_paths::Path = crate_paths::Path::new("gpui_component::plot::polygon");
     pub mod label {
-        /// pub struct `Label`
-        pub const Label: crate_paths::Path =
-            crate_paths::Path::new("gpui_component::plot::label::Label");
+        /// pub struct `PlotLabel`
+        pub const PlotLabel: crate_paths::Path =
+            crate_paths::Path::new("gpui_component::plot::label::PlotLabel");
 
         /// pub constant `TEXT_GAP`
         pub const TEXT_GAP: crate_paths::Path =
@@ -991,6 +962,10 @@ pub mod plot {
         /// pub struct `Arc`
         pub const Arc: crate_paths::Path =
             crate_paths::Path::new("gpui_component::plot::shape::Arc");
+
+        /// pub struct `ArcData`
+        pub const ArcData: crate_paths::Path =
+            crate_paths::Path::new("gpui_component::plot::shape::ArcData");
 
         /// pub struct `Area`
         pub const Area: crate_paths::Path =
@@ -1039,29 +1014,9 @@ pub mod popover {
     pub const Popover: crate_paths::Path =
         crate_paths::Path::new("gpui_component::popover::Popover");
 
-    /// pub struct `PopoverContent`
-    pub const PopoverContent: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::popover::PopoverContent");
-
-    /// pub struct `PopoverElementState`
-    pub const PopoverElementState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::popover::PopoverElementState");
-
-    /// pub struct `PrepaintState`
-    pub const PrepaintState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::popover::PrepaintState");
-}
-pub mod popup_menu {
-    /// pub struct `PopupMenu`
-    pub const PopupMenu: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::popup_menu::PopupMenu");
-
-    /// pub trait `PopupMenuExt`
-    pub const PopupMenuExt: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::popup_menu::PopupMenuExt");
-
-    /// pub function `init`
-    pub const init: crate_paths::Path = crate_paths::Path::new("gpui_component::popup_menu::init");
+    /// pub struct `PopoverState`
+    pub const PopoverState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::popover::PopoverState");
 }
 pub mod progress {
     /// pub struct `Progress`
@@ -1077,10 +1032,6 @@ pub mod radio {
         crate_paths::Path::new("gpui_component::radio::RadioGroup");
 }
 pub mod resizable {
-    /// pub struct `DragPanel`
-    pub const DragPanel: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::resizable::DragPanel");
-
     /// pub struct `ResizablePanel`
     pub const ResizablePanel: crate_paths::Path =
         crate_paths::Path::new("gpui_component::resizable::ResizablePanel");
@@ -1110,21 +1061,9 @@ pub mod resizable {
         crate_paths::Path::new("gpui_component::resizable::v_resizable");
 }
 pub mod scroll {
-    /// pub struct `AxisPrepaintState`
-    pub const AxisPrepaintState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::scroll::AxisPrepaintState");
-
-    /// pub struct `PrepaintState`
-    pub const PrepaintState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::scroll::PrepaintState");
-
     /// pub trait `ScrollHandleOffsetable`
     pub const ScrollHandleOffsetable: crate_paths::Path =
         crate_paths::Path::new("gpui_component::scroll::ScrollHandleOffsetable");
-
-    /// pub struct `ScrollViewState`
-    pub const ScrollViewState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::scroll::ScrollViewState");
 
     /// pub struct `Scrollable`
     pub const Scrollable: crate_paths::Path =
@@ -1145,14 +1084,38 @@ pub mod scroll {
     /// pub enum `ScrollbarShow`
     pub const ScrollbarShow: crate_paths::Path =
         crate_paths::Path::new("gpui_component::scroll::ScrollbarShow");
+}
+pub mod select {
+    /// pub struct `SearchableVec`
+    pub const SearchableVec: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SearchableVec");
 
-    /// pub struct `ScrollbarState`
-    pub const ScrollbarState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::scroll::ScrollbarState");
+    /// pub struct `Select`
+    pub const Select: crate_paths::Path = crate_paths::Path::new("gpui_component::select::Select");
 
-    /// pub struct `ScrollbarStateInner`
-    pub const ScrollbarStateInner: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::scroll::ScrollbarStateInner");
+    /// pub trait `SelectDelegate`
+    pub const SelectDelegate: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SelectDelegate");
+
+    /// pub enum `SelectEvent`
+    pub const SelectEvent: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SelectEvent");
+
+    /// pub struct `SelectGroup`
+    pub const SelectGroup: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SelectGroup");
+
+    /// pub trait `SelectItem`
+    pub const SelectItem: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SelectItem");
+
+    /// pub struct `SelectState`
+    pub const SelectState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::select::SelectState");
+}
+pub mod sheet {
+    /// pub struct `Sheet`
+    pub const Sheet: crate_paths::Path = crate_paths::Path::new("gpui_component::sheet::Sheet");
 }
 pub mod sidebar {
     /// pub struct `Sidebar`
@@ -1189,16 +1152,16 @@ pub mod skeleton {
         crate_paths::Path::new("gpui_component::skeleton::Skeleton");
 }
 pub mod slider {
-    /// pub struct `DragThumb`
-    pub const DragThumb: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::slider::DragThumb");
-
     /// pub struct `Slider`
     pub const Slider: crate_paths::Path = crate_paths::Path::new("gpui_component::slider::Slider");
 
     /// pub enum `SliderEvent`
     pub const SliderEvent: crate_paths::Path =
         crate_paths::Path::new("gpui_component::slider::SliderEvent");
+
+    /// pub enum `SliderScale`
+    pub const SliderScale: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::slider::SliderScale");
 
     /// pub struct `SliderState`
     pub const SliderState: crate_paths::Path =
@@ -1207,6 +1170,11 @@ pub mod slider {
     /// pub enum `SliderValue`
     pub const SliderValue: crate_paths::Path =
         crate_paths::Path::new("gpui_component::slider::SliderValue");
+}
+pub mod spinner {
+    /// pub struct `Spinner`
+    pub const Spinner: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::spinner::Spinner");
 }
 pub mod styled_ext_reflection {
     /// pub function `find_method`
@@ -1222,10 +1190,6 @@ pub mod switch {
     pub const Switch: crate_paths::Path = crate_paths::Path::new("gpui_component::switch::Switch");
 }
 pub mod tab {
-    /// pub struct `SelectTab`
-    pub const SelectTab: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::tab::SelectTab");
-
     /// pub struct `Tab`
     pub const Tab: crate_paths::Path = crate_paths::Path::new("gpui_component::tab::Tab");
 
@@ -1267,9 +1231,13 @@ pub mod table {
     pub const TableEvent: crate_paths::Path =
         crate_paths::Path::new("gpui_component::table::TableEvent");
 
-    /// pub struct `VisibleRangeState`
-    pub const VisibleRangeState: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::table::VisibleRangeState");
+    /// pub struct `TableState`
+    pub const TableState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::table::TableState");
+
+    /// pub struct `TableVisibleRange`
+    pub const TableVisibleRange: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::table::TableVisibleRange");
 }
 pub mod tag {
     /// pub struct `Tag`
@@ -2352,12 +2320,22 @@ pub mod tooltip {
     pub const Tooltip: crate_paths::Path =
         crate_paths::Path::new("gpui_component::tooltip::Tooltip");
 }
-pub mod webview {
-    /// pub struct `WebView`
-    pub const WebView: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::webview::WebView");
+pub mod tree {
+    /// pub struct `Tree`
+    pub const Tree: crate_paths::Path = crate_paths::Path::new("gpui_component::tree::Tree");
 
-    /// pub struct `WebViewElement`
-    pub const WebViewElement: crate_paths::Path =
-        crate_paths::Path::new("gpui_component::webview::WebViewElement");
+    /// pub struct `TreeEntry`
+    pub const TreeEntry: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::tree::TreeEntry");
+
+    /// pub struct `TreeItem`
+    pub const TreeItem: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::tree::TreeItem");
+
+    /// pub struct `TreeState`
+    pub const TreeState: crate_paths::Path =
+        crate_paths::Path::new("gpui_component::tree::TreeState");
+
+    /// pub function `tree`
+    pub const tree: crate_paths::Path = crate_paths::Path::new("gpui_component::tree::tree");
 }

@@ -3,13 +3,13 @@ use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-impl super::ComponentLayout for DropdownComponent {
+impl super::ComponentLayout for SelectComponent {
     fn field_tokens(
         &self,
         field_structure_tokens: &mut TokenStream,
         field_base_declarations_tokens: &mut TokenStream,
     ) {
-        let FieldInformation::<DropdownOptions> {
+        let FieldInformation::<SelectOptions> {
             options,
             name,
             r#type,
@@ -19,7 +19,7 @@ impl super::ComponentLayout for DropdownComponent {
 
         use __crate_paths::gpui::{Context, Entity, Window};
         use __crate_paths::gpui_component::IndexPath;
-        use __crate_paths::gpui_component::dropdown::{DropdownState, SearchableVec};
+        use __crate_paths::gpui_component::select::{SearchableVec, SelectState};
 
         let vec_type = if options.behaviour.searchable {
             quote! { #SearchableVec }
@@ -28,7 +28,7 @@ impl super::ComponentLayout for DropdownComponent {
         };
 
         let state_type = quote! {
-          #DropdownState<#vec_type<#r#type>>
+          #SelectState<#vec_type<#r#type>>
         };
 
         let field_structure_definition = quote! {
@@ -64,7 +64,7 @@ impl super::ComponentLayout for DropdownComponent {
             quote! {
                 pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #state_type>) -> #state_type {
                   use strum::IntoEnumIterator as _;
-                  #DropdownState::new(#r#type::iter().collect::<Vec<#r#type>>().into(), #index, window, cx)
+                  #SelectState::new(#r#type::iter().collect::<Vec<#r#type>>().into(), #index, window, cx)
                 }
             }
         } else {

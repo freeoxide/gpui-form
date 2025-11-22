@@ -46,12 +46,12 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
         Components::Switch => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::Switch }
         },
-        Components::Dropdown(options) => {
+        Components::Select(options) => {
             let searchable = options.behaviour.searchable;
             let partial = options.behaviour.partial;
             quote! {
-                ::gpui_form::core::components::ComponentsBehaviour::Dropdown(
-                    ::gpui_form::core::components::BehaviourDropdownOptions {
+                ::gpui_form::core::components::ComponentsBehaviour::Select(
+                    ::gpui_form::core::components::BehaviourSelectOptions {
                         searchable: #searchable,
                         partial: #partial,
                     }
@@ -141,8 +141,8 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
             );
             should_be_unwrapped.1 = true;
         },
-        Components::Dropdown(options) => {
-            let component = DropdownComponent(FieldInformation::new(
+        Components::Select(options) => {
+            let component = SelectComponent(FieldInformation::new(
                 options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),

@@ -6,9 +6,9 @@ use gpui_component::{
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
-    dropdown::{Dropdown, DropdownEvent, DropdownState, SearchableVec},
-    form::{form_field, v_form},
-    input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, TextInput},
+    form::{field, v_form},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch,
     v_flex,
 };
@@ -159,30 +159,30 @@ impl UserForm {
             },
         }
     }
-    fn on_preferred_dropdown_event(
+    fn on_preferred_select_event(
         &mut self,
-        _this: &Entity<DropdownState<Vec<PreferedLanguage>>>,
-        event: &DropdownEvent<Vec<PreferedLanguage>>,
+        _this: &Entity<SelectState<Vec<PreferedLanguage>>>,
+        event: &SelectEvent<Vec<PreferedLanguage>>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
         match event {
-            DropdownEvent::Confirm(value) => {
+            SelectEvent::Confirm(value) => {
                 if let Some(value) = value {
                     self.current_data.preferred = value.clone().into();
                 }
             },
         }
     }
-    fn on_country_dropdown_event(
+    fn on_country_select_event(
         &mut self,
-        _this: &Entity<DropdownState<SearchableVec<EnumCountry>>>,
-        event: &DropdownEvent<SearchableVec<EnumCountry>>,
+        _this: &Entity<SelectState<SearchableVec<EnumCountry>>>,
+        event: &SelectEvent<SearchableVec<EnumCountry>>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
         match event {
-            DropdownEvent::Confirm(value) => {
+            SelectEvent::Confirm(value) => {
                 if let Some(value) = value {
                     self.current_data.country = value.clone().into();
                 }
@@ -210,8 +210,8 @@ impl UserForm {
         let age_number_input = cx.new(|cx| UserFormComponents::age_number_input(window, cx));
         let balance_number_input =
             cx.new(|cx| UserFormComponents::balance_number_input(window, cx));
-        let preferred_dropdown = cx.new(|cx| UserFormComponents::preferred_dropdown(window, cx));
-        let country_dropdown = cx.new(|cx| UserFormComponents::country_dropdown(window, cx));
+        let preferred_select = cx.new(|cx| UserFormComponents::preferred_select(window, cx));
+        let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
         let birth_date_date_picker =
             cx.new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
         let _subscriptions = vec![
@@ -225,12 +225,8 @@ impl UserForm {
                 window,
                 Self::on_balance_number_input_event,
             ),
-            cx.subscribe_in(
-                &preferred_dropdown,
-                window,
-                Self::on_preferred_dropdown_event,
-            ),
-            cx.subscribe_in(&country_dropdown, window, Self::on_country_dropdown_event),
+            cx.subscribe_in(&preferred_select, window, Self::on_preferred_select_event),
+            cx.subscribe_in(&country_select, window, Self::on_country_select_event),
             cx.subscribe_in(
                 &birth_date_date_picker,
                 window,
@@ -245,8 +241,8 @@ impl UserForm {
                 email_input,
                 age_number_input,
                 balance_number_input,
-                preferred_dropdown,
-                country_dropdown,
+                preferred_select,
+                country_select,
                 birth_date_date_picker,
             },
             focus_handle: cx.focus_handle(),
@@ -267,31 +263,31 @@ impl Render for UserForm {
             .child(
                 v_form()
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Username.to_string())
                             .description(UserDescriptionFtl::Username.to_string())
-                            .child(TextInput::new(&self.fields.username_input)),
+                            .child(Input::new(&self.fields.username_input)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Email.to_string())
                             .description(UserDescriptionFtl::Email.to_string())
-                            .child(TextInput::new(&self.fields.email_input)),
+                            .child(Input::new(&self.fields.email_input)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Age.to_string())
                             .description(UserDescriptionFtl::Age.to_string())
                             .child(NumberInput::new(&self.fields.age_number_input)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Balance.to_string())
                             .description(UserDescriptionFtl::Balance.to_string())
                             .child(NumberInput::new(&self.fields.balance_number_input)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::SubscribeNewsletter.to_string())
                             .description(UserDescriptionFtl::SubscribeNewsletter.to_string())
                             .child(
@@ -304,7 +300,7 @@ impl Render for UserForm {
                             ),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::EnableNotifications.to_string())
                             .description(UserDescriptionFtl::EnableNotifications.to_string())
                             .child(
@@ -317,19 +313,19 @@ impl Render for UserForm {
                             ),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Preferred.to_string())
                             .description(UserDescriptionFtl::Preferred.to_string())
-                            .child(Dropdown::new(&self.fields.preferred_dropdown)),
+                            .child(Select::new(&self.fields.preferred_select)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::Country.to_string())
                             .description(UserDescriptionFtl::Country.to_string())
-                            .child(Dropdown::new(&self.fields.country_dropdown)),
+                            .child(Select::new(&self.fields.country_select)),
                     )
                     .child(
-                        form_field()
+                        field()
                             .label(UserLabelFtl::BirthDate.to_string())
                             .description(UserDescriptionFtl::BirthDate.to_string())
                             .child(DatePicker::new(&self.fields.birth_date_date_picker)),
