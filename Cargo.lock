@@ -2876,17 +2876,17 @@ dependencies = [
 
 [[package]]
 name = "gpui-form"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "gpui-form-core",
  "gpui-form-derive",
- "num-regex",
+ "gpui-form-num-regex",
  "unwrapped",
 ]
 
 [[package]]
 name = "gpui-form-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "crate-paths",
  "darling 0.20.11",
@@ -2903,7 +2903,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-derive"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "darling 0.20.11",
@@ -2923,7 +2923,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-internal-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2931,8 +2931,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-form-num-regex"
+version = "0.4.0"
+dependencies = [
+ "regex",
+ "rust_decimal",
+]
+
+[[package]]
 name = "gpui-form-prototyping-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "gpui-form-core",
  "heck 0.5.0",
@@ -4441,14 +4449,6 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
-]
-
-[[package]]
-name = "num-regex"
-version = "0.1.0"
-dependencies = [
- "regex",
- "rust_decimal",
 ]
 
 [[package]]

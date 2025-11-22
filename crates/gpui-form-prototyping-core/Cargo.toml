@@ -3,12 +3,12 @@ name = "gpui-form-prototyping-core"
 description = """
 Consumer-facing prototyping utilities for gpui-form.
 """
-version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+version.workspace = true
 repository.workspace = true
-keywords = [ "gpui", "gpui-component", "form", "prototyping" ]
+readme = "README.md"
 
 [dependencies]
 gpui-form-core = { workspace = true }
