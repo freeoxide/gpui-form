@@ -1,12 +1,19 @@
 A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
 
 ## Currently Supported components
+
 - [Checkbox](https://longbridge.github.io/gpui-component/docs/components/checkbox)
 - [Date Picker](https://longbridge.github.io/gpui-component/docs/components/date-picker)
 - [Select](https://longbridge.github.io/gpui-component/docs/components/select)
 - [Input](https://longbridge.github.io/gpui-component/docs/components/input)
 - [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
 - [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
+
+Compatibility of `gpui-form` versions:
+
+| `gpui-form` | `gpui-component` |
+| :---------- | :--------------- |
+| `0.4.0`       | `0.4.1`          |
 
 ## Usage
 
@@ -17,7 +24,9 @@ gpui-form = { git = "https://github.com/stayhydated/gpui-form.git" }
 ```
 
 ## Showcase
+
 declaring:
+
 ```rs
 #[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
 #[fluent(display = "std")]
@@ -73,7 +82,9 @@ pub struct User {
     pub skip_me: bool,
 }
 ```
+
 this would expand to a structure we normally would have to declare ourselves, reducing boilerplate
+
 ```rs
 pub struct UserFormValueHolder {
     pub username: String,
@@ -256,7 +267,9 @@ impl UserFormComponents {
     }
 }
 ```
+
 ## Bonus
+
 There's also a prototyping tool which you can customize to your needs (except the [gpui-form-prototyping-core](crates/gpui-form-prototyping-core))
 
 see examples's [README.md](examples/README.md)
