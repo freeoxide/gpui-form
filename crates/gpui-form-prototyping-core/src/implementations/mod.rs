@@ -1,8 +1,8 @@
 pub mod checkbox;
 pub mod date_picker;
-pub mod dropdown;
 pub mod input;
 pub mod number_input;
+pub mod select;
 pub mod switch;
 
 use crate::code_gen::ShapeIdentities;

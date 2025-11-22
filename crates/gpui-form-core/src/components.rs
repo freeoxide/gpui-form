@@ -30,7 +30,7 @@ impl<T: ComponentOption> FieldInformation<T> {
 }
 
 #[derive(Clone, ComponentOption, Debug, Default, Eq, FromMeta, PartialEq)]
-pub struct BehaviourDropdownOptions {
+pub struct BehaviourSelectOptions {
     #[darling(default)]
     pub partial: bool,
     #[darling(default)]
@@ -53,16 +53,16 @@ pub struct CustomOptions {
 }
 
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
-pub struct DropdownOptions {
+pub struct SelectOptions {
     #[darling(flatten)]
-    pub behaviour: BehaviourDropdownOptions,
+    pub behaviour: BehaviourSelectOptions,
     #[darling(default, rename = "index")]
     named_index: Option<syn::Path>,
     #[darling(default, rename = "default")]
     index_default: bool,
 }
 
-impl DropdownOptions {
+impl SelectOptions {
     pub fn named_index(&self) -> Option<&syn::Path> {
         if self.named_index.is_some() && self.index_default {
             panic!("Cannot specify both named_index and index_default");
@@ -99,7 +99,7 @@ pub enum Components {
     NumberInput,
     Checkbox,
     Switch,
-    Dropdown(DropdownOptions),
+    Select(SelectOptions),
     DatePicker,
     Custom(CustomOptions),
 }
@@ -111,18 +111,19 @@ pub enum ComponentsBehaviour {
     NumberInput,
     Checkbox,
     Switch,
-    Dropdown(BehaviourDropdownOptions),
+    Select(BehaviourSelectOptions),
     DatePicker,
 }
 
 impl ComponentsBehaviour {
+    // todo: replace this with a macro
     pub fn as_component_ident(&self) -> proc_macro2::TokenStream {
         match self {
-            ComponentsBehaviour::Input => quote! { TextInput },
+            ComponentsBehaviour::Input => quote! { Input },
             ComponentsBehaviour::NumberInput => quote! { NumberInput },
             ComponentsBehaviour::Checkbox => quote! { Checkbox },
             ComponentsBehaviour::Switch => quote! { Switch },
-            ComponentsBehaviour::Dropdown(_) => quote! { Dropdown },
+            ComponentsBehaviour::Select(_) => quote! { Select },
             ComponentsBehaviour::DatePicker => quote! { DatePicker },
         }
     }
@@ -140,7 +141,7 @@ impl ComponentsBehaviour {
 
     pub fn partial(&self) -> bool {
         match self {
-            ComponentsBehaviour::Dropdown(options) => options.partial,
+            ComponentsBehaviour::Select(options) => options.partial,
             _ => false,
         }
     }
@@ -150,7 +151,7 @@ impl ComponentsBehaviour {
             self,
             ComponentsBehaviour::Input
                 | ComponentsBehaviour::NumberInput
-                | ComponentsBehaviour::Dropdown(_)
+                | ComponentsBehaviour::Select(_)
         )
     }
 
@@ -159,7 +160,7 @@ impl ComponentsBehaviour {
             self,
             ComponentsBehaviour::Input
                 | ComponentsBehaviour::NumberInput
-                | ComponentsBehaviour::Dropdown(_)
+                | ComponentsBehaviour::Select(_)
         )
     }
 }

@@ -1,12 +1,12 @@
 A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
 
 ## Currently Supported components
-- Checkbox
-- Date Picker
-- Dropdown
-- Text Input
-- Number Input
-- Switch
+- [Checkbox](https://longbridge.github.io/gpui-component/docs/components/checkbox)
+- [Date Picker](https://longbridge.github.io/gpui-component/docs/components/date-picker)
+- [Select](https://longbridge.github.io/gpui-component/docs/components/select)
+- [Input](https://longbridge.github.io/gpui-component/docs/components/input)
+- [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
+- [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
 
 ## Usage
 

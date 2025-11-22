@@ -1,10 +1,10 @@
 use es_fluent::{EsFluent, EsFluentKv};
 use garde::Validate;
-use gpui_form::{DropdownItem, GpuiForm};
+use gpui_form::{GpuiForm, SelectItem};
 use rust_decimal::Decimal;
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, DropdownItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
 #[fluent(display = "std")]
 pub enum PreferedLanguage {
     #[default]
@@ -13,7 +13,7 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, DropdownItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
 #[fluent(display = "std")]
 pub enum EnumCountry {
     #[default]
@@ -50,11 +50,11 @@ pub struct User {
     #[garde(skip)]
     pub enable_notifications: bool,
 
-    #[gpui_form(component(dropdown(default)))]
+    #[gpui_form(component(select(default)))]
     #[garde(skip)]
     pub preferred: PreferedLanguage,
 
-    #[gpui_form(component(dropdown(searchable, index = EnumCountry::France)))]
+    #[gpui_form(component(select(searchable, index = EnumCountry::France)))]
     #[garde(skip)]
     pub country: Option<EnumCountry>,
 

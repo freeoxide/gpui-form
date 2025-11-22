@@ -45,7 +45,7 @@ impl FieldCodeGenerator for CheckboxCodeGenerator {
 
         quote! {
             .child(
-                form_field()
+                field()
                     .label(#ftl_label_ident::#field_name_pascal_case_ident.to_string())
                     .description(#ftl_description_ident::#field_name_pascal_case_ident.to_string())
                     .child(#component_gpui_type::new(#checkbox_id_str)

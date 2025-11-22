@@ -81,10 +81,10 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       };
       use gpui_component::{
           checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-          divider::Divider, dropdown::{Dropdown, DropdownEvent, DropdownState, SearchableVec},
-          form::{form_field, v_form},
+          divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
+          form::{field, v_form},
           input::{
-              InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, TextInput,
+              InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input,
           },
           switch::Switch, v_flex,
       };

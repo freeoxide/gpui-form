@@ -16,8 +16,8 @@ pub fn gpui_form_derive(input: TokenStream) -> TokenStream {
     )
 }
 
-#[proc_macro_derive(DropdownItem)]
+#[proc_macro_derive(SelectItem)]
 #[proc_macro_error]
-pub fn derive_dropdown_item_for_ftl_enum(input: TokenStream) -> TokenStream {
-    derives::dropdown_item::from(input)
+pub fn derive_select_item_for_ftl_enum(input: TokenStream) -> TokenStream {
+    derives::select_item::from(input)
 }

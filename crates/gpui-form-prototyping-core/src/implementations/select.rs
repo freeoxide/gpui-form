@@ -7,9 +7,9 @@ use crate::{code_gen::ShapeIdentities, implementations::ComponentIdentities as _
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
-pub struct DropdownCodeGenerator;
+pub struct SelectCodeGenerator;
 
-impl FieldCodeGenerator for DropdownCodeGenerator {
+impl FieldCodeGenerator for SelectCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
@@ -63,7 +63,7 @@ impl FieldCodeGenerator for DropdownCodeGenerator {
 
         quote! {
             .child(
-                form_field()
+                field()
                   .label(#ftl_label_ident::#field_name_pascal_case_ident.to_string())
                   .description(#ftl_description_ident::#field_name_pascal_case_ident.to_string())
                   .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
@@ -91,16 +91,16 @@ impl FieldCodeGenerator for DropdownCodeGenerator {
         _component: &ShapeIdentities,
     ) -> Option<GeneratedSubscription> {
         let struct_name_ident = field.struct_name_ident();
-        let searchable = if let ComponentsBehaviour::Dropdown(dropdown_config) = &field.behaviour {
+        let searchable = if let ComponentsBehaviour::Select(dropdown_config) = &field.behaviour {
             dropdown_config.searchable
         } else {
-            panic!("Expected Dropdown behaviour")
+            panic!("Expected Select behaviour")
         };
         let suffix = field.behaviour.to_string();
         let field_var_name_str = format!("{}_{}", field.field_name, suffix);
         let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
 
-        let event_handler_fn_name = format!("on_{}_dropdown_event", field.field_name);
+        let event_handler_fn_name = format!("on_{}_select_event", field.field_name);
         let event_handler_fn_name_ident =
             syn::parse_str::<syn::Ident>(&event_handler_fn_name).unwrap();
 
@@ -119,13 +119,13 @@ impl FieldCodeGenerator for DropdownCodeGenerator {
         let handler = quote! {
             fn #event_handler_fn_name_ident(
                 &mut self,
-                _this: &Entity<DropdownState<#vec_type<#struct_name_ident>>>,
-                event: &DropdownEvent<#vec_type<#struct_name_ident>>,
+                _this: &Entity<SelectState<#vec_type<#struct_name_ident>>>,
+                event: &SelectEvent<#vec_type<#struct_name_ident>>,
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
                 match event {
-                    DropdownEvent::Confirm(value) => {
+                    SelectEvent::Confirm(value) => {
                         if let Some(value) = value {
                             self.current_data.#field_name_ident = value.clone().into();
                         }

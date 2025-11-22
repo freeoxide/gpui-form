@@ -2958,7 +2958,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/gpui-storybook.git#31f4347b3b998ccd82942a4fcc3058b25bf6a1a4"
+source = "git+https://github.com/stayhydated/gpui-storybook.git#43b58b1463bf14da91689352a0501733dfb7417b"
 dependencies = [
  "anyhow",
  "gpui",
@@ -2975,7 +2975,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-core"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/gpui-storybook.git#31f4347b3b998ccd82942a4fcc3058b25bf6a1a4"
+source = "git+https://github.com/stayhydated/gpui-storybook.git#43b58b1463bf14da91689352a0501733dfb7417b"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -2998,7 +2998,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-macros"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/gpui-storybook.git#31f4347b3b998ccd82942a4fcc3058b25bf6a1a4"
+source = "git+https://github.com/stayhydated/gpui-storybook.git#43b58b1463bf14da91689352a0501733dfb7417b"
 dependencies = [
  "gpui-storybook-core",
  "heck 0.5.0",
