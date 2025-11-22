@@ -3,11 +3,12 @@ name = "gpui-form-core"
 description = """
 Core crate for multiple gpui-form-* crates
 """
-version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+version.workspace = true
 repository.workspace = true
+readme.workspace = true
 
 [dependencies]
 crate-paths = { workspace = true }

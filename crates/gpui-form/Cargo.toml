@@ -3,11 +3,12 @@ name = "gpui-form"
 description = """
 The gpui-form crate
 """
-version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+version.workspace = true
 repository.workspace = true
+readme.workspace = true
 categories = [ "development-tools::procedural-macro-helpers" ]
 keywords = [ "gpui", "gpui-component", "form" ]
 
@@ -15,12 +16,12 @@ keywords = [ "gpui", "gpui-component", "form" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive/inventory" ]
-rust_decimal = [ "num-regex/rust_decimal" ]
+rust_decimal = [ "gpui-form-num-regex/rust_decimal" ]
 
 [dependencies]
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
-num-regex = { workspace = true }
+gpui-form-num-regex = { workspace = true }
 unwrapped = { workspace = true }
 
 [lints]

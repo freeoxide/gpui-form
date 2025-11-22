@@ -4,7 +4,7 @@ use gpui_form::{GpuiForm, SelectItem};
 use rust_decimal::Decimal;
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[fluent(display = "std")]
 pub enum PreferedLanguage {
     #[default]
@@ -13,7 +13,7 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[fluent(display = "std")]
 pub enum EnumCountry {
     #[default]
