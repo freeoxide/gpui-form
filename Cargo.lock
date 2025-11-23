@@ -2965,9 +2965,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4685c8c62b3bf35d9c139e216c9e14c7731c22ab2bc5e0007b0337dbc75423e2"
+checksum = "e91d576b1e115c4a799a8ea62f249e06651eacf4bf43ce11592f67c311be4988"
 dependencies = [
  "anyhow",
  "gpui",
@@ -2983,9 +2983,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-core"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73c59b9e4568c886cb68d72e1682adedbe56cf6fc877e21912ef30ebf8702d01"
+checksum = "31b2cb3b19875eea11f67199cdc2ffd5bf27e695934ef7f7d44017b6da8130d1"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -3007,9 +3007,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-macros"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0b60cfd1b275c2ebf61820f0548ed367abeb171d4dcc02db48da0cf1851ca30"
+checksum = "ce41d49efdbf086ad4774fa4cab8e07035d2a749de45a0790eca76d03e5f7f82"
 dependencies = [
  "gpui-storybook-core",
  "heck 0.5.0",
