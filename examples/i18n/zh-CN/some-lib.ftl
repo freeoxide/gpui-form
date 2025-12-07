@@ -14,7 +14,7 @@ prefered_language-French = 法语
 
 user = 用户
 
-## UserDescriptionFtl
+## UserDescriptionKvFtl
 
 user_description_kv_ftl = 用户描述
 user_description_kv_ftl-age = 年龄 (用户的年龄，以年为单位)
@@ -27,7 +27,7 @@ user_description_kv_ftl-preferred = 首选 (用户的首选选项)
 user_description_kv_ftl-subscribe_newsletter = 订阅新闻通讯 (订阅/取消订阅新闻通讯的标志)
 user_description_kv_ftl-username = 用户名 (用户的唯一用户名)
 
-## UserLabelFtl
+## UserLabelKvFtl
 
 user_label_kv_ftl = 用户标签
 user_label_kv_ftl-age = 年龄

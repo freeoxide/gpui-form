@@ -14,7 +14,7 @@ prefered_language-French = Français
 
 user = Utilisateur
 
-## UserDescriptionFtl
+## UserDescriptionKvFtl
 
 user_description_kv_ftl = Description de l'utilisateur
 user_description_kv_ftl-age = Âge (Âge de l'utilisateur en années)
@@ -28,7 +28,7 @@ user_description_kv_ftl-skip_me = Skip Me (Usage interne uniquement)
 user_description_kv_ftl-subscribe_newsletter = S'abonner à la newsletter (Indicateur pour s'abonner/se désabonner de la newsletter)
 user_description_kv_ftl-username = Nom d'utilisateur (Nom d'utilisateur unique de l'utilisateur)
 
-## UserLabelFtl
+## UserLabelKvFtl
 
 user_label_kv_ftl = Étiquette utilisateur
 user_label_kv_ftl-age = Âge
