@@ -5,7 +5,6 @@ use rust_decimal::Decimal;
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
-#[fluent(display = "std")]
 pub enum PreferedLanguage {
     #[default]
     English,
@@ -14,7 +13,6 @@ pub enum PreferedLanguage {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
-#[fluent(display = "std")]
 pub enum EnumCountry {
     #[default]
     UnitedStates,
@@ -23,7 +21,6 @@ pub enum EnumCountry {
 }
 
 #[derive(Clone, Debug, Default, EsFluentKv, GpuiForm, Validate)]
-#[fluent_kv(display = "std")]
 #[fluent_kv(this, keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
