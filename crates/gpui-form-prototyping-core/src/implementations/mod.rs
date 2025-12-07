@@ -90,11 +90,11 @@ pub trait ComponentIdentities {
         format!("{}-form", self.struct_name().to_snake_case())
     }
     fn ftl_label_ident(&self) -> syn::Ident {
-        let str_repr = format!("{}LabelFtl", self.struct_name());
+        let str_repr = format!("{}LabelKvFtl", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
     fn ftl_description_ident(&self) -> syn::Ident {
-        let str_repr = format!("{}DescriptionFtl", self.struct_name());
+        let str_repr = format!("{}DescriptionKvFtl", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
 }
