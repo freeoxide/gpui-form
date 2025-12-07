@@ -1,3 +1,4 @@
+use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window,
@@ -264,32 +265,34 @@ impl Render for UserForm {
                 v_form()
                     .child(
                         field()
-                            .label(UserLabelFtl::Username.to_string())
-                            .description(UserDescriptionFtl::Username.to_string())
+                            .label(UserLabelKvFtl::Username.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Username.to_fluent_string())
                             .child(Input::new(&self.fields.username_input)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::Email.to_string())
-                            .description(UserDescriptionFtl::Email.to_string())
+                            .label(UserLabelKvFtl::Email.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Email.to_fluent_string())
                             .child(Input::new(&self.fields.email_input)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::Age.to_string())
-                            .description(UserDescriptionFtl::Age.to_string())
+                            .label(UserLabelKvFtl::Age.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Age.to_fluent_string())
                             .child(NumberInput::new(&self.fields.age_number_input)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::Balance.to_string())
-                            .description(UserDescriptionFtl::Balance.to_string())
+                            .label(UserLabelKvFtl::Balance.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Balance.to_fluent_string())
                             .child(NumberInput::new(&self.fields.balance_number_input)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::SubscribeNewsletter.to_string())
-                            .description(UserDescriptionFtl::SubscribeNewsletter.to_string())
+                            .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
+                            .description(
+                                UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string(),
+                            )
                             .child(
                                 Checkbox::new("subscribe-newsletter-checkbox")
                                     .checked(self.current_data.subscribe_newsletter)
@@ -301,8 +304,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::EnableNotifications.to_string())
-                            .description(UserDescriptionFtl::EnableNotifications.to_string())
+                            .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
+                            .description(
+                                UserDescriptionKvFtl::EnableNotifications.to_fluent_string(),
+                            )
                             .child(
                                 Switch::new("enable-notifications-switch")
                                     .checked(self.current_data.enable_notifications)
@@ -314,20 +319,20 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::Preferred.to_string())
-                            .description(UserDescriptionFtl::Preferred.to_string())
+                            .label(UserLabelKvFtl::Preferred.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Preferred.to_fluent_string())
                             .child(Select::new(&self.fields.preferred_select)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::Country.to_string())
-                            .description(UserDescriptionFtl::Country.to_string())
+                            .label(UserLabelKvFtl::Country.to_fluent_string())
+                            .description(UserDescriptionKvFtl::Country.to_fluent_string())
                             .child(Select::new(&self.fields.country_select)),
                     )
                     .child(
                         field()
-                            .label(UserLabelFtl::BirthDate.to_string())
-                            .description(UserDescriptionFtl::BirthDate.to_string())
+                            .label(UserLabelKvFtl::BirthDate.to_fluent_string())
+                            .description(UserDescriptionKvFtl::BirthDate.to_fluent_string())
                             .child(DatePicker::new(&self.fields.birth_date_date_picker)),
                     ),
             )

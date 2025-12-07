@@ -24,7 +24,8 @@ pub fn from(input: TokenStream) -> TokenStream {
             type Value = Self;
 
             fn title(&self) -> gpui::SharedString {
-                self.to_string().into()
+                use es_fluent::ToFluentString as _;
+                self.to_fluent_string().into()
             }
 
             fn value(&self) -> &Self::Value {

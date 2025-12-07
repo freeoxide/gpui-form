@@ -64,8 +64,8 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         quote! {
             .child(
                 field()
-                  .label(#ftl_label_ident::#field_name_pascal_case_ident.to_string())
-                  .description(#ftl_description_ident::#field_name_pascal_case_ident.to_string())
+                  .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
+                  .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
                   .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
         }

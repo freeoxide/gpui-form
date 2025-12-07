@@ -90,6 +90,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       };
       use rust_decimal::Decimal;
       use std::sync::Arc;
+      use es_fluent::ToFluentString as _;
     };
 
     let layout_tokens = quote! {
