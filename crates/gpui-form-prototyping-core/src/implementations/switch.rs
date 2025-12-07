@@ -47,8 +47,8 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
         quote! {
             .child(
                 field()
-                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_string())
-                    .description(#ftl_description_ident::#field_name_pascal_case_ident.to_string())
+                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
                     .child(#component_gpui_type::new(#checkbox_id_str)
                     .checked(self.current_data.#field_name_ident)
                     .on_click(cx.listener(move |v, checked, _, cx| {
