@@ -9,6 +9,28 @@ use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
 
+pub enum FieldGenerator {
+    Input(input::InputCodeGenerator),
+    NumberInput(number_input::NumberInputCodeGenerator),
+    Checkbox(checkbox::CheckboxCodeGenerator),
+    Switch(switch::SwitchCodeGenerator),
+    Select(select::SelectCodeGenerator),
+    DatePicker(date_picker::DatePickerCodeGenerator),
+}
+
+impl FieldGenerator {
+    pub fn as_generator(&self) -> &dyn FieldCodeGenerator {
+        match self {
+            FieldGenerator::Input(generator) => generator,
+            FieldGenerator::NumberInput(generator) => generator,
+            FieldGenerator::Checkbox(generator) => generator,
+            FieldGenerator::Switch(generator) => generator,
+            FieldGenerator::Select(generator) => generator,
+            FieldGenerator::DatePicker(generator) => generator,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct GeneratedSubscription {
     pub calls: Vec<TokenStream>,

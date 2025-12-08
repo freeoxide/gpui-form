@@ -1,5 +1,6 @@
 use darling::FromMeta;
 use gpui_form_internal_macros::{ComponentDefinitions, ComponentOption};
+use heck::ToPascalCase as _;
 use quote::quote;
 use strum::{Display, EnumDiscriminants, EnumString, IntoStaticStr};
 
@@ -116,16 +117,10 @@ pub enum ComponentsBehaviour {
 }
 
 impl ComponentsBehaviour {
-    // todo: replace this with a macro
     pub fn as_component_ident(&self) -> proc_macro2::TokenStream {
-        match self {
-            ComponentsBehaviour::Input => quote! { Input },
-            ComponentsBehaviour::NumberInput => quote! { NumberInput },
-            ComponentsBehaviour::Checkbox => quote! { Checkbox },
-            ComponentsBehaviour::Switch => quote! { Switch },
-            ComponentsBehaviour::Select(_) => quote! { Select },
-            ComponentsBehaviour::DatePicker => quote! { DatePicker },
-        }
+        let variant: &'static str = self.clone().into();
+        let ident = syn::parse_str::<syn::Ident>(&variant.to_pascal_case()).unwrap();
+        quote! { #ident }
     }
 
     pub fn is_value_only_field(&self) -> bool {
@@ -152,6 +147,7 @@ impl ComponentsBehaviour {
             ComponentsBehaviour::Input
                 | ComponentsBehaviour::NumberInput
                 | ComponentsBehaviour::Select(_)
+                | ComponentsBehaviour::DatePicker
         )
     }
 

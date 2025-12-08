@@ -4,20 +4,20 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::implementations::{
-    ComponentShape, FieldCodeGenerator, checkbox::CheckboxCodeGenerator,
+    ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator,
     date_picker::DatePickerCodeGenerator, input::InputCodeGenerator,
     number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
     switch::SwitchCodeGenerator,
 };
 
-fn field_generator(behaviour: &ComponentsBehaviour) -> Box<dyn FieldCodeGenerator> {
+fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
     match behaviour {
-        ComponentsBehaviour::Input => Box::new(InputCodeGenerator),
-        ComponentsBehaviour::NumberInput => Box::new(NumberInputCodeGenerator),
-        ComponentsBehaviour::Checkbox => Box::new(CheckboxCodeGenerator),
-        ComponentsBehaviour::Switch => Box::new(SwitchCodeGenerator),
-        ComponentsBehaviour::Select(_) => Box::new(SelectCodeGenerator),
-        ComponentsBehaviour::DatePicker => Box::new(DatePickerCodeGenerator),
+        ComponentsBehaviour::Input => FieldGenerator::Input(InputCodeGenerator),
+        ComponentsBehaviour::NumberInput => FieldGenerator::NumberInput(NumberInputCodeGenerator),
+        ComponentsBehaviour::Checkbox => FieldGenerator::Checkbox(CheckboxCodeGenerator),
+        ComponentsBehaviour::Switch => FieldGenerator::Switch(SwitchCodeGenerator),
+        ComponentsBehaviour::Select(_) => FieldGenerator::Select(SelectCodeGenerator),
+        ComponentsBehaviour::DatePicker => FieldGenerator::DatePicker(DatePickerCodeGenerator),
     }
 }
 
@@ -38,8 +38,10 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_cx_new_call(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_cx_new_call(field, self.shape_data)
             })
             .collect();
 
@@ -52,8 +54,10 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_field_initializers(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_field_initializers(field, self.shape_data)
             })
             .collect();
 
@@ -65,8 +69,10 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_render_child(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_render_child(field, self.shape_data)
             })
             .collect()
     }
@@ -76,9 +82,12 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .shape_data
             .components
             .iter()
+            .filter(|field| field.behaviour.focusable())
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_focusable_cycle(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_focusable_cycle(field, self.shape_data)
             })
             .collect();
 
@@ -90,9 +99,12 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .shape_data
             .components
             .iter()
+            .filter(|field| field.behaviour.subscribable())
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_subscription(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_subscription(field, self.shape_data)
             })
             .flat_map(|sub| sub.calls)
             .collect();
@@ -111,9 +123,12 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .shape_data
             .components
             .iter()
+            .filter(|field| field.behaviour.subscribable())
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
-                generator.generate_subscription(field, self.shape_data)
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_subscription(field, self.shape_data)
             })
             .flat_map(|sub| sub.handlers)
             .collect();

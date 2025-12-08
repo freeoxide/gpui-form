@@ -1,6 +1,4 @@
 use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
-use heck::ToKebabCase as _;
-use heck::ToPascalCase as _;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -34,14 +32,12 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
     ) -> TokenStream {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
-        let field_name_ident = syn::parse_str::<syn::Ident>(field.field_name).unwrap();
-        let field_name_pascal_case_ident =
-            syn::parse_str::<syn::Ident>(&field.field_name.to_pascal_case()).unwrap();
-        let suffix = field.behaviour.to_string();
+        let field_name_ident = field.field_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
-        let checkbox_id_str = format!("{}_{}", field.field_name, suffix).to_kebab_case();
+        let checkbox_id_str = field.kebab_id();
 
         quote! {
             .child(

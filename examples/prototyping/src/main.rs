@@ -12,6 +12,42 @@ use std::{fs, path::Path};
 #[allow(unused_imports)]
 use some_lib::*;
 
+struct LayoutIdentities {
+    struct_name_str: &'static str,
+    context_str: String,
+    struct_name_ident: syn::Ident,
+    struct_name_uw_ident: syn::Ident,
+    struct_name_form_ident: syn::Ident,
+    struct_name_form_fields_ident: syn::Ident,
+    form_id_literal: String,
+    struct_name_path_qualifier: syn::Ident,
+}
+
+impl LayoutIdentities {
+    fn new(shape: &GpuiFormShape) -> Self {
+        let struct_name_str = shape.struct_name;
+        let context_str = format!("{}Form", struct_name_str);
+        let struct_name_ident = shape.struct_name_ident();
+        let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
+        let struct_name_form_ident = shape.struct_form_ident();
+        let struct_name_form_fields_ident = shape.struct_form_fields_ident();
+        let form_id_literal = shape.form_id_literal();
+        let struct_name_path_qualifier =
+            syn::parse_str::<syn::Ident>(&shape.struct_name.to_snake_case()).unwrap();
+
+        Self {
+            struct_name_str,
+            context_str,
+            struct_name_ident,
+            struct_name_uw_ident,
+            struct_name_form_ident,
+            struct_name_form_fields_ident,
+            form_id_literal,
+            struct_name_path_qualifier,
+        }
+    }
+}
+
 fn main() {
     let output_dir = &Path::new(env!("CARGO_MANIFEST_DIR")).join("output");
     fs::create_dir_all(output_dir).expect("Failed to create output directory");
@@ -35,18 +71,17 @@ fn main() {
 
 fn layout(data: &GpuiFormShape) -> syn::File {
     let adapter = FormShapeAdapter::new(data);
-    let identities = adapter.shape_data;
-
-    let struct_name_str = identities.struct_name();
-    let context_str = format!("{}Form", struct_name_str);
-    let struct_name_ident = identities.struct_name_ident();
-    let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
-    let struct_name_form_ident = identities.struct_form_ident();
-    let struct_name_form_fields_ident = identities.struct_form_fields_ident();
-    let form_id_literal = identities.form_id_literal();
-
-    let struct_name_path_qualifier =
-        syn::parse_str::<syn::Ident>(&identities.struct_name().to_snake_case()).unwrap();
+    let identities = LayoutIdentities::new(adapter.shape_data);
+    let LayoutIdentities {
+        struct_name_str,
+        context_str,
+        struct_name_ident,
+        struct_name_uw_ident,
+        struct_name_form_ident,
+        struct_name_form_fields_ident,
+        form_id_literal,
+        struct_name_path_qualifier,
+    } = identities;
     let target_types_import = quote! {
       use some_lib::structs::#struct_name_path_qualifier::*;
     };

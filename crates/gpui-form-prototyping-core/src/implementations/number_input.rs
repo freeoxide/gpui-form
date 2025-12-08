@@ -1,5 +1,4 @@
 use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
-use heck::ToPascalCase as _;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -16,11 +15,8 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let form_components_struct_ident = component.struct_form_components_ident();
-        let suffix = field.behaviour.to_string();
-        let var_name_ident =
-            syn::parse_str::<syn::Ident>(&format!("{}_{}", field.field_name, suffix)).unwrap();
-        let fn_name_ident =
-            syn::parse_str::<syn::Ident>(&format!("{}_{}", field.field_name, suffix)).unwrap();
+        let var_name_ident = field.field_ident_with_behaviour();
+        let fn_name_ident = var_name_ident.clone();
 
         Some(quote! {
             let #var_name_ident =
@@ -33,10 +29,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-
-        let state_initializer = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let state_initializer = field.field_ident_with_behaviour();
 
         Some(quote! {
           #state_initializer,
@@ -50,15 +43,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
     ) -> TokenStream {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
-        let field_name_pascal_case_ident =
-            syn::parse_str::<syn::Ident>(&field.field_name.to_pascal_case()).unwrap();
-        let suffix = field.behaviour.to_string();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
-        let field_in_struct_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_in_struct_name_ident =
-            syn::parse_str::<syn::Ident>(&field_in_struct_name_str).unwrap();
+        let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
         quote! {
             .child(
@@ -75,9 +64,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let field_var_name_ident = field.field_ident_with_behaviour();
         let x = quote! {
           self.fields.#field_var_name_ident.focus_handle(cx),
         };
@@ -89,9 +76,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let field_var_name_ident = field.field_ident_with_behaviour();
 
         let on_input_event_handler_fn_name = format!("on_{}_input_event", field.field_name);
         let on_input_event_handler_fn_name_ident =
@@ -108,7 +93,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
         let mut handlers = vec![];
 
-        let field_name_ident = syn::parse_str::<syn::Ident>(field.field_name).unwrap();
+        let field_name_ident = field.field_ident();
 
         let field_type_path = syn::parse_str::<syn::Type>(field.field_type).unwrap();
 
