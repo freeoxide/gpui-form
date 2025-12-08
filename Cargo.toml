@@ -75,6 +75,7 @@ unic-langid = "0.9.6"
 unicode-segmentation = "1.12.0"
 unwrapped = { default-features = false, version = "0.1.1" }
 unwrapped-core = { version = "0.1.1" }
+insta = { version = "1.43.2" }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "deny" }

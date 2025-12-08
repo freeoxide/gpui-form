@@ -215,9 +215,10 @@ pub struct GpuiFormOptions {
     pub generate_shape: bool,
 }
 
-pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_macro::TokenStream {
-    let derive_input = parse_macro_input!(input as DeriveInput);
-
+fn expand_gpui_form(
+    derive_input: DeriveInput,
+    options: GpuiFormOptions,
+) -> proc_macro2::TokenStream {
     let parsed = match ComponentStruct::from_derive_input(&derive_input) {
         Ok(parsed) => parsed,
         Err(e) => return e.write_errors().into(),
@@ -330,5 +331,69 @@ pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_ma
         }
     };
 
-    expanded.into()
+    expanded
+}
+
+pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_macro::TokenStream {
+    let derive_input = parse_macro_input!(input as DeriveInput);
+
+    expand_gpui_form(derive_input, options).into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    fn render(tokens: proc_macro2::TokenStream) -> String {
+        let derive_input = syn::parse2::<syn::DeriveInput>(tokens)
+            .expect("input should parse into a derive input");
+
+        let expanded = super::expand_gpui_form(
+            derive_input,
+            GpuiFormOptions {
+                generate_shape: false,
+            },
+        );
+
+        let file = syn::parse2::<syn::File>(expanded).expect("macro output should parse back");
+
+        prettyplease::unparse(&file)
+    }
+
+    #[test]
+    fn renders_standard_components() {
+        let input = quote! {
+            struct StandardForm {
+                #[gpui_form(component(input))]
+                title: String,
+                #[gpui_form(component(number_input))]
+                count: Option<i64>,
+                #[gpui_form(component(checkbox))]
+                is_admin: bool,
+                #[gpui_form(component(switch))]
+                is_active: Option<bool>,
+                #[gpui_form(component(date_picker))]
+                availability: chrono::NaiveDate,
+            }
+        };
+
+        insta::assert_snapshot!("standard_components", render(input));
+    }
+
+    #[test]
+    fn renders_select_and_custom_components() {
+        let input = quote! {
+            struct AdvancedForm {
+                #[gpui_form(component(select(searchable, index = Country::France)))]
+                country: Country,
+                #[gpui_form(component(select(partial, default)))]
+                language: Language,
+                #[gpui_form(component(custom(name = ExtraFancy, uw)))]
+                bio: Option<ExtraFancyValue>,
+            }
+        };
+
+        insta::assert_snapshot!("select_and_custom_components", render(input));
+    }
 }

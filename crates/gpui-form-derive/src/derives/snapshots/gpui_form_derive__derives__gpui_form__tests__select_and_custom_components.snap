@@ -1,0 +1,85 @@
+---
+source: crates/gpui-form-derive/src/derives/gpui_form.rs
+expression: render(input)
+---
+#[derive(Clone, Debug, Default)]
+pub struct AdvancedFormFormValueHolder {
+    pub country: Country,
+    pub language: Language,
+    pub bio: ExtraFancyValue,
+}
+impl From<AdvancedForm> for AdvancedFormFormValueHolder
+where
+    ExtraFancyValue: ::core::default::Default,
+{
+    fn from(from: AdvancedForm) -> Self {
+        Self {
+            country: from.country,
+            language: from.language,
+            bio: from.bio.unwrap_or_default(),
+        }
+    }
+}
+impl From<AdvancedFormFormValueHolder> for AdvancedForm {
+    fn from(from: AdvancedFormFormValueHolder) -> Self {
+        Self {
+            country: from.country,
+            language: from.language,
+            bio: Some(from.bio),
+        }
+    }
+}
+impl ::gpui_form::unwrapped::Unwrapped for AdvancedForm {
+    type Unwrapped = AdvancedFormFormValueHolder;
+}
+impl AdvancedFormFormValueHolder {
+    pub fn try_from(
+        from: AdvancedForm,
+    ) -> Result<Self, ::gpui_form::unwrapped::UnwrappedError> {
+        Ok(Self {
+            country: from.country,
+            language: from.language,
+            bio: from
+                .bio
+                .ok_or(::gpui_form::unwrapped::UnwrappedError {
+                    field_name: "bio",
+                })?,
+        })
+    }
+}
+pub struct AdvancedFormFormFields {
+    pub country_select: gpui::Entity<
+        gpui_component::select::SelectState<
+            gpui_component::select::SearchableVec<Country>,
+        >,
+    >,
+    pub language_select: gpui::Entity<
+        gpui_component::select::SelectState<Vec<Language>>,
+    >,
+}
+pub struct AdvancedFormFormComponents;
+impl AdvancedFormFormComponents {
+    pub fn country_select(
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<
+            '_,
+            gpui_component::select::SelectState<
+                gpui_component::select::SearchableVec<Country>,
+            >,
+        >,
+    ) -> gpui_component::select::SelectState<
+        gpui_component::select::SearchableVec<Country>,
+    > {
+        use strum::IntoEnumIterator as _;
+        gpui_component::select::SelectState::new(
+            Country::iter().collect::<Vec<Country>>().into(),
+            Some(
+                gpui_component::IndexPath::new(
+                    Country::iter().position(|x| x == Country::France).unwrap(),
+                ),
+            ),
+            window,
+            cx,
+        )
+    }
+}
