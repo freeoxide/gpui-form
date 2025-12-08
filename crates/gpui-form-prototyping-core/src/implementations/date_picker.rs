@@ -8,6 +8,29 @@ use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct DatePickerCodeGenerator;
 
+fn parse_date_expr(date_ident: &syn::Ident, field_type: &str) -> TokenStream {
+    let type_path = syn::parse_str::<syn::Type>(field_type).expect("valid type path");
+
+    quote! {
+        <#type_path as std::str::FromStr>::from_str(&#date_ident.to_string())
+    }
+}
+
+fn value_assign(field: &FieldVariant, field_name_ident: &syn::Ident) -> TokenStream {
+    let date_ident = syn::parse_str::<syn::Ident>("date").expect("date ident");
+    let parse_expr = parse_date_expr(&date_ident, field.field_type);
+
+    if field.optional {
+        quote! {
+            self.current_data.#field_name_ident = (#parse_expr).ok();
+        }
+    } else {
+        quote! {
+            self.current_data.#field_name_ident = (#parse_expr).unwrap_or_default();
+        }
+    }
+}
+
 impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_cx_new_call(
         &self,
@@ -86,34 +109,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
 
         let field_name_ident = field.field_ident();
 
-        #[cfg(all(feature = "jiff", not(feature = "chrono")))]
-        let value_assign = if !field.optional {
-            quote! {
-                self.current_data.#field_name_ident =
-                    jiff::civil::DateTime::from_str(&date.to_owned().to_string())
-                        .unwrap_or_default();
-            }
-        } else {
-            quote! {
-                self.current_data.#field_name_ident =
-                    jiff::civil::DateTime::from_str(&date.to_owned().to_string()).ok();
-            }
-        };
-
-        #[cfg(all(feature = "chrono", not(feature = "jiff")))]
-        let value_assign = if !field.optional {
-            quote! {
-                self.current_data.#field_name_ident =
-                    chrono::NaiveDate::parse_from_str(&date.to_owned().to_string(), "%Y-%m-%d")
-                        .unwrap_or_default();
-            }
-        } else {
-            quote! {
-                self.current_data.#field_name_ident =
-                    chrono::NaiveDate::parse_from_str(&date.to_owned().to_string(), "%Y-%m-%d")
-                        .ok();
-            }
-        };
+        let value_assign = value_assign(field, &field_name_ident);
 
         let handler = quote! {
             fn #event_handler_fn_name_ident(

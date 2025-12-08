@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use gpui_form::core::registry::GpuiFormShape;
 use gpui_form_prototyping_core::{
     code_gen::FormShapeAdapter,

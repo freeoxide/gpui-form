@@ -221,7 +221,7 @@ fn expand_gpui_form(
 ) -> proc_macro2::TokenStream {
     let parsed = match ComponentStruct::from_derive_input(&derive_input) {
         Ok(parsed) => parsed,
-        Err(e) => return e.write_errors().into(),
+        Err(e) => return e.write_errors(),
     };
 
     let struct_name = &parsed.ident;
