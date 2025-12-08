@@ -2922,7 +2922,6 @@ version = "0.5.0"
 dependencies = [
  "gpui-form-core",
  "gpui-form-derive",
- "gpui-form-num-regex",
  "unwrapped",
 ]
 
@@ -2973,14 +2972,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
-]
-
-[[package]]
-name = "gpui-form-num-regex"
-version = "0.5.0"
-dependencies = [
- "regex",
- "rust_decimal",
 ]
 
 [[package]]

@@ -26,8 +26,7 @@ impl super::ComponentLayout for NumberInputComponent {
 
         let field_base_declaration = quote! {
             pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #InputState>) -> #InputState {
-              use ::gpui_form::NumRegex;
-                #InputState::new(window, cx).pattern(#r#type::validation_regex().clone())
+                #InputState::new(window, cx).validate(|value, _| value.parse::<#r#type>().is_ok())
             }
         };
 

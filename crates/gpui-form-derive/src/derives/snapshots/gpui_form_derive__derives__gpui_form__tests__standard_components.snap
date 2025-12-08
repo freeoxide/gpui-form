@@ -79,9 +79,8 @@ impl StandardFormFormComponents {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
     ) -> gpui_component::input::InputState {
-        use ::gpui_form::NumRegex;
         gpui_component::input::InputState::new(window, cx)
-            .pattern(i64::validation_regex().clone())
+            .validate(|s, _| s.parse::<i64>().is_ok())
     }
     pub fn availability_date_picker(
         window: &mut gpui::Window,
