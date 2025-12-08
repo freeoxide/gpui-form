@@ -1,9 +1,9 @@
-use gpui_form_core::registry::FieldVariant;
+use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use heck::ToPascalCase as _;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{code_gen::ShapeIdentities, implementations::ComponentIdentities as _};
+use crate::implementations::ComponentIdentities as _;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
@@ -13,7 +13,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let form_components_struct_ident = component.struct_form_components_ident();
         let suffix = field.behaviour.to_string();
@@ -31,7 +31,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_field_initializers(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let suffix = field.behaviour.to_string();
         let field_var_name_str = format!("{}_{}", field.field_name, suffix);
@@ -43,7 +43,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> TokenStream {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
@@ -70,7 +70,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_focusable_cycle(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let suffix = field.behaviour.to_string();
         let field_var_name_str = format!("{}_{}", field.field_name, suffix);
@@ -84,7 +84,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_subscription(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let suffix = field.behaviour.to_string();
         let field_var_name_str = format!("{}_{}", field.field_name, suffix);

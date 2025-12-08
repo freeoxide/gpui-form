@@ -35,17 +35,18 @@ fn main() {
 
 fn layout(data: &GpuiFormShape) -> syn::File {
     let adapter = FormShapeAdapter::new(data);
+    let identities = adapter.shape_data;
 
-    let struct_name_str = adapter.identities.struct_name();
+    let struct_name_str = identities.struct_name();
     let context_str = format!("{}Form", struct_name_str);
-    let struct_name_ident = adapter.identities.struct_name_ident();
+    let struct_name_ident = identities.struct_name_ident();
     let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
-    let struct_name_form_ident = adapter.identities.struct_form_ident();
-    let struct_name_form_fields_ident = adapter.identities.struct_form_fields_ident();
-    let form_id_literal = adapter.identities.form_id_literal();
+    let struct_name_form_ident = identities.struct_form_ident();
+    let struct_name_form_fields_ident = identities.struct_form_fields_ident();
+    let form_id_literal = identities.form_id_literal();
 
     let struct_name_path_qualifier =
-        syn::parse_str::<syn::Ident>(&adapter.identities.struct_name().to_snake_case()).unwrap();
+        syn::parse_str::<syn::Ident>(&identities.struct_name().to_snake_case()).unwrap();
     let target_types_import = quote! {
       use some_lib::structs::#struct_name_path_qualifier::*;
     };

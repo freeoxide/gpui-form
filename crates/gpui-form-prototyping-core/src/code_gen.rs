@@ -4,50 +4,30 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::implementations::{
-    ComponentIdentities, ComponentShape, FieldCodeGenerator, checkbox::CheckboxCodeGenerator,
+    ComponentShape, FieldCodeGenerator, checkbox::CheckboxCodeGenerator,
     date_picker::DatePickerCodeGenerator, input::InputCodeGenerator,
     number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
     switch::SwitchCodeGenerator,
 };
 
-macro_rules! field_generator {
-    ($behaviour:expr) => {{
-        match $behaviour {
-            ComponentsBehaviour::Input => Box::new(InputCodeGenerator),
-            ComponentsBehaviour::NumberInput => Box::new(NumberInputCodeGenerator),
-            ComponentsBehaviour::Checkbox => Box::new(CheckboxCodeGenerator),
-            ComponentsBehaviour::Switch => Box::new(SwitchCodeGenerator),
-            ComponentsBehaviour::Select(_) => Box::new(SelectCodeGenerator),
-            ComponentsBehaviour::DatePicker => Box::new(DatePickerCodeGenerator),
-        }
-    }};
-}
-
-pub struct ShapeIdentities<'a>(&'a GpuiFormShape);
-
-impl<'a> ShapeIdentities<'a> {
-    pub fn new(shape_data: &'a GpuiFormShape) -> Self {
-        Self(shape_data)
-    }
-}
-
-impl<'a> ComponentIdentities for ShapeIdentities<'a> {
-    fn struct_name(&self) -> &'static str {
-        self.0.struct_name
+fn field_generator(behaviour: &ComponentsBehaviour) -> Box<dyn FieldCodeGenerator> {
+    match behaviour {
+        ComponentsBehaviour::Input => Box::new(InputCodeGenerator),
+        ComponentsBehaviour::NumberInput => Box::new(NumberInputCodeGenerator),
+        ComponentsBehaviour::Checkbox => Box::new(CheckboxCodeGenerator),
+        ComponentsBehaviour::Switch => Box::new(SwitchCodeGenerator),
+        ComponentsBehaviour::Select(_) => Box::new(SelectCodeGenerator),
+        ComponentsBehaviour::DatePicker => Box::new(DatePickerCodeGenerator),
     }
 }
 
 pub struct FormShapeAdapter<'a> {
     pub shape_data: &'a GpuiFormShape,
-    pub identities: ShapeIdentities<'a>,
 }
 
 impl<'a> FormShapeAdapter<'a> {
     pub fn new(shape_data: &'a GpuiFormShape) -> Self {
-        Self {
-            shape_data,
-            identities: ShapeIdentities::new(shape_data),
-        }
+        Self { shape_data }
     }
 }
 
@@ -58,8 +38,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_cx_new_call(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_cx_new_call(field, self.shape_data)
             })
             .collect();
 
@@ -72,8 +52,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_field_initializers(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_field_initializers(field, self.shape_data)
             })
             .collect();
 
@@ -85,8 +65,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_render_child(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_render_child(field, self.shape_data)
             })
             .collect()
     }
@@ -97,8 +77,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_focusable_cycle(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_focusable_cycle(field, self.shape_data)
             })
             .collect();
 
@@ -111,8 +91,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_subscription(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_subscription(field, self.shape_data)
             })
             .flat_map(|sub| sub.calls)
             .collect();
@@ -132,8 +112,8 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .components
             .iter()
             .filter_map(|field| {
-                let generator: Box<dyn FieldCodeGenerator> = field_generator!(field.behaviour);
-                generator.generate_subscription(field, &self.identities)
+                let generator: Box<dyn FieldCodeGenerator> = field_generator(&field.behaviour);
+                generator.generate_subscription(field, self.shape_data)
             })
             .flat_map(|sub| sub.handlers)
             .collect();
