@@ -16,12 +16,10 @@ keywords = [ "gpui", "gpui-component", "form" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive/inventory" ]
-rust_decimal = [ "gpui-form-num-regex/rust_decimal" ]
 
 [dependencies]
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
-gpui-form-num-regex = { workspace = true }
 unwrapped = { workspace = true }
 
 [lints]

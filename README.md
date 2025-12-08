@@ -194,17 +194,15 @@ impl UserFormComponents {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
     ) -> gpui_component::input::InputState {
-        use ::gpui_form::NumRegex;
         gpui_component::input::InputState::new(window, cx)
-            .pattern(u32::validation_regex().clone())
+            .validate(|s, _| s.parse::<u32>().is_ok())
     }
     pub fn balance_number_input(
         window: &mut gpui::Window,
         cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
     ) -> gpui_component::input::InputState {
-        use ::gpui_form::NumRegex;
         gpui_component::input::InputState::new(window, cx)
-            .pattern(Decimal::validation_regex().clone())
+            .validate(|s, _| s.parse::<Decimal>().is_ok())
     }
     pub fn preferred_select(
         window: &mut gpui::Window,

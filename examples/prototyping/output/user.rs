@@ -230,10 +230,9 @@ impl UserForm {
     ) {
         match event {
             DatePickerEvent::Change(date) => {
-                self.current_data.birth_date = chrono::NaiveDate::parse_from_str(
-                        &date.to_owned().to_string(),
-                        "%Y-%m-%d",
-                    )
+                self.current_data.birth_date = (<chrono::NaiveDate as std::str::FromStr>::from_str(
+                    &date.to_string(),
+                ))
                     .ok();
             }
         }

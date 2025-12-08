@@ -1,4 +1,5 @@
 use crate::components::ComponentsBehaviour;
+use heck::{ToKebabCase as _, ToPascalCase as _};
 
 inventory::collect!(GpuiFormShape);
 
@@ -48,6 +49,30 @@ impl FieldVariant {
             });
         }
         ty
+    }
+
+    pub fn behaviour_suffix(&self) -> String {
+        self.behaviour.to_string()
+    }
+
+    pub fn field_ident(&self) -> syn::Ident {
+        syn::parse_str(self.field_name).unwrap()
+    }
+
+    pub fn field_ident_pascal(&self) -> syn::Ident {
+        syn::parse_str::<syn::Ident>(&self.field_name.to_pascal_case()).unwrap()
+    }
+
+    pub fn field_name_with_behaviour(&self) -> String {
+        format!("{}_{}", self.field_name, self.behaviour_suffix())
+    }
+
+    pub fn field_ident_with_behaviour(&self) -> syn::Ident {
+        syn::parse_str(&self.field_name_with_behaviour()).unwrap()
+    }
+
+    pub fn kebab_id(&self) -> String {
+        self.field_name_with_behaviour().to_kebab_case()
     }
 }
 

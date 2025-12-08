@@ -21,8 +21,3 @@ syn = { features = [ "full", "parsing" ], workspace = true }
 
 [lints]
 workspace = true
-
-[features]
-chrono = [  ]
-default = [ "chrono" ]
-jiff = [  ]

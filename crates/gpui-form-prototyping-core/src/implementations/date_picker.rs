@@ -1,26 +1,45 @@
-use gpui_form_core::registry::FieldVariant;
-use heck::ToPascalCase as _;
+use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{code_gen::ShapeIdentities, implementations::ComponentIdentities as _};
+use crate::implementations::ComponentIdentities as _;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct DatePickerCodeGenerator;
 
+fn parse_date_expr(date_ident: &syn::Ident, field_type: &str) -> TokenStream {
+    let type_path = syn::parse_str::<syn::Type>(field_type).expect("valid type path");
+
+    quote! {
+        <#type_path as std::str::FromStr>::from_str(&#date_ident.to_string())
+    }
+}
+
+fn value_assign(field: &FieldVariant, field_name_ident: &syn::Ident) -> TokenStream {
+    let date_ident = syn::parse_str::<syn::Ident>("date").expect("date ident");
+    let parse_expr = parse_date_expr(&date_ident, field.field_type);
+
+    if field.optional {
+        quote! {
+            self.current_data.#field_name_ident = (#parse_expr).ok();
+        }
+    } else {
+        quote! {
+            self.current_data.#field_name_ident = (#parse_expr).unwrap_or_default();
+        }
+    }
+}
+
 impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let form_components_struct_ident = component.struct_form_components_ident();
-        let suffix = field.behaviour.to_string();
-        let var_name_ident =
-            syn::parse_str::<syn::Ident>(&format!("{}_{}", field.field_name, suffix)).unwrap();
-        let fn_name_ident =
-            syn::parse_str::<syn::Ident>(&format!("{}_{}", field.field_name, suffix)).unwrap();
+        let var_name_ident = field.field_ident_with_behaviour();
+        let fn_name_ident = var_name_ident.clone();
 
         Some(quote! {
             let #var_name_ident =
@@ -31,11 +50,9 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_field_initializers(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let field_var_name_ident = field.field_ident_with_behaviour();
 
         Some(quote! { #field_var_name_ident, })
     }
@@ -43,24 +60,20 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> TokenStream {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
-        let field_name_pascal_case_ident =
-            syn::parse_str::<syn::Ident>(&field.field_name.to_pascal_case()).unwrap();
-        let suffix = field.behaviour.to_string();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
-        let field_in_struct_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_in_struct_name_ident =
-            syn::parse_str::<syn::Ident>(&field_in_struct_name_str).unwrap();
+        let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
         quote! {
             .child(
                 field()
-                  .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
                   .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
                   .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
@@ -70,11 +83,9 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_focusable_cycle(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let field_var_name_ident = field.field_ident_with_behaviour();
         let x = quote! {
           self.fields.#field_var_name_ident.focus_handle(cx),
         };
@@ -84,11 +95,9 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_subscription(
         &self,
         field: &FieldVariant,
-        _component: &ShapeIdentities,
+        _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
-        let suffix = field.behaviour.to_string();
-        let field_var_name_str = format!("{}_{}", field.field_name, suffix);
-        let field_var_name_ident = syn::parse_str::<syn::Ident>(&field_var_name_str).unwrap();
+        let field_var_name_ident = field.field_ident_with_behaviour();
 
         let event_handler_fn_name = format!("on_{}_date_picker_event", field.field_name);
         let event_handler_fn_name_ident =
@@ -98,36 +107,9 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
         ];
 
-        let field_name_ident = syn::parse_str::<syn::Ident>(field.field_name).unwrap();
+        let field_name_ident = field.field_ident();
 
-        #[cfg(all(feature = "jiff", not(feature = "chrono")))]
-        let value_assign = if !field.optional {
-            quote! {
-                self.current_data.#field_name_ident =
-                    jiff::civil::DateTime::from_str(&date.to_owned().to_string())
-                        .unwrap_or_default();
-            }
-        } else {
-            quote! {
-                self.current_data.#field_name_ident =
-                    jiff::civil::DateTime::from_str(&date.to_owned().to_string()).ok();
-            }
-        };
-
-        #[cfg(all(feature = "chrono", not(feature = "jiff")))]
-        let value_assign = if !field.optional {
-            quote! {
-                self.current_data.#field_name_ident =
-                    chrono::NaiveDate::parse_from_str(&date.to_owned().to_string(), "%Y-%m-%d")
-                        .unwrap_or_default();
-            }
-        } else {
-            quote! {
-                self.current_data.#field_name_ident =
-                    chrono::NaiveDate::parse_from_str(&date.to_owned().to_string(), "%Y-%m-%d")
-                        .ok();
-            }
-        };
+        let value_assign = value_assign(field, &field_name_ident);
 
         let handler = quote! {
             fn #event_handler_fn_name_ident(

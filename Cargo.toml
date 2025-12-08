@@ -6,7 +6,6 @@ members = [
   "crates/gpui-form-derive",
   "crates/gpui-form-internal-macros",
   "crates/gpui-form-prototyping-core",
-  "crates/gpui-form-num-regex",
   "examples/some-lib",
   "examples/some-lib-forms",
   "examples/prototyping",
@@ -47,10 +46,10 @@ gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.0" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.0" }
 gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.5.0" }
 gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.5.0" }
-gpui-form-num-regex = { path = "crates/gpui-form-num-regex", version = "0.5.0" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.0" }
 gpui-storybook = "0.5.0"
 heck = "0.5.0"
+insta = { version = "1.43.2" }
 inventory = "0.3.20"
 itertools = "0.14.0"
 log = "0.4.26"

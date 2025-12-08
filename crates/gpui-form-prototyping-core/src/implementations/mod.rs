@@ -5,11 +5,31 @@ pub mod number_input;
 pub mod select;
 pub mod switch;
 
-use crate::code_gen::ShapeIdentities;
-
-use gpui_form_core::registry::FieldVariant;
+use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
+
+pub enum FieldGenerator {
+    Input(input::InputCodeGenerator),
+    NumberInput(number_input::NumberInputCodeGenerator),
+    Checkbox(checkbox::CheckboxCodeGenerator),
+    Switch(switch::SwitchCodeGenerator),
+    Select(select::SelectCodeGenerator),
+    DatePicker(date_picker::DatePickerCodeGenerator),
+}
+
+impl FieldGenerator {
+    pub fn as_generator(&self) -> &dyn FieldCodeGenerator {
+        match self {
+            FieldGenerator::Input(generator) => generator,
+            FieldGenerator::NumberInput(generator) => generator,
+            FieldGenerator::Checkbox(generator) => generator,
+            FieldGenerator::Switch(generator) => generator,
+            FieldGenerator::Select(generator) => generator,
+            FieldGenerator::DatePicker(generator) => generator,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct GeneratedSubscription {
@@ -27,31 +47,28 @@ pub trait FieldCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream>;
 
     fn generate_field_initializers(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream>;
 
-    fn generate_render_child(
-        &self,
-        field: &FieldVariant,
-        component: &ShapeIdentities,
-    ) -> TokenStream;
+    fn generate_render_child(&self, field: &FieldVariant, component: &GpuiFormShape)
+    -> TokenStream;
 
     fn generate_focusable_cycle(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream>;
 
     fn generate_subscription(
         &self,
         field: &FieldVariant,
-        component: &ShapeIdentities,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription>;
 }
 
@@ -102,5 +119,11 @@ pub trait ComponentIdentities {
 impl ComponentIdentities for FieldVariant {
     fn struct_name(&self) -> &'static str {
         self.field_type
+    }
+}
+
+impl ComponentIdentities for GpuiFormShape {
+    fn struct_name(&self) -> &'static str {
+        self.struct_name
     }
 }
