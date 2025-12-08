@@ -17,7 +17,7 @@ Compatibility of `gpui-form` versions:
 
 | `gpui-form` | `gpui-component` |
 | :---------- | :--------------- |
-| `0.5.0`     | `0.5.0`          |
+| `0.5.x`     | `0.5.x`          |
 
 ## Showcase
 
@@ -164,12 +164,12 @@ pub struct UserFormFields {
     pub email_input: gpui::Entity<gpui_component::input::InputState>,
     pub age_number_input: gpui::Entity<gpui_component::input::InputState>,
     pub balance_number_input: gpui::Entity<gpui_component::input::InputState>,
-    pub preferred_dropdown: gpui::Entity<
-        gpui_component::dropdown::DropdownState<Vec<PreferedLanguage>>,
+    pub preferred_select: gpui::Entity<
+        gpui_component::select::SelectState<Vec<PreferedLanguage>>,
     >,
-    pub country_dropdown: gpui::Entity<
-        gpui_component::dropdown::DropdownState<
-            gpui_component::dropdown::SearchableVec<EnumCountry>,
+    pub country_select: gpui::Entity<
+        gpui_component::select::SelectState<
+            gpui_component::select::SearchableVec<EnumCountry>,
         >,
     >,
     pub birth_date_date_picker: gpui::Entity<
@@ -206,15 +206,15 @@ impl UserFormComponents {
         gpui_component::input::InputState::new(window, cx)
             .pattern(Decimal::validation_regex().clone())
     }
-    pub fn preferred_dropdown(
+    pub fn preferred_select(
         window: &mut gpui::Window,
         cx: &mut gpui::Context<
             '_,
-            gpui_component::dropdown::DropdownState<Vec<PreferedLanguage>>,
+            gpui_component::select::SelectState<Vec<PreferedLanguage>>,
         >,
-    ) -> gpui_component::dropdown::DropdownState<Vec<PreferedLanguage>> {
+    ) -> gpui_component::select::SelectState<Vec<PreferedLanguage>> {
         use strum::IntoEnumIterator as _;
-        gpui_component::dropdown::DropdownState::new(
+        gpui_component::select::SelectState::new(
             PreferedLanguage::iter().collect::<Vec<PreferedLanguage>>().into(),
             Some(
                 gpui_component::IndexPath::new(
@@ -227,19 +227,19 @@ impl UserFormComponents {
             cx,
         )
     }
-    pub fn country_dropdown(
+    pub fn country_select(
         window: &mut gpui::Window,
         cx: &mut gpui::Context<
             '_,
-            gpui_component::dropdown::DropdownState<
-                gpui_component::dropdown::SearchableVec<EnumCountry>,
+            gpui_component::select::SelectState<
+                gpui_component::select::SearchableVec<EnumCountry>,
             >,
         >,
-    ) -> gpui_component::dropdown::DropdownState<
-        gpui_component::dropdown::SearchableVec<EnumCountry>,
+    ) -> gpui_component::select::SelectState<
+        gpui_component::select::SearchableVec<EnumCountry>,
     > {
         use strum::IntoEnumIterator as _;
-        gpui_component::dropdown::DropdownState::new(
+        gpui_component::select::SelectState::new(
             EnumCountry::iter().collect::<Vec<EnumCountry>>().into(),
             Some(
                 gpui_component::IndexPath::new(
