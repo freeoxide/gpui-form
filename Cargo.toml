@@ -20,7 +20,7 @@ publish = true
 readme = "README.md"
 repository = "https://github.com/stayhydated/gpui-form"
 rust-version = "1.88"
-version = "0.4.1"
+version = "0.5.0"
 
 [workspace.dependencies]
 anyhow = "1.0.96"
@@ -42,14 +42,14 @@ garde = "0.22.0"
 getset = "0.1.5"
 gpui = "0.2.2"
 gpui-component = "0.5.0"
-gpui-form = { path = "crates/gpui-form", version = "0.4.1" }
-gpui-form-core = { path = "crates/gpui-form-core", version = "0.4.1" }
-gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.4.1" }
-gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.4.1" }
-gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.4.0" }
-gpui-form-num-regex = { path = "crates/gpui-form-num-regex", version = "0.4.1" }
-gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.4.1" }
-gpui-storybook = "0.4.2"
+gpui-form = { path = "crates/gpui-form", version = "0.5.0" }
+gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.0" }
+gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.0" }
+gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.5.0" }
+gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.5.0" }
+gpui-form-num-regex = { path = "crates/gpui-form-num-regex", version = "0.5.0" }
+gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.0" }
+gpui-storybook = "0.5.0"
 heck = "0.5.0"
 inventory = "0.3.20"
 itertools = "0.14.0"
