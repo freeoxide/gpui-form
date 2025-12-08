@@ -84,6 +84,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         form_id_literal,
         struct_name_path_qualifier,
     } = identities;
+
     let target_types_import = quote! {
       use some_lib::structs::#struct_name_path_qualifier::*;
     };
