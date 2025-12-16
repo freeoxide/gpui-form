@@ -274,6 +274,18 @@ fn expand_gpui_form(
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
 
+    // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
+    if fields_iter.is_empty() {
+        return syn::Error::new_spanned(
+            &derive_input,
+            format!(
+                "Struct `{}` has no fields. Add `#[gpui_form(empty)]` attribute to explicitly mark it as an empty form.",
+                struct_name
+            ),
+        )
+        .to_compile_error();
+    }
+
     let component_field_pairs: Vec<ComponentFieldContent> = fields_iter
         .iter()
         .filter(|field| !field.skip())
