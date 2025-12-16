@@ -67,17 +67,20 @@ impl NutypeUserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<String>() {
-                    if let Ok(validated) = Username::try_new(parsed_value) {
-                        self.current_data.username = validated.into();
-                        self.errors.username.clear();
-                    }
+                match text.parse::<String>() {
+                    Ok(parsed_value) => {
+                        if let Ok(validated) = Username::try_new(parsed_value) {
+                            self.current_data.username = validated.into();
+                            self.errors.username.clear();
+                        }
+                    },
+                    _ => {},
                 }
             },
             InputEvent::Blur => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<String>() {
-                    match Username::try_new(parsed_value) {
+                match text.parse::<String>() {
+                    Ok(parsed_value) => match Username::try_new(parsed_value) {
                         Ok(validated_value) => {
                             self.current_data.username = validated_value.into();
                             self.errors.username.clear();
@@ -88,12 +91,13 @@ impl NutypeUserForm {
                             }
                             .to_fluent_string();
                         },
-                    }
-                } else {
-                    self.errors.username = NutypeUserFormErrorsFtl::Username {
-                        value: format!("Invalid {} format", stringify!(String)),
-                    }
-                    .to_fluent_string();
+                    },
+                    Err(_) => {
+                        self.errors.username = NutypeUserFormErrorsFtl::Username {
+                            value: format!("Invalid {} format", stringify!(String)),
+                        }
+                        .to_fluent_string();
+                    },
                 }
                 _cx.notify();
             },
@@ -110,17 +114,20 @@ impl NutypeUserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<String>() {
-                    if let Ok(validated) = Email::try_new(parsed_value) {
-                        self.current_data.email = validated.into();
-                        self.errors.email.clear();
-                    }
+                match text.parse::<String>() {
+                    Ok(parsed_value) => {
+                        if let Ok(validated) = Email::try_new(parsed_value) {
+                            self.current_data.email = validated.into();
+                            self.errors.email.clear();
+                        }
+                    },
+                    _ => {},
                 }
             },
             InputEvent::Blur => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<String>() {
-                    match Email::try_new(parsed_value) {
+                match text.parse::<String>() {
+                    Ok(parsed_value) => match Email::try_new(parsed_value) {
                         Ok(validated_value) => {
                             self.current_data.email = validated_value.into();
                             self.errors.email.clear();
@@ -131,12 +138,13 @@ impl NutypeUserForm {
                             }
                             .to_fluent_string();
                         },
-                    }
-                } else {
-                    self.errors.email = NutypeUserFormErrorsFtl::Email {
-                        value: format!("Invalid {} format", stringify!(String)),
-                    }
-                    .to_fluent_string();
+                    },
+                    Err(_) => {
+                        self.errors.email = NutypeUserFormErrorsFtl::Email {
+                            value: format!("Invalid {} format", stringify!(String)),
+                        }
+                        .to_fluent_string();
+                    },
                 }
                 _cx.notify();
             },
@@ -153,17 +161,20 @@ impl NutypeUserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<u8>() {
-                    if let Ok(validated) = Age::try_new(parsed_value) {
-                        self.current_data.age = validated.into();
-                        self.errors.age.clear();
-                    }
+                match text.parse::<u8>() {
+                    Ok(parsed_value) => {
+                        if let Ok(validated) = Age::try_new(parsed_value) {
+                            self.current_data.age = validated.into();
+                            self.errors.age.clear();
+                        }
+                    },
+                    _ => {},
                 }
             },
             InputEvent::Blur => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<u8>() {
-                    match Age::try_new(parsed_value) {
+                match text.parse::<u8>() {
+                    Ok(parsed_value) => match Age::try_new(parsed_value) {
                         Ok(validated_value) => {
                             self.current_data.age = validated_value.into();
                             self.errors.age.clear();
@@ -174,12 +185,13 @@ impl NutypeUserForm {
                             }
                             .to_fluent_string();
                         },
-                    }
-                } else {
-                    self.errors.age = NutypeUserFormErrorsFtl::Age {
-                        value: format!("Invalid {} format", stringify!(u8)),
-                    }
-                    .to_fluent_string();
+                    },
+                    Err(_) => {
+                        self.errors.age = NutypeUserFormErrorsFtl::Age {
+                            value: format!("Invalid {} format", stringify!(u8)),
+                        }
+                        .to_fluent_string();
+                    },
                 }
                 _cx.notify();
             },
@@ -196,24 +208,48 @@ impl NutypeUserForm {
         match event {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
-                    let new_value = self.current_data.age.saturating_sub(1);
-                    if let Ok(validated) = Age::try_new(new_value) {
-                        self.current_data.age = validated;
-                        self.errors.age.clear();
+                    let text = this.read(cx).value();
+                    if let Ok(current_value) = text.parse::<u8>() {
+                        let new_value = current_value.saturating_sub(1);
+                        match Age::try_new(new_value) {
+                            Ok(validated) => {
+                                self.current_data.age = validated;
+                                self.errors.age.clear();
+                            },
+                            Err(e) => {
+                                self.errors.age = NutypeUserFormErrorsFtl::Age {
+                                    value: format!("{:?}", e),
+                                }
+                                .to_fluent_string();
+                            },
+                        }
+                        this.update(cx, |input, cx| {
+                            input.set_value(new_value.to_string(), window, cx);
+                        });
                     }
-                    this.update(cx, |input, cx| {
-                        input.set_value(self.current_data.age.to_string(), window, cx);
-                    });
+                    cx.notify();
                 },
                 StepAction::Increment => {
-                    let new_value = self.current_data.age.saturating_add(1);
-                    if let Ok(validated) = Age::try_new(new_value) {
-                        self.current_data.age = validated;
-                        self.errors.age.clear();
+                    let text = this.read(cx).value();
+                    if let Ok(current_value) = text.parse::<u8>() {
+                        let new_value = current_value.saturating_add(1);
+                        match Age::try_new(new_value) {
+                            Ok(validated) => {
+                                self.current_data.age = validated;
+                                self.errors.age.clear();
+                            },
+                            Err(e) => {
+                                self.errors.age = NutypeUserFormErrorsFtl::Age {
+                                    value: format!("{:?}", e),
+                                }
+                                .to_fluent_string();
+                            },
+                        }
+                        this.update(cx, |input, cx| {
+                            input.set_value(new_value.to_string(), window, cx);
+                        });
                     }
-                    this.update(cx, |input, cx| {
-                        input.set_value(self.current_data.age.to_string(), window, cx);
-                    });
+                    cx.notify();
                 },
             },
         }
@@ -228,17 +264,20 @@ impl NutypeUserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<Decimal>() {
-                    if let Ok(validated) = Balance::try_new(parsed_value) {
-                        self.current_data.balance = validated.into();
-                        self.errors.balance.clear();
-                    }
+                match text.parse::<Decimal>() {
+                    Ok(parsed_value) => {
+                        if let Ok(validated) = Balance::try_new(parsed_value) {
+                            self.current_data.balance = validated.into();
+                            self.errors.balance.clear();
+                        }
+                    },
+                    _ => {},
                 }
             },
             InputEvent::Blur => {
                 let text = state.read(_cx).value();
-                if let Ok(parsed_value) = text.parse::<Decimal>() {
-                    match Balance::try_new(parsed_value) {
+                match text.parse::<Decimal>() {
+                    Ok(parsed_value) => match Balance::try_new(parsed_value) {
                         Ok(validated_value) => {
                             self.current_data.balance = validated_value.into();
                             self.errors.balance.clear();
@@ -249,12 +288,13 @@ impl NutypeUserForm {
                             }
                             .to_fluent_string();
                         },
-                    }
-                } else {
-                    self.errors.balance = NutypeUserFormErrorsFtl::Balance {
-                        value: format!("Invalid {} format", stringify!(Decimal)),
-                    }
-                    .to_fluent_string();
+                    },
+                    Err(_) => {
+                        self.errors.balance = NutypeUserFormErrorsFtl::Balance {
+                            value: format!("Invalid {} format", stringify!(Decimal)),
+                        }
+                        .to_fluent_string();
+                    },
                 }
                 _cx.notify();
             },
@@ -271,24 +311,48 @@ impl NutypeUserForm {
         match event {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
-                    let new_value = self.current_data.balance.saturating_sub(Decimal::from(1));
-                    if let Ok(validated) = Balance::try_new(new_value) {
-                        self.current_data.balance = validated;
-                        self.errors.balance.clear();
+                    let text = this.read(cx).value();
+                    if let Ok(current_value) = text.parse::<Decimal>() {
+                        let new_value = current_value.saturating_sub(Decimal::from(1));
+                        match Balance::try_new(new_value) {
+                            Ok(validated) => {
+                                self.current_data.balance = validated;
+                                self.errors.balance.clear();
+                            },
+                            Err(e) => {
+                                self.errors.balance = NutypeUserFormErrorsFtl::Balance {
+                                    value: format!("{:?}", e),
+                                }
+                                .to_fluent_string();
+                            },
+                        }
+                        this.update(cx, |input, cx| {
+                            input.set_value(new_value.to_string(), window, cx);
+                        });
                     }
-                    this.update(cx, |input, cx| {
-                        input.set_value(self.current_data.balance.to_string(), window, cx);
-                    });
+                    cx.notify();
                 },
                 StepAction::Increment => {
-                    let new_value = self.current_data.balance.saturating_add(Decimal::from(1));
-                    if let Ok(validated) = Balance::try_new(new_value) {
-                        self.current_data.balance = validated;
-                        self.errors.balance.clear();
+                    let text = this.read(cx).value();
+                    if let Ok(current_value) = text.parse::<Decimal>() {
+                        let new_value = current_value.saturating_add(Decimal::from(1));
+                        match Balance::try_new(new_value) {
+                            Ok(validated) => {
+                                self.current_data.balance = validated;
+                                self.errors.balance.clear();
+                            },
+                            Err(e) => {
+                                self.errors.balance = NutypeUserFormErrorsFtl::Balance {
+                                    value: format!("{:?}", e),
+                                }
+                                .to_fluent_string();
+                            },
+                        }
+                        this.update(cx, |input, cx| {
+                            input.set_value(new_value.to_string(), window, cx);
+                        });
                     }
-                    this.update(cx, |input, cx| {
-                        input.set_value(self.current_data.balance.to_string(), window, cx);
-                    });
+                    cx.notify();
                 },
             },
         }

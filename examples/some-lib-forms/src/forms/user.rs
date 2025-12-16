@@ -97,8 +97,11 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(value) = text.parse::<u32>() {
-                    self.current_data.age = value.into();
+                match text.parse::<u32>() {
+                    Ok(value) => {
+                        self.current_data.age = value.into();
+                    },
+                    _ => {},
                 }
             },
             _ => {},
@@ -140,8 +143,11 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(value) = text.parse::<Decimal>() {
-                    self.current_data.balance = value.into();
+                match text.parse::<Decimal>() {
+                    Ok(value) => {
+                        self.current_data.balance = value.into();
+                    },
+                    _ => {},
                 }
             },
             _ => {},

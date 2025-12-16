@@ -144,20 +144,23 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                             let text = state.read(_cx).value();
                             // Parse using the intermediate type (e.g., u8 for Age)
                             // Then try to create the nutype - if it fails, that's ok during typing
-                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
-                                // Try to create the nutype from the parsed value
-                                if let Ok(validated) = #validation_type_path::try_new(parsed_value) {
-                                    self.current_data.#field_name_ident = validated.into();
-                                    self.errors.#field_name_ident.clear();
+                            match text.parse::<#parse_type_path>() {
+                                Ok(parsed_value) => {
+                                    // Try to create the nutype from the parsed value
+                                    if let Ok(validated) = #validation_type_path::try_new(parsed_value) {
+                                        self.current_data.#field_name_ident = validated.into();
+                                        self.errors.#field_name_ident.clear();
+                                    }
+                                    // If try_new fails, we keep the old value - error shown on blur
                                 }
-                                // If try_new fails, we keep the old value - error shown on blur
+                                _ => {}
                             }
                         }
                         InputEvent::Blur => {
                             let text = state.read(_cx).value();
                             // On blur, try to parse and validate
-                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
-                                match #validation_type_path::try_new(parsed_value) {
+                            match text.parse::<#parse_type_path>() {
+                                Ok(parsed_value) => match #validation_type_path::try_new(parsed_value) {
                                     Ok(validated_value) => {
                                         self.current_data.#field_name_ident = validated_value.into();
                                         self.errors.#field_name_ident.clear();
@@ -169,10 +172,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                                         }.to_fluent_string();
                                     }
                                 }
-                            } else {
-                                self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
-                                    value: format!("Invalid {} format", stringify!(#parse_type_path))
-                                }.to_fluent_string();
+                                Err(_) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("Invalid {} format", stringify!(#parse_type_path))
+                                    }.to_fluent_string();
+                                }
                             }
                             _cx.notify();
                         }
@@ -193,8 +197,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                     match event {
                         InputEvent::Change => {
                             let text = state.read(_cx).value();
-                            if let Ok(value) = text.parse::<#parse_type_path>() {
-                                self.current_data.#field_name_ident = value.into();
+                            match text.parse::<#parse_type_path>() {
+                                Ok(value) => {
+                                    self.current_data.#field_name_ident = value.into();
+                                }
+                                _ => {}
                             }
                         }
                         _ => {}
@@ -205,12 +212,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         handlers.push(on_input_event_handler);
 
         // Generate increment/decrement logic
-        // For two-phase validation (nutype): use Deref coercion + item_type for step value, then validate with try_new
+        // For two-phase validation (nutype): read from input text, parse, step, then validate with try_new
         // For single-phase: use the original arithmetic logic directly on the field
         let (decrement_logic, increment_logic) = if field.has_item_type() {
-            // For nutype fields: Deref coercion allows calling methods directly on the nutype
-            // Use item_type (parse_type) for the step value, then validate with try_new
-            // This matches the pattern used for non-nutype fields
+            // For nutype fields: read the current input text, parse it, apply step, then validate
+            // This ensures we operate on what the user actually typed, not the last valid value
             let step_expr = if parse_type_str.starts_with('f') {
                 // f32, f64
                 quote! { 1 as #parse_type_path }
@@ -226,35 +232,91 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 // Floats don't have saturating ops
                 (
                     quote! {
-                        let new_value = *self.current_data.#field_name_ident - #step_expr;
-                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
-                            self.current_data.#field_name_ident = validated;
-                            self.errors.#field_name_ident.clear();
+                        let text = this.read(cx).value();
+                        if let Ok(current_value) = text.parse::<#parse_type_path>() {
+                            let new_value = current_value - #step_expr;
+                            match #validation_type_path::try_new(new_value) {
+                                Ok(validated) => {
+                                    self.current_data.#field_name_ident = validated;
+                                    self.errors.#field_name_ident.clear();
+                                }
+                                Err(e) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("{:?}", e)
+                                    }.to_fluent_string();
+                                }
+                            }
+                            // Always update input with new value (even if validation failed)
+                            this.update(cx, |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            });
                         }
                     },
                     quote! {
-                        let new_value = *self.current_data.#field_name_ident + #step_expr;
-                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
-                            self.current_data.#field_name_ident = validated;
-                            self.errors.#field_name_ident.clear();
+                        let text = this.read(cx).value();
+                        if let Ok(current_value) = text.parse::<#parse_type_path>() {
+                            let new_value = current_value + #step_expr;
+                            match #validation_type_path::try_new(new_value) {
+                                Ok(validated) => {
+                                    self.current_data.#field_name_ident = validated;
+                                    self.errors.#field_name_ident.clear();
+                                }
+                                Err(e) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("{:?}", e)
+                                    }.to_fluent_string();
+                                }
+                            }
+                            // Always update input with new value (even if validation failed)
+                            this.update(cx, |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            });
                         }
                     },
                 )
             } else {
-                // Use saturating ops via Deref coercion
+                // Use saturating ops after parsing from input text
                 (
                     quote! {
-                        let new_value = self.current_data.#field_name_ident.saturating_sub(#step_expr);
-                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
-                            self.current_data.#field_name_ident = validated;
-                            self.errors.#field_name_ident.clear();
+                        let text = this.read(cx).value();
+                        if let Ok(current_value) = text.parse::<#parse_type_path>() {
+                            let new_value = current_value.saturating_sub(#step_expr);
+                            match #validation_type_path::try_new(new_value) {
+                                Ok(validated) => {
+                                    self.current_data.#field_name_ident = validated;
+                                    self.errors.#field_name_ident.clear();
+                                }
+                                Err(e) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("{:?}", e)
+                                    }.to_fluent_string();
+                                }
+                            }
+                            // Always update input with new value (even if validation failed)
+                            this.update(cx, |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            });
                         }
                     },
                     quote! {
-                        let new_value = self.current_data.#field_name_ident.saturating_add(#step_expr);
-                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
-                            self.current_data.#field_name_ident = validated;
-                            self.errors.#field_name_ident.clear();
+                        let text = this.read(cx).value();
+                        if let Ok(current_value) = text.parse::<#parse_type_path>() {
+                            let new_value = current_value.saturating_add(#step_expr);
+                            match #validation_type_path::try_new(new_value) {
+                                Ok(validated) => {
+                                    self.current_data.#field_name_ident = validated;
+                                    self.errors.#field_name_ident.clear();
+                                }
+                                Err(e) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("{:?}", e)
+                                    }.to_fluent_string();
+                                }
+                            }
+                            // Always update input with new value (even if validation failed)
+                            this.update(cx, |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            });
                         }
                     },
                 )
@@ -297,29 +359,56 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
             )
         };
 
-        let on_number_input_event_handler = quote! {
-            fn #on_number_input_event_handler_fn_name_ident(
-                &mut self,
-                this: &Entity<InputState>,
-                event: &NumberInputEvent,
-                window: &mut Window,
-                cx: &mut Context<Self>,
-            ) {
-                match event {
-                    NumberInputEvent::Step(step_action) => match step_action {
-                        StepAction::Decrement => {
-                            #decrement_logic
-                            this.update(cx, |input, cx| {
-                                input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
-                            });
-                        }
-                        StepAction::Increment => {
-                            #increment_logic
-                            this.update(cx, |input, cx| {
-                                input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
-                            });
-                        }
-                    },
+        // For nutype fields, the input update is handled inside the step logic
+        // For non-nutype fields, we update the input after the step
+        let on_number_input_event_handler = if field.has_item_type() {
+            quote! {
+                fn #on_number_input_event_handler_fn_name_ident(
+                    &mut self,
+                    this: &Entity<InputState>,
+                    event: &NumberInputEvent,
+                    window: &mut Window,
+                    cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        NumberInputEvent::Step(step_action) => match step_action {
+                            StepAction::Decrement => {
+                                #decrement_logic
+                                cx.notify();
+                            }
+                            StepAction::Increment => {
+                                #increment_logic
+                                cx.notify();
+                            }
+                        },
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn #on_number_input_event_handler_fn_name_ident(
+                    &mut self,
+                    this: &Entity<InputState>,
+                    event: &NumberInputEvent,
+                    window: &mut Window,
+                    cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        NumberInputEvent::Step(step_action) => match step_action {
+                            StepAction::Decrement => {
+                                #decrement_logic
+                                this.update(cx, |input, cx| {
+                                    input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
+                                });
+                            }
+                            StepAction::Increment => {
+                                #increment_logic
+                                this.update(cx, |input, cx| {
+                                    input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
+                                });
+                            }
+                        },
+                    }
                 }
             }
         };

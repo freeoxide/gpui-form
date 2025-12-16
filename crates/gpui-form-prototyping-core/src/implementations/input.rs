@@ -135,20 +135,23 @@ impl FieldCodeGenerator for InputCodeGenerator {
                             let text = state.read(_cx).value();
                             // Parse using the intermediate type (e.g., String for Username)
                             // Then try to create the nutype - if it fails, that's ok during typing
-                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
-                                // Try to create the nutype from the parsed value
-                                if let Ok(validated) = #validation_type_path::try_new(parsed_value) {
-                                    self.current_data.#field_name_ident = validated.into();
-                                    self.errors.#field_name_ident.clear();
+                            match text.parse::<#parse_type_path>() {
+                                Ok(parsed_value) => {
+                                    // Try to create the nutype from the parsed value
+                                    if let Ok(validated) = #validation_type_path::try_new(parsed_value) {
+                                        self.current_data.#field_name_ident = validated.into();
+                                        self.errors.#field_name_ident.clear();
+                                    }
+                                    // If try_new fails, we keep the old value - error shown on blur
                                 }
-                                // If try_new fails, we keep the old value - error shown on blur
+                                _ => {}
                             }
                         }
                         InputEvent::Blur => {
                             let text = state.read(_cx).value();
                             // On blur, try to parse and validate
-                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
-                                match #validation_type_path::try_new(parsed_value) {
+                            match text.parse::<#parse_type_path>() {
+                                Ok(parsed_value) => match #validation_type_path::try_new(parsed_value) {
                                     Ok(validated_value) => {
                                         self.current_data.#field_name_ident = validated_value.into();
                                         self.errors.#field_name_ident.clear();
@@ -160,10 +163,11 @@ impl FieldCodeGenerator for InputCodeGenerator {
                                         }.to_fluent_string();
                                     }
                                 }
-                            } else {
-                                self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
-                                    value: format!("Invalid {} format", stringify!(#parse_type_path))
-                                }.to_fluent_string();
+                                Err(_) => {
+                                    self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                        value: format!("Invalid {} format", stringify!(#parse_type_path))
+                                    }.to_fluent_string();
+                                }
                             }
                             _cx.notify();
                         }
