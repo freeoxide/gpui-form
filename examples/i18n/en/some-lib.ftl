@@ -4,6 +4,48 @@ enum_country-China = China
 enum_country-France = France
 enum_country-UnitedStates = United States
 
+## NutypeEnumCountry
+
+nutype_enum_country-China = China
+nutype_enum_country-France = France
+nutype_enum_country-UnitedStates = United States
+
+## NutypePreferedLanguage
+
+nutype_prefered_language-Chinese = Chinese
+nutype_prefered_language-English = English
+nutype_prefered_language-French = French
+
+## NutypeUser
+
+nutype_user = Nutype User
+
+## NutypeUserDescriptionKvFtl
+
+nutype_user_description_kv_ftl = Nutype User Description Kv Ftl
+nutype_user_description_kv_ftl-age = Age
+nutype_user_description_kv_ftl-balance = Balance
+nutype_user_description_kv_ftl-birth_date = Birth Date
+nutype_user_description_kv_ftl-country = Country
+nutype_user_description_kv_ftl-email = Email
+nutype_user_description_kv_ftl-enable_notifications = Enable Notifications
+nutype_user_description_kv_ftl-preferred = Preferred
+nutype_user_description_kv_ftl-subscribe_newsletter = Subscribe Newsletter
+nutype_user_description_kv_ftl-username = Username
+
+## NutypeUserLabelKvFtl
+
+nutype_user_label_kv_ftl = Nutype User Label Kv Ftl
+nutype_user_label_kv_ftl-age = Age
+nutype_user_label_kv_ftl-balance = Balance
+nutype_user_label_kv_ftl-birth_date = Birth Date
+nutype_user_label_kv_ftl-country = Country
+nutype_user_label_kv_ftl-email = Email
+nutype_user_label_kv_ftl-enable_notifications = Enable Notifications
+nutype_user_label_kv_ftl-preferred = Preferred
+nutype_user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
+nutype_user_label_kv_ftl-username = Username
+
 ## PreferedLanguage
 
 prefered_language-Chinese = Chinese

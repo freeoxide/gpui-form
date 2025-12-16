@@ -11,6 +11,7 @@ impl super::ComponentLayout for SwitchComponent {
             options: _,
             name: _,
             r#type: _,
+            item_type: _,
         } = &self.0;
     }
 }

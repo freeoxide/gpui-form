@@ -89,3 +89,35 @@ impl StandardFormFormComponents {
         gpui_component::date_picker::DatePickerState::new(window, cx)
     }
 }
+/// Struct holding error messages for each form field.
+/// Empty string means no error.
+#[derive(Clone, Debug)]
+pub struct StandardFormFormErrors {
+    pub title: String,
+    pub count: String,
+    pub is_admin: String,
+    pub is_active: String,
+    pub availability: String,
+}
+impl Default for StandardFormFormErrors {
+    fn default() -> Self {
+        Self {
+            title: String::new(),
+            count: String::new(),
+            is_admin: String::new(),
+            is_active: String::new(),
+            availability: String::new(),
+        }
+    }
+}
+impl StandardFormFormErrors {
+    /// Returns true if any field has an error
+    pub fn has_errors(&self) -> bool {
+        !self.title.is_empty() || !self.count.is_empty() || !self.is_admin.is_empty()
+            || !self.is_active.is_empty() || !self.availability.is_empty()
+    }
+    /// Clears all errors
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+}
