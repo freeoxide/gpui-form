@@ -8,7 +8,7 @@ use gpui_form_prototyping_core::{
 use heck::{ToSnakeCase as _, ToUpperCamelCase as _};
 
 use quote::{format_ident, quote};
-use std::{fs, path::Path};
+use std::{collections::BTreeSet, fs, path::Path};
 
 // import targetted lib to get inventory registrations
 #[allow(unused_imports)]
@@ -57,23 +57,40 @@ impl LayoutIdentities {
 }
 
 fn main() {
-    let output_dir = &Path::new(env!("CARGO_MANIFEST_DIR")).join("output");
-    fs::create_dir_all(output_dir).expect("Failed to create output directory");
+    let output_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("output");
+    fs::create_dir_all(&output_dir).expect("Failed to create output directory");
     println!("Generating forms in: {}", output_dir.display());
+
+    let mut modules: BTreeSet<String> = BTreeSet::new();
 
     for struct_info in inventory::iter::<GpuiFormShape>() {
         println!("Thing : {:?}", struct_info);
+
         let syn_file = layout(struct_info);
-        let struct_snek_case_name = struct_info.struct_name.to_snake_case();
-        let file_path = output_dir.join(format!("{}.rs", struct_snek_case_name));
+        let file_stem = struct_info.struct_name.to_snake_case();
+        let file_path = output_dir.join(format!("{file_stem}.rs"));
 
         let formatted_code = prettyplease::unparse(&syn_file);
 
         fs::write(&file_path, formatted_code)
             .unwrap_or_else(|_| panic!("Failed to write file: {}", file_path.display()));
 
+        modules.insert(file_stem);
+
         println!("Generated and formatted: {}", file_path.display());
     }
+
+    let mod_rs_path = output_dir.join("mod.rs");
+    let mut mod_rs = String::new();
+
+    for m in modules {
+        mod_rs.push_str(&format!("pub mod {m};\n"));
+    }
+
+    fs::write(&mod_rs_path, mod_rs)
+        .unwrap_or_else(|_| panic!("Failed to write file: {}", mod_rs_path.display()));
+
+    println!("Generated module index: {}", mod_rs_path.display());
     println!("Form generation complete.");
 }
 
