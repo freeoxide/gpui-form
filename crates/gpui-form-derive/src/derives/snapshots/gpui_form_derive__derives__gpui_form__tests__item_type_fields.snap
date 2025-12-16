@@ -1,0 +1,96 @@
+---
+source: crates/gpui-form-derive/src/derives/gpui_form.rs
+expression: render(input)
+---
+#[derive(Clone, Debug, Default)]
+pub struct NutypeFormFormValueHolder {
+    pub age: Age,
+    pub username: Username,
+    pub email: String,
+}
+impl From<NutypeForm> for NutypeFormFormValueHolder {
+    fn from(from: NutypeForm) -> Self {
+        Self {
+            age: from.age,
+            username: from.username,
+            email: from.email,
+        }
+    }
+}
+impl From<NutypeFormFormValueHolder> for NutypeForm {
+    fn from(from: NutypeFormFormValueHolder) -> Self {
+        Self {
+            age: from.age,
+            username: from.username,
+            email: from.email,
+        }
+    }
+}
+impl ::gpui_form::unwrapped::Unwrapped for NutypeForm {
+    type Unwrapped = NutypeFormFormValueHolder;
+}
+impl NutypeFormFormValueHolder {
+    pub fn try_from(
+        from: NutypeForm,
+    ) -> Result<Self, ::gpui_form::unwrapped::UnwrappedError> {
+        Ok(Self {
+            age: from.age,
+            username: from.username,
+            email: from.email,
+        })
+    }
+}
+pub struct NutypeFormFormFields {
+    pub age_number_input: gpui::Entity<gpui_component::input::InputState>,
+    pub username_input: gpui::Entity<gpui_component::input::InputState>,
+    pub email_input: gpui::Entity<gpui_component::input::InputState>,
+}
+pub struct NutypeFormFormComponents;
+impl NutypeFormFormComponents {
+    pub fn age_number_input(
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
+    ) -> gpui_component::input::InputState {
+        gpui_component::input::InputState::new(window, cx)
+            .validate(|value, _| value.parse::<u8>().is_ok())
+    }
+    pub fn username_input(
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
+    ) -> gpui_component::input::InputState {
+        gpui_component::input::InputState::new(window, cx)
+    }
+    pub fn email_input(
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
+    ) -> gpui_component::input::InputState {
+        gpui_component::input::InputState::new(window, cx)
+    }
+}
+/// Struct holding error messages for each form field.
+/// Empty string means no error.
+#[derive(Clone, Debug)]
+pub struct NutypeFormFormErrors {
+    pub age: String,
+    pub username: String,
+    pub email: String,
+}
+impl Default for NutypeFormFormErrors {
+    fn default() -> Self {
+        Self {
+            age: String::new(),
+            username: String::new(),
+            email: String::new(),
+        }
+    }
+}
+impl NutypeFormFormErrors {
+    /// Returns true if any field has an error
+    pub fn has_errors(&self) -> bool {
+        !self.age.is_empty() || !self.username.is_empty() || !self.email.is_empty()
+    }
+    /// Clears all errors
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+}

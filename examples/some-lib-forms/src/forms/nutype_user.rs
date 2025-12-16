@@ -14,10 +14,10 @@ use gpui_component::{
     v_flex,
 };
 use rust_decimal::Decimal;
-use some_lib::structs::user::*;
+use some_lib::structs::nutype_user::*;
 use std::sync::Arc;
 #[derive(Clone, Debug, es_fluent::EsFluent)]
-pub enum UserFormErrorsFtl {
+pub enum NutypeUserFormErrorsFtl {
     Username { value: String },
     Email { value: String },
     Age { value: String },
@@ -28,33 +28,33 @@ pub enum UserFormErrorsFtl {
     Country { value: String },
     BirthDate { value: String },
 }
-const CONTEXT: &str = "UserForm";
+const CONTEXT: &str = "NutypeUserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
-pub struct UserForm {
-    original_data: Arc<User>,
-    current_data: UserFormValueHolder,
-    errors: UserFormErrors,
-    fields: UserFormFields,
+pub struct NutypeUserForm {
+    original_data: Arc<NutypeUser>,
+    current_data: NutypeUserFormValueHolder,
+    errors: NutypeUserFormErrors,
+    fields: NutypeUserFormFields,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
-impl Focusable for UserForm {
+impl Focusable for NutypeUserForm {
     fn focus_handle(&self, cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
-impl gpui_storybook::Story for UserForm {
+impl gpui_storybook::Story for NutypeUserForm {
     fn title() -> String {
-        User::this_ftl()
+        NutypeUser::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, User::default())
+        Self::view(window, cx, NutypeUser::default())
     }
 }
-impl UserForm {
-    pub fn view(window: &mut Window, cx: &mut App, original_data: User) -> Entity<Self> {
+impl NutypeUserForm {
+    pub fn view(window: &mut Window, cx: &mut App, original_data: NutypeUser) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx, original_data))
     }
     fn on_username_input_event(
@@ -67,7 +67,35 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.username = text.to_owned().into();
+                if let Ok(parsed_value) = text.parse::<String>() {
+                    if let Ok(validated) = Username::try_new(parsed_value) {
+                        self.current_data.username = validated.into();
+                        self.errors.username.clear();
+                    }
+                }
+            },
+            InputEvent::Blur => {
+                let text = state.read(_cx).value();
+                if let Ok(parsed_value) = text.parse::<String>() {
+                    match Username::try_new(parsed_value) {
+                        Ok(validated_value) => {
+                            self.current_data.username = validated_value.into();
+                            self.errors.username.clear();
+                        },
+                        Err(e) => {
+                            self.errors.username = NutypeUserFormErrorsFtl::Username {
+                                value: format!("{:?}", e),
+                            }
+                            .to_fluent_string();
+                        },
+                    }
+                } else {
+                    self.errors.username = NutypeUserFormErrorsFtl::Username {
+                        value: format!("Invalid {} format", stringify!(String)),
+                    }
+                    .to_fluent_string();
+                }
+                _cx.notify();
             },
             _ => {},
         }
@@ -82,7 +110,35 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.email = text.to_owned().into();
+                if let Ok(parsed_value) = text.parse::<String>() {
+                    if let Ok(validated) = Email::try_new(parsed_value) {
+                        self.current_data.email = validated.into();
+                        self.errors.email.clear();
+                    }
+                }
+            },
+            InputEvent::Blur => {
+                let text = state.read(_cx).value();
+                if let Ok(parsed_value) = text.parse::<String>() {
+                    match Email::try_new(parsed_value) {
+                        Ok(validated_value) => {
+                            self.current_data.email = validated_value.into();
+                            self.errors.email.clear();
+                        },
+                        Err(e) => {
+                            self.errors.email = NutypeUserFormErrorsFtl::Email {
+                                value: format!("{:?}", e),
+                            }
+                            .to_fluent_string();
+                        },
+                    }
+                } else {
+                    self.errors.email = NutypeUserFormErrorsFtl::Email {
+                        value: format!("Invalid {} format", stringify!(String)),
+                    }
+                    .to_fluent_string();
+                }
+                _cx.notify();
             },
             _ => {},
         }
@@ -97,9 +153,35 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(value) = text.parse::<u32>() {
-                    self.current_data.age = value.into();
+                if let Ok(parsed_value) = text.parse::<u8>() {
+                    if let Ok(validated) = Age::try_new(parsed_value) {
+                        self.current_data.age = validated.into();
+                        self.errors.age.clear();
+                    }
                 }
+            },
+            InputEvent::Blur => {
+                let text = state.read(_cx).value();
+                if let Ok(parsed_value) = text.parse::<u8>() {
+                    match Age::try_new(parsed_value) {
+                        Ok(validated_value) => {
+                            self.current_data.age = validated_value.into();
+                            self.errors.age.clear();
+                        },
+                        Err(e) => {
+                            self.errors.age = NutypeUserFormErrorsFtl::Age {
+                                value: format!("{:?}", e),
+                            }
+                            .to_fluent_string();
+                        },
+                    }
+                } else {
+                    self.errors.age = NutypeUserFormErrorsFtl::Age {
+                        value: format!("Invalid {} format", stringify!(u8)),
+                    }
+                    .to_fluent_string();
+                }
+                _cx.notify();
             },
             _ => {},
         }
@@ -115,14 +197,20 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
                     let new_value = self.current_data.age.saturating_sub(1);
-                    self.current_data.age = new_value;
+                    if let Ok(validated) = Age::try_new(new_value) {
+                        self.current_data.age = validated;
+                        self.errors.age.clear();
+                    }
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.age.to_string(), window, cx);
                     });
                 },
                 StepAction::Increment => {
                     let new_value = self.current_data.age.saturating_add(1);
-                    self.current_data.age = new_value;
+                    if let Ok(validated) = Age::try_new(new_value) {
+                        self.current_data.age = validated;
+                        self.errors.age.clear();
+                    }
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.age.to_string(), window, cx);
                     });
@@ -140,9 +228,35 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                if let Ok(value) = text.parse::<Decimal>() {
-                    self.current_data.balance = value.into();
+                if let Ok(parsed_value) = text.parse::<Decimal>() {
+                    if let Ok(validated) = Balance::try_new(parsed_value) {
+                        self.current_data.balance = validated.into();
+                        self.errors.balance.clear();
+                    }
                 }
+            },
+            InputEvent::Blur => {
+                let text = state.read(_cx).value();
+                if let Ok(parsed_value) = text.parse::<Decimal>() {
+                    match Balance::try_new(parsed_value) {
+                        Ok(validated_value) => {
+                            self.current_data.balance = validated_value.into();
+                            self.errors.balance.clear();
+                        },
+                        Err(e) => {
+                            self.errors.balance = NutypeUserFormErrorsFtl::Balance {
+                                value: format!("{:?}", e),
+                            }
+                            .to_fluent_string();
+                        },
+                    }
+                } else {
+                    self.errors.balance = NutypeUserFormErrorsFtl::Balance {
+                        value: format!("Invalid {} format", stringify!(Decimal)),
+                    }
+                    .to_fluent_string();
+                }
+                _cx.notify();
             },
             _ => {},
         }
@@ -158,14 +272,20 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
                     let new_value = self.current_data.balance.saturating_sub(Decimal::from(1));
-                    self.current_data.balance = new_value;
+                    if let Ok(validated) = Balance::try_new(new_value) {
+                        self.current_data.balance = validated;
+                        self.errors.balance.clear();
+                    }
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
                     });
                 },
                 StepAction::Increment => {
                     let new_value = self.current_data.balance.saturating_add(Decimal::from(1));
-                    self.current_data.balance = new_value;
+                    if let Ok(validated) = Balance::try_new(new_value) {
+                        self.current_data.balance = validated;
+                        self.errors.balance.clear();
+                    }
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
                     });
@@ -175,8 +295,8 @@ impl UserForm {
     }
     fn on_preferred_select_event(
         &mut self,
-        _this: &Entity<SelectState<Vec<PreferedLanguage>>>,
-        event: &SelectEvent<Vec<PreferedLanguage>>,
+        _this: &Entity<SelectState<Vec<NutypePreferedLanguage>>>,
+        event: &SelectEvent<Vec<NutypePreferedLanguage>>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
@@ -190,8 +310,8 @@ impl UserForm {
     }
     fn on_country_select_event(
         &mut self,
-        _this: &Entity<SelectState<SearchableVec<EnumCountry>>>,
-        event: &SelectEvent<SearchableVec<EnumCountry>>,
+        _this: &Entity<SelectState<SearchableVec<NutypeEnumCountry>>>,
+        event: &SelectEvent<SearchableVec<NutypeEnumCountry>>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
@@ -217,16 +337,16 @@ impl UserForm {
             },
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: User) -> Self {
-        let username_input = cx.new(|cx| UserFormComponents::username_input(window, cx));
-        let email_input = cx.new(|cx| UserFormComponents::email_input(window, cx));
-        let age_number_input = cx.new(|cx| UserFormComponents::age_number_input(window, cx));
+    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: NutypeUser) -> Self {
+        let username_input = cx.new(|cx| NutypeUserFormComponents::username_input(window, cx));
+        let email_input = cx.new(|cx| NutypeUserFormComponents::email_input(window, cx));
+        let age_number_input = cx.new(|cx| NutypeUserFormComponents::age_number_input(window, cx));
         let balance_number_input =
-            cx.new(|cx| UserFormComponents::balance_number_input(window, cx));
-        let preferred_select = cx.new(|cx| UserFormComponents::preferred_select(window, cx));
-        let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
+            cx.new(|cx| NutypeUserFormComponents::balance_number_input(window, cx));
+        let preferred_select = cx.new(|cx| NutypeUserFormComponents::preferred_select(window, cx));
+        let country_select = cx.new(|cx| NutypeUserFormComponents::country_select(window, cx));
         let birth_date_date_picker =
-            cx.new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
+            cx.new(|cx| NutypeUserFormComponents::birth_date_date_picker(window, cx));
         let _subscriptions = vec![
             cx.subscribe_in(&username_input, window, Self::on_username_input_event),
             cx.subscribe_in(&email_input, window, Self::on_email_input_event),
@@ -249,8 +369,8 @@ impl UserForm {
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
-            errors: UserFormErrors::default(),
-            fields: UserFormFields {
+            errors: NutypeUserFormErrors::default(),
+            fields: NutypeUserFormFields {
                 username_input,
                 email_input,
                 age_number_input,
@@ -264,11 +384,11 @@ impl UserForm {
         }
     }
 }
-impl Render for UserForm {
+impl Render for NutypeUserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .key_context(CONTEXT)
-            .id("user-form")
+            .id("nutype_user-form")
             .size_full()
             .p_4()
             .justify_start()
@@ -278,10 +398,11 @@ impl Render for UserForm {
                 v_form()
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Username.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.username.clone();
-                                let description = UserDescriptionKvFtl::Username.to_fluent_string();
+                                let description =
+                                    NutypeUserDescriptionKvFtl::Username.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -299,10 +420,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Email.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.email.clone();
-                                let description = UserDescriptionKvFtl::Email.to_fluent_string();
+                                let description =
+                                    NutypeUserDescriptionKvFtl::Email.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -320,10 +442,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Age.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.age.clone();
-                                let description = UserDescriptionKvFtl::Age.to_fluent_string();
+                                let description =
+                                    NutypeUserDescriptionKvFtl::Age.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -341,10 +464,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Balance.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.balance.clone();
-                                let description = UserDescriptionKvFtl::Balance.to_fluent_string();
+                                let description =
+                                    NutypeUserDescriptionKvFtl::Balance.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -362,11 +486,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.subscribe_newsletter.clone();
-                                let description =
-                                    UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string();
+                                let description = NutypeUserDescriptionKvFtl::SubscribeNewsletter
+                                    .to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -391,11 +515,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::EnableNotifications.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.enable_notifications.clone();
-                                let description =
-                                    UserDescriptionKvFtl::EnableNotifications.to_fluent_string();
+                                let description = NutypeUserDescriptionKvFtl::EnableNotifications
+                                    .to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -420,11 +544,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Preferred.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Preferred.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.preferred.clone();
                                 let description =
-                                    UserDescriptionKvFtl::Preferred.to_fluent_string();
+                                    NutypeUserDescriptionKvFtl::Preferred.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -442,10 +566,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Country.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::Country.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.country.clone();
-                                let description = UserDescriptionKvFtl::Country.to_fluent_string();
+                                let description =
+                                    NutypeUserDescriptionKvFtl::Country.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -463,11 +588,11 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::BirthDate.to_fluent_string())
+                            .label(NutypeUserLabelKvFtl::BirthDate.to_fluent_string())
                             .description_fn({
                                 let error = self.errors.birth_date.clone();
                                 let description =
-                                    UserDescriptionKvFtl::BirthDate.to_fluent_string();
+                                    NutypeUserDescriptionKvFtl::BirthDate.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()

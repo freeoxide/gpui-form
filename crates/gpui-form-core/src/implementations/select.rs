@@ -13,6 +13,7 @@ impl super::ComponentLayout for SelectComponent {
             options,
             name,
             r#type,
+            item_type: _,
         } = &self.0;
 
         let field_name_ident = crate::component_field_name!(name);

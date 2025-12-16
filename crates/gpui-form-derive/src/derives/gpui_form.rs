@@ -17,11 +17,22 @@ struct ComponentField {
     pub component: Option<Components>,
     #[darling(default)]
     skip: bool,
+    /// The intermediate type used for parsing during input (e.g., u32 for a nutype Age).
+    /// If not specified, the field type is used for both parsing and final validation.
+    #[darling(default)]
+    pub item: Option<syn::Path>,
 }
 
 impl ComponentField {
     pub fn skip(&self) -> bool {
         self.skip && self.component.is_none()
+    }
+
+    /// Returns the item type identifier if specified, otherwise None
+    pub fn item_type_ident(&self) -> Option<Ident> {
+        self.item
+            .as_ref()
+            .and_then(|path| path.segments.last().map(|seg| seg.ident.clone()))
     }
 }
 
@@ -77,6 +88,7 @@ struct ComponentFieldContent {
 fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
     let field_name = field.ident.as_ref().unwrap().to_string();
     let field_type = &field.ty;
+    let item_type_ident = field.item_type_ident();
 
     let mut field_structure_tokens = proc_macro2::TokenStream::new();
     let mut field_base_declarations_tokens = proc_macro2::TokenStream::new();
@@ -94,10 +106,11 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
 
     match component_def {
         Components::Input => {
-            let component = InputComponent(FieldInformation::new(
+            let component = InputComponent(FieldInformation::with_item_type(
                 InputOptions,
                 field_name.clone(),
                 extract_type_ident(field_type),
+                item_type_ident,
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -106,10 +119,11 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
             should_be_unwrapped.1 = true;
         },
         Components::NumberInput => {
-            let component = NumberInputComponent(FieldInformation::new(
+            let component = NumberInputComponent(FieldInformation::with_item_type(
                 NumberInputOptions,
                 field_name.clone(),
                 extract_type_ident(field_type),
+                item_type_ident,
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -227,6 +241,7 @@ fn expand_gpui_form(
     let struct_name = &parsed.ident;
     let components_holder_name = format_ident!("{}FormFields", struct_name);
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
+    let errors_struct_name = format_ident!("{}FormErrors", struct_name);
 
     let fields_iter = match &parsed.data {
         ast::Data::Struct(s) => &s.fields,
@@ -254,6 +269,42 @@ fn expand_gpui_form(
         })
         .multiunzip();
 
+    // Generate error struct fields (String for each field with a component)
+    let error_struct_fields: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                pub #field_name: String,
+            }
+        })
+        .collect();
+
+    // Generate Default implementation for errors struct
+    let error_struct_defaults: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                #field_name: String::new(),
+            }
+        })
+        .collect();
+
+    // Generate methods on errors struct to check if there are errors
+    let error_has_error_checks: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                !self.#field_name.is_empty()
+            }
+        })
+        .collect();
+
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
         .filter_map(|field| {
@@ -280,14 +331,30 @@ fn expand_gpui_form(
                 let field_type_str = base_type.to_token_stream().to_string();
                 let component_def = field.component.as_ref().unwrap();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
-                Some(quote! {
-                    ::gpui_form::core::registry::FieldVariant::new(
-                        #field_name_str,
-                        #field_type_str,
-                        #is_optional,
-                        #behaviour_tokens
-                    )
-                })
+
+                if let Some(item_path) = &field.item {
+                    // Has item type - use new_with_item
+                    let item_type_str = item_path.to_token_stream().to_string();
+                    Some(quote! {
+                        ::gpui_form::core::registry::FieldVariant::new_with_item(
+                            #field_name_str,
+                            #field_type_str,
+                            #item_type_str,
+                            #is_optional,
+                            #behaviour_tokens
+                        )
+                    })
+                } else {
+                    // No item type - use regular new
+                    Some(quote! {
+                        ::gpui_form::core::registry::FieldVariant::new(
+                            #field_name_str,
+                            #field_type_str,
+                            #is_optional,
+                            #behaviour_tokens
+                        )
+                    })
+                }
             }
         })
         .collect();
@@ -328,6 +395,33 @@ fn expand_gpui_form(
 
         impl #components_base_declarations_name {
           #(#field_base_declarations_tokens)*
+        }
+
+        /// Struct holding error messages for each form field.
+        /// Empty string means no error.
+        #[derive(Clone, Debug)]
+        pub struct #errors_struct_name {
+            #(#error_struct_fields)*
+        }
+
+        impl Default for #errors_struct_name {
+            fn default() -> Self {
+                Self {
+                    #(#error_struct_defaults)*
+                }
+            }
+        }
+
+        impl #errors_struct_name {
+            /// Returns true if any field has an error
+            pub fn has_errors(&self) -> bool {
+                #(#error_has_error_checks)||*
+            }
+
+            /// Clears all errors
+            pub fn clear(&mut self) {
+                *self = Self::default();
+            }
         }
     };
 
@@ -395,5 +489,21 @@ mod tests {
         };
 
         insta::assert_snapshot!("select_and_custom_components", render(input));
+    }
+
+    #[test]
+    fn renders_item_type_fields() {
+        let input = quote! {
+            struct NutypeForm {
+                #[gpui_form(item = u8, component(number_input))]
+                age: Age,
+                #[gpui_form(item = String, component(input))]
+                username: Username,
+                #[gpui_form(component(input))]
+                email: String,
+            }
+        };
+
+        insta::assert_snapshot!("item_type_fields", render(input));
     }
 }

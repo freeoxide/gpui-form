@@ -64,18 +64,37 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     ) -> TokenStream {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
+        let field_name_ident = field.field_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
+        // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
                     .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
-                  .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
-                  .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
+                    .description_fn({
+                        let error = self.errors.#field_name_ident.clone();
+                        let description = #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string();
+                        move |_, _| {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(div().child(description.clone()))
+                                .when(!error.is_empty(), |this| {
+                                    this.child(
+                                        div()
+                                            .text_color(gpui::red())
+                                            .child(error.clone())
+                                    )
+                                })
+                        }
+                    })
+                    .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
         }
     }

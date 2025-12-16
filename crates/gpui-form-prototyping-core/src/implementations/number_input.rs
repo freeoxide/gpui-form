@@ -44,16 +44,35 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
+        let field_name_ident = field.field_ident();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
+        // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
                     .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
-                    .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .description_fn({
+                        let error = self.errors.#field_name_ident.clone();
+                        let description = #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string();
+                        move |_, _| {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(div().child(description.clone()))
+                                .when(!error.is_empty(), |this| {
+                                    this.child(
+                                        div()
+                                            .text_color(gpui::red())
+                                            .child(error.clone())
+                                    )
+                                })
+                        }
+                    })
                     .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
         }
@@ -74,7 +93,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
     fn generate_subscription(
         &self,
         field: &FieldVariant,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
 
@@ -95,64 +114,184 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
         let field_name_ident = field.field_ident();
 
-        let field_type_path = syn::parse_str::<syn::Type>(field.field_type).unwrap();
+        // Get the type to use for parsing (item_type if set, otherwise field_type)
+        let parse_type_str = field.parse_type();
+        let parse_type_path = syn::parse_str::<syn::Type>(parse_type_str).unwrap();
 
-        let on_input_event_handler = quote! {
-            fn #on_input_event_handler_fn_name_ident(
-                &mut self,
-                state: &Entity<InputState>,
-                event: &InputEvent,
-                _window: &mut Window,
-                _cx: &mut Context<Self>,
-            ) {
-                match event {
-                    InputEvent::Change => {
-                        let text = state.read(_cx).value();
-                        if let Ok(value) = text.parse::<#field_type_path>() {
-                            self.current_data.#field_name_ident = value.into();
+        // Get the type to use for final validation (always field_type)
+        let validation_type_str = field.validation_type();
+        let validation_type_path = syn::parse_str::<syn::Type>(validation_type_str).unwrap();
+
+        // Get the FTL errors enum ident and field variant for this form
+        let ftl_errors_ident = component.ftl_errors_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+
+        // Generate different assignment logic based on whether we have two-phase validation
+        let on_input_event_handler = if field.has_item_type() {
+            // Two-phase validation: parse with item_type, use try_new to create nutype
+            // On Change: parse with item_type, use try_new to create the nutype
+            // On Blur: validate with field_type, show error if invalid
+            quote! {
+                fn #on_input_event_handler_fn_name_ident(
+                    &mut self,
+                    state: &Entity<InputState>,
+                    event: &InputEvent,
+                    _window: &mut Window,
+                    _cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        InputEvent::Change => {
+                            let text = state.read(_cx).value();
+                            // Parse using the intermediate type (e.g., u8 for Age)
+                            // Then try to create the nutype - if it fails, that's ok during typing
+                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
+                                // Try to create the nutype from the parsed value
+                                if let Ok(validated) = #validation_type_path::try_new(parsed_value) {
+                                    self.current_data.#field_name_ident = validated.into();
+                                    self.errors.#field_name_ident.clear();
+                                }
+                                // If try_new fails, we keep the old value - error shown on blur
+                            }
                         }
+                        InputEvent::Blur => {
+                            let text = state.read(_cx).value();
+                            // On blur, try to parse and validate
+                            if let Ok(parsed_value) = text.parse::<#parse_type_path>() {
+                                match #validation_type_path::try_new(parsed_value) {
+                                    Ok(validated_value) => {
+                                        self.current_data.#field_name_ident = validated_value.into();
+                                        self.errors.#field_name_ident.clear();
+                                    }
+                                    Err(e) => {
+                                        // Use FTL enum for localized error message
+                                        self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                            value: format!("{:?}", e)
+                                        }.to_fluent_string();
+                                    }
+                                }
+                            } else {
+                                self.errors.#field_name_ident = #ftl_errors_ident::#field_name_pascal_case_ident {
+                                    value: format!("Invalid {} format", stringify!(#parse_type_path))
+                                }.to_fluent_string();
+                            }
+                            _cx.notify();
+                        }
+                        _ => {}
                     }
-                    _ => {}
+                }
+            }
+        } else {
+            // Single-phase: parse and validate with the same type
+            quote! {
+                fn #on_input_event_handler_fn_name_ident(
+                    &mut self,
+                    state: &Entity<InputState>,
+                    event: &InputEvent,
+                    _window: &mut Window,
+                    _cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        InputEvent::Change => {
+                            let text = state.read(_cx).value();
+                            if let Ok(value) = text.parse::<#parse_type_path>() {
+                                self.current_data.#field_name_ident = value.into();
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         };
         handlers.push(on_input_event_handler);
 
-        let field_type_ty = syn::parse_str::<syn::Type>(field.field_type).unwrap();
+        // Generate increment/decrement logic
+        // For two-phase validation (nutype): use Deref coercion + item_type for step value, then validate with try_new
+        // For single-phase: use the original arithmetic logic directly on the field
+        let (decrement_logic, increment_logic) = if field.has_item_type() {
+            // For nutype fields: Deref coercion allows calling methods directly on the nutype
+            // Use item_type (parse_type) for the step value, then validate with try_new
+            // This matches the pattern used for non-nutype fields
+            let step_expr = if parse_type_str.starts_with('f') {
+                // f32, f64
+                quote! { 1 as #parse_type_path }
+            } else if parse_type_str.starts_with('u') || parse_type_str.starts_with('i') {
+                // i*, u* - saturating ops take same type
+                quote! { 1 }
+            } else {
+                // External types (e.g., Decimal) - use From<i32>
+                quote! { #parse_type_path::from(1) }
+            };
 
-        let (decrement_logic, increment_logic) = if field.field_type.starts_with('f') {
-            // f*
+            if parse_type_str.starts_with('f') {
+                // Floats don't have saturating ops
+                (
+                    quote! {
+                        let new_value = *self.current_data.#field_name_ident - #step_expr;
+                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
+                            self.current_data.#field_name_ident = validated;
+                            self.errors.#field_name_ident.clear();
+                        }
+                    },
+                    quote! {
+                        let new_value = *self.current_data.#field_name_ident + #step_expr;
+                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
+                            self.current_data.#field_name_ident = validated;
+                            self.errors.#field_name_ident.clear();
+                        }
+                    },
+                )
+            } else {
+                // Use saturating ops via Deref coercion
+                (
+                    quote! {
+                        let new_value = self.current_data.#field_name_ident.saturating_sub(#step_expr);
+                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
+                            self.current_data.#field_name_ident = validated;
+                            self.errors.#field_name_ident.clear();
+                        }
+                    },
+                    quote! {
+                        let new_value = self.current_data.#field_name_ident.saturating_add(#step_expr);
+                        if let Ok(validated) = #validation_type_path::try_new(new_value) {
+                            self.current_data.#field_name_ident = validated;
+                            self.errors.#field_name_ident.clear();
+                        }
+                    },
+                )
+            }
+        } else if field.field_type.starts_with('f') {
+            // f32, f64
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident - 1 as #field_type_ty;
+                    let new_value = self.current_data.#field_name_ident - 1 as #parse_type_path;
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident + 1 as #field_type_ty;
+                    let new_value = self.current_data.#field_name_ident + 1 as #parse_type_path;
                     self.current_data.#field_name_ident = new_value;
                 },
             )
         } else if field.field_type.starts_with('u') || field.field_type.starts_with('i') {
-            // i*, u*,
+            // i*, u*
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(1 as #field_type_ty);
+                    let new_value = self.current_data.#field_name_ident.saturating_sub(1);
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(1 as #field_type_ty);
+                    let new_value = self.current_data.#field_name_ident.saturating_add(1);
                     self.current_data.#field_name_ident = new_value;
                 },
             )
         } else {
-            // external types (assuming they impl `impl_saturating!`)
+            // External types (e.g., Decimal) - assume saturating operations with From<i32>
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(#field_type_ty::from(1));
+                    let new_value = self.current_data.#field_name_ident.saturating_sub(#parse_type_path::from(1));
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(#field_type_ty::from(1));
+                    let new_value = self.current_data.#field_name_ident.saturating_add(#parse_type_path::from(1));
                     self.current_data.#field_name_ident = new_value;
                 },
             )

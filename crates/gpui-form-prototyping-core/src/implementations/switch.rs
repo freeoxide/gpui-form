@@ -39,11 +39,29 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
         let checkbox_id_str = field.kebab_id();
 
+        // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
                     .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
-                    .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .description_fn({
+                        let error = self.errors.#field_name_ident.clone();
+                        let description = #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string();
+                        move |_, _| {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(div().child(description.clone()))
+                                .when(!error.is_empty(), |this| {
+                                    this.child(
+                                        div()
+                                            .text_color(gpui::red())
+                                            .child(error.clone())
+                                    )
+                                })
+                        }
+                    })
                     .child(#component_gpui_type::new(#checkbox_id_str)
                     .checked(self.current_data.#field_name_ident)
                     .on_click(cx.listener(move |v, checked, _, cx| {

@@ -5,7 +5,7 @@ use gpui_form_prototyping_core::{
     code_gen::FormShapeAdapter,
     implementations::{ComponentIdentities as _, ComponentShape as _},
 };
-use heck::ToSnakeCase as _;
+use heck::{ToSnakeCase as _, ToUpperCamelCase as _};
 
 use quote::{format_ident, quote};
 use std::{fs, path::Path};
@@ -21,6 +21,8 @@ struct LayoutIdentities {
     struct_name_uw_ident: syn::Ident,
     struct_name_form_ident: syn::Ident,
     struct_name_form_fields_ident: syn::Ident,
+    struct_name_form_errors_ident: syn::Ident,
+    struct_name_form_errors_ftl_ident: syn::Ident,
     form_id_literal: String,
     struct_name_path_qualifier: syn::Ident,
 }
@@ -33,6 +35,8 @@ impl LayoutIdentities {
         let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
         let struct_name_form_ident = shape.struct_form_ident();
         let struct_name_form_fields_ident = shape.struct_form_fields_ident();
+        let struct_name_form_errors_ident = shape.struct_form_errors_ident();
+        let struct_name_form_errors_ftl_ident = shape.ftl_errors_ident();
         let form_id_literal = shape.form_id_literal();
         let struct_name_path_qualifier =
             syn::parse_str::<syn::Ident>(&shape.struct_name.to_snake_case()).unwrap();
@@ -44,6 +48,8 @@ impl LayoutIdentities {
             struct_name_uw_ident,
             struct_name_form_ident,
             struct_name_form_fields_ident,
+            struct_name_form_errors_ident,
+            struct_name_form_errors_ftl_ident,
             form_id_literal,
             struct_name_path_qualifier,
         }
@@ -81,9 +87,22 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         struct_name_uw_ident,
         struct_name_form_ident,
         struct_name_form_fields_ident,
+        struct_name_form_errors_ident,
+        struct_name_form_errors_ftl_ident,
         form_id_literal,
         struct_name_path_qualifier,
     } = identities;
+
+    let error_ftl_variants: Vec<proc_macro2::TokenStream> = data
+        .components
+        .iter()
+        .map(|field| {
+            let variant_name = format_ident!("{}", field.field_name.to_upper_camel_case());
+            quote! {
+                #variant_name { value: String },
+            }
+        })
+        .collect();
 
     let target_types_import = quote! {
       use some_lib::structs::#struct_name_path_qualifier::*;
@@ -115,8 +134,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
     let import_tokens = quote! {
       #target_types_import
       use gpui::{
-          App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-          IntoElement, ParentElement as _, Render, Styled, Subscription, Window,
+          App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+          ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
       };
       use gpui_component::{
           checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
@@ -130,6 +149,11 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       use rust_decimal::Decimal;
       use std::sync::Arc;
       use es_fluent::ToFluentString as _;
+
+      #[derive(Clone, Debug, es_fluent::EsFluent)]
+      pub enum #struct_name_form_errors_ftl_ident {
+          #(#error_ftl_variants)*
+      }
     };
 
     let layout_tokens = quote! {
@@ -145,6 +169,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       pub struct #struct_name_form_ident {
           original_data: Arc<#struct_name_ident>,
           current_data: #struct_name_uw_ident,
+          errors: #struct_name_form_errors_ident,
           fields: #struct_name_form_fields_ident,
           focus_handle: FocusHandle,
           #subscriptions_field
@@ -181,6 +206,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
               Self {
                   original_data: Arc::new(original_data.clone()),
                   current_data: original_data.into(),
+                  errors: #struct_name_form_errors_ident::default(),
                   fields: #struct_name_form_fields_ident {
                     #field_initializers_tokens
                   },
