@@ -1,3 +1,7 @@
+## Empty
+
+empty = 空
+
 ## EnumCountry
 
 enum_country-China = 中国
