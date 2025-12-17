@@ -110,6 +110,13 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         struct_name_path_qualifier,
     } = identities;
 
+    let target_types_import = quote! {
+      use some_lib::structs::#struct_name_path_qualifier::*;
+    };
+
+    // Handle empty structs (no components)
+    let is_empty = data.components.is_empty();
+
     let error_ftl_variants: Vec<proc_macro2::TokenStream> = data
         .components
         .iter()
@@ -120,10 +127,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
             }
         })
         .collect();
-
-    let target_types_import = quote! {
-      use some_lib::structs::#struct_name_path_qualifier::*;
-    };
 
     let component_creations_tokens = adapter.cx_new_calls().unwrap_or_default();
 
@@ -148,6 +151,49 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let event_handlers_tokens = adapter.event_handlers().unwrap_or_default();
 
+    // For empty structs, don't generate FormValueHolder, FormErrors, or FormErrorsFtl
+    let (
+        error_ftl_enum,
+        current_data_field,
+        errors_field,
+        current_data_init,
+        errors_init,
+        fields_init,
+        debug_child,
+    ) = if is_empty {
+        (
+            quote! {},
+            quote! {},
+            quote! {},
+            quote! {},
+            quote! {},
+            quote! { fields: #struct_name_form_fields_ident, },
+            quote! {},
+        )
+    } else {
+        (
+            quote! {
+                #[derive(Clone, Debug, es_fluent::EsFluent)]
+                pub enum #struct_name_form_errors_ftl_ident {
+                    #(#error_ftl_variants)*
+                }
+            },
+            quote! { current_data: #struct_name_uw_ident, },
+            quote! { errors: #struct_name_form_errors_ident, },
+            quote! { current_data: original_data.into(), },
+            quote! { errors: #struct_name_form_errors_ident::default(), },
+            quote! {
+                fields: #struct_name_form_fields_ident {
+                    #field_initializers_tokens
+                },
+            },
+            quote! {
+                .absolute()
+                .child(format!("{:?}", self.current_data))
+            },
+        )
+    };
+
     let import_tokens = quote! {
       #target_types_import
       use gpui::{
@@ -167,10 +213,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       use std::sync::Arc;
       use es_fluent::ToFluentString as _;
 
-      #[derive(Clone, Debug, es_fluent::EsFluent)]
-      pub enum #struct_name_form_errors_ftl_ident {
-          #(#error_ftl_variants)*
-      }
+      #error_ftl_enum
     };
 
     let layout_tokens = quote! {
@@ -185,8 +228,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       #[gpui_storybook::story]
       pub struct #struct_name_form_ident {
           original_data: Arc<#struct_name_ident>,
-          current_data: #struct_name_uw_ident,
-          errors: #struct_name_form_errors_ident,
+          #current_data_field
+          #errors_field
           fields: #struct_name_form_fields_ident,
           focus_handle: FocusHandle,
           #subscriptions_field
@@ -222,11 +265,9 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
               Self {
                   original_data: Arc::new(original_data.clone()),
-                  current_data: original_data.into(),
-                  errors: #struct_name_form_errors_ident::default(),
-                  fields: #struct_name_form_fields_ident {
-                    #field_initializers_tokens
-                  },
+                  #current_data_init
+                  #errors_init
+                  #fields_init
                   focus_handle: cx.focus_handle(),
                   #subscriptions_init
               }
@@ -248,8 +289,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
                         #render_children_tokens
                   )
                   .child(Divider::horizontal())
-                  .absolute()
-                  .child(format!("{:?}", self.current_data))
+                  #debug_child
           }
       }
     };

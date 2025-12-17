@@ -37,10 +37,12 @@ impl ComponentField {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(gpui_form), supports(struct_named))]
+#[darling(attributes(gpui_form), supports(struct_named, struct_unit))]
 struct ComponentStruct {
     pub ident: Ident,
     pub data: ast::Data<(), ComponentField>,
+    #[darling(default)]
+    pub empty: bool,
 }
 
 fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
@@ -243,10 +245,46 @@ fn expand_gpui_form(
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
     let errors_struct_name = format_ident!("{}FormErrors", struct_name);
 
+    // Handle empty structs with #[gpui_form(empty)] attribute
+    if parsed.empty {
+        let shape_impl = if options.generate_shape {
+            quote! {
+                ::gpui_form::core::registry::inventory::submit! {
+                    ::gpui_form::core::registry::GpuiFormShape::new(
+                        stringify!(#struct_name),
+                        &[]
+                    )
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        return quote! {
+            pub struct #components_holder_name;
+
+            #shape_impl
+
+            pub struct #components_base_declarations_name;
+        };
+    }
+
     let fields_iter = match &parsed.data {
         ast::Data::Struct(s) => &s.fields,
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
+
+    // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
+    if fields_iter.is_empty() {
+        return syn::Error::new_spanned(
+            &derive_input,
+            format!(
+                "Struct `{}` has no fields. Add `#[gpui_form(empty)]` attribute to explicitly mark it as an empty form.",
+                struct_name
+            ),
+        )
+        .to_compile_error();
+    }
 
     let component_field_pairs: Vec<ComponentFieldContent> = fields_iter
         .iter()
