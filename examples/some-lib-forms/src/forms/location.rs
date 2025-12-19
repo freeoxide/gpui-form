@@ -4,6 +4,7 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
+    IndexPath,
     divider::Divider,
     form::{field, v_form},
     input::{Input, InputEvent, InputState},
@@ -93,74 +94,16 @@ impl LocationForm {
         cx: &mut Context<Self>,
     ) {
         if let SelectEvent::Confirm(Some(selected)) = event {
-            eprintln!("Master select event: {:?}", selected.variant_name());
-            // The event contains the value directly (Country), not TupleSelectItem<Country>
             if let Some(index) = this.read(cx).selected_index(cx) {
-                eprintln!("Master selected index: {:?}", index);
                 self.fields.location_path.set(0, index.row);
-                // Clear deeper levels when master changes
-                self.fields.location_path.truncate(1);
             }
             self.current_data.location = selected.clone();
 
-            // Update child selects based on new master selection
-            self.rebuild_child_selects(window, cx);
+            // Clear and rebuild all child selects from level 0
+            self.fields.location_child_selects.clear();
+            self.build_all_child_selects(&selected.clone(), window, cx);
             cx.notify();
         }
-    }
-
-    fn rebuild_child_selects(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        eprintln!("rebuild_child_selects called");
-        // Clear existing child selects
-        self.fields.location_child_selects.clear();
-
-        // Get current value and check if it has inner types
-        let current = &self.current_data.location;
-        eprintln!(
-            "Current location: {:?}, has_inner: {}",
-            current.variant_name(),
-            current.has_inner()
-        );
-        if !current.has_inner() {
-            eprintln!("No inner, returning early");
-            return;
-        }
-
-        // Build child select for the next level
-        let child_names = current.child_variant_names();
-        eprintln!("Child names: {:?}", child_names);
-        if child_names.is_empty() {
-            return;
-        }
-
-        // Create items for child select
-        let items: Vec<gpui_form_component::TupleSelectItem<Country>> = child_names
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, name)| {
-                current.set_child_by_index(idx).map(|variant| {
-                    gpui_form_component::TupleSelectItem::new(variant, name.to_string())
-                })
-            })
-            .collect();
-
-        eprintln!("Created {} items for child select", items.len());
-        if items.is_empty() {
-            return;
-        }
-
-        let child_select = cx.new(|cx| SelectState::new(items, None, window, cx));
-
-        // Subscribe to child select events
-        let subscription =
-            cx.subscribe_in(&child_select, window, Self::on_location_child_select_event);
-        self._subscriptions.push(subscription);
-
-        self.fields.location_child_selects.push(child_select);
-        eprintln!(
-            "Child selects count now: {}",
-            self.fields.location_child_selects.len()
-        );
     }
 
     fn on_location_child_select_event(
@@ -170,31 +113,111 @@ impl LocationForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        eprintln!("Child select event received");
         if let SelectEvent::Confirm(Some(selected)) = event {
-            eprintln!("Child select confirmed: {:?}", selected.variant_name());
-            if let Some(index) = this.read(cx).selected_index(cx) {
-                eprintln!("Child selected index: {:?}", index);
-                // Find which level this child select is at
-                let level = self.fields.location_child_selects
-                    .iter()
-                    .position(|s| s == this)
-                    .map(|pos| pos + 1)  // +1 because master is level 0
-                    .unwrap_or(1);
+            // Find which level this child select is at
+            let level = self.fields.location_child_selects
+                .iter()
+                .position(|s| s == this)
+                .map(|pos| pos + 1)  // +1 because master is level 0
+                .unwrap_or(1);
 
+            if let Some(index) = this.read(cx).selected_index(cx) {
                 self.fields.location_path.set(level, index.row);
-                // Truncate deeper levels when this level changes
-                self.fields.location_path.truncate(level + 1);
             }
             self.current_data.location = selected.clone();
 
-            // Only rebuild if the selected value has children (to add next level)
-            // Don't rebuild if it's a leaf - that would clear the current select
+            // Remove child selects after this level and rebuild
+            self.fields.location_child_selects.truncate(level);
+
+            // Add child selects for remaining levels if the selected value has children
             if selected.has_inner() {
-                // TODO: Add next level of child selects without clearing current
-                eprintln!("Selected has inner, would add another level");
+                self.build_child_selects_for_remaining_levels(&selected.clone(), level, window, cx);
             }
             cx.notify();
+        }
+    }
+
+    /// Build all child selects for a given parent value (used after master selection)
+    fn build_all_child_selects(
+        &mut self,
+        parent: &Country,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.build_child_selects_for_remaining_levels(parent, 0, window, cx);
+    }
+
+    /// Build child selects for remaining levels starting from a given level
+    fn build_child_selects_for_remaining_levels(
+        &mut self,
+        parent: &Country,
+        start_level: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let max_depth = Country::depth();
+        let mut current_value = parent.clone();
+
+        for level in start_level..(max_depth - 1) {
+            // For level 0 (first child select), use child_variant_names (children of the root variant)
+            // For level 1+ (second+ child select), use inner_child_variant_names (children of the inner value)
+            let (child_names, has_more) = if level == 0 {
+                (
+                    current_value.child_variant_names(),
+                    current_value.has_inner(),
+                )
+            } else {
+                (
+                    current_value.inner_child_variant_names(),
+                    current_value.inner_has_inner(),
+                )
+            };
+
+            if !has_more || child_names.is_empty() {
+                break;
+            }
+
+            // Create items for this level
+            let items: Vec<gpui_form_component::TupleSelectItem<Country>> = child_names
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, name)| {
+                    let variant = if level == 0 {
+                        current_value.set_child_by_index(idx)
+                    } else {
+                        current_value.inner_set_child_by_index(idx)
+                    };
+                    variant.map(|v| gpui_form_component::TupleSelectItem::new(v, name.to_string()))
+                })
+                .collect();
+
+            if items.is_empty() {
+                break;
+            }
+
+            // Default to first item selected
+            let selected_index = Some(IndexPath {
+                section: 0,
+                row: 0,
+                column: 0,
+            });
+            self.fields.location_path.set(level + 1, 0);
+
+            let child_select =
+                cx.new(|cx| SelectState::new(items.clone(), selected_index, window, cx));
+
+            let subscription =
+                cx.subscribe_in(&child_select, window, Self::on_location_child_select_event);
+            self._subscriptions.push(subscription);
+
+            self.fields.location_child_selects.push(child_select);
+
+            // Move to the first child for the next iteration
+            if let Some(first_item) = items.first() {
+                current_value = first_item.get_value().clone();
+            } else {
+                break;
+            }
         }
     }
 
@@ -204,10 +227,29 @@ impl LocationForm {
         original_data: some_lib::structs::location::LocationForm,
     ) -> Self {
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
-        let location_master_select =
-            cx.new(|cx| LocationFormFormComponents::location_master_select(window, cx));
 
-        let _subscriptions = vec![
+        // Create master select with the correct initial selection
+        let initial_location = &original_data.location;
+        let master_variants = Country::variants();
+        let initial_country_name = initial_location.variant_name();
+        let initial_country_idx = master_variants
+            .iter()
+            .position(|v| v.variant_name() == initial_country_name)
+            .unwrap_or(0);
+
+        let master_selected_index = Some(IndexPath {
+            section: 0,
+            row: initial_country_idx,
+            column: 0,
+        });
+
+        let location_master_select = cx.new(|cx| {
+            let items: Vec<gpui_form_component::TupleSelectItem<Country>> =
+                gpui_form_component::tuple_enum_to_select_items::<Country>();
+            SelectState::new(items, master_selected_index, window, cx)
+        });
+
+        let mut _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_name_input_event),
             cx.subscribe_in(
                 &location_master_select,
@@ -216,7 +258,11 @@ impl LocationForm {
             ),
         ];
 
-        Self {
+        // Build initial path
+        let mut initial_path = gpui_form_component::TupleSelectPath::new();
+        initial_path.set(0, initial_country_idx);
+
+        let mut form = Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
             errors: LocationFormFormErrors::default(),
@@ -224,11 +270,17 @@ impl LocationForm {
                 name_input,
                 location_master_select,
                 location_child_selects: Vec::new(),
-                location_path: gpui_form_component::TupleSelectPath::new(),
+                location_path: initial_path,
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,
-        }
+        };
+
+        // Build initial child selects based on default value
+        let initial_value = form.current_data.location.clone();
+        form.build_all_child_selects(&initial_value, window, cx);
+
+        form
     }
 }
 

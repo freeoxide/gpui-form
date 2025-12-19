@@ -119,6 +119,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         .collect();
 
     // Generate child_variant_names() match arms for heterogeneous enums
+    // This returns the variant names of the INNER TYPE, not the inner value's children
     let child_variant_names_arms: Vec<_> = variants
         .iter()
         .map(|v| {
@@ -134,6 +135,53 @@ pub fn from(input: TokenStream) -> TokenStream {
                             .map(|v| v.variant_name())
                             .collect()
                     }
+                }
+            }
+        })
+        .collect();
+
+    // Generate inner_child_variant_names() match arms - gets the children of the inner VALUE
+    let inner_child_variant_names_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => vec![], }
+            } else {
+                quote! {
+                    Self::#vident(inner) => inner.child_variant_names(),
+                }
+            }
+        })
+        .collect();
+
+    // Generate inner_set_child_by_index() match arms - sets child on the inner VALUE
+    let inner_set_child_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => None, }
+            } else {
+                quote! {
+                    Self::#vident(inner) => {
+                        inner.set_child_by_index(index).map(|new_inner| Self::#vident(new_inner))
+                    }
+                }
+            }
+        })
+        .collect();
+
+    // Generate inner_has_inner() match arms - checks if the inner VALUE has children
+    let inner_has_inner_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => false, }
+            } else {
+                quote! {
+                    Self::#vident(inner) => inner.has_inner(),
                 }
             }
         })
@@ -267,6 +315,24 @@ pub fn from(input: TokenStream) -> TokenStream {
 
             fn depth() -> usize {
                 #depth_calculation
+            }
+
+            fn inner_child_variant_names(&self) -> Vec<&'static str> {
+                match self {
+                    #(#inner_child_variant_names_arms)*
+                }
+            }
+
+            fn inner_set_child_by_index(&self, index: usize) -> Option<Self> {
+                match self {
+                    #(#inner_set_child_arms)*
+                }
+            }
+
+            fn inner_has_inner(&self) -> bool {
+                match self {
+                    #(#inner_has_inner_arms)*
+                }
             }
         }
     };

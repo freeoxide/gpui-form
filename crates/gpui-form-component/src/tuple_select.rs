@@ -82,6 +82,19 @@ pub trait TupleEnumInner: Sized + Clone + Default + 'static {
 
     /// Returns the maximum depth of nesting for this enum type.
     fn depth() -> usize;
+
+    /// Returns the variant names of the inner value's children.
+    /// This goes one level deeper than child_variant_names().
+    /// For Country::USA(California(...)), this returns the cities in California.
+    fn inner_child_variant_names(&self) -> Vec<&'static str>;
+
+    /// Sets a child on the inner value and wraps it back.
+    /// For Country::USA(California), calling this with index 1 would return
+    /// Country::USA(Texas) if Texas is at index 1.
+    fn inner_set_child_by_index(&self, index: usize) -> Option<Self>;
+
+    /// Returns true if the inner value itself has children.
+    fn inner_has_inner(&self) -> bool;
 }
 
 /// A wrapper for tuple enum variants that implements SelectItem.
