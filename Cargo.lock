@@ -2968,9 +2968,19 @@ dependencies = [
 name = "gpui-form"
 version = "0.5.1"
 dependencies = [
+ "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
  "unwrapped",
+]
+
+[[package]]
+name = "gpui-form-component"
+version = "0.5.1"
+dependencies = [
+ "gpui",
+ "gpui-component",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -5989,6 +5999,7 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
+ "gpui-form-component",
  "gpui-storybook",
  "inventory",
  "nutype",
@@ -6013,6 +6024,7 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
+ "gpui-form-component",
  "gpui-storybook",
  "inventory",
  "paste",

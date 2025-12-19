@@ -71,6 +71,21 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
                 )
             }
         },
+        Components::TupleSelect(options) => {
+            let searchable = options.behaviour.searchable;
+            let max_depth = match options.behaviour.max_depth {
+                Some(d) => quote! { Some(#d) },
+                None => quote! { None },
+            };
+            quote! {
+                ::gpui_form::core::components::ComponentsBehaviour::TupleSelect(
+                    ::gpui_form::core::components::BehaviourTupleSelectOptions {
+                        searchable: #searchable,
+                        max_depth: #max_depth,
+                    }
+                )
+            }
+        },
         Components::DatePicker => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::DatePicker }
         },
@@ -159,6 +174,18 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
         },
         Components::Select(options) => {
             let component = SelectComponent(FieldInformation::new(
+                options.clone(),
+                field_name.clone(),
+                extract_type_ident(field_type),
+            ));
+            component.field_tokens(
+                &mut field_structure_tokens,
+                &mut field_base_declarations_tokens,
+            );
+            should_be_unwrapped.1 = true;
+        },
+        Components::TupleSelect(options) => {
+            let component = TupleSelectComponent(FieldInformation::new(
                 options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),

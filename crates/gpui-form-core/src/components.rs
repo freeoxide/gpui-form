@@ -131,6 +131,48 @@ pub struct SwitchOptions;
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
 pub struct DatePickerOptions;
 
+/// Options for TupleSelect - a cascading select for tuple enums.
+///
+/// TupleSelect generates multiple select fields that cascade:
+/// when the master select changes, the slave selects update their options.
+#[derive(Clone, ComponentOption, Debug, Default, Eq, FromMeta, PartialEq)]
+pub struct BehaviourTupleSelectOptions {
+    /// Whether each select level should be searchable
+    #[darling(default)]
+    pub searchable: bool,
+    /// Maximum depth to expand (None = expand all levels)
+    #[darling(default)]
+    pub max_depth: Option<usize>,
+}
+
+#[derive(Clone, ComponentOption, Debug, FromMeta)]
+pub struct TupleSelectOptions {
+    #[darling(flatten)]
+    pub behaviour: BehaviourTupleSelectOptions,
+    /// Initial value path for the selection
+    #[darling(default, rename = "index")]
+    named_index: Option<syn::Path>,
+    /// Use default value for initial selection
+    #[darling(default, rename = "default")]
+    index_default: bool,
+}
+
+impl TupleSelectOptions {
+    pub fn named_index(&self) -> Option<&syn::Path> {
+        if self.named_index.is_some() && self.index_default {
+            panic!("Cannot specify both named_index and index_default");
+        }
+        self.named_index.as_ref()
+    }
+
+    pub fn index_default(&self) -> bool {
+        if self.named_index.is_some() && self.index_default {
+            panic!("Cannot specify both named_index and index_default");
+        }
+        self.index_default
+    }
+}
+
 #[derive(Clone, ComponentDefinitions, Debug, EnumDiscriminants, FromMeta)]
 #[strum_discriminants(derive(EnumString, Display, IntoStaticStr))]
 #[strum_discriminants(vis(pub))]
@@ -142,6 +184,7 @@ pub enum Components {
     Checkbox,
     Switch,
     Select(SelectOptions),
+    TupleSelect(TupleSelectOptions),
     DatePicker,
     Custom(CustomOptions),
 }
@@ -154,6 +197,7 @@ pub enum ComponentsBehaviour {
     Checkbox,
     Switch,
     Select(BehaviourSelectOptions),
+    TupleSelect(BehaviourTupleSelectOptions),
     DatePicker,
 }
 
@@ -188,6 +232,7 @@ impl ComponentsBehaviour {
             ComponentsBehaviour::Input
                 | ComponentsBehaviour::NumberInput
                 | ComponentsBehaviour::Select(_)
+                | ComponentsBehaviour::TupleSelect(_)
                 | ComponentsBehaviour::DatePicker
         )
     }
@@ -198,6 +243,7 @@ impl ComponentsBehaviour {
             ComponentsBehaviour::Input
                 | ComponentsBehaviour::NumberInput
                 | ComponentsBehaviour::Select(_)
+                | ComponentsBehaviour::TupleSelect(_)
         )
     }
 }

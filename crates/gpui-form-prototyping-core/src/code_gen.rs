@@ -7,7 +7,7 @@ use super::implementations::{
     ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator,
     date_picker::DatePickerCodeGenerator, input::InputCodeGenerator,
     number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
-    switch::SwitchCodeGenerator,
+    switch::SwitchCodeGenerator, tuple_select::TupleSelectCodeGenerator,
 };
 
 fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
@@ -17,6 +17,9 @@ fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
         ComponentsBehaviour::Checkbox => FieldGenerator::Checkbox(CheckboxCodeGenerator),
         ComponentsBehaviour::Switch => FieldGenerator::Switch(SwitchCodeGenerator),
         ComponentsBehaviour::Select(_) => FieldGenerator::Select(SelectCodeGenerator),
+        ComponentsBehaviour::TupleSelect(_) => {
+            FieldGenerator::TupleSelect(TupleSelectCodeGenerator)
+        },
         ComponentsBehaviour::DatePicker => FieldGenerator::DatePicker(DatePickerCodeGenerator),
     }
 }

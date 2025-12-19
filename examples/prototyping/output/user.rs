@@ -563,7 +563,6 @@ impl Render for UserForm {
                     ),
             )
             .child(Divider::horizontal())
-            .absolute()
             .child(format!("{:?}", self.current_data))
     }
 }
