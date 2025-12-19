@@ -188,7 +188,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
                 },
             },
             quote! {
-                .absolute()
                 .child(format!("{:?}", self.current_data))
             },
         )
