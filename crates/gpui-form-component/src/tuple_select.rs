@@ -341,10 +341,3 @@ fn add_child_levels<T: TupleEnumInner>(value: &T, levels: &mut Vec<SelectionLeve
     // This would require accessing the inner value, which we can't do generically
     // The form state will need to track the full selection path
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Test types would be defined here using the derive macro
-}

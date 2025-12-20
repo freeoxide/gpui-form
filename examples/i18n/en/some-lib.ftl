@@ -1,5 +1,6 @@
 ## BritishColumbiaCity
 
+british_columbia_city = British Columbia City
 british_columbia_city-Burnaby = Burnaby
 british_columbia_city-Richmond = Richmond
 british_columbia_city-Surrey = Surrey
@@ -8,6 +9,7 @@ british_columbia_city-Victoria = Victoria
 
 ## CaliforniaCity
 
+california_city = California City
 california_city-LosAngeles = Los Angeles
 california_city-Sacramento = Sacramento
 california_city-SanDiego = San Diego
@@ -16,12 +18,14 @@ california_city-SanJose = San Jose
 
 ## CanadaProvince
 
+canada_province = Canada Province
 canada_province-BritishColumbia = British Columbia { $f0 }
 canada_province-Ontario = Ontario { $f0 }
 canada_province-Quebec = Quebec { $f0 }
 
 ## Country
 
+country = Country
 country-Canada = Canada { $f0 }
 country-USA = Usa { $f0 }
 
@@ -53,6 +57,7 @@ location_form_label_kv_ftl-name = Name
 
 ## NewYorkCity
 
+new_york_city = New York City
 new_york_city-Albany = Albany
 new_york_city-Buffalo = Buffalo
 new_york_city-NewYorkCity = New York City
@@ -103,6 +108,7 @@ nutype_user_label_kv_ftl-username = Username
 
 ## OntarioCity
 
+ontario_city = Ontario City
 ontario_city-Hamilton = Hamilton
 ontario_city-London = London
 ontario_city-Mississauga = Mississauga
@@ -117,6 +123,7 @@ prefered_language-French = French
 
 ## QuebecCity
 
+quebec_city = Quebec City
 quebec_city-Gatineau = Gatineau
 quebec_city-Laval = Laval
 quebec_city-Longueuil = Longueuil
@@ -125,6 +132,7 @@ quebec_city-QuebecCity = Quebec City
 
 ## TexasCity
 
+texas_city = Texas City
 texas_city-Austin = Austin
 texas_city-Dallas = Dallas
 texas_city-FortWorth = Fort Worth
@@ -133,6 +141,7 @@ texas_city-SanAntonio = San Antonio
 
 ## USAState
 
+usa_state = Usa State
 usa_state-California = California { $f0 }
 usa_state-NewYork = New York { $f0 }
 usa_state-Texas = Texas { $f0 }

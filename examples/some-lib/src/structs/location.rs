@@ -12,6 +12,7 @@ use strum::EnumIter;
 // ============================================================================
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum CaliforniaCity {
     #[default]
     LosAngeles,
@@ -22,6 +23,7 @@ pub enum CaliforniaCity {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum TexasCity {
     #[default]
     Houston,
@@ -32,6 +34,7 @@ pub enum TexasCity {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum NewYorkCity {
     #[default]
     NewYorkCity,
@@ -42,6 +45,7 @@ pub enum NewYorkCity {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum OntarioCity {
     #[default]
     Toronto,
@@ -52,6 +56,7 @@ pub enum OntarioCity {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum QuebecCity {
     #[default]
     Montreal,
@@ -62,6 +67,7 @@ pub enum QuebecCity {
 }
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum BritishColumbiaCity {
     #[default]
     Vancouver,
@@ -76,6 +82,7 @@ pub enum BritishColumbiaCity {
 // ============================================================================
 
 #[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum USAState {
     California(CaliforniaCity),
     Texas(TexasCity),
@@ -89,6 +96,7 @@ impl Default for USAState {
 }
 
 #[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
     Quebec(QuebecCity),
@@ -106,6 +114,7 @@ impl Default for CanadaProvince {
 // ============================================================================
 
 #[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[fluent(this)]
 pub enum Country {
     USA(USAState),
     Canada(CanadaProvince),
