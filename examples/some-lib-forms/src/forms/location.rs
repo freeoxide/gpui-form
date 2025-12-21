@@ -100,8 +100,18 @@ impl LocationForm {
             self.current_data.location = selected.clone();
 
             // Clear and rebuild all child selects from level 0
+
             self.fields.location_child_selects.clear();
-            self.build_all_child_selects(&selected.clone(), window, cx);
+
+            let new_children =
+                LocationFormFormComponents::location_child_selects(&selected, 0, window, cx);
+
+            for child in &new_children {
+                let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                self._subscriptions.push(sub);
+            }
+
+            self.fields.location_child_selects = new_children;
             cx.notify();
         }
     }
@@ -130,94 +140,20 @@ impl LocationForm {
             self.fields.location_child_selects.truncate(level);
 
             // Add child selects for remaining levels if the selected value has children
+
             if selected.has_inner() {
-                self.build_child_selects_for_remaining_levels(&selected.clone(), level, window, cx);
+                let new_children = LocationFormFormComponents::location_child_selects(
+                    &selected, level, window, cx,
+                );
+
+                for child in &new_children {
+                    let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                    self._subscriptions.push(sub);
+                }
+
+                self.fields.location_child_selects.extend(new_children);
             }
             cx.notify();
-        }
-    }
-
-    /// Build all child selects for a given parent value (used after master selection)
-    fn build_all_child_selects(
-        &mut self,
-        parent: &Country,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.build_child_selects_for_remaining_levels(parent, 0, window, cx);
-    }
-
-    /// Build child selects for remaining levels starting from a given level
-    fn build_child_selects_for_remaining_levels(
-        &mut self,
-        parent: &Country,
-        start_level: usize,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let max_depth = Country::depth();
-        let mut current_value = parent.clone();
-
-        for level in start_level..(max_depth - 1) {
-            // For level 0 (first child select), use child_variant_names (children of the root variant)
-            // For level 1+ (second+ child select), use inner_child_variant_names (children of the inner value)
-            let (child_names, has_more) = if level == 0 {
-                (
-                    current_value.child_variant_names(),
-                    current_value.has_inner(),
-                )
-            } else {
-                (
-                    current_value.inner_child_variant_names(),
-                    current_value.inner_has_inner(),
-                )
-            };
-
-            if !has_more || child_names.is_empty() {
-                break;
-            }
-
-            // Create items for this level
-            let items: Vec<gpui_form_component::TupleSelectItem<Country>> = child_names
-                .iter()
-                .enumerate()
-                .filter_map(|(idx, name)| {
-                    let variant = if level == 0 {
-                        current_value.set_child_by_index(idx)
-                    } else {
-                        current_value.inner_set_child_by_index(idx)
-                    };
-                    variant.map(|v| gpui_form_component::TupleSelectItem::new(v, name.to_string()))
-                })
-                .collect();
-
-            if items.is_empty() {
-                break;
-            }
-
-            // Default to first item selected
-            let selected_index = Some(IndexPath {
-                section: 0,
-                row: 0,
-                column: 0,
-            });
-            self.fields.location_path.set(level + 1, 0);
-
-            let child_select =
-                cx.new(|cx| SelectState::new(items.clone(), selected_index, window, cx));
-
-            let subscription =
-                cx.subscribe_in(&child_select, window, Self::on_location_child_select_event);
-            self._subscriptions.push(subscription);
-
-            self.fields.location_child_selects.push(child_select);
-
-            // Move to the first child for the next iteration
-            if let Some(first_item) = items.first() {
-                current_value = first_item.get_value().clone();
-            } else {
-                break;
-            }
         }
     }
 
@@ -262,25 +198,39 @@ impl LocationForm {
         let mut initial_path = gpui_form_component::TupleSelectPath::new();
         initial_path.set(0, initial_country_idx);
 
-        let mut form = Self {
+        // Build initial child selects
+        // Note: Using the helper resets deeper selections to default (0),
+        // matching the behavior of the previous manual implementation.
+        let location_child_selects = LocationFormFormComponents::location_child_selects(
+            &original_data.location, // Using original data which is correct for starting level 0
+            0,
+            window,
+            cx,
+        );
+
+        // Subscribe to initial children
+        // We can't use Self::on_location_child_select_event directly here easily because we are in 'new'
+        // and subscriptions usually require a handler on the view.
+        // Wait, cx.subscribe_in works fine with Self::method.
+
+        for child in &location_child_selects {
+            let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+            _subscriptions.push(sub);
+        }
+
+        Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
             errors: LocationFormFormErrors::default(),
             fields: LocationFormFields {
                 name_input,
                 location_master_select,
-                location_child_selects: Vec::new(),
+                location_child_selects,
                 location_path: initial_path,
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,
-        };
-
-        // Build initial child selects based on default value
-        let initial_value = form.current_data.location.clone();
-        form.build_all_child_selects(&initial_value, window, cx);
-
-        form
+        }
     }
 }
 

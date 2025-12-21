@@ -34,15 +34,20 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        // Initialize both the master select and the path
+        // Initialize master select, child selects, and path
         let master_var_name = format!("{}_master_select", field.field_name);
         let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
+
+        let child_selects_var_name = format!("{}_child_selects", field.field_name);
+        let child_selects_var_name_ident =
+            syn::parse_str::<syn::Ident>(&child_selects_var_name).unwrap();
 
         let path_var_name = format!("{}_path", field.field_name);
         let path_var_name_ident = syn::parse_str::<syn::Ident>(&path_var_name).unwrap();
 
         Some(quote! {
             #master_var_name_ident,
+            #child_selects_var_name_ident: Vec::new(),
             #path_var_name_ident: gpui_form_component::TupleSelectPath::new(),
         })
     }
@@ -60,9 +65,11 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let master_field_name = format!("{}_master_select", field.field_name);
         let master_field_name_ident = syn::parse_str::<syn::Ident>(&master_field_name).unwrap();
 
-        // For TupleSelect, we render the master select
-        // Child selects would be dynamically rendered based on the current selection
-        // For the prototype, we just show the master select with a note about children
+        let child_selects_field_name = format!("{}_child_selects", field.field_name);
+        let child_selects_field_name_ident =
+            syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
+
+        // For TupleSelect, we render the master select and any active child selects
         quote! {
             .child(
                 field()
@@ -89,8 +96,10 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
                         v_flex()
                             .gap_2()
                             .child(Select::new(&self.fields.#master_field_name_ident))
-                            // TODO: Child selects would be rendered dynamically here
-                            // based on self.fields.{field}_path and the selected master value
+                            .children(
+                                self.fields.#child_selects_field_name_ident.iter()
+                                    .map(|child| Select::new(child))
+                            )
                     )
             )
         }

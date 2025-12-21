@@ -106,6 +106,7 @@ impl LocationFormForm {
             fields: LocationFormFormFields {
                 name_input,
                 location_master_select,
+                location_child_selects: Vec::new(),
                 location_path: gpui_form_component::TupleSelectPath::new(),
             },
             focus_handle: cx.focus_handle(),
@@ -176,7 +177,14 @@ impl Render for LocationFormForm {
                             .child(
                                 v_flex()
                                     .gap_2()
-                                    .child(Select::new(&self.fields.location_master_select)),
+                                    .child(Select::new(&self.fields.location_master_select))
+                                    .children(
+                                        self
+                                            .fields
+                                            .location_child_selects
+                                            .iter()
+                                            .map(|child| Select::new(child)),
+                                    ),
                             ),
                     ),
             )

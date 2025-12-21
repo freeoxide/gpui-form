@@ -23,11 +23,37 @@ canada_province-BritishColumbia = British Columbia { $f0 }
 canada_province-Ontario = Ontario { $f0 }
 canada_province-Quebec = Quebec { $f0 }
 
+## CanadaProvinceDescriptionKvFtl
+
+canada_province_description_kv_ftl = Canada Province Description Kv Ftl
+canada_province_description_kv_ftl-BritishColumbia = British Columbia
+canada_province_description_kv_ftl-Ontario = Ontario
+canada_province_description_kv_ftl-Quebec = Quebec
+
+## CanadaProvinceLabelKvFtl
+
+canada_province_label_kv_ftl = Canada Province Label Kv Ftl
+canada_province_label_kv_ftl-BritishColumbia = British Columbia
+canada_province_label_kv_ftl-Ontario = Ontario
+canada_province_label_kv_ftl-Quebec = Quebec
+
 ## Country
 
 country = Country
 country-Canada = Canada { $f0 }
 country-USA = Usa { $f0 }
+
+## CountryDescriptionKvFtl
+
+country_description_kv_ftl = Country Description Kv Ftl
+country_description_kv_ftl-Canada = Canada
+country_description_kv_ftl-USA = Usa
+
+## CountryLabelKvFtl
+
+country_label_kv_ftl = Country Label Kv Ftl
+country_label_kv_ftl-Canada = Canada
+country_label_kv_ftl-USA = Usa
 
 ## Empty
 
@@ -146,26 +172,40 @@ usa_state-California = California { $f0 }
 usa_state-NewYork = New York { $f0 }
 usa_state-Texas = Texas { $f0 }
 
+## USAStateDescriptionKvFtl
+
+usa_state_description_kv_ftl = Usa State Description Kv Ftl
+usa_state_description_kv_ftl-California = California
+usa_state_description_kv_ftl-NewYork = New York
+usa_state_description_kv_ftl-Texas = Texas
+
+## USAStateLabelKvFtl
+
+usa_state_label_kv_ftl = Usa State Label Kv Ftl
+usa_state_label_kv_ftl-California = California
+usa_state_label_kv_ftl-NewYork = New York
+usa_state_label_kv_ftl-Texas = Texas
+
 ## User
 
 user = User
 
 ## UserDescriptionKvFtl
 
-user_description_kv_ftl = User Description
-user_description_kv_ftl-age = Age (User's age in years)
-user_description_kv_ftl-balance = Balance (User's account balance)
-user_description_kv_ftl-birth_date = Date of Birth (User's date of birth)
-user_description_kv_ftl-country = Country (User's country of residence)
-user_description_kv_ftl-email = Email (User's email address)
-user_description_kv_ftl-enable_notifications = Enable Notifications (Indicator to enable/disable notifications)
-user_description_kv_ftl-preferred = Preferred (User's preferred option)
-user_description_kv_ftl-subscribe_newsletter = Subscribe to Newsletter (Indicator to subscribe/unsubscribe from the newsletter)
-user_description_kv_ftl-username = Username (User's unique username)
+user_description_kv_ftl = User Description Kv Ftl
+user_description_kv_ftl-age = Age
+user_description_kv_ftl-balance = Balance
+user_description_kv_ftl-birth_date = Birth Date
+user_description_kv_ftl-country = Country
+user_description_kv_ftl-email = Email
+user_description_kv_ftl-enable_notifications = Enable Notifications
+user_description_kv_ftl-preferred = Preferred
+user_description_kv_ftl-subscribe_newsletter = Subscribe Newsletter
+user_description_kv_ftl-username = Username
 
 ## UserLabelKvFtl
 
-user_label_kv_ftl = User Label
+user_label_kv_ftl = User Label Kv Ftl
 user_label_kv_ftl-age = Age
 user_label_kv_ftl-balance = Balance
 user_label_kv_ftl-birth_date = Birth Date
