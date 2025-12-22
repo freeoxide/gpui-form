@@ -13,7 +13,7 @@ use gpui_component::{
 };
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use es_fluent::ToFluentString as _;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "EmptyForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

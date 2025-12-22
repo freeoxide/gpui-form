@@ -13,16 +13,23 @@ struct VariantArgs {
 }
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(tuple_enum), supports(enum_any))]
+#[darling(attributes(tuple_enum), forward_attrs(fluent_kv), supports(enum_any))]
+
 struct TupleEnumInnerArgs {
     ident: Ident,
+
     data: darling::ast::Data<VariantArgs, ()>,
+
+    attrs: Vec<syn::Attribute>,
 }
 
 /// Information about a single variant
+
 struct VariantInfo {
     ident: Ident,
+
     inner_type: Option<Type>,
+
     is_unit: bool,
 }
 
@@ -31,12 +38,81 @@ pub fn from(input: TokenStream) -> TokenStream {
 
     let args = match TupleEnumInnerArgs::from_derive_input(&input) {
         Ok(args) => args,
+
         Err(err) => return err.write_errors().into(),
     };
 
     let enum_ident = &args.ident;
 
+    // Parse fluent_kv attribute to find keys
+
+    let mut has_label = false;
+
+    let mut has_description = false;
+
+    let mut keys_this = false;
+
+    for attr in &args.attrs {
+        if attr.path().is_ident("fluent_kv") {
+            let _ = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("keys") {
+                    let value = meta.value()?;
+
+                    let list: syn::ExprArray = value.parse()?;
+
+                    for elem in list.elems {
+                        if let syn::Expr::Lit(lit) = elem {
+                            if let syn::Lit::Str(s) = lit.lit {
+                                if s.value() == "label" {
+                                    has_label = true;
+                                }
+
+                                if s.value() == "description" {
+                                    has_description = true;
+                                }
+                            }
+                        }
+                    }
+                } else if meta.path.is_ident("keys_this") {
+                    keys_this = true;
+                }
+
+                Ok(())
+            });
+        }
+    }
+
+    let type_label_impl = if has_label && keys_this {
+        let label_enum = quote::format_ident!("{}LabelKvFtl", enum_ident);
+
+        quote! {
+
+            use es_fluent::ThisFtl as _;
+
+            #label_enum::this_ftl().into()
+
+        }
+    } else {
+        quote! { stringify!(#enum_ident).into() }
+    };
+
+    let type_description_impl = if has_description && keys_this {
+        let desc_enum = quote::format_ident!("{}DescriptionKvFtl", enum_ident);
+
+        quote! {
+
+            use es_fluent::ThisFtl as _;
+
+            #desc_enum::this_ftl().into()
+
+        }
+    } else {
+        quote! { stringify!(#enum_ident).into() }
+    };
+
     let variants: Vec<VariantInfo> = match &args.data {
+
+
         darling::ast::Data::Enum(variants) => variants
             .iter()
             .filter(|v| !v.skip)
@@ -252,6 +328,54 @@ pub fn from(input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let inner_child_label_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => None, }
+            } else {
+                quote! { Self::#vident(inner) => inner.child_label_at_depth(depth), }
+            }
+        })
+        .collect();
+
+    let inner_child_description_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => None, }
+            } else {
+                quote! { Self::#vident(inner) => inner.child_description_at_depth(depth), }
+            }
+        })
+        .collect();
+
+    let child_label_immediate_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => None, }
+            } else {
+                quote! { Self::#vident(inner) => Some(inner.type_label()), }
+            }
+        })
+        .collect();
+
+    let child_description_immediate_arms: Vec<_> = variants
+        .iter()
+        .map(|v| {
+            let vident = &v.ident;
+            if v.is_unit {
+                quote! { Self::#vident => None, }
+            } else {
+                quote! { Self::#vident(inner) => Some(inner.type_description()), }
+            }
+        })
+        .collect();
+
     // For depth calculation, we need to find the max depth among all variants
     let depth_calculation = if all_unit {
         quote! { 1 }
@@ -332,6 +456,46 @@ pub fn from(input: TokenStream) -> TokenStream {
             fn inner_has_inner(&self) -> bool {
                 match self {
                     #(#inner_has_inner_arms)*
+                }
+            }
+
+            fn type_label(&self) -> gpui::SharedString {
+                #type_label_impl
+            }
+
+            fn type_description(&self) -> gpui::SharedString {
+                #type_description_impl
+            }
+
+            fn inner_child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+                match self {
+                    #(#inner_child_label_arms)*
+                }
+            }
+
+            fn inner_child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+                match self {
+                    #(#inner_child_description_arms)*
+                }
+            }
+
+            fn child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+                if depth == 0 {
+                    match self {
+                        #(#child_label_immediate_arms)*
+                    }
+                } else {
+                    self.inner_child_label_at_depth(depth - 1)
+                }
+            }
+
+            fn child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+                if depth == 0 {
+                    match self {
+                        #(#child_description_immediate_arms)*
+                    }
+                } else {
+                    self.inner_child_description_at_depth(depth - 1)
                 }
             }
         }

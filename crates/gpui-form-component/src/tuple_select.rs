@@ -95,6 +95,25 @@ pub trait TupleEnumInner: Sized + Clone + Default + 'static {
 
     /// Returns true if the inner value itself has children.
     fn inner_has_inner(&self) -> bool;
+
+    /// Returns the localized label for this type (level).
+    fn type_label(&self) -> SharedString;
+
+    /// Returns the localized description for this type (level).
+    fn type_description(&self) -> SharedString;
+
+    /// Returns the localized label for the child at the given depth relative to this node.
+    /// depth 0 = immediate child.
+    fn child_label_at_depth(&self, depth: usize) -> Option<SharedString>;
+
+    /// Returns the localized description for the child at the given depth.
+    fn child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
+
+    /// Internal method to delegate label lookup to inner value
+    fn inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString>;
+
+    /// Internal method to delegate description lookup to inner value
+    fn inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 }
 
 /// A wrapper for tuple enum variants that implements SelectItem.

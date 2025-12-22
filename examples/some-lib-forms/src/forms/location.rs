@@ -164,7 +164,6 @@ impl LocationForm {
     ) -> Self {
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
 
-        // Create master select with the correct initial selection
         let initial_location = &original_data.location;
         let master_variants = Country::variants();
         let initial_country_name = initial_location.variant_name();
@@ -194,24 +193,15 @@ impl LocationForm {
             ),
         ];
 
-        // Build initial path
         let mut initial_path = gpui_form_component::TupleSelectPath::new();
         initial_path.set(0, initial_country_idx);
 
-        // Build initial child selects
-        // Note: Using the helper resets deeper selections to default (0),
-        // matching the behavior of the previous manual implementation.
         let location_child_selects = LocationFormFormComponents::location_child_selects(
             &original_data.location, // Using original data which is correct for starting level 0
             0,
             window,
             cx,
         );
-
-        // Subscribe to initial children
-        // We can't use Self::on_location_child_select_event directly here easily because we are in 'new'
-        // and subscriptions usually require a handler on the view.
-        // Wait, cx.subscribe_in works fine with Self::method.
 
         for child in &location_child_selects {
             let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
@@ -236,13 +226,52 @@ impl LocationForm {
 
 impl Render for LocationForm {
     fn render(&mut self, _: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let mut location_selects = v_flex()
-            .gap_2()
-            .child(Select::new(&self.fields.location_master_select));
+        let mut form = v_form().child(
+            field()
+                .label(LocationFormLabelKvFtl::Name.to_fluent_string())
+                .description_fn({
+                    let error = self.errors.name.clone();
+                    let description = LocationFormDescriptionKvFtl::Name.to_fluent_string();
+                    move |_, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().child(description.clone()))
+                            .when(!error.is_empty(), |this| {
+                                this.child(div().text_color(gpui::red()).child(error.clone()))
+                            })
+                    }
+                })
+                .child(Input::new(&self.fields.name_input)),
+        );
 
-        // Add child selects dynamically
-        for child_select in &self.fields.location_child_selects {
-            location_selects = location_selects.child(Select::new(child_select));
+        // Master select field
+        form = form.child(
+            field()
+                .label(self.current_data.location.type_label())
+                .description(self.current_data.location.type_description())
+                .child(Select::new(&self.fields.location_master_select)),
+        );
+
+        // Dynamic child select fields
+        for (i, child_select) in self.fields.location_child_selects.iter().enumerate() {
+            form = form.child(
+                field()
+                    .label(
+                        self.current_data
+                            .location
+                            .child_label_at_depth(i)
+                            .unwrap_or("".into()),
+                    )
+                    .description(
+                        self.current_data
+                            .location
+                            .child_description_at_depth(i)
+                            .unwrap_or("".into()),
+                    )
+                    .child(Select::new(child_select)),
+            );
         }
 
         v_flex()
@@ -253,53 +282,7 @@ impl Render for LocationForm {
             .justify_start()
             .gap_3()
             .child(Divider::horizontal())
-            .child(
-                v_form()
-                    .child(
-                        field()
-                            .label(LocationFormLabelKvFtl::Name.to_fluent_string())
-                            .description_fn({
-                                let error = self.errors.name.clone();
-                                let description =
-                                    LocationFormDescriptionKvFtl::Name.to_fluent_string();
-                                move |_, _| {
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .gap_1()
-                                        .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
-                                }
-                            })
-                            .child(Input::new(&self.fields.name_input)),
-                    )
-                    .child(
-                        field()
-                            .label(LocationFormLabelKvFtl::Location.to_fluent_string())
-                            .description_fn({
-                                let error = self.errors.location.clone();
-                                let description =
-                                    LocationFormDescriptionKvFtl::Location.to_fluent_string();
-                                move |_, _| {
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .gap_1()
-                                        .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
-                                }
-                            })
-                            .child(location_selects),
-                    ),
-            )
+            .child(form)
             .child(Divider::horizontal())
             .child(format!("Path: {:?}", self.fields.location_path))
             .child(format!("Data: {:?}", self.current_data))
@@ -307,5 +290,9 @@ impl Render for LocationForm {
                 "Child selects count: {}",
                 self.fields.location_child_selects.len()
             ))
+            // Display location error at the bottom if present
+            .when(!self.errors.location.is_empty(), |this| {
+                 this.child(div().text_color(gpui::red()).child(self.errors.location.clone()))
+            })
     }
 }

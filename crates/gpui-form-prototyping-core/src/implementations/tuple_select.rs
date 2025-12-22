@@ -57,10 +57,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         field: &FieldVariant,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let ftl_label_ident = component.ftl_label_ident();
-        let ftl_description_ident = component.ftl_description_ident();
         let field_name_ident = field.field_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
 
         let master_field_name = format!("{}_master_select", field.field_name);
         let master_field_name_ident = syn::parse_str::<syn::Ident>(&master_field_name).unwrap();
@@ -69,39 +66,34 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_selects_field_name_ident =
             syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
 
-        // For TupleSelect, we render the master select and any active child selects
+        // Render master select and child selects as separate fields with their own labels
         quote! {
-            .child(
-                field()
-                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
-                    .description_fn({
-                        let error = self.errors.#field_name_ident.clone();
-                        let description = #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string();
-                        move |_, _| {
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(div().child(description.clone()))
-                                .when(!error.is_empty(), |this| {
-                                    this.child(
-                                        div()
-                                            .text_color(gpui::red())
-                                            .child(error.clone())
-                                    )
-                                })
-                        }
-                    })
+            .child({
+                use gpui_form_component::TupleEnumInner as _;
+                v_flex()
+                    .gap_3()
                     .child(
-                        v_flex()
-                            .gap_2()
+                        field()
+                            .label(self.current_data.#field_name_ident.type_label())
+                            .description(self.current_data.#field_name_ident.type_description())
                             .child(Select::new(&self.fields.#master_field_name_ident))
-                            .children(
-                                self.fields.#child_selects_field_name_ident.iter()
-                                    .map(|child| Select::new(child))
-                            )
                     )
-            )
+                    .children(
+                        self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
+                            field()
+                                .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
+                                .description(self.current_data.#field_name_ident.child_description_at_depth(i).unwrap_or("".into()))
+                                .child(Select::new(child))
+                        })
+                    )
+                    .when(!self.errors.#field_name_ident.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .text_color(gpui::red())
+                                .child(self.errors.#field_name_ident.clone())
+                        )
+                    })
+            })
         }
     }
 
