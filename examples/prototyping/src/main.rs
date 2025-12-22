@@ -210,7 +210,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       };
       use rust_decimal::Decimal;
       use std::sync::Arc;
-      use es_fluent::ToFluentString as _;
+      use es_fluent::{ThisFtl as _, ToFluentString as _};
 
       #error_ftl_enum
     };
