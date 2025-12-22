@@ -67,23 +67,86 @@ impl LocationFormForm {
             _ => {}
         }
     }
-    fn on_location_tuple_select_event(
+    fn on_location_master_select_event(
         &mut self,
         this: &Entity<SelectState<Vec<gpui_form_component::TupleSelectItem<Country>>>>,
         event: &SelectEvent<Vec<gpui_form_component::TupleSelectItem<Country>>>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            SelectEvent::Confirm(value) => {
-                if let Some(item) = value {
-                    let selected = item.get_value().clone();
-                    if let Some(index) = this.read(cx).selected_index() {
-                        self.fields.location_path.set(0, index.row());
-                    }
-                    self.current_data.location = selected;
+            SelectEvent::Confirm(Some(item)) => {
+                let selected = item.clone();
+                if let Some(index) = this.read(cx).selected_index(cx) {
+                    self.fields.location_path.set(0, index.row);
                 }
+                self.current_data.location = selected.clone();
+                self.fields.location_child_selects.clear();
+                let new_children = LocationFormFormComponents::location_child_selects(
+                    &selected,
+                    0,
+                    window,
+                    cx,
+                );
+                for child in &new_children {
+                    let sub = cx
+                        .subscribe_in(
+                            child,
+                            window,
+                            Self::on_location_child_select_event,
+                        );
+                    self._subscriptions.push(sub);
+                }
+                self.fields.location_child_selects = new_children;
+                cx.notify();
             }
+            _ => {}
+        }
+    }
+    fn on_location_child_select_event(
+        &mut self,
+        this: &Entity<SelectState<Vec<gpui_form_component::TupleSelectItem<Country>>>>,
+        event: &SelectEvent<Vec<gpui_form_component::TupleSelectItem<Country>>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            SelectEvent::Confirm(Some(item)) => {
+                let selected = item.clone();
+                let level = self
+                    .fields
+                    .location_child_selects
+                    .iter()
+                    .position(|s| s == this)
+                    .map(|p| p + 1)
+                    .unwrap_or(1);
+                if let Some(index) = this.read(cx).selected_index(cx) {
+                    self.fields.location_path.set(level, index.row);
+                }
+                self.current_data.location = selected.clone();
+                self.fields.location_child_selects.truncate(level);
+                use gpui_form_component::TupleEnumInner as _;
+                if selected.has_inner() {
+                    let new_children = LocationFormFormComponents::location_child_selects(
+                        &selected,
+                        level,
+                        window,
+                        cx,
+                    );
+                    for child in &new_children {
+                        let sub = cx
+                            .subscribe_in(
+                                child,
+                                window,
+                                Self::on_location_child_select_event,
+                            );
+                        self._subscriptions.push(sub);
+                    }
+                    self.fields.location_child_selects.extend(new_children);
+                }
+                cx.notify();
+            }
+            _ => {}
         }
     }
     fn new(
@@ -97,7 +160,7 @@ impl LocationFormForm {
         let _subscriptions = vec![
             cx.subscribe_in(& name_input, window, Self::on_name_input_event), cx
             .subscribe_in(& location_master_select, window,
-            Self::on_location_tuple_select_event)
+            Self::on_location_master_select_event)
         ];
         Self {
             original_data: Arc::new(original_data.clone()),
@@ -151,41 +214,50 @@ impl Render for LocationFormForm {
                             })
                             .child(Input::new(&self.fields.name_input)),
                     )
-                    .child(
+                    .child({
+                        use gpui_form_component::TupleEnumInner as _;
                         field()
-                            .label(LocationFormLabelKvFtl::Location.to_fluent_string())
-                            .description_fn({
-                                let error = self.errors.location.clone();
-                                let description = LocationFormDescriptionKvFtl::Location
-                                    .to_fluent_string();
-                                move |_, _| {
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .gap_1()
-                                        .child(div().child(description.clone()))
-                                        .when(
-                                            !error.is_empty(),
-                                            |this| {
-                                                this.child(
-                                                    div().text_color(gpui::red()).child(error.clone()),
-                                                )
-                                            },
-                                        )
-                                }
-                            })
-                            .child(
-                                v_flex()
-                                    .gap_2()
-                                    .child(Select::new(&self.fields.location_master_select))
-                                    .children(
+                            .label(self.current_data.location.type_label())
+                            .description(self.current_data.location.type_description())
+                            .child(Select::new(&self.fields.location_master_select))
+                    })
+                    .children({
+                        use gpui_form_component::TupleEnumInner as _;
+                        self.fields
+                            .location_child_selects
+                            .iter()
+                            .enumerate()
+                            .map(|(i, child)| {
+                                field()
+                                    .label(
                                         self
-                                            .fields
-                                            .location_child_selects
-                                            .iter()
-                                            .map(|child| Select::new(child)),
+                                            .current_data
+                                            .location
+                                            .child_label_at_depth(i)
+                                            .unwrap_or("".into()),
+                                    )
+                                    .description(
+                                        self
+                                            .current_data
+                                            .location
+                                            .child_description_at_depth(i)
+                                            .unwrap_or("".into()),
+                                    )
+                                    .child(Select::new(child))
+                            })
+                    })
+                    .when(
+                        !self.errors.location.is_empty(),
+                        |form| {
+                            form.child(
+                                field()
+                                    .child(
+                                        div()
+                                            .text_color(gpui::red())
+                                            .child(self.errors.location.clone()),
                                     ),
-                            ),
+                            )
+                        },
                     ),
             )
             .child(Divider::horizontal())

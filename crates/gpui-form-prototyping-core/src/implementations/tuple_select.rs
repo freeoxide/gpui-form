@@ -55,7 +55,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        component: &GpuiFormShape,
+        _component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
 
@@ -66,33 +66,34 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_selects_field_name_ident =
             syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
 
-        // Render master select and child selects as separate fields with their own labels
+        // Render master select and child selects as direct children of the form
+        // We use a block to ensure the TupleEnumInner trait is in scope for the method calls
         quote! {
             .child({
                 use gpui_form_component::TupleEnumInner as _;
-                v_flex()
-                    .gap_3()
-                    .child(
-                        field()
-                            .label(self.current_data.#field_name_ident.type_label())
-                            .description(self.current_data.#field_name_ident.type_description())
-                            .child(Select::new(&self.fields.#master_field_name_ident))
+                field()
+                    .label(self.current_data.#field_name_ident.type_label())
+                    .description(self.current_data.#field_name_ident.type_description())
+                    .child(Select::new(&self.fields.#master_field_name_ident))
+            })
+            .children({
+                use gpui_form_component::TupleEnumInner as _;
+                self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
+                    field()
+                        .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
+                        .description(self.current_data.#field_name_ident.child_description_at_depth(i).unwrap_or("".into()))
+                        .child(Select::new(child))
+                })
+            })
+            // Wrap error in a field since v_form expects Field children
+            .when(!self.errors.#field_name_ident.is_empty(), |form| {
+                 form.child(
+                    field().child(
+                        div()
+                            .text_color(gpui::red())
+                            .child(self.errors.#field_name_ident.clone())
                     )
-                    .children(
-                        self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
-                            field()
-                                .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
-                                .description(self.current_data.#field_name_ident.child_description_at_depth(i).unwrap_or("".into()))
-                                .child(Select::new(child))
-                        })
-                    )
-                    .when(!self.errors.#field_name_ident.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_color(gpui::red())
-                                .child(self.errors.#field_name_ident.clone())
-                        )
-                    })
+                 )
             })
         }
     }
@@ -113,9 +114,11 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_subscription(
         &self,
         field: &FieldVariant,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let struct_name_ident = field.struct_name_ident();
+        let form_components_struct_ident = component.struct_form_components_ident();
+
         let searchable = if let ComponentsBehaviour::TupleSelect(config) = &field.behaviour {
             config.searchable
         } else {
@@ -125,15 +128,28 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let master_var_name = format!("{}_master_select", field.field_name);
         let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
 
-        let event_handler_fn_name = format!("on_{}_tuple_select_event", field.field_name);
-        let event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&event_handler_fn_name).unwrap();
+        let master_event_handler_fn_name = format!("on_{}_master_select_event", field.field_name);
+        let master_event_handler_fn_name_ident =
+            syn::parse_str::<syn::Ident>(&master_event_handler_fn_name).unwrap();
+
+        let child_event_handler_fn_name = format!("on_{}_child_select_event", field.field_name);
+        let child_event_handler_fn_name_ident =
+            syn::parse_str::<syn::Ident>(&child_event_handler_fn_name).unwrap();
 
         let calls = vec![
-            quote! { cx.subscribe_in(&#master_var_name_ident, window, Self::#event_handler_fn_name_ident) },
+            quote! { cx.subscribe_in(&#master_var_name_ident, window, Self::#master_event_handler_fn_name_ident) },
         ];
 
         let field_name_ident = field.field_ident();
+
+        let child_selects_field_name = format!("{}_child_selects", field.field_name);
+        let child_selects_field_name_ident =
+            syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
+
+        let child_helper_fn_name = format!("{}_child_selects", field.field_name);
+        let child_helper_fn_name_ident =
+            syn::parse_str::<syn::Ident>(&child_helper_fn_name).unwrap();
+
         let path_field_name = format!("{}_path", field.field_name);
         let path_field_name_ident = syn::parse_str::<syn::Ident>(&path_field_name).unwrap();
 
@@ -143,43 +159,95 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             quote! { Vec }
         };
 
-        // The handler updates the current data with the selected value
-        // and updates the selection path
-        let handler = quote! {
-            fn #event_handler_fn_name_ident(
+        let master_handler = quote! {
+            fn #master_event_handler_fn_name_ident(
                 &mut self,
                 this: &Entity<SelectState<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>>,
                 event: &SelectEvent<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>,
-                _window: &mut Window,
+                window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
                 match event {
-                    SelectEvent::Confirm(value) => {
-                        if let Some(item) = value {
-                            // Get the selected value from the TupleSelectItem
-                            let selected = item.get_value().clone();
+                    SelectEvent::Confirm(Some(item)) => {
+                        let selected = item.clone();
 
-                            // Update the selection path at depth 0
-                            if let Some(index) = this.read(cx).selected_index() {
-                                self.fields.#path_field_name_ident.set(0, index.row());
+                        if let Some(index) = this.read(cx).selected_index(cx) {
+                            self.fields.#path_field_name_ident.set(0, index.row);
+                        }
+
+                        self.current_data.#field_name_ident = selected.clone();
+
+                        // Clear and rebuild children
+                        self.fields.#child_selects_field_name_ident.clear();
+
+                        let new_children = #form_components_struct_ident::#child_helper_fn_name_ident(
+                            &selected, 0, window, cx
+                        );
+
+                        for child in &new_children {
+                            let sub = cx.subscribe_in(child, window, Self::#child_event_handler_fn_name_ident);
+                            self._subscriptions.push(sub);
+                        }
+
+                        self.fields.#child_selects_field_name_ident = new_children;
+                        cx.notify();
+                    },
+                    _ => {}
+                }
+            }
+        };
+
+        let child_handler = quote! {
+            fn #child_event_handler_fn_name_ident(
+                &mut self,
+                this: &Entity<SelectState<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>>,
+                event: &SelectEvent<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>,
+                window: &mut Window,
+                cx: &mut Context<Self>,
+            ) {
+                 match event {
+                    SelectEvent::Confirm(Some(item)) => {
+                        let selected = item.clone();
+
+                        // Find level
+                        let level = self.fields.#child_selects_field_name_ident
+                            .iter()
+                            .position(|s| s == this)
+                            .map(|p| p + 1) // +1 because master is level 0
+                            .unwrap_or(1);
+
+                        if let Some(index) = this.read(cx).selected_index(cx) {
+                            self.fields.#path_field_name_ident.set(level, index.row);
+                        }
+
+                        self.current_data.#field_name_ident = selected.clone();
+
+                        // Truncate and rebuild deeper children
+                        self.fields.#child_selects_field_name_ident.truncate(level);
+
+                        use gpui_form_component::TupleEnumInner as _;
+                        if selected.has_inner() {
+                             let new_children = #form_components_struct_ident::#child_helper_fn_name_ident(
+                                &selected, level, window, cx
+                            );
+
+                            for child in &new_children {
+                                let sub = cx.subscribe_in(child, window, Self::#child_event_handler_fn_name_ident);
+                                self._subscriptions.push(sub);
                             }
 
-                            // Update the form data
-                            self.current_data.#field_name_ident = selected;
-
-                            // TODO: If the selected variant has children, we would need to:
-                            // 1. Create/update child select states
-                            // 2. Clear deeper path selections
-                            // This requires dynamic UI updates based on has_inner()
+                            self.fields.#child_selects_field_name_ident.extend(new_children);
                         }
+                        cx.notify();
                     },
+                    _ => {}
                 }
             }
         };
 
         Some(GeneratedSubscription {
             calls,
-            handlers: vec![handler],
+            handlers: vec![master_handler, child_handler],
         })
     }
 }
