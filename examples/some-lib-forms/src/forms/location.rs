@@ -4,6 +4,7 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
+    IndexPath,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
@@ -13,6 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
+use gpui_form_component::TupleEnumInner;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
@@ -72,24 +74,20 @@ impl LocationFormForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            SelectEvent::Confirm(Some(item)) => {
-                let selected = item.clone();
-                if let Some(index) = this.read(cx).selected_index(cx) {
-                    self.fields.location_path.set(0, index.row);
-                }
-                self.current_data.location = selected.clone();
-                self.fields.location_child_selects.clear();
-                let new_children =
-                    LocationFormFormComponents::location_child_selects(&selected, 0, window, cx);
-                for child in &new_children {
-                    let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
-                    self._subscriptions.push(sub);
-                }
-                self.fields.location_child_selects = new_children;
-                cx.notify();
-            },
-            _ => {},
+        if let SelectEvent::Confirm(Some(selected)) = event {
+            if let Some(index) = this.read(cx).selected_index(cx) {
+                self.fields.location_path.set(0, index.row);
+            }
+            self.current_data.location = selected.clone();
+            self.fields.location_child_selects.clear();
+            let new_children =
+                LocationFormFormComponents::location_child_selects(&selected, 0, window, cx);
+            for child in &new_children {
+                let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                self._subscriptions.push(sub);
+            }
+            self.fields.location_child_selects = new_children;
+            cx.notify();
         }
     }
     fn on_location_child_select_event(
@@ -99,43 +97,52 @@ impl LocationFormForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            SelectEvent::Confirm(Some(item)) => {
-                let selected = item.clone();
-                let level = self
-                    .fields
-                    .location_child_selects
-                    .iter()
-                    .position(|s| s == this)
-                    .map(|p| p + 1)
-                    .unwrap_or(1);
-                if let Some(index) = this.read(cx).selected_index(cx) {
-                    self.fields.location_path.set(level, index.row);
+        if let SelectEvent::Confirm(Some(selected)) = event {
+            let level = self
+                .fields
+                .location_child_selects
+                .iter()
+                .position(|s| s == this)
+                .map(|pos| pos + 1)
+                .unwrap_or(1);
+            if let Some(index) = this.read(cx).selected_index(cx) {
+                self.fields.location_path.set(level, index.row);
+            }
+            self.current_data.location = selected.clone();
+            self.fields.location_child_selects.truncate(level);
+            if selected.has_inner() {
+                let new_children = LocationFormFormComponents::location_child_selects(
+                    &selected, level, window, cx,
+                );
+                for child in &new_children {
+                    let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                    self._subscriptions.push(sub);
                 }
-                self.current_data.location = selected.clone();
-                self.fields.location_child_selects.truncate(level);
-                use gpui_form_component::TupleEnumInner as _;
-                if selected.has_inner() {
-                    let new_children = LocationFormFormComponents::location_child_selects(
-                        &selected, level, window, cx,
-                    );
-                    for child in &new_children {
-                        let sub =
-                            cx.subscribe_in(child, window, Self::on_location_child_select_event);
-                        self._subscriptions.push(sub);
-                    }
-                    self.fields.location_child_selects.extend(new_children);
-                }
-                cx.notify();
-            },
-            _ => {},
+                self.fields.location_child_selects.extend(new_children);
+            }
+            cx.notify();
         }
     }
     fn new(window: &mut Window, cx: &mut Context<Self>, original_data: LocationForm) -> Self {
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
-        let location_master_select =
-            cx.new(|cx| LocationFormFormComponents::location_master_select(window, cx));
-        let _subscriptions = vec![
+        let initial_location = &original_data.location;
+        let master_variants = Country::variants();
+        let initial_variant_name = initial_location.variant_name();
+        let initial_variant_idx = master_variants
+            .iter()
+            .position(|v| v.variant_name() == initial_variant_name)
+            .unwrap_or(0);
+        let master_selected_index = Some(gpui_component::IndexPath {
+            section: 0,
+            row: initial_variant_idx,
+            column: 0,
+        });
+        let location_master_select = cx.new(|cx| {
+            let items: Vec<gpui_form_component::TupleSelectItem<Country>> =
+                gpui_form_component::tuple_enum_to_select_items::<Country>();
+            gpui_component::select::SelectState::new(items, master_selected_index, window, cx)
+        });
+        let mut _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_name_input_event),
             cx.subscribe_in(
                 &location_master_select,
@@ -143,6 +150,18 @@ impl LocationFormForm {
                 Self::on_location_master_select_event,
             ),
         ];
+        let mut location_path = gpui_form_component::TupleSelectPath::new();
+        location_path.set(0, initial_variant_idx);
+        let location_child_selects = LocationFormFormComponents::location_child_selects(
+            &original_data.location,
+            0,
+            window,
+            cx,
+        );
+        for child in &location_child_selects {
+            let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+            _subscriptions.push(sub);
+        }
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
@@ -150,8 +169,8 @@ impl LocationFormForm {
             fields: LocationFormFormFields {
                 name_input,
                 location_master_select,
-                location_child_selects: Vec::new(),
-                location_path: gpui_form_component::TupleSelectPath::new(),
+                location_child_selects,
+                location_path,
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,

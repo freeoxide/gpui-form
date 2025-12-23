@@ -5,12 +5,14 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    IndexPath, checkbox::Checkbox,
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
     form::{field, v_form},
     input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
     switch::Switch, v_flex,
 };
+use gpui_form_component::TupleEnumInner;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
@@ -449,7 +451,7 @@ impl NutypeUserForm {
             .new(|cx| NutypeUserFormComponents::country_select(window, cx));
         let birth_date_date_picker = cx
             .new(|cx| NutypeUserFormComponents::birth_date_date_picker(window, cx));
-        let _subscriptions = vec![
+        let mut _subscriptions = vec![
             cx.subscribe_in(& username_input, window, Self::on_username_input_event), cx
             .subscribe_in(& email_input, window, Self::on_email_input_event), cx
             .subscribe_in(& age_number_input, window, Self::on_age_input_event), cx

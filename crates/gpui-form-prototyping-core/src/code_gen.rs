@@ -116,7 +116,7 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             None
         } else {
             Some(quote! {
-                let _subscriptions = vec![#(#calls),*];
+                let mut _subscriptions = vec![#(#calls),*];
             })
         }
     }
@@ -143,5 +143,21 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
                 #(#handlers)*
             })
         }
+    }
+
+    fn post_subscription_initialization(&self) -> Option<proc_macro2::TokenStream> {
+        let x: proc_macro2::TokenStream = self
+            .shape_data
+            .components
+            .iter()
+            .filter_map(|field| {
+                let generator = field_generator(&field.behaviour);
+                generator
+                    .as_generator()
+                    .generate_post_subscription_initialization(field, self.shape_data)
+            })
+            .collect();
+
+        if x.is_empty() { None } else { Some(x) }
     }
 }

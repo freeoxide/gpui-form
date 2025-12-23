@@ -73,6 +73,14 @@ pub trait FieldCodeGenerator {
         field: &FieldVariant,
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription>;
+
+    fn generate_post_subscription_initialization(
+        &self,
+        field: &FieldVariant,
+        component: &GpuiFormShape,
+    ) -> Option<TokenStream> {
+        None
+    }
 }
 
 pub trait ComponentShape {
@@ -87,6 +95,8 @@ pub trait ComponentShape {
     fn subscription_calls(&self) -> Option<TokenStream>;
 
     fn event_handlers(&self) -> Option<TokenStream>;
+
+    fn post_subscription_initialization(&self) -> Option<TokenStream>;
 }
 
 pub trait ComponentIdentities {
