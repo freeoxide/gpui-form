@@ -136,7 +136,9 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let subscription_calls_tokens = adapter.subscription_calls().unwrap_or_default();
 
-    let post_subscription_init_tokens = adapter.post_subscription_initialization().unwrap_or_default();
+    let post_subscription_init_tokens = adapter
+        .post_subscription_initialization()
+        .unwrap_or_default();
 
     let (subscriptions_field, subscriptions_init) = if subscription_calls_tokens.is_empty() {
         (quote! {}, quote! {})

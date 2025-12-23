@@ -13,10 +13,10 @@ categories = [ "development-tools::procedural-macro-helpers" ]
 keywords = [ "gpui", "gpui-component", "form" ]
 
 [features]
+component = [ "dep:gpui-form-component" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive/inventory" ]
-component = [ "dep:gpui-form-component" ]
 
 [dependencies]
 gpui-form-component = { optional = true, workspace = true }

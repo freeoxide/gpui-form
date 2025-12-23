@@ -154,9 +154,7 @@ pub struct LocationForm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_form_component::tuple_select::{
-        TupleEnumInner, TupleSelectPath, build_from_path, get_max_depth,
-    };
+    use gpui_form_component::tuple_select::{TupleEnumInner, TupleSelectPath, build_from_path};
 
     #[test]
     fn test_depth_calculation() {
@@ -264,9 +262,9 @@ mod tests {
 
     #[test]
     fn test_max_depth() {
-        assert_eq!(get_max_depth::<Country>(), 3);
-        assert_eq!(get_max_depth::<USAState>(), 2);
-        assert_eq!(get_max_depth::<CaliforniaCity>(), 1);
+        assert_eq!(Country::depth(), 3);
+        assert_eq!(USAState::depth(), 2);
+        assert_eq!(CaliforniaCity::depth(), 1);
     }
 
     #[test]
