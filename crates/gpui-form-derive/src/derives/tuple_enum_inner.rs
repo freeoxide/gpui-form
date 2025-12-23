@@ -24,7 +24,6 @@ struct TupleEnumInnerArgs {
 }
 
 /// Information about a single variant
-
 struct VariantInfo {
     ident: Ident,
 
@@ -45,7 +44,6 @@ pub fn from(input: TokenStream) -> TokenStream {
     let enum_ident = &args.ident;
 
     // Parse fluent_kv attribute to find keys
-
     let mut has_label = false;
 
     let mut has_description = false;
@@ -206,7 +204,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
                     Self::#vident(_) => {
-                        <#inner_ty as gpui_form_component::TupleEnumInner>::variants()
+                        <#inner_ty as gpui_form_component::tuple_select::TupleEnumInner>::variants()
                             .into_iter()
                             .map(|v| v.variant_name())
                             .collect()
@@ -274,7 +272,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
                     Self::#vident(_) => {
-                        let children = <#inner_ty as gpui_form_component::TupleEnumInner>::variants();
+                        let children = <#inner_ty as gpui_form_component::tuple_select::TupleEnumInner>::variants();
                         children.get(index).map(|child| Self::#vident(child.clone()))
                     }
                 }
@@ -296,7 +294,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                         if path.is_empty() {
                             return None;
                         }
-                        let children = <#inner_ty as gpui_form_component::TupleEnumInner>::variants();
+                        let children = <#inner_ty as gpui_form_component::tuple_select::TupleEnumInner>::variants();
                         let child = children.get(path[0])?.clone();
                         if path.len() == 1 {
                             // Last element in path - just set the child
@@ -322,7 +320,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             } else {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
-                    Self::#vident(_) => <#inner_ty as gpui_form_component::TupleEnumInner>::depth(),
+                    Self::#vident(_) => <#inner_ty as gpui_form_component::tuple_select::TupleEnumInner>::depth(),
                 }
             }
         })
@@ -385,7 +383,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             .filter(|v| !v.is_unit)
             .map(|v| {
                 let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! { <#inner_ty as gpui_form_component::TupleEnumInner>::depth() }
+                quote! { <#inner_ty as gpui_form_component::tuple_select::TupleEnumInner>::depth() }
             })
             .collect();
         quote! {
@@ -394,7 +392,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl gpui_form_component::TupleEnumInner for #enum_ident {
+        impl gpui_form_component::tuple_select::TupleEnumInner for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*

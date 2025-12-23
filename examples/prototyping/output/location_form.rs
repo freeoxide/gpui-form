@@ -12,7 +12,7 @@ use gpui_component::{
     input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
     switch::Switch, v_flex,
 };
-use gpui_form_component::TupleEnumInner;
+use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
@@ -71,8 +71,12 @@ impl LocationFormForm {
     }
     fn on_location_master_select_event(
         &mut self,
-        this: &Entity<SelectState<Vec<gpui_form_component::TupleSelectItem<Country>>>>,
-        event: &SelectEvent<Vec<gpui_form_component::TupleSelectItem<Country>>>,
+        this: &Entity<
+            SelectState<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+        >,
+        event: &SelectEvent<
+            Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>,
+        >,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -99,8 +103,12 @@ impl LocationFormForm {
     }
     fn on_location_child_select_event(
         &mut self,
-        this: &Entity<SelectState<Vec<gpui_form_component::TupleSelectItem<Country>>>>,
-        event: &SelectEvent<Vec<gpui_form_component::TupleSelectItem<Country>>>,
+        this: &Entity<
+            SelectState<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+        >,
+        event: &SelectEvent<
+            Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>,
+        >,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -145,25 +153,27 @@ impl LocationFormForm {
     ) -> Self {
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
         let initial_location = &original_data.location;
-        let master_variants = Country::variants();
-        let initial_variant_name = initial_location.variant_name();
-        let initial_variant_idx = master_variants
+        let master_variants_location = Country::variants();
+        let initial_variant_name_location = initial_location.variant_name();
+        let initial_variant_idx_location = master_variants_location
             .iter()
-            .position(|v| v.variant_name() == initial_variant_name)
+            .position(|v| v.variant_name() == initial_variant_name_location)
             .unwrap_or(0);
-        let master_selected_index = Some(gpui_component::IndexPath {
+        let master_selected_index_location = Some(gpui_component::IndexPath {
             section: 0,
-            row: initial_variant_idx,
+            row: initial_variant_idx_location,
             column: 0,
         });
         let location_master_select = cx
             .new(|cx| {
-                let items: Vec<gpui_form_component::TupleSelectItem<Country>> = gpui_form_component::tuple_enum_to_select_items::<
+                let items: Vec<
+                    gpui_form_component::tuple_select::TupleSelectItem<Country>,
+                > = gpui_form_component::tuple_select::tuple_enum_to_select_items::<
                     Country,
                 >();
                 gpui_component::select::SelectState::new(
                     items,
-                    master_selected_index,
+                    master_selected_index_location,
                     window,
                     cx,
                 )
@@ -173,8 +183,8 @@ impl LocationFormForm {
             .subscribe_in(& location_master_select, window,
             Self::on_location_master_select_event)
         ];
-        let mut location_path = gpui_form_component::TupleSelectPath::new();
-        location_path.set(0, initial_variant_idx);
+        let mut location_path = gpui_form_component::tuple_select::TupleSelectPath::new();
+        location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(
             &original_data.location,
             0,
@@ -194,7 +204,7 @@ impl LocationFormForm {
                 name_input,
                 location_master_select,
                 location_child_selects,
-                location_path,
+                location_path: gpui_form_component::tuple_select::TupleSelectPath::new(),
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,
@@ -239,14 +249,14 @@ impl Render for LocationFormForm {
                             .child(Input::new(&self.fields.name_input)),
                     )
                     .child({
-                        use gpui_form_component::TupleEnumInner as _;
+                        use gpui_form_component::tuple_select::TupleEnumInner as _;
                         field()
                             .label(self.current_data.location.type_label())
                             .description(self.current_data.location.type_description())
                             .child(Select::new(&self.fields.location_master_select))
                     })
                     .children({
-                        use gpui_form_component::TupleEnumInner as _;
+                        use gpui_form_component::tuple_select::TupleEnumInner as _;
                         self.fields
                             .location_child_selects
                             .iter()

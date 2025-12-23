@@ -12,7 +12,7 @@ use gpui_component::{
     input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
     switch::Switch, v_flex,
 };
-use gpui_form_component::TupleEnumInner;
+use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};

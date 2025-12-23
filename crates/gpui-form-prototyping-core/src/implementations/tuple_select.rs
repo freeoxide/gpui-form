@@ -20,23 +20,9 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let struct_name_ident = field.struct_name_ident();
         let field_name_ident = field.field_ident();
 
-        // Generate the master select field name
         let master_var_name = format!("{}_master_select", field.field_name);
         let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
-        
-        // Generate the child selects field name (used in post-init, but we declare var here?)
-        // No, child selects are created in post-init or here?
-        // In location_ref.rs, location_child_selects is created locally in new, then passed to struct init.
-        // But cx_new_call is mostly for the master component. 
-        // We can create the local variable for child selects here as well?
-        // location_ref.rs creates it AFTER subscriptions (to avoid move issues? no).
-        // It creates it at the end of new() usually?
-        // Actually location_ref.rs creates it after master select.
-        
-        // We need to match the logic:
-        // 1. Calculate initial index
-        // 2. Create master select
-        
+
         let initial_location_var = format!("initial_{}", field.field_name);
         let initial_location_ident = syn::parse_str::<syn::Ident>(&initial_location_var).unwrap();
 
@@ -44,13 +30,16 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let master_variants_ident = syn::parse_str::<syn::Ident>(&master_variants_var).unwrap();
 
         let initial_variant_name_var = format!("initial_variant_name_{}", field.field_name);
-        let initial_variant_name_ident = syn::parse_str::<syn::Ident>(&initial_variant_name_var).unwrap();
+        let initial_variant_name_ident =
+            syn::parse_str::<syn::Ident>(&initial_variant_name_var).unwrap();
 
         let initial_variant_idx_var = format!("initial_variant_idx_{}", field.field_name);
-        let initial_variant_idx_ident = syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
+        let initial_variant_idx_ident =
+            syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
 
         let master_selected_index_var = format!("master_selected_index_{}", field.field_name);
-        let master_selected_index_ident = syn::parse_str::<syn::Ident>(&master_selected_index_var).unwrap();
+        let master_selected_index_ident =
+            syn::parse_str::<syn::Ident>(&master_selected_index_var).unwrap();
 
         Some(quote! {
             let #initial_location_ident = &original_data.#field_name_ident;
@@ -68,8 +57,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             });
 
             let #master_var_name_ident = cx.new(|cx| {
-                let items: Vec<gpui_form_component::TupleSelectItem<#struct_name_ident>> =
-                    gpui_form_component::tuple_enum_to_select_items::<#struct_name_ident>();
+                let items: Vec<gpui_form_component::tuple_select::TupleSelectItem<#struct_name_ident>> =
+                    gpui_form_component::tuple_select::tuple_enum_to_select_items::<#struct_name_ident>();
                 gpui_component::select::SelectState::new(items, #master_selected_index_ident, window, cx)
             });
         })
@@ -94,7 +83,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         Some(quote! {
             #master_var_name_ident,
             #child_selects_var_name_ident,
-            #path_var_name_ident,
+            #path_var_name_ident: gpui_form_component::tuple_select::TupleSelectPath::new(),
         })
     }
 
@@ -112,18 +101,16 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_selects_field_name_ident =
             syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
 
-        // Render master select and child selects as direct children of the form
-        // We use a block to ensure the TupleEnumInner trait is in scope for the method calls
         quote! {
             .child({
-                use gpui_form_component::TupleEnumInner as _;
+                use gpui_form_component::tuple_select::TupleEnumInner as _;
                 field()
                     .label(self.current_data.#field_name_ident.type_label())
                     .description(self.current_data.#field_name_ident.type_description())
                     .child(Select::new(&self.fields.#master_field_name_ident))
             })
             .children({
-                use gpui_form_component::TupleEnumInner as _;
+                use gpui_form_component::tuple_select::TupleEnumInner as _;
                 self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
                     field()
                         .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
@@ -131,7 +118,6 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
                         .child(Select::new(child))
                 })
             })
-            // Wrap error in a field since v_form expects Field children
             .when(!self.errors.#field_name_ident.is_empty(), |form| {
                  form.child(
                     field().child(
@@ -208,8 +194,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let master_handler = quote! {
             fn #master_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form_component::tuple_select::TupleSelectItem<#struct_name_ident>>>>,
+                event: &SelectEvent<#vec_type<gpui_form_component::tuple_select::TupleSelectItem<#struct_name_ident>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
@@ -239,8 +225,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_handler = quote! {
             fn #child_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form_component::TupleSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form_component::tuple_select::TupleSelectItem<#struct_name_ident>>>>,
+                event: &SelectEvent<#vec_type<gpui_form_component::tuple_select::TupleSelectItem<#struct_name_ident>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
@@ -295,23 +281,24 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_selects_var_name = format!("{}_child_selects", field.field_name);
         let child_selects_var_name_ident =
             syn::parse_str::<syn::Ident>(&child_selects_var_name).unwrap();
-        
+
         let path_var_name = format!("{}_path", field.field_name);
         let path_var_name_ident = syn::parse_str::<syn::Ident>(&path_var_name).unwrap();
-        
+
         let child_helper_fn_name = format!("{}_child_selects", field.field_name);
         let child_helper_fn_name_ident =
             syn::parse_str::<syn::Ident>(&child_helper_fn_name).unwrap();
 
-         let child_event_handler_fn_name = format!("on_{}_child_select_event", field.field_name);
+        let child_event_handler_fn_name = format!("on_{}_child_select_event", field.field_name);
         let child_event_handler_fn_name_ident =
             syn::parse_str::<syn::Ident>(&child_event_handler_fn_name).unwrap();
 
         let initial_variant_idx_var = format!("initial_variant_idx_{}", field.field_name);
-        let initial_variant_idx_ident = syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
-        
+        let initial_variant_idx_ident =
+            syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
+
         Some(quote! {
-            let mut #path_var_name_ident = gpui_form_component::TupleSelectPath::new();
+            let mut #path_var_name_ident = gpui_form_component::tuple_select::TupleSelectPath::new();
             #path_var_name_ident.set(0, #initial_variant_idx_ident);
 
             let #child_selects_var_name_ident = #form_components_struct_ident::#child_helper_fn_name_ident(

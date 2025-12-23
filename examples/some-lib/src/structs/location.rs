@@ -154,7 +154,9 @@ pub struct LocationForm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_form_component::{TupleEnumInner, TupleSelectPath, build_from_path, get_max_depth};
+    use gpui_form_component::tuple_select::{
+        TupleEnumInner, TupleSelectPath, build_from_path, get_max_depth,
+    };
 
     #[test]
     fn test_depth_calculation() {
