@@ -3,7 +3,7 @@
 //! This demonstrates a 3-level hierarchy: Country -> State/Province -> City
 //! using the TupleEnumInner derive macro.
 
-use es_fluent::EsFluent;
+use es_fluent::{EsFluent, EsFluentKv};
 use gpui_form::TupleEnumInner;
 use strum::EnumIter;
 
@@ -81,8 +81,9 @@ pub enum BritishColumbiaCity {
 // Level 2: States/Provinces (contain cities)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
 #[fluent(this)]
+#[fluent_kv(keys = ["description", "label"], keys_this)]
 pub enum USAState {
     California(CaliforniaCity),
     Texas(TexasCity),
@@ -95,8 +96,9 @@ impl Default for USAState {
     }
 }
 
-#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
 #[fluent(this)]
+#[fluent_kv(keys = ["description", "label"], keys_this)]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
     Quebec(QuebecCity),
@@ -113,8 +115,9 @@ impl Default for CanadaProvince {
 // Level 1: Countries (contain states/provinces)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
 #[fluent(this)]
+#[fluent_kv(keys = ["description", "label"], keys_this)]
 pub enum Country {
     USA(USAState),
     Canada(CanadaProvince),
@@ -130,13 +133,12 @@ impl Default for Country {
 // Form struct using the nested tuple enum
 // ============================================================================
 
-use es_fluent::EsFluentKv;
 use garde::Validate;
 use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
 #[derive(Clone, Debug, Default, EsFluentKv, GpuiForm, Validate)]
-#[fluent_kv(this, keys = ["description", "label"])]
+#[fluent_kv(keys = ["description", "label"], this)] // rn "this" will also do "keys_this", new update of es-fluent will fix this
 pub struct LocationForm {
     /// User's name
     #[gpui_form(component(input))]

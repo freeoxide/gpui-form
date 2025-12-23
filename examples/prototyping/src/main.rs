@@ -136,6 +136,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let subscription_calls_tokens = adapter.subscription_calls().unwrap_or_default();
 
+    let post_subscription_init_tokens = adapter.post_subscription_initialization().unwrap_or_default();
+
     let (subscriptions_field, subscriptions_init) = if subscription_calls_tokens.is_empty() {
         (quote! {}, quote! {})
     } else {
@@ -200,6 +202,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
       };
       use gpui_component::{
+          IndexPath,
           checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
           divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
           form::{field, v_form},
@@ -208,9 +211,10 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           },
           switch::Switch, v_flex,
       };
+      use gpui_form_component::TupleEnumInner;
       use rust_decimal::Decimal;
       use std::sync::Arc;
-      use es_fluent::ToFluentString as _;
+      use es_fluent::{ThisFtl as _, ToFluentString as _};
 
       #error_ftl_enum
     };
@@ -261,6 +265,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
             #component_creations_tokens
 
             #subscription_calls_tokens
+
+            #post_subscription_init_tokens
 
               Self {
                   original_data: Arc::new(original_data.clone()),
