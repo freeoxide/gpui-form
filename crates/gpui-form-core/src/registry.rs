@@ -7,13 +7,21 @@ inventory::collect!(GpuiFormShape);
 pub struct GpuiFormShape {
     pub struct_name: &'static str,
     pub components: &'static [FieldVariant],
+    /// The source file path where the struct with #[derive(GpuiForm)] is declared.
+    /// This is the full path from file!() macro, useful for generating imports.
+    pub source_path: &'static str,
 }
 
 impl GpuiFormShape {
-    pub const fn new(struct_name: &'static str, components: &'static [FieldVariant]) -> Self {
+    pub const fn new(
+        struct_name: &'static str,
+        components: &'static [FieldVariant],
+        source_path: &'static str,
+    ) -> Self {
         Self {
             struct_name,
             components,
+            source_path,
         }
     }
 }

@@ -1,4 +1,4 @@
-use some_lib::structs::location_form::*;
+use some_lib::structs::location::*;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
