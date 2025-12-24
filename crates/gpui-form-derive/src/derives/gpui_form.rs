@@ -279,7 +279,8 @@ fn expand_gpui_form(
                 ::gpui_form::core::registry::inventory::submit! {
                     ::gpui_form::core::registry::GpuiFormShape::new(
                         stringify!(#struct_name),
-                        &[]
+                        &[],
+                        file!()
                     )
                 }
             }
@@ -431,7 +432,8 @@ fn expand_gpui_form(
                     stringify!(#struct_name),
                     &[
                         #(#field_variant_construction_code),*
-                    ]
+                    ],
+                    file!()
                 )
             }
         }
