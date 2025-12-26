@@ -1,4 +1,4 @@
-use es_fluent::{EsFluent, EsFluentKv};
+use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
 use nutype::nutype;
 use rust_decimal::Decimal;
@@ -50,8 +50,9 @@ pub enum NutypeEnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, GpuiForm)]
-#[fluent_kv(this, keys = ["description", "label"])]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub struct NutypeUser {
     /// item = String allows typing any string, validated on blur
     #[gpui_form(item = String, component(input))]
