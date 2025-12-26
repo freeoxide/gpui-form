@@ -3,7 +3,7 @@
 //! This demonstrates a 3-level hierarchy: Country -> State/Province -> City
 //! using the TupleEnumInner derive macro.
 
-use es_fluent::{EsFluent, EsFluentKv};
+use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::TupleEnumInner;
 use strum::EnumIter;
 
@@ -11,8 +11,8 @@ use strum::EnumIter;
 // Level 3: Cities (leaf nodes - no inner values)
 // ============================================================================
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum CaliforniaCity {
     #[default]
     LosAngeles,
@@ -22,8 +22,8 @@ pub enum CaliforniaCity {
     Sacramento,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum TexasCity {
     #[default]
     Houston,
@@ -33,8 +33,8 @@ pub enum TexasCity {
     FortWorth,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum NewYorkCity {
     #[default]
     NewYorkCity,
@@ -44,8 +44,8 @@ pub enum NewYorkCity {
     Syracuse,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum OntarioCity {
     #[default]
     Toronto,
@@ -55,8 +55,8 @@ pub enum OntarioCity {
     London,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum QuebecCity {
     #[default]
     Montreal,
@@ -66,8 +66,8 @@ pub enum QuebecCity {
     Longueuil,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, TupleEnumInner)]
-#[fluent(this)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin)]
 pub enum BritishColumbiaCity {
     #[default]
     Vancouver,
@@ -81,9 +81,9 @@ pub enum BritishColumbiaCity {
 // Level 2: States/Provinces (contain cities)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
-#[fluent(this)]
-#[fluent_kv(keys = ["description", "label"], keys_this)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub enum USAState {
     California(CaliforniaCity),
     Texas(TexasCity),
@@ -96,9 +96,9 @@ impl Default for USAState {
     }
 }
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
-#[fluent(this)]
-#[fluent_kv(keys = ["description", "label"], keys_this)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
     Quebec(QuebecCity),
@@ -115,9 +115,9 @@ impl Default for CanadaProvince {
 // Level 1: Countries (contain states/provinces)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, PartialEq, TupleEnumInner)]
-#[fluent(this)]
-#[fluent_kv(keys = ["description", "label"], keys_this)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub enum Country {
     USA(USAState),
     Canada(CanadaProvince),
@@ -137,8 +137,9 @@ use garde::Validate;
 use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
-#[derive(Clone, Debug, Default, EsFluentKv, GpuiForm, Validate)]
-#[fluent_kv(keys = ["description", "label"], this)] // rn "this" will also do "keys_this", new update of es-fluent will fix this
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Validate)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub struct LocationForm {
     /// User's name
     #[gpui_form(component(input))]

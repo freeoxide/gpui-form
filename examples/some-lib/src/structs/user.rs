@@ -1,4 +1,4 @@
-use es_fluent::{EsFluent, EsFluentKv};
+use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use garde::Validate;
 use gpui_form::{GpuiForm, SelectItem};
 use rust_decimal::Decimal;
@@ -20,8 +20,9 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, GpuiForm, Validate)]
-#[fluent_kv(this, keys = ["description", "label"])]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Validate)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
     #[garde(length(min = 3, max = 50))]

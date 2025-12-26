@@ -24,8 +24,5 @@ strum = { workspace = true }
 unic-langid = { workspace = true }
 unwrapped = { workspace = true }
 
-[build-dependencies]
-es-fluent-build = { workspace = true }
-
 [lints]
 workspace = true

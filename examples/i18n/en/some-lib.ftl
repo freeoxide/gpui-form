@@ -29,6 +29,9 @@ canada_province_description_kv_ftl_this = Select a Canadian province — cities 
 canada_province_description_kv_ftl-BritishColumbia = Select a city located in British Columbia
 canada_province_description_kv_ftl-Ontario = Select a city located in Ontario
 canada_province_description_kv_ftl-Quebec = Select a city located in Quebec
+canada_province_description_kv_ftl-british_columbia = British Columbia
+canada_province_description_kv_ftl-ontario = Ontario
+canada_province_description_kv_ftl-quebec = Quebec
 
 ## CanadaProvinceLabelKvFtl
 
@@ -36,6 +39,9 @@ canada_province_label_kv_ftl_this = Province
 canada_province_label_kv_ftl-BritishColumbia = British Columbia
 canada_province_label_kv_ftl-Ontario = Ontario
 canada_province_label_kv_ftl-Quebec = Quebec
+canada_province_label_kv_ftl-british_columbia = British Columbia
+canada_province_label_kv_ftl-ontario = Ontario
+canada_province_label_kv_ftl-quebec = Quebec
 
 ## Country
 
@@ -48,12 +54,16 @@ country-USA = Usa { $f0 }
 country_description_kv_ftl_this = Select a country — the next field will adapt to show states or provinces
 country_description_kv_ftl-Canada = Choose Canada to see provinces
 country_description_kv_ftl-USA = Choose United States to see states
+country_description_kv_ftl-canada = Canada
+country_description_kv_ftl-usa = Usa
 
 ## CountryLabelKvFtl
 
 country_label_kv_ftl_this = Country
 country_label_kv_ftl-Canada = Canada
 country_label_kv_ftl-USA = United States
+country_label_kv_ftl-canada = Canada
+country_label_kv_ftl-usa = Usa
 
 ## Empty
 
@@ -73,11 +83,13 @@ location_form_this = Location Form
 
 location_form_description_kv_ftl-location = Choose a country, then a state/province, then a city
 location_form_description_kv_ftl-name = Enter the person's full name
+location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 
 ## LocationFormLabelKvFtl
 
 location_form_label_kv_ftl-location = Location
 location_form_label_kv_ftl-name = Full name
+location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 
 ## NewYorkCity
 
@@ -115,6 +127,7 @@ nutype_user_description_kv_ftl-enable_notifications = Enable notifications
 nutype_user_description_kv_ftl-preferred = Preferred
 nutype_user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
 nutype_user_description_kv_ftl-username = Username
+nutype_user_description_kv_ftl_this = Nutype User Description Kv Ftl
 
 ## NutypeUserLabelKvFtl
 
@@ -127,6 +140,7 @@ nutype_user_label_kv_ftl-enable_notifications = Enable Notifications
 nutype_user_label_kv_ftl-preferred = Preferred
 nutype_user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 nutype_user_label_kv_ftl-username = Username
+nutype_user_label_kv_ftl_this = Nutype User Label Kv Ftl
 
 ## OntarioCity
 
@@ -174,6 +188,9 @@ usa_state_description_kv_ftl_this = Select a US state — cities will be populat
 usa_state_description_kv_ftl-California = Choose a city in California
 usa_state_description_kv_ftl-NewYork = Choose a city in New York
 usa_state_description_kv_ftl-Texas = Choose a city in Texas
+usa_state_description_kv_ftl-california = California
+usa_state_description_kv_ftl-new_york = New York
+usa_state_description_kv_ftl-texas = Texas
 
 ## USAStateLabelKvFtl
 
@@ -181,6 +198,9 @@ usa_state_label_kv_ftl_this = State
 usa_state_label_kv_ftl-California = California
 usa_state_label_kv_ftl-NewYork = New York
 usa_state_label_kv_ftl-Texas = Texas
+usa_state_label_kv_ftl-california = California
+usa_state_label_kv_ftl-new_york = New York
+usa_state_label_kv_ftl-texas = Texas
 
 ## User
 
@@ -197,6 +217,7 @@ user_description_kv_ftl-enable_notifications = Whether notifications are enabled
 user_description_kv_ftl-preferred = Preferred
 user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
 user_description_kv_ftl-username = Username
+user_description_kv_ftl_this = User Description Kv Ftl
 
 ## UserLabelKvFtl
 
@@ -209,3 +230,4 @@ user_label_kv_ftl-enable_notifications = Enable Notifications
 user_label_kv_ftl-preferred = Preferred
 user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 user_label_kv_ftl-username = Username
+user_label_kv_ftl_this = User Label Kv Ftl
