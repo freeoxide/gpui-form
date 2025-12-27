@@ -26,12 +26,9 @@ canada_province-Quebec = Quebec { $f0 }
 ## CanadaProvinceDescriptionKvFtl
 
 canada_province_description_kv_ftl_this = Select a Canadian province — cities will be populated after choosing a province
-canada_province_description_kv_ftl-BritishColumbia = Select a city located in British Columbia
-canada_province_description_kv_ftl-Ontario = Select a city located in Ontario
-canada_province_description_kv_ftl-Quebec = Select a city located in Quebec
-canada_province_description_kv_ftl-british_columbia = British Columbia
-canada_province_description_kv_ftl-ontario = Ontario
-canada_province_description_kv_ftl-quebec = Quebec
+canada_province_description_kv_ftl-BritishColumbia = British Columbia
+canada_province_description_kv_ftl-Ontario = Ontario
+canada_province_description_kv_ftl-Quebec = Quebec
 
 ## CanadaProvinceLabelKvFtl
 
@@ -39,9 +36,6 @@ canada_province_label_kv_ftl_this = Province
 canada_province_label_kv_ftl-BritishColumbia = British Columbia
 canada_province_label_kv_ftl-Ontario = Ontario
 canada_province_label_kv_ftl-Quebec = Quebec
-canada_province_label_kv_ftl-british_columbia = British Columbia
-canada_province_label_kv_ftl-ontario = Ontario
-canada_province_label_kv_ftl-quebec = Quebec
 
 ## Country
 
@@ -52,18 +46,14 @@ country-USA = Usa { $f0 }
 ## CountryDescriptionKvFtl
 
 country_description_kv_ftl_this = Select a country — the next field will adapt to show states or provinces
-country_description_kv_ftl-Canada = Choose Canada to see provinces
-country_description_kv_ftl-USA = Choose United States to see states
-country_description_kv_ftl-canada = Canada
-country_description_kv_ftl-usa = Usa
+country_description_kv_ftl-Canada = Canada
+country_description_kv_ftl-USA = Usa
 
 ## CountryLabelKvFtl
 
 country_label_kv_ftl_this = Country
 country_label_kv_ftl-Canada = Canada
-country_label_kv_ftl-USA = United States
-country_label_kv_ftl-canada = Canada
-country_label_kv_ftl-usa = Usa
+country_label_kv_ftl-USA = Usa
 
 ## Empty
 
@@ -185,12 +175,9 @@ usa_state-Texas = Texas { $f0 }
 ## USAStateDescriptionKvFtl
 
 usa_state_description_kv_ftl_this = Select a US state — cities will be populated after choosing a state
-usa_state_description_kv_ftl-California = Choose a city in California
-usa_state_description_kv_ftl-NewYork = Choose a city in New York
-usa_state_description_kv_ftl-Texas = Choose a city in Texas
-usa_state_description_kv_ftl-california = California
-usa_state_description_kv_ftl-new_york = New York
-usa_state_description_kv_ftl-texas = Texas
+usa_state_description_kv_ftl-California = California
+usa_state_description_kv_ftl-NewYork = New York
+usa_state_description_kv_ftl-Texas = Texas
 
 ## USAStateLabelKvFtl
 
@@ -198,9 +185,6 @@ usa_state_label_kv_ftl_this = State
 usa_state_label_kv_ftl-California = California
 usa_state_label_kv_ftl-NewYork = New York
 usa_state_label_kv_ftl-Texas = Texas
-usa_state_label_kv_ftl-california = California
-usa_state_label_kv_ftl-new_york = New York
-usa_state_label_kv_ftl-texas = Texas
 
 ## User
 
