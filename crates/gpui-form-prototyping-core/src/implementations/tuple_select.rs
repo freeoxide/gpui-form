@@ -103,14 +103,12 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
 
         quote! {
             .child({
-                use gpui_form_component::tuple_select::TupleEnumInner as _;
                 field()
                     .label(self.current_data.#field_name_ident.type_label())
                     .description(self.current_data.#field_name_ident.type_description())
                     .child(Select::new(&self.fields.#master_field_name_ident))
             })
             .children({
-                use gpui_form_component::tuple_select::TupleEnumInner as _;
                 self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
                     field()
                         .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))

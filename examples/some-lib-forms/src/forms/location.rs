@@ -221,14 +221,12 @@ impl Render for LocationFormForm {
                             .child(Input::new(&self.fields.name_input)),
                     )
                     .child({
-                        use gpui_form_component::tuple_select::TupleEnumInner as _;
                         field()
                             .label(self.current_data.location.type_label())
                             .description(self.current_data.location.type_description())
                             .child(Select::new(&self.fields.location_master_select))
                     })
                     .children({
-                        use gpui_form_component::tuple_select::TupleEnumInner as _;
                         self.fields
                             .location_child_selects
                             .iter()
