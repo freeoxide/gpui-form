@@ -2,3 +2,4 @@
 * text=auto
 **/__crate_paths/** linguist-vendored
 examples/** linguist-vendored
+**/output/** linguist-vendored
