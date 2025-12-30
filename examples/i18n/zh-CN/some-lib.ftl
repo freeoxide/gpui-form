@@ -1,211 +1,217 @@
 ## BritishColumbiaCity
 
-british_columbia_city_this = 不列颠哥伦比亚省的城市
-british_columbia_city-Burnaby = 本那比
-british_columbia_city-Richmond = 列治文
-british_columbia_city-Surrey = 萨里
-british_columbia_city-Vancouver = 温哥华
-british_columbia_city-Victoria = 维多利亚
+british_columbia_city_this = British Columbia Cities
+british_columbia_city-Burnaby = Burnaby
+british_columbia_city-Richmond = Richmond
+british_columbia_city-Surrey = Surrey
+british_columbia_city-Vancouver = Vancouver
+british_columbia_city-Victoria = Victoria
 
 ## CaliforniaCity
 
-california_city_this = 加利福尼亚州的城市
-california_city-LosAngeles = 洛杉矶
-california_city-Sacramento = 萨克拉门托
-california_city-SanDiego = 圣地亚哥
-california_city-SanFrancisco = 旧金山
-california_city-SanJose = 圣何塞
+california_city_this = California Cities
+california_city-LosAngeles = Los Angeles
+california_city-Sacramento = Sacramento
+california_city-SanDiego = San Diego
+california_city-SanFrancisco = San Francisco
+california_city-SanJose = San Jose
 
 ## CanadaProvince
 
-canada_province_this = 加拿大省份
-canada_province-BritishColumbia = 不列颠哥伦比亚省 { $f0 }
-canada_province-Ontario = 安大略省 { $f0 }
-canada_province-Quebec = 魁北克省 { $f0 }
+canada_province_this = Canada Province
+canada_province-BritishColumbia = British Columbia { $f0 }
+canada_province-Ontario = Ontario { $f0 }
+canada_province-Quebec = Quebec { $f0 }
 
 ## CanadaProvinceDescriptionKvFtl
 
-canada_province_description_kv_ftl_this = 选择一个加拿大省份（选择后会显示城市）
-canada_province_description_kv_ftl-BritishColumbia = 请选择不列颠哥伦比亚省的城市
-canada_province_description_kv_ftl-Ontario = 请选择安大略省的城市
-canada_province_description_kv_ftl-Quebec = 请选择魁北克省的城市
+canada_province_description_kv_ftl_this = Select a Canadian province — cities will be populated after choosing a province
+canada_province_description_kv_ftl-BritishColumbia = British Columbia
+canada_province_description_kv_ftl-Ontario = Ontario
+canada_province_description_kv_ftl-Quebec = Quebec
 
 ## CanadaProvinceLabelKvFtl
 
-canada_province_label_kv_ftl_this = 省份
-canada_province_label_kv_ftl-BritishColumbia = 不列颠哥伦比亚省
-canada_province_label_kv_ftl-Ontario = 安大略省
-canada_province_label_kv_ftl-Quebec = 魁北克省
+canada_province_label_kv_ftl_this = Province
+canada_province_label_kv_ftl-BritishColumbia = British Columbia
+canada_province_label_kv_ftl-Ontario = Ontario
+canada_province_label_kv_ftl-Quebec = Quebec
 
 ## Country
 
-country_this = 国家
-country-Canada = 加拿大 { $f0 }
-country-USA = 美国 { $f0 }
+country_this = Country
+country-Canada = Canada { $f0 }
+country-USA = Usa { $f0 }
 
 ## CountryDescriptionKvFtl
 
-country_description_kv_ftl_this = 选择一个国家
-country_description_kv_ftl-Canada = 选择加拿大以查看省份
-country_description_kv_ftl-USA = 选择美国以查看州
+country_description_kv_ftl_this = Select a country — the next field will adapt to show states or provinces
+country_description_kv_ftl-Canada = Canada
+country_description_kv_ftl-USA = Usa
 
 ## CountryLabelKvFtl
 
-country_label_kv_ftl_this = 国家
-country_label_kv_ftl-Canada = 加拿大
-country_label_kv_ftl-USA = 美国
+country_label_kv_ftl_this = Country
+country_label_kv_ftl-Canada = Canada
+country_label_kv_ftl-USA = Usa
 
 ## Empty
 
-empty_this = 空
+empty_this = Empty
 
 ## EnumCountry
 
-enum_country-China = 中国
-enum_country-France = 法国
-enum_country-UnitedStates = 美国
+enum_country-China = China
+enum_country-France = France
+enum_country-UnitedStates = United States
 
 ## LocationForm
 
-location_form_this = 位置表单
+location_form_this = Location Form
 
 ## LocationFormDescriptionKvFtl
 
-location_form_description_kv_ftl-location = 选择国家，然后选择州/省，然后选择城市
-location_form_description_kv_ftl-name = 输入用户的全名
+location_form_description_kv_ftl-location = Choose a country, then a state/province, then a city
+location_form_description_kv_ftl-name = Enter the person's full name
+location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 
 ## LocationFormLabelKvFtl
 
-location_form_label_kv_ftl-location = 所在地
-location_form_label_kv_ftl-name = 姓名
+location_form_label_kv_ftl-location = Location
+location_form_label_kv_ftl-name = Full name
+location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 
 ## NewYorkCity
 
-new_york_city_this = 纽约州的城市
-new_york_city-Albany = 奥尔巴尼
-new_york_city-Buffalo = 布法罗
-new_york_city-NewYorkCity = 纽约市
-new_york_city-Rochester = 罗切斯特
-new_york_city-Syracuse = 锡拉丘兹
+new_york_city_this = New York Cities
+new_york_city-Albany = Albany
+new_york_city-Buffalo = Buffalo
+new_york_city-NewYorkCity = New York City
+new_york_city-Rochester = Rochester
+new_york_city-Syracuse = Syracuse
 
 ## NutypeEnumCountry
 
-nutype_enum_country-China = 中国
-nutype_enum_country-France = 法国
-nutype_enum_country-UnitedStates = 美国
+nutype_enum_country-China = China
+nutype_enum_country-France = France
+nutype_enum_country-UnitedStates = United States
 
 ## NutypePreferedLanguage
 
-nutype_prefered_language-Chinese = 中文
-nutype_prefered_language-English = 英文
-nutype_prefered_language-French = 法语
+nutype_prefered_language-Chinese = Chinese
+nutype_prefered_language-English = English
+nutype_prefered_language-French = French
 
 ## NutypeUser
 
-nutype_user_this = Nutype 用户
+nutype_user_this = Nutype User
 
 ## NutypeUserDescriptionKvFtl
 
-nutype_user_description_kv_ftl-age = 年龄
-nutype_user_description_kv_ftl-balance = 账户余额
-nutype_user_description_kv_ftl-birth_date = 出生日期
-nutype_user_description_kv_ftl-country = 国家
-nutype_user_description_kv_ftl-email = 电子邮件
-nutype_user_description_kv_ftl-enable_notifications = 是否启用通知
-nutype_user_description_kv_ftl-preferred = 首选
-nutype_user_description_kv_ftl-subscribe_newsletter = 订阅简报
-nutype_user_description_kv_ftl-username = 用户名
+nutype_user_description_kv_ftl-age = Age
+nutype_user_description_kv_ftl-balance = Account balance
+nutype_user_description_kv_ftl-birth_date = Birth Date
+nutype_user_description_kv_ftl-country = Country
+nutype_user_description_kv_ftl-email = Email address
+nutype_user_description_kv_ftl-enable_notifications = Enable notifications
+nutype_user_description_kv_ftl-preferred = Preferred
+nutype_user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
+nutype_user_description_kv_ftl-username = Username
+nutype_user_description_kv_ftl_this = Nutype User Description Kv Ftl
 
 ## NutypeUserLabelKvFtl
 
-nutype_user_label_kv_ftl-age = 年龄
-nutype_user_label_kv_ftl-balance = 余额
-nutype_user_label_kv_ftl-birth_date = 出生日期
-nutype_user_label_kv_ftl-country = 国家
-nutype_user_label_kv_ftl-email = 电子邮件
-nutype_user_label_kv_ftl-enable_notifications = 启用通知
-nutype_user_label_kv_ftl-preferred = 首选
-nutype_user_label_kv_ftl-subscribe_newsletter = 订阅简报
-nutype_user_label_kv_ftl-username = 用户名
+nutype_user_label_kv_ftl-age = Age
+nutype_user_label_kv_ftl-balance = Balance
+nutype_user_label_kv_ftl-birth_date = Birth Date
+nutype_user_label_kv_ftl-country = Country
+nutype_user_label_kv_ftl-email = Email
+nutype_user_label_kv_ftl-enable_notifications = Enable Notifications
+nutype_user_label_kv_ftl-preferred = Preferred
+nutype_user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
+nutype_user_label_kv_ftl-username = Username
+nutype_user_label_kv_ftl_this = Nutype User Label Kv Ftl
 
 ## OntarioCity
 
-ontario_city_this = 安大略省的城市
-ontario_city-Hamilton = 汉密尔顿
-ontario_city-London = 伦敦
-ontario_city-Mississauga = 密西沙加
-ontario_city-Ottawa = 渥太华
-ontario_city-Toronto = 多伦多
+ontario_city_this = Ontario Cities
+ontario_city-Hamilton = Hamilton
+ontario_city-London = London
+ontario_city-Mississauga = Mississauga
+ontario_city-Ottawa = Ottawa
+ontario_city-Toronto = Toronto
 
 ## PreferedLanguage
 
-prefered_language-Chinese = 中文
-prefered_language-English = 英文
-prefered_language-French = 法语
+prefered_language-Chinese = Chinese
+prefered_language-English = English
+prefered_language-French = French
 
 ## QuebecCity
 
-quebec_city_this = 魁北克省的城市
-quebec_city-Gatineau = 加蒂诺
-quebec_city-Laval = 拉瓦勒
-quebec_city-Longueuil = 朗格伊
-quebec_city-Montreal = 蒙特利尔
-quebec_city-QuebecCity = 魁北克市
+quebec_city_this = Quebec Cities
+quebec_city-Gatineau = Gatineau
+quebec_city-Laval = Laval
+quebec_city-Longueuil = Longueuil
+quebec_city-Montreal = Montreal
+quebec_city-QuebecCity = Quebec City
 
 ## TexasCity
 
-texas_city_this = 德克萨斯州的城市
-texas_city-Austin = 奥斯汀
-texas_city-Dallas = 达拉斯
-texas_city-FortWorth = 沃思堡
-texas_city-Houston = 休斯顿
-texas_city-SanAntonio = 圣安东尼奥
+texas_city_this = Texas Cities
+texas_city-Austin = Austin
+texas_city-Dallas = Dallas
+texas_city-FortWorth = Fort Worth
+texas_city-Houston = Houston
+texas_city-SanAntonio = San Antonio
 
 ## USAState
 
-usa_state_this = 美国州
-usa_state-California = 加利福尼亚 { $f0 }
-usa_state-NewYork = 纽约 { $f0 }
-usa_state-Texas = 德克萨斯 { $f0 }
+usa_state_this = Usa State
+usa_state-California = California { $f0 }
+usa_state-NewYork = New York { $f0 }
+usa_state-Texas = Texas { $f0 }
 
 ## USAStateDescriptionKvFtl
 
-usa_state_description_kv_ftl_this = 选择一个美国州（选择后会显示城市）
-usa_state_description_kv_ftl-California = 请选择加利福尼亚州的城市
-usa_state_description_kv_ftl-NewYork = 请选择纽约州的城市
-usa_state_description_kv_ftl-Texas = 请选择德克萨斯州的城市
+usa_state_description_kv_ftl_this = Select a US state — cities will be populated after choosing a state
+usa_state_description_kv_ftl-California = California
+usa_state_description_kv_ftl-NewYork = New York
+usa_state_description_kv_ftl-Texas = Texas
 
 ## USAStateLabelKvFtl
 
-usa_state_label_kv_ftl_this = 州
-usa_state_label_kv_ftl-California = 加利福尼亚
-usa_state_label_kv_ftl-NewYork = 纽约
-usa_state_label_kv_ftl-Texas = 德克萨斯
+usa_state_label_kv_ftl_this = State
+usa_state_label_kv_ftl-California = California
+usa_state_label_kv_ftl-NewYork = New York
+usa_state_label_kv_ftl-Texas = Texas
 
 ## User
 
-user_this = 用户
+user_this = User
 
 ## UserDescriptionKvFtl
 
-user_description_kv_ftl-age = 年龄
-user_description_kv_ftl-balance = 账户余额
-user_description_kv_ftl-birth_date = 出生日期
-user_description_kv_ftl-country = 居住国家
-user_description_kv_ftl-email = 联系邮箱
-user_description_kv_ftl-enable_notifications = 是否启用通知
-user_description_kv_ftl-preferred = 首选
-user_description_kv_ftl-subscribe_newsletter = 订阅简报
-user_description_kv_ftl-username = 用户名
+user_description_kv_ftl-age = Age
+user_description_kv_ftl-balance = Account balance
+user_description_kv_ftl-birth_date = Birth Date
+user_description_kv_ftl-country = Country
+user_description_kv_ftl-email = Contact email address
+user_description_kv_ftl-enable_notifications = Whether notifications are enabled
+user_description_kv_ftl-preferred = Preferred
+user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
+user_description_kv_ftl-username = Username
+user_description_kv_ftl_this = User Description Kv Ftl
 
 ## UserLabelKvFtl
 
-user_label_kv_ftl-age = 年龄
-user_label_kv_ftl-balance = 余额
-user_label_kv_ftl-birth_date = 出生日期
-user_label_kv_ftl-country = 国家
-user_label_kv_ftl-email = 电子邮件
-user_label_kv_ftl-enable_notifications = 启用通知
-user_label_kv_ftl-preferred = 首选
-user_label_kv_ftl-subscribe_newsletter = 订阅简报
-user_label_kv_ftl-username = 用户名
+user_label_kv_ftl-age = Age
+user_label_kv_ftl-balance = Balance
+user_label_kv_ftl-birth_date = Birth Date
+user_label_kv_ftl-country = Country
+user_label_kv_ftl-email = Email
+user_label_kv_ftl-enable_notifications = Enable Notifications
+user_label_kv_ftl-preferred = Preferred
+user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
+user_label_kv_ftl-username = Username
+user_label_kv_ftl_this = User Label Kv Ftl
