@@ -1,4 +1,4 @@
-use es_fluent::ToFluentString as _;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,

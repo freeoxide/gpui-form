@@ -14,6 +14,37 @@ use std::{collections::BTreeSet, fs, path::Path};
 #[allow(unused_imports)]
 use some_lib::*;
 
+fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
+    let path = Path::new(source_path);
+    let components: Vec<_> = path.components().collect();
+
+    let src_index = components
+        .iter()
+        .position(|c| matches!(c, std::path::Component::Normal(s) if s.to_str() == Some("src")))?;
+
+    if src_index == 0 {
+        return None;
+    }
+    let crate_component = &components[src_index - 1];
+    let crate_name = match crate_component {
+        std::path::Component::Normal(s) => s.to_str()?.replace('-', "_"),
+        _ => return None,
+    };
+
+    let mut path_segments = vec![crate_name];
+
+    for component in &components[src_index + 1..] {
+        if let std::path::Component::Normal(s) = component {
+            let segment = s.to_str()?;
+            let segment = segment.strip_suffix(".rs").unwrap_or(segment);
+            path_segments.push(segment.replace('-', "_"));
+        }
+    }
+
+    let path_str = path_segments.join("::");
+    syn::parse_str(&path_str).ok()
+}
+
 struct LayoutIdentities {
     struct_name_str: &'static str,
     context_str: String,
@@ -24,7 +55,9 @@ struct LayoutIdentities {
     struct_name_form_errors_ident: syn::Ident,
     struct_name_form_errors_ftl_ident: syn::Ident,
     form_id_literal: String,
-    struct_name_path_qualifier: syn::Ident,
+    /// The full module path to the source file, derived from source_path.
+    /// e.g., `some_lib::structs::empty` for `examples/some-lib/src/structs/empty.rs`
+    source_module_path: syn::Path,
 }
 
 impl LayoutIdentities {
@@ -38,8 +71,8 @@ impl LayoutIdentities {
         let struct_name_form_errors_ident = shape.struct_form_errors_ident();
         let struct_name_form_errors_ftl_ident = shape.ftl_errors_ident();
         let form_id_literal = shape.form_id_literal();
-        let struct_name_path_qualifier =
-            syn::parse_str::<syn::Ident>(&shape.struct_name.to_snake_case()).unwrap();
+        let source_module_path = source_path_to_use_path(shape.source_path)
+            .unwrap_or_else(|| panic!("Failed to parse source_path: {}", shape.source_path));
 
         Self {
             struct_name_str,
@@ -51,7 +84,7 @@ impl LayoutIdentities {
             struct_name_form_errors_ident,
             struct_name_form_errors_ftl_ident,
             form_id_literal,
-            struct_name_path_qualifier,
+            source_module_path,
         }
     }
 }
@@ -107,11 +140,11 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         struct_name_form_errors_ident,
         struct_name_form_errors_ftl_ident,
         form_id_literal,
-        struct_name_path_qualifier,
+        source_module_path,
     } = identities;
 
     let target_types_import = quote! {
-      use some_lib::structs::#struct_name_path_qualifier::*;
+      use #source_module_path::*;
     };
 
     // Handle empty structs (no components)
@@ -135,6 +168,10 @@ fn layout(data: &GpuiFormShape) -> syn::File {
     let render_children_tokens = adapter.child_elements();
 
     let subscription_calls_tokens = adapter.subscription_calls().unwrap_or_default();
+
+    let post_subscription_init_tokens = adapter
+        .post_subscription_initialization()
+        .unwrap_or_default();
 
     let (subscriptions_field, subscriptions_init) = if subscription_calls_tokens.is_empty() {
         (quote! {}, quote! {})
@@ -200,6 +237,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
       };
       use gpui_component::{
+          IndexPath,
           checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
           divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
           form::{field, v_form},
@@ -208,9 +246,10 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           },
           switch::Switch, v_flex,
       };
+      use gpui_form_component::tuple_select::TupleEnumInner;
       use rust_decimal::Decimal;
       use std::sync::Arc;
-      use es_fluent::ToFluentString as _;
+      use es_fluent::{ThisFtl as _, ToFluentString as _};
 
       #error_ftl_enum
     };
@@ -261,6 +300,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
             #component_creations_tokens
 
             #subscription_calls_tokens
+
+            #post_subscription_init_tokens
 
               Self {
                   original_data: Arc::new(original_data.clone()),

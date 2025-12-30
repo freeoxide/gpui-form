@@ -7,6 +7,7 @@ pub mod input;
 pub mod number_input;
 pub mod select;
 pub mod switch;
+pub mod tuple_select;
 
 pub trait ComponentLayout {
     fn field_tokens(

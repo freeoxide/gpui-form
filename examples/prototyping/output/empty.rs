@@ -5,15 +5,17 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    IndexPath, checkbox::Checkbox,
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
     form::{field, v_form},
     input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
     switch::Switch, v_flex,
 };
+use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use es_fluent::ToFluentString as _;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "EmptyForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
