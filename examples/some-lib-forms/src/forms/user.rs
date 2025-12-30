@@ -16,18 +16,7 @@ use gpui_component::{
 use rust_decimal::Decimal;
 use some_lib::structs::user::*;
 use std::sync::Arc;
-#[derive(Clone, Debug, es_fluent::EsFluent)]
-pub enum UserFormErrorsFtl {
-    Username { value: String },
-    Email { value: String },
-    Age { value: String },
-    Balance { value: String },
-    SubscribeNewsletter { value: String },
-    EnableNotifications { value: String },
-    Preferred { value: String },
-    Country { value: String },
-    BirthDate { value: String },
-}
+
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -35,7 +24,6 @@ pub fn init(cx: &mut App) {}
 pub struct UserForm {
     original_data: Arc<User>,
     current_data: UserFormValueHolder,
-    errors: UserFormErrors,
     fields: UserFormFields,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -255,7 +243,6 @@ impl UserForm {
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
-            errors: UserFormErrors::default(),
             fields: UserFormFields {
                 username_input,
                 email_input,
@@ -286,7 +273,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.username.clone();
                                 let description = UserDescriptionKvFtl::Username.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -294,11 +280,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -307,7 +288,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.email.clone();
                                 let description = UserDescriptionKvFtl::Email.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -315,11 +295,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -328,7 +303,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.age.clone();
                                 let description = UserDescriptionKvFtl::Age.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -336,11 +310,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -349,7 +318,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.balance.clone();
                                 let description = UserDescriptionKvFtl::Balance.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -357,11 +325,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
@@ -370,7 +333,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.subscribe_newsletter.clone();
                                 let description =
                                     UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string();
                                 move |_, _| {
@@ -379,11 +341,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(
@@ -399,7 +356,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.enable_notifications.clone();
                                 let description =
                                     UserDescriptionKvFtl::EnableNotifications.to_fluent_string();
                                 move |_, _| {
@@ -408,11 +364,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(
@@ -428,7 +379,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Preferred.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.preferred.clone();
                                 let description =
                                     UserDescriptionKvFtl::Preferred.to_fluent_string();
                                 move |_, _| {
@@ -437,11 +387,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Select::new(&self.fields.preferred_select)),
@@ -450,7 +395,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Country.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.country.clone();
                                 let description = UserDescriptionKvFtl::Country.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -458,11 +402,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Select::new(&self.fields.country_select)),
@@ -471,7 +410,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::BirthDate.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.birth_date.clone();
                                 let description =
                                     UserDescriptionKvFtl::BirthDate.to_fluent_string();
                                 move |_, _| {
@@ -480,11 +418,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(DatePicker::new(&self.fields.birth_date_date_picker)),

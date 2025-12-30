@@ -18,10 +18,6 @@ pub struct FieldInformation<T: ComponentOption> {
     pub options: T,
     pub name: String,
     pub r#type: syn::Ident,
-    /// The intermediate type used for parsing during input.
-    /// If Some, this type is used for parsing and the field type is used for final validation.
-    /// If None, the field type is used for both parsing and validation.
-    pub item_type: Option<syn::Ident>,
 }
 
 impl<T: ComponentOption> FieldInformation<T> {
@@ -30,42 +26,7 @@ impl<T: ComponentOption> FieldInformation<T> {
             options,
             name,
             r#type,
-            item_type: None,
         }
-    }
-
-    /// Create a FieldInformation with a separate item type for two-phase validation.
-    /// The item_type is used for intermediate parsing (e.g., u32),
-    /// while the field type (r#type) is used for final validation (e.g., Age nutype).
-    pub fn with_item_type(
-        options: T,
-        name: String,
-        r#type: syn::Ident,
-        item_type: Option<syn::Ident>,
-    ) -> Self {
-        Self {
-            options,
-            name,
-            r#type,
-            item_type,
-        }
-    }
-
-    /// Returns true if this field uses two-phase validation (has a separate item type)
-    pub fn has_item_type(&self) -> bool {
-        self.item_type.is_some()
-    }
-
-    /// Returns the type to use for parsing input values.
-    /// If item_type is set, returns that; otherwise returns the field type.
-    pub fn parse_type(&self) -> &syn::Ident {
-        self.item_type.as_ref().unwrap_or(&self.r#type)
-    }
-
-    /// Returns the type to use for final validation.
-    /// This is always the field type.
-    pub fn validation_type(&self) -> &syn::Ident {
-        &self.r#type
     }
 }
 

@@ -18,11 +18,7 @@ use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
-#[derive(Clone, Debug, es_fluent::EsFluent)]
-pub enum LocationFormFormErrorsFtl {
-    Name { value: String },
-    Location { value: String },
-}
+
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -30,7 +26,6 @@ pub fn init(cx: &mut App) {}
 pub struct LocationFormForm {
     original_data: Arc<LocationForm>,
     current_data: LocationFormFormValueHolder,
-    errors: LocationFormFormErrors,
     fields: LocationFormFormFields,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -174,7 +169,6 @@ impl LocationFormForm {
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
-            errors: LocationFormFormErrors::default(),
             fields: LocationFormFormFields {
                 name_input,
                 location_master_select,
@@ -202,7 +196,6 @@ impl Render for LocationFormForm {
                         field()
                             .label(LocationFormLabelKvFtl::Name.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.name.clone();
                                 let description =
                                     LocationFormDescriptionKvFtl::Name.to_fluent_string();
                                 move |_, _| {
@@ -211,11 +204,6 @@ impl Render for LocationFormForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.name_input)),
@@ -247,15 +235,6 @@ impl Render for LocationFormForm {
                                     )
                                     .child(Select::new(child))
                             })
-                    })
-                    .when(!self.errors.location.is_empty(), |form| {
-                        form.child(
-                            field().child(
-                                div()
-                                    .text_color(gpui::red())
-                                    .child(self.errors.location.clone()),
-                            ),
-                        )
                     }),
             )
             .child(Divider::horizontal())

@@ -133,22 +133,19 @@ impl Default for Country {
 // Form struct using the nested tuple enum
 // ============================================================================
 
-use garde::Validate;
 use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Validate)]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub struct LocationForm {
     /// User's name
     #[gpui_form(component(input))]
-    #[garde(length(min = 1, max = 100))]
     pub name: String,
 
     /// Location selection using cascading selects
     #[gpui_form(component(tuple_select(default)))]
-    #[garde(skip)]
     pub location: Country,
 }
 

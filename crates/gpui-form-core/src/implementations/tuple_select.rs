@@ -13,7 +13,6 @@ impl super::ComponentLayout for TupleSelectComponent {
             options,
             name,
             r#type,
-            item_type: _,
         } = &self.0;
 
         let master_field_name = quote::format_ident!("{}_master_select", name);
