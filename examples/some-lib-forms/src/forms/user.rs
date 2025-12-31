@@ -2,6 +2,7 @@ use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
+    red,
 };
 use gpui_component::{
     checkbox::Checkbox,
@@ -13,7 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use rust_decimal::Decimal;
+use koruma::Validate as _;
 use some_lib::structs::user::*;
 use std::sync::Arc;
 
@@ -131,9 +132,9 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                match text.parse::<Decimal>() {
+                match text.parse::<f64>() {
                     Ok(value) => {
-                        self.current_data.balance = value.into();
+                        self.current_data.balance = value;
                     },
                     _ => {},
                 }
@@ -151,14 +152,14 @@ impl UserForm {
         match event {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
-                    let new_value = self.current_data.balance.saturating_sub(Decimal::from(1));
+                    let new_value = self.current_data.balance - 1.0;
                     self.current_data.balance = new_value;
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
                     });
                 },
                 StepAction::Increment => {
-                    let new_value = self.current_data.balance.saturating_add(Decimal::from(1));
+                    let new_value = self.current_data.balance + 1.0;
                     self.current_data.balance = new_value;
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
@@ -259,6 +260,8 @@ impl UserForm {
 }
 impl Render for UserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let validation_errors = User::from(self.current_data.clone()).validate().err();
+
         v_flex()
             .key_context(CONTEXT)
             .id("user-form")
@@ -274,12 +277,23 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Username.to_fluent_string();
+                                let error = validation_errors
+                                    .as_ref()
+                                    .and_then(|e| e.username().non_empty_string_validation())
+                                    .map(|v| v.to_fluent_string());
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(red())
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -289,12 +303,29 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Email.to_fluent_string();
+                                let error = validation_errors.as_ref().and_then(|e| {
+                                    e.email()
+                                        .non_empty_string_validation()
+                                        .map(|v| v.to_fluent_string())
+                                        .or_else(|| {
+                                            e.email()
+                                                .email_validation()
+                                                .map(|v| v.to_fluent_string())
+                                        })
+                                });
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(red())
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -304,12 +335,23 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Age.to_fluent_string();
+                                let error = validation_errors
+                                    .as_ref()
+                                    .and_then(|e| e.age().number_range_validation())
+                                    .map(|v| v.to_fluent_string());
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(red())
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -319,12 +361,23 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Balance.to_fluent_string();
+                                let error = validation_errors
+                                    .as_ref()
+                                    .and_then(|e| e.balance().positive_number_validation())
+                                    .map(|v| v.to_fluent_string());
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(red())
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),

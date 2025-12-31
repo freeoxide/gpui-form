@@ -1,6 +1,9 @@
+use crate::validators::{
+    EmailValidation, NonEmptyStringValidation, NumberRangeValidation, PositiveNumberValidation,
+};
 use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
-use rust_decimal::Decimal;
+use koruma::{Koruma, Validate};
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
@@ -19,21 +22,25 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm)]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
+    #[koruma(NonEmptyStringValidation)]
     pub username: Option<String>,
 
     #[gpui_form(component(input))]
+    #[koruma(NonEmptyStringValidation, EmailValidation)]
     pub email: String,
 
     #[gpui_form(component(number_input))]
+    #[koruma(NumberRangeValidation(min = 18, max = 167))]
     pub age: Option<u32>,
 
     #[gpui_form(component(number_input))]
-    pub balance: Decimal,
+    #[koruma(PositiveNumberValidation)]
+    pub balance: f64,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,

@@ -90,48 +90,6 @@ new_york_city-NewYorkCity = New York City
 new_york_city-Rochester = Rochester
 new_york_city-Syracuse = Syracuse
 
-## NutypeEnumCountry
-
-nutype_enum_country-China = China
-nutype_enum_country-France = France
-nutype_enum_country-UnitedStates = United States
-
-## NutypePreferedLanguage
-
-nutype_prefered_language-Chinese = Chinese
-nutype_prefered_language-English = English
-nutype_prefered_language-French = French
-
-## NutypeUser
-
-nutype_user_this = Nutype User
-
-## NutypeUserDescriptionKvFtl
-
-nutype_user_description_kv_ftl-age = Age
-nutype_user_description_kv_ftl-balance = Account balance
-nutype_user_description_kv_ftl-birth_date = Birth Date
-nutype_user_description_kv_ftl-country = Country
-nutype_user_description_kv_ftl-email = Email address
-nutype_user_description_kv_ftl-enable_notifications = Enable notifications
-nutype_user_description_kv_ftl-preferred = Preferred
-nutype_user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
-nutype_user_description_kv_ftl-username = Username
-nutype_user_description_kv_ftl_this = Nutype User Description Kv Ftl
-
-## NutypeUserLabelKvFtl
-
-nutype_user_label_kv_ftl-age = Age
-nutype_user_label_kv_ftl-balance = Balance
-nutype_user_label_kv_ftl-birth_date = Birth Date
-nutype_user_label_kv_ftl-country = Country
-nutype_user_label_kv_ftl-email = Email
-nutype_user_label_kv_ftl-enable_notifications = Enable Notifications
-nutype_user_label_kv_ftl-preferred = Preferred
-nutype_user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
-nutype_user_label_kv_ftl-username = Username
-nutype_user_label_kv_ftl_this = Nutype User Label Kv Ftl
-
 ## OntarioCity
 
 ontario_city_this = Ontario Cities
@@ -215,3 +173,23 @@ user_label_kv_ftl-preferred = Preferred
 user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 user_label_kv_ftl-username = Username
 user_label_kv_ftl_this = User Label Kv Ftl
+
+## EmailValidation
+
+email_validation = The email address "{ $input }" is not valid.
+
+## NonEmptyStringValidation
+
+non_empty_string_validation = This field cannot be empty.
+
+## NumberRangeValidation
+
+number_range_validation = Value must be between { $min } and { $max }, but got { $actual }.
+
+## OptionalNonEmptyStringValidation
+
+optional_non_empty_string_validation = If provided, this field cannot be empty.
+
+## PositiveNumberValidation
+
+positive_number_validation = Value must be positive, but got { $actual }.

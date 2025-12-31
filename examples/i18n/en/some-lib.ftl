@@ -173,3 +173,23 @@ user_label_kv_ftl-preferred = Preferred
 user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 user_label_kv_ftl-username = Username
 user_label_kv_ftl_this = User Label Kv Ftl
+
+## EmailValidation
+
+email_validation = The email address "{ $input }" is not valid.
+
+## NonEmptyStringValidation
+
+non_empty_string_validation = This field cannot be empty.
+
+## NumberRangeValidation
+
+number_range_validation = Value must be between { $min } and { $max }, but got { $actual }.
+
+## OptionalNonEmptyStringValidation
+
+optional_non_empty_string_validation = If provided, this field cannot be empty.
+
+## PositiveNumberValidation
+
+positive_number_validation = Value must be positive, but got { $actual }.

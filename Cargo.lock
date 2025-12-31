@@ -5790,6 +5790,7 @@ name = "some-lib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bon",
  "chrono",
  "es-fluent",
  "es-fluent-manager-embedded",
@@ -5814,6 +5815,7 @@ name = "some-lib-forms"
 version = "0.1.0"
 dependencies = [
  "automod",
+ "bon",
  "chrono",
  "es-fluent",
  "es-fluent-lang",
@@ -5825,6 +5827,7 @@ dependencies = [
  "gpui-form-component",
  "gpui-storybook",
  "inventory",
+ "koruma",
  "paste",
  "rust-embed",
  "rust_decimal",
