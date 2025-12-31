@@ -3507,7 +3507,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
+source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
 dependencies = [
  "bon",
  "koruma-core",
@@ -3517,12 +3517,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
+source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
 
 [[package]]
 name = "koruma-derive"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
+source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-error2",
