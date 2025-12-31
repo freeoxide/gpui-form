@@ -8,7 +8,6 @@ publish = false
 
 [dependencies]
 automod = { workspace = true }
-bon = { workspace = true }
 chrono = { workspace = true }
 es-fluent = { workspace = true }
 es-fluent-lang = { workspace = true }
@@ -20,7 +19,6 @@ gpui-form = { features = [ "derive" ], workspace = true }
 gpui-form-component = { workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
 inventory = { workspace = true }
-koruma = { workspace = true }
 paste = { workspace = true }
 rust-embed = { workspace = true }
 rust_decimal = { workspace = true }

@@ -3507,7 +3507,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
 dependencies = [
  "bon",
  "koruma-core",
@@ -3517,12 +3517,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
 
 [[package]]
 name = "koruma-derive"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+source = "git+https://github.com/stayhydated/koruma#4fa5a5a25068af02accf8ac32c3043f622a4d7ef"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-error2",
@@ -5815,7 +5815,6 @@ name = "some-lib-forms"
 version = "0.1.0"
 dependencies = [
  "automod",
- "bon",
  "chrono",
  "es-fluent",
  "es-fluent-lang",
@@ -5827,7 +5826,6 @@ dependencies = [
  "gpui-form-component",
  "gpui-storybook",
  "inventory",
- "koruma",
  "paste",
  "rust-embed",
  "rust_decimal",

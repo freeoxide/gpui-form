@@ -14,7 +14,6 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use koruma::Validate as _;
 use some_lib::structs::user::*;
 use std::sync::Arc;
 
