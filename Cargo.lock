@@ -3505,6 +3505,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "koruma"
+version = "0.1.0"
+source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+dependencies = [
+ "bon",
+ "koruma-core",
+ "koruma-derive",
+]
+
+[[package]]
+name = "koruma-core"
+version = "0.1.0"
+source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+
+[[package]]
+name = "koruma-derive"
+version = "0.1.0"
+source = "git+https://github.com/stayhydated/koruma#fdd51d29881414b483af562f2fd978fc7f7a6171"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+]
+
+[[package]]
 name = "kqueue"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5773,6 +5800,7 @@ dependencies = [
  "gpui-form-component",
  "gpui-storybook",
  "inventory",
+ "koruma",
  "nutype",
  "rust-embed",
  "rust_decimal",

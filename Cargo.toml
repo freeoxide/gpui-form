@@ -23,6 +23,7 @@ rust-version = "1.88"
 version = "0.5.1"
 
 [workspace.dependencies]
+koruma = { git = "https://github.com/stayhydated/koruma" }
 anyhow = "1.0.96"
 automod = "1.0.15"
 bon = "3.3.2"

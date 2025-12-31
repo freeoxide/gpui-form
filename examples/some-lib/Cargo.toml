@@ -6,6 +6,7 @@ license = "Unlicense"
 publish = false
 
 [dependencies]
+koruma = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
