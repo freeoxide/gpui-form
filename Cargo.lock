@@ -1465,6 +1465,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
+dependencies = [
+ "darling_core 0.23.0",
+ "darling_macro 0.23.0",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1493,6 +1503,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9865a50f7c335f53564bb694ef660825eb8610e0a53d3e11bf1b0d3df31e03b0"
+dependencies = [
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.111",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1510,6 +1533,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
  "darling_core 0.21.3",
+ "quote",
+ "syn 2.0.111",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
+dependencies = [
+ "darling_core 0.23.0",
  "quote",
  "syn 2.0.111",
 ]
@@ -1831,14 +1865,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
 name = "es-fluent"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28ec8173291766b2de915c980f727e4a36a4ad9426231d9af32330f47e0d7e76"
+checksum = "626a5bdcdf47432228e43c2ec456c282077e9d731a1b6ed2c65738aa80183c94"
 dependencies = [
  "es-fluent-core",
  "es-fluent-derive",
@@ -1852,12 +1886,12 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-core"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e69d32d26e459eda551762a91ab4017e914293b758df1db74f1d409f614a011"
+checksum = "a08a0af2d1ef48a88867cd6c95c45f9b7edc802c69359e70ed21a13afd510d64"
 dependencies = [
  "bon",
- "darling 0.21.3",
+ "darling 0.23.0",
  "derive_more 2.1.0",
  "getset",
  "heck 0.5.0",
@@ -1874,11 +1908,11 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-derive"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4059cffb68bad9f8eebabb9c79c61479e6d580ab2d1ad1af5c5dc1f9fb7ab515"
+checksum = "56733b5fb18503caac1d37d1fcadadc4b8ae9b0c18233317cdb3c7bcc8bb57ca"
 dependencies = [
- "darling 0.21.3",
+ "darling 0.23.0",
  "es-fluent-core",
  "getset",
  "heck 0.5.0",
@@ -1920,9 +1954,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-manager-core"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5299a2aab6fc13a8cd8044cf6f18b6b5a08848aab344c59fa2d928a733f55a7"
+checksum = "1cb7a026e1768f6cc51fb3d2b5dc7fc6a5b3a2b2951ec967ac7ebf3ddbb7b418"
 dependencies = [
  "anyhow",
  "fluent-bundle",
@@ -3507,7 +3541,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
+source = "git+https://github.com/stayhydated/koruma#23711ac0dd21943f519238154f2b969812990482"
 dependencies = [
  "bon",
  "koruma-core",
@@ -3517,12 +3551,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
+source = "git+https://github.com/stayhydated/koruma#23711ac0dd21943f519238154f2b969812990482"
 
 [[package]]
 name = "koruma-derive"
 version = "0.1.0"
-source = "git+https://github.com/stayhydated/koruma#a609b54292ff4bcfce7f113fa9b17678e8f6a9e2"
+source = "git+https://github.com/stayhydated/koruma#23711ac0dd21943f519238154f2b969812990482"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-error2",
@@ -4084,7 +4118,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5366,7 +5400,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5671,7 +5705,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
 dependencies = [
- "dirs 5.0.1",
+ "dirs 4.0.0",
 ]
 
 [[package]]
@@ -6228,7 +6262,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.2",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7214,7 +7248,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

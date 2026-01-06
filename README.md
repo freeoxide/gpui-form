@@ -15,14 +15,14 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 
 ## Custom components
 
-- [Tuple Select]()
+- [Tuple Select](<>)
 
 Compatibility of `gpui-form` versions:
 
 | `gpui-form` | `gpui-component` |
 | :---------- | :--------------- |
-| `0.6.x`     | `0.6.x`          |
-| `0.5.x`     | `0.5.x`          |
+| `0.6.x` | `0.6.x` |
+| `0.5.x` | `0.5.x` |
 
 ## Showcase
 
