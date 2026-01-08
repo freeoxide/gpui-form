@@ -8,8 +8,8 @@ fmt:
     uvx mdformat .
 
 update_crate_paths:
-    crates-paths -c gpui -o crates/gpui-form-core/src/implementations/__crate_paths/gpui.rs
-    crates-paths -c gpui-component -o crates/gpui-form-core/src/implementations/__crate_paths/gpui_component.rs
+    cargo crate-paths -c gpui -o crates/gpui-form-core/src/implementations/__crate_paths/gpui.rs
+    cargo crate-paths -c gpui-component -o crates/gpui-form-core/src/implementations/__crate_paths/gpui_component.rs
 
 clippy:
     cargo clippy --workspace --all-features
