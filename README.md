@@ -17,6 +17,7 @@ Compatibility of `gpui-form` versions:
 
 | `gpui-form` | `gpui-component` |
 | :---------- | :--------------- |
+| `git`       | `git`            |
 | `0.5.x`     | `0.5.x`          |
 
 ## Showcase
