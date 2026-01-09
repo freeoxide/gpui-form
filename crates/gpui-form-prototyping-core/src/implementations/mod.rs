@@ -76,8 +76,8 @@ pub trait FieldCodeGenerator {
 
     fn generate_post_subscription_initialization(
         &self,
-        field: &FieldVariant,
-        component: &GpuiFormShape,
+        _field: &FieldVariant,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
     }

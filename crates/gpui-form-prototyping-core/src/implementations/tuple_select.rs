@@ -15,7 +15,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
-        component: &GpuiFormShape,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let struct_name_ident = field.struct_name_ident();
         let field_name_ident = field.field_ident();
@@ -90,7 +90,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
 
@@ -116,15 +116,19 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
                         .child(Select::new(child))
                 })
             })
-            .when(!self.errors.#field_name_ident.is_empty(), |form| {
-                 form.child(
-                    field().child(
-                        div()
-                            .text_color(gpui::red())
-                            .child(self.errors.#field_name_ident.clone())
+            .when(
+                !component.has_validations() && !self.errors.#field_name_ident.is_empty(),
+                |form| {
+                    let error_color = cx.theme().danger;
+                    form.child(
+                        field().child(
+                            div()
+                                .text_color(error_color)
+                                .child(self.errors.#field_name_ident.clone()),
+                        ),
                     )
-                 )
-            })
+                },
+            )
         }
     }
 

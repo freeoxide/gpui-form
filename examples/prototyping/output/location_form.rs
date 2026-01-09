@@ -5,11 +5,11 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    IndexPath, checkbox::Checkbox,
+    ActiveTheme as _, IndexPath, checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
-    form::{field, v_form},
-    input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
+    divider::Divider, form::{field, v_form},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch, v_flex,
 };
 use gpui_form_component::tuple_select::TupleEnumInner;
@@ -227,9 +227,13 @@ impl Render for LocationFormForm {
                         field()
                             .label(LocationFormLabelKvFtl::Name.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.name.clone();
                                 let description = LocationFormDescriptionKvFtl::Name
                                     .to_fluent_string();
+                                let error = {
+                                    let e = self.errors.name.clone();
+                                    if e.is_empty() { None } else { Some(e) }
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -237,10 +241,12 @@ impl Render for LocationFormForm {
                                         .gap_1()
                                         .child(div().child(description.clone()))
                                         .when(
-                                            !error.is_empty(),
+                                            error.is_some(),
                                             |this| {
                                                 this.child(
-                                                    div().text_color(gpui::red()).child(error.clone()),
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
                                                 )
                                             },
                                         )
@@ -279,13 +285,14 @@ impl Render for LocationFormForm {
                             })
                     })
                     .when(
-                        !self.errors.location.is_empty(),
+                        !component.has_validations() && !self.errors.location.is_empty(),
                         |form| {
+                            let error_color = cx.theme().danger;
                             form.child(
                                 field()
                                     .child(
                                         div()
-                                            .text_color(gpui::red())
+                                            .text_color(error_color)
                                             .child(self.errors.location.clone()),
                                     ),
                             )
