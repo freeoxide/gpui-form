@@ -13,7 +13,6 @@ use gpui_component::{
     switch::Switch, v_flex,
 };
 use gpui_form_component::tuple_select::TupleEnumInner;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "UserForm";
@@ -303,8 +302,20 @@ impl Render for UserForm {
                                 let error = {
                                     validation_errors
                                         .as_ref()
-                                        .and_then(|e| e.username().non_empty_validation())
-                                        .map(|v| v.to_fluent_string())
+                                        .and_then(|e| {
+                                            let errs = e.username().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -336,8 +347,20 @@ impl Render for UserForm {
                                 let error = {
                                     validation_errors
                                         .as_ref()
-                                        .and_then(|e| e.email().email_validation())
-                                        .map(|v| v.to_fluent_string())
+                                        .and_then(|e| {
+                                            let errs = e.email().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -366,12 +389,41 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Age
                                     .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.age().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -385,8 +437,20 @@ impl Render for UserForm {
                                 let error = {
                                     validation_errors
                                         .as_ref()
-                                        .and_then(|e| e.balance().positive_validation())
-                                        .map(|v| v.to_fluent_string())
+                                        .and_then(|e| {
+                                            let errs = e.balance().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {

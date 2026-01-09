@@ -90,7 +90,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        component: &GpuiFormShape,
+        _component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
 

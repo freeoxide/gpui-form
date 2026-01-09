@@ -14,7 +14,6 @@ struct VariantArgs {
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(tuple_enum), forward_attrs(fluent_kv), supports(enum_any))]
-
 struct TupleEnumInnerArgs {
     ident: Ident,
 
@@ -59,15 +58,15 @@ pub fn from(input: TokenStream) -> TokenStream {
                     let list: syn::ExprArray = value.parse()?;
 
                     for elem in list.elems {
-                        if let syn::Expr::Lit(lit) = elem {
-                            if let syn::Lit::Str(s) = lit.lit {
-                                if s.value() == "label" {
-                                    has_label = true;
-                                }
+                        if let syn::Expr::Lit(lit) = elem
+                            && let syn::Lit::Str(s) = lit.lit
+                        {
+                            if s.value() == "label" {
+                                has_label = true;
+                            }
 
-                                if s.value() == "description" {
-                                    has_description = true;
-                                }
+                            if s.value() == "description" {
+                                has_description = true;
                             }
                         }
                     }

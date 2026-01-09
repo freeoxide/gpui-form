@@ -10,7 +10,7 @@ use heck::{ToSnakeCase as _, ToUpperCamelCase as _};
 use quote::{format_ident, quote};
 use std::{collections::BTreeSet, fs, path::Path};
 
-// import targetted lib to get inventory registrations
+// import targeted lib to get inventory registrations
 extern crate some_lib;
 
 fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
@@ -51,8 +51,6 @@ struct LayoutIdentities {
     struct_name_uw_ident: syn::Ident,
     struct_name_form_ident: syn::Ident,
     struct_name_form_fields_ident: syn::Ident,
-    struct_name_form_errors_ident: syn::Ident,
-    struct_name_form_errors_ftl_ident: syn::Ident,
     form_id_literal: String,
     /// The full module path to the source file, derived from source_path.
     /// e.g., `some_lib::structs::empty` for `examples/some-lib/src/structs/empty.rs`
@@ -67,8 +65,6 @@ impl LayoutIdentities {
         let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
         let struct_name_form_ident = shape.struct_form_ident();
         let struct_name_form_fields_ident = shape.struct_form_fields_ident();
-        let struct_name_form_errors_ident = shape.struct_form_errors_ident();
-        let struct_name_form_errors_ftl_ident = shape.ftl_errors_ident();
         let form_id_literal = shape.form_id_literal();
         let source_module_path = source_path_to_use_path(shape.source_path)
             .unwrap_or_else(|| panic!("Failed to parse source_path: {}", shape.source_path));
@@ -80,8 +76,6 @@ impl LayoutIdentities {
             struct_name_uw_ident,
             struct_name_form_ident,
             struct_name_form_fields_ident,
-            struct_name_form_errors_ident,
-            struct_name_form_errors_ftl_ident,
             form_id_literal,
             source_module_path,
         }
@@ -136,8 +130,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         struct_name_uw_ident,
         struct_name_form_ident,
         struct_name_form_fields_ident,
-        struct_name_form_errors_ident,
-        struct_name_form_errors_ftl_ident,
         form_id_literal,
         source_module_path,
     } = identities;
@@ -255,7 +247,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           v_flex,
       };
       use gpui_form_component::tuple_select::TupleEnumInner;
-      use rust_decimal::Decimal;
       use std::sync::Arc;
       use es_fluent::{ThisFtl as _, ToFluentString as _};
 

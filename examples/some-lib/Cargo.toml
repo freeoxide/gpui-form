@@ -17,8 +17,8 @@ gpui-form = { workspace = true }
 gpui-form-component = { workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
 inventory = { workspace = true }
-koruma = { workspace = true, features = [ "fluent" ] }
-koruma-collection = { workspace = true, features = [ "email", "fluent" ] }
+koruma = { features = [ "fluent" ], workspace = true }
+koruma-collection = { features = [ "email", "fluent" ], workspace = true }
 nutype = { features = [ "serde" ], workspace = true }
 rust-embed = { workspace = true }
 rust_decimal = { workspace = true }

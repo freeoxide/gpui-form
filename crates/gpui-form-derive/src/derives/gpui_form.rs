@@ -215,6 +215,15 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
     }
 }
 
+/// Extracts the last path segment identifier from an expression.
+/// Handles both `Expr::Path` and nested expressions for call-like validators.
+fn extract_path_last_ident(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path_expr) => path_expr.path.segments.last().map(|s| s.ident.to_string()),
+        _ => None,
+    }
+}
+
 fn extract_type_ident(ty: &Type) -> Ident {
     match ty {
         Type::Path(type_path) => {
@@ -297,14 +306,28 @@ fn expand_gpui_form(
                 let mut validations = Vec::new();
                 for attr in &field.attrs {
                     if attr.path().is_ident("koruma") {
-                        if let Ok(paths) = attr.parse_args_with(
-                            syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                        // Parse as expressions to handle both simple paths and call-like validators
+                        // e.g., `NonEmptyValidation::<_>` and `PrefixValidation::<_>(prefix = "Xx")`
+                        if let Ok(exprs) = attr.parse_args_with(
+                            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
                         ) {
-                            validations.extend(
-                                paths
-                                    .into_iter()
-                                    .filter_map(|p| p.segments.last().map(|s| s.ident.to_string())),
-                            );
+                            for expr in exprs {
+                                // Extract the validator name from the expression
+                                let validator_name = match &expr {
+                                    // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
+                                    syn::Expr::Call(call) => {
+                                        extract_path_last_ident(&call.func)
+                                    }
+                                    // Handle simple path expressions like `NonEmptyValidation::<_>`
+                                    syn::Expr::Path(path_expr) => {
+                                        path_expr.path.segments.last().map(|s| s.ident.to_string())
+                                    }
+                                    _ => None,
+                                };
+                                if let Some(name) = validator_name {
+                                    validations.push(name);
+                                }
+                            }
                         }
                     }
                 }

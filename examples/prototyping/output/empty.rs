@@ -13,7 +13,6 @@ use gpui_component::{
     switch::Switch, v_flex,
 };
 use gpui_form_component::tuple_select::TupleEnumInner;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "EmptyForm";
