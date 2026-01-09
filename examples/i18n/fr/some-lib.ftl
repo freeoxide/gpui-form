@@ -71,15 +71,15 @@ location_form_this = Location Form
 
 ## LocationFormDescriptionKvFtl
 
+location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 location_form_description_kv_ftl-location = Choose a country, then a state/province, then a city
 location_form_description_kv_ftl-name = Enter the person's full name
-location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 
 ## LocationFormLabelKvFtl
 
+location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 location_form_label_kv_ftl-location = Location
 location_form_label_kv_ftl-name = Full name
-location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 
 ## NewYorkCity
 
@@ -150,6 +150,7 @@ user_this = User
 
 ## UserDescriptionKvFtl
 
+user_description_kv_ftl_this = User Description Kv Ftl
 user_description_kv_ftl-age = Age
 user_description_kv_ftl-balance = Account balance
 user_description_kv_ftl-birth_date = Birth Date
@@ -159,10 +160,10 @@ user_description_kv_ftl-enable_notifications = Whether notifications are enabled
 user_description_kv_ftl-preferred = Preferred
 user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
 user_description_kv_ftl-username = Username
-user_description_kv_ftl_this = User Description Kv Ftl
 
 ## UserLabelKvFtl
 
+user_label_kv_ftl_this = User Label Kv Ftl
 user_label_kv_ftl-age = Age
 user_label_kv_ftl-balance = Balance
 user_label_kv_ftl-birth_date = Birth Date
@@ -172,24 +173,3 @@ user_label_kv_ftl-enable_notifications = Enable Notifications
 user_label_kv_ftl-preferred = Preferred
 user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 user_label_kv_ftl-username = Username
-user_label_kv_ftl_this = User Label Kv Ftl
-
-## EmailValidation
-
-email_validation = The email address "{ $input }" is not valid.
-
-## NonEmptyStringValidation
-
-non_empty_string_validation = This field cannot be empty.
-
-## NumberRangeValidation
-
-number_range_validation = Value must be between { $min } and { $max }, but got { $actual }.
-
-## OptionalNonEmptyStringValidation
-
-optional_non_empty_string_validation = If provided, this field cannot be empty.
-
-## PositiveNumberValidation
-
-positive_number_validation = Value must be positive, but got { $actual }.
