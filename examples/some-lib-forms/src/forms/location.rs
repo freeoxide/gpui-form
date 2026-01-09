@@ -4,7 +4,7 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    IndexPath,
+    ActiveTheme as _, IndexPath,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
@@ -18,7 +18,6 @@ use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
-
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -211,7 +210,16 @@ impl Render for LocationFormForm {
                     .child({
                         field()
                             .label(self.current_data.location.type_label())
-                            .description(self.current_data.location.type_description())
+                            .description_fn({
+                                let description = self.current_data.location.type_description();
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                }
+                            })
                             .child(Select::new(&self.fields.location_master_select))
                     })
                     .children({
@@ -227,12 +235,20 @@ impl Render for LocationFormForm {
                                             .child_label_at_depth(i)
                                             .unwrap_or("".into()),
                                     )
-                                    .description(
-                                        self.current_data
+                                    .description_fn({
+                                        let description = self
+                                            .current_data
                                             .location
                                             .child_description_at_depth(i)
-                                            .unwrap_or("".into()),
-                                    )
+                                            .unwrap_or("".into());
+                                        move |_, _| {
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .gap_1()
+                                                .child(div().child(description.clone()))
+                                        }
+                                    })
                                     .child(Select::new(child))
                             })
                     }),

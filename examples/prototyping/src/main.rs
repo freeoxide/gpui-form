@@ -11,8 +11,7 @@ use quote::{format_ident, quote};
 use std::{collections::BTreeSet, fs, path::Path};
 
 // import targetted lib to get inventory registrations
-#[allow(unused_imports)]
-use some_lib::*;
+extern crate some_lib;
 
 fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
     let path = Path::new(source_path);
@@ -167,6 +166,19 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let render_children_tokens = adapter.child_elements();
 
+    let any_validations = data
+        .components
+        .iter()
+        .any(|field| !field.validations.is_empty());
+
+    let validation_binding = if any_validations {
+        quote! {
+            let validation_errors = #struct_name_ident::from(self.current_data.clone()).validate().err();
+        }
+    } else {
+        quote! {}
+    };
+
     let subscription_calls_tokens = adapter.subscription_calls().unwrap_or_default();
 
     let post_subscription_init_tokens = adapter
@@ -209,16 +221,11 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         )
     } else {
         (
-            quote! {
-                #[derive(Clone, Debug, es_fluent::EsFluent)]
-                pub enum #struct_name_form_errors_ftl_ident {
-                    #(#error_ftl_variants)*
-                }
-            },
+            quote! {},
             quote! { current_data: #struct_name_uw_ident, },
-            quote! { errors: #struct_name_form_errors_ident, },
+            quote! {},
             quote! { current_data: original_data.into(), },
-            quote! { errors: #struct_name_form_errors_ident::default(), },
+            quote! {},
             quote! {
                 fields: #struct_name_form_fields_ident {
                     #field_initializers_tokens
@@ -237,14 +244,15 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
       };
       use gpui_component::{
-          IndexPath,
-          checkbox::Checkbox, date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-          divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
+          ActiveTheme as _, IndexPath,
+          checkbox::Checkbox,
+          date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+          divider::Divider,
           form::{field, v_form},
-          input::{
-              InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input,
-          },
-          switch::Switch, v_flex,
+          input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+          select::{SearchableVec, Select, SelectEvent, SelectState},
+          switch::Switch,
+          v_flex,
       };
       use gpui_form_component::tuple_select::TupleEnumInner;
       use rust_decimal::Decimal;
@@ -316,6 +324,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
       impl Render for #struct_name_form_ident {
           fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+              #validation_binding
               v_flex()
                   .key_context(CONTEXT)
                   .id(#form_id_literal)

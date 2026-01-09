@@ -288,6 +288,32 @@ fn expand_gpui_form(
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
 
+    let koruma_validations: HashMap<String, Vec<String>> = match &derive_input.data {
+        syn::Data::Struct(data_struct) => data_struct
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let ident = field.ident.as_ref()?.to_string();
+                let mut validations = Vec::new();
+                for attr in &field.attrs {
+                    if attr.path().is_ident("koruma") {
+                        if let Ok(paths) = attr.parse_args_with(
+                            syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                        ) {
+                            validations.extend(
+                                paths
+                                    .into_iter()
+                                    .filter_map(|p| p.segments.last().map(|s| s.ident.to_string())),
+                            );
+                        }
+                    }
+                }
+                Some((ident, validations))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+
     // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
     if fields_iter.is_empty() {
         return syn::Error::new_spanned(
@@ -383,6 +409,14 @@ fn expand_gpui_form(
                 let field_type_str = base_type.to_token_stream().to_string();
                 let component_def = field.component.as_ref().unwrap();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
+                let validation_rules = koruma_validations
+                    .get(&field_name_str)
+                    .cloned()
+                    .unwrap_or_default();
+                let validation_literals: Vec<_> = validation_rules
+                    .iter()
+                    .map(|v| syn::LitStr::new(v, proc_macro2::Span::call_site()))
+                    .collect();
 
                 Some(quote! {
                     ::gpui_form::core::registry::FieldVariant::new(
@@ -390,7 +424,9 @@ fn expand_gpui_form(
                         #field_type_str,
                         #is_optional,
                         #behaviour_tokens
-                    )
+                    ).with_validations(&[
+                        #( #validation_literals ),*
+                    ])
                 })
             }
         })

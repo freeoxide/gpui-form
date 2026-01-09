@@ -5,22 +5,17 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    IndexPath, checkbox::Checkbox,
+    ActiveTheme as _, IndexPath, checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
-    form::{field, v_form},
-    input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
+    divider::Divider, form::{field, v_form},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch, v_flex,
 };
 use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
-#[derive(Clone, Debug, es_fluent::EsFluent)]
-pub enum LocationFormFormErrorsFtl {
-    Name { value: String },
-    Location { value: String },
-}
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -28,7 +23,6 @@ pub fn init(cx: &mut App) {}
 pub struct LocationFormForm {
     original_data: Arc<LocationForm>,
     current_data: LocationFormFormValueHolder,
-    errors: LocationFormFormErrors,
     fields: LocationFormFormFields,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -199,7 +193,6 @@ impl LocationFormForm {
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
-            errors: LocationFormFormErrors::default(),
             fields: LocationFormFormFields {
                 name_input,
                 location_master_select,
@@ -227,7 +220,6 @@ impl Render for LocationFormForm {
                         field()
                             .label(LocationFormLabelKvFtl::Name.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.name.clone();
                                 let description = LocationFormDescriptionKvFtl::Name
                                     .to_fluent_string();
                                 move |_, _| {
@@ -236,14 +228,6 @@ impl Render for LocationFormForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            !error.is_empty(),
-                                            |this| {
-                                                this.child(
-                                                    div().text_color(gpui::red()).child(error.clone()),
-                                                )
-                                            },
-                                        )
                                 }
                             })
                             .child(Input::new(&self.fields.name_input)),
@@ -251,7 +235,19 @@ impl Render for LocationFormForm {
                     .child({
                         field()
                             .label(self.current_data.location.type_label())
-                            .description(self.current_data.location.type_description())
+                            .description_fn({
+                                let description = self
+                                    .current_data
+                                    .location
+                                    .type_description();
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                }
+                            })
                             .child(Select::new(&self.fields.location_master_select))
                     })
                     .children({
@@ -268,29 +264,23 @@ impl Render for LocationFormForm {
                                             .child_label_at_depth(i)
                                             .unwrap_or("".into()),
                                     )
-                                    .description(
-                                        self
+                                    .description_fn({
+                                        let description = self
                                             .current_data
                                             .location
                                             .child_description_at_depth(i)
-                                            .unwrap_or("".into()),
-                                    )
+                                            .unwrap_or("".into());
+                                        move |_, _| {
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .gap_1()
+                                                .child(div().child(description.clone()))
+                                        }
+                                    })
                                     .child(Select::new(child))
                             })
-                    })
-                    .when(
-                        !self.errors.location.is_empty(),
-                        |form| {
-                            form.child(
-                                field()
-                                    .child(
-                                        div()
-                                            .text_color(gpui::red())
-                                            .child(self.errors.location.clone()),
-                                    ),
-                            )
-                        },
-                    ),
+                    }),
             )
             .child(Divider::horizontal())
             .child(format!("{:?}", self.current_data))

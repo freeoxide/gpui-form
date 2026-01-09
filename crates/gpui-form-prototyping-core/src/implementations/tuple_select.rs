@@ -15,7 +15,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
-        component: &GpuiFormShape,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let struct_name_ident = field.struct_name_ident();
         let field_name_ident = field.field_ident();
@@ -90,7 +90,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
     fn generate_render_child(
         &self,
         field: &FieldVariant,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
 
@@ -105,25 +105,38 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             .child({
                 field()
                     .label(self.current_data.#field_name_ident.type_label())
-                    .description(self.current_data.#field_name_ident.type_description())
+                    .description_fn({
+                        let description = self.current_data.#field_name_ident.type_description();
+                        move |_, _| {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(div().child(description.clone()))
+                        }
+                    })
                     .child(Select::new(&self.fields.#master_field_name_ident))
             })
             .children({
                 self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
                     field()
                         .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
-                        .description(self.current_data.#field_name_ident.child_description_at_depth(i).unwrap_or("".into()))
+                        .description_fn({
+                            let description = self
+                                .current_data
+                                .#field_name_ident
+                                .child_description_at_depth(i)
+                                .unwrap_or("".into());
+                            move |_, _| {
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(div().child(description.clone()))
+                            }
+                        })
                         .child(Select::new(child))
                 })
-            })
-            .when(!self.errors.#field_name_ident.is_empty(), |form| {
-                 form.child(
-                    field().child(
-                        div()
-                            .text_color(gpui::red())
-                            .child(self.errors.#field_name_ident.clone())
-                    )
-                 )
             })
         }
     }

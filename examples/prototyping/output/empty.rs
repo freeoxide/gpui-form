@@ -5,11 +5,11 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    IndexPath, checkbox::Checkbox,
+    ActiveTheme as _, IndexPath, checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, select::{Select, SelectEvent, SelectState, SearchableVec},
-    form::{field, v_form},
-    input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction, Input},
+    divider::Divider, form::{field, v_form},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch, v_flex,
 };
 use gpui_form_component::tuple_select::TupleEnumInner;
