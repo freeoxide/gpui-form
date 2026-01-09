@@ -1,11 +1,12 @@
 use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
-use koruma::Koruma;
+use koruma::{Koruma, KorumaAllFluent};
 use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
     general::RequiredValidation,
     numeric::{PositiveValidation, RangeValidation},
+    string::{PrefixValidation, SuffixValidation},
 };
 use strum::EnumIter;
 
@@ -25,12 +26,12 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma)]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>)]
+    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
     pub username: Option<String>,
 
     #[gpui_form(component(input))]

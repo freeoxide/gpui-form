@@ -276,10 +276,19 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Username.to_fluent_string();
-                                let error = validation_errors
-                                    .as_ref()
-                                    .and_then(|e| e.username().non_empty_validation())
-                                    .map(|v| v.to_fluent_string());
+                                let error = validation_errors.as_ref().and_then(|e| {
+                                    let errs = e.username().all();
+                                    if errs.is_empty() {
+                                        None
+                                    } else {
+                                        Some(
+                                            errs.iter()
+                                                .map(|v| v.to_fluent_string())
+                                                .collect::<Vec<_>>()
+                                                .join("\n"),
+                                        )
+                                    }
+                                });
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
@@ -329,10 +338,19 @@ impl Render for UserForm {
                             .label(UserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Age.to_fluent_string();
-                                let error = validation_errors
-                                    .as_ref()
-                                    .and_then(|e| e.age().range_validation())
-                                    .map(|v| v.to_fluent_string());
+                                let error = validation_errors.as_ref().and_then(|e| {
+                                    let errs = e.age().all();
+                                    if errs.is_empty() {
+                                        None
+                                    } else {
+                                        Some(
+                                            errs.iter()
+                                                .map(|v| v.to_fluent_string())
+                                                .collect::<Vec<_>>()
+                                                .join("\n"),
+                                        )
+                                    }
+                                });
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
