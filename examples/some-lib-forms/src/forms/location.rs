@@ -4,7 +4,7 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    IndexPath,
+    ActiveTheme as _, IndexPath,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
@@ -18,7 +18,6 @@ use gpui_form_component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
-
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

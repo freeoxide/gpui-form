@@ -88,50 +88,46 @@ impl FieldCodeGenerator for InputCodeGenerator {
                     .map(|v| v.to_fluent_string())
             }}
         } else {
-            quote! {{
-                let e = self.errors.#field_name_ident.clone();
-                if e.is_empty() { None } else { Some(e) }
-            }}
+            quote! {{ None }}
         };
         let error_color_tokens = quote! { cx.theme().danger };
 
-        let description_fn_tokens =
-            if component.has_validations() && field.first_validation_path().is_none() {
-                quote! {
-                    .description_fn({
-                        let description = #description_tokens;
-                        move |_, _| {
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(div().child(description.clone()))
-                        }
-                    })
-                }
-            } else {
-                quote! {
-                    .description_fn({
-                        let description = #description_tokens;
-                        let error = #error_tokens;
-                        let error_color = #error_color_tokens;
-                        move |_, _| {
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(div().child(description.clone()))
-                                .when(error.is_some(), |this| {
-                                    this.child(
-                                        div()
-                                            .text_color(error_color)
-                                            .child(error.clone().unwrap_or_default()),
-                                    )
-                                })
-                        }
-                    })
-                }
-            };
+        let description_fn_tokens = if field.first_validation_path().is_none() {
+            quote! {
+                .description_fn({
+                    let description = #description_tokens;
+                    move |_, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().child(description.clone()))
+                    }
+                })
+            }
+        } else {
+            quote! {
+                .description_fn({
+                    let description = #description_tokens;
+                    let error = #error_tokens;
+                    let error_color = #error_color_tokens;
+                    move |_, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().child(description.clone()))
+                            .when(error.is_some(), |this| {
+                                this.child(
+                                    div()
+                                        .text_color(error_color)
+                                        .child(error.clone().unwrap_or_default()),
+                                )
+                            })
+                    }
+                })
+            }
+        };
 
         // Show description always, and error below it when present (hidden when empty)
         quote! {

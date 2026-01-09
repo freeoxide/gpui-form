@@ -111,10 +111,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
                     .map(|v| v.to_fluent_string())
             }}
         } else {
-            quote! {{
-                let e = self.errors.#field_name_ident.clone();
-                if e.is_empty() { None } else { Some(e) }
-            }}
+            quote! {{ None }}
         };
         let error_color_tokens = quote! { cx.theme().danger };
 

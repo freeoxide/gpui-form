@@ -11,8 +11,7 @@ use quote::{format_ident, quote};
 use std::{collections::BTreeSet, fs, path::Path};
 
 // import targetted lib to get inventory registrations
-#[allow(unused_imports)]
-use some_lib::*;
+extern crate some_lib;
 
 fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
     let path = Path::new(source_path);
@@ -172,8 +171,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         .iter()
         .any(|field| !field.validations.is_empty());
 
-    let include_errors = !any_validations;
-
     let validation_binding = if any_validations {
         quote! {
             let validation_errors = #struct_name_ident::from(self.current_data.clone()).validate().err();
@@ -221,27 +218,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
             quote! {},
             quote! { fields: #struct_name_form_fields_ident, },
             quote! {},
-        )
-    } else if include_errors {
-        (
-            quote! {
-                #[derive(Clone, Debug, es_fluent::EsFluent)]
-                pub enum #struct_name_form_errors_ftl_ident {
-                    #(#error_ftl_variants)*
-                }
-            },
-            quote! { current_data: #struct_name_uw_ident, },
-            quote! { errors: #struct_name_form_errors_ident, },
-            quote! { current_data: original_data.into(), },
-            quote! { errors: #struct_name_form_errors_ident::default(), },
-            quote! {
-                fields: #struct_name_form_fields_ident {
-                    #field_initializers_tokens
-                },
-            },
-            quote! {
-                .child(format!("{:?}", self.current_data))
-            },
         )
     } else {
         (

@@ -105,30 +105,39 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             .child({
                 field()
                     .label(self.current_data.#field_name_ident.type_label())
-                    .description(self.current_data.#field_name_ident.type_description())
+                    .description_fn({
+                        let description = self.current_data.#field_name_ident.type_description();
+                        move |_, _| {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(div().child(description.clone()))
+                        }
+                    })
                     .child(Select::new(&self.fields.#master_field_name_ident))
             })
             .children({
                 self.fields.#child_selects_field_name_ident.iter().enumerate().map(|(i, child)| {
                     field()
                         .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
-                        .description(self.current_data.#field_name_ident.child_description_at_depth(i).unwrap_or("".into()))
+                        .description_fn({
+                            let description = self
+                                .current_data
+                                .#field_name_ident
+                                .child_description_at_depth(i)
+                                .unwrap_or("".into());
+                            move |_, _| {
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(div().child(description.clone()))
+                            }
+                        })
                         .child(Select::new(child))
                 })
             })
-            .when(
-                !component.has_validations() && !self.errors.#field_name_ident.is_empty(),
-                |form| {
-                    let error_color = cx.theme().danger;
-                    form.child(
-                        field().child(
-                            div()
-                                .text_color(error_color)
-                                .child(self.errors.#field_name_ident.clone()),
-                        ),
-                    )
-                },
-            )
         }
     }
 
