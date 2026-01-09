@@ -12,7 +12,6 @@ chrono = { workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-lang = { workspace = true }
 es-fluent-manager-embedded = { workspace = true }
-garde = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-form = { features = [ "derive" ], workspace = true }

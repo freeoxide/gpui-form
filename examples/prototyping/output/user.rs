@@ -153,7 +153,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                match text.parse::<Decimal>() {
+                match text.parse::<f64>() {
                     Ok(value) => {
                         self.current_data.balance = value.into();
                     }
@@ -174,10 +174,7 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .saturating_sub(Decimal::from(1));
+                        let new_value = self.current_data.balance - 1 as f64;
                         self.current_data.balance = new_value;
                         this.update(
                             cx,
@@ -192,10 +189,7 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .saturating_add(Decimal::from(1));
+                        let new_value = self.current_data.balance + 1 as f64;
                         self.current_data.balance = new_value;
                         this.update(
                             cx,

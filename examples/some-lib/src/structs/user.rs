@@ -1,9 +1,12 @@
-use crate::validators::{
-    EmailValidation, NonEmptyStringValidation, NumberRangeValidation, PositiveNumberValidation,
-};
 use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
-use koruma::{Koruma, Validate};
+use koruma::Koruma;
+use koruma_collection::{
+    collection::NonEmptyValidation,
+    format::EmailValidation,
+    general::RequiredValidation,
+    numeric::{PositiveValidation, RangeValidation},
+};
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
@@ -27,19 +30,19 @@ pub enum EnumCountry {
 #[fluent_kv(keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyStringValidation)]
+    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>)]
     pub username: Option<String>,
 
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyStringValidation, EmailValidation)]
+    #[koruma(EmailValidation::<_>)]
     pub email: String,
 
     #[gpui_form(component(number_input))]
-    #[koruma(NumberRangeValidation(min = 18, max = 167))]
+    #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
     #[gpui_form(component(number_input))]
-    #[koruma(PositiveNumberValidation)]
+    #[koruma(PositiveValidation::<_>)]
     pub balance: f64,
 
     #[gpui_form(component(checkbox))]

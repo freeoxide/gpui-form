@@ -5,6 +5,7 @@ use gpui::{
     red,
 };
 use gpui_component::{
+    ActiveTheme,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
@@ -278,8 +279,9 @@ impl Render for UserForm {
                                 let description = UserDescriptionKvFtl::Username.to_fluent_string();
                                 let error = validation_errors
                                     .as_ref()
-                                    .and_then(|e| e.username().non_empty_string_validation())
+                                    .and_then(|e| e.username().non_empty_validation())
                                     .map(|v| v.to_fluent_string());
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -289,7 +291,7 @@ impl Render for UserForm {
                                         .when(error.is_some(), |this| {
                                             this.child(
                                                 div()
-                                                    .text_color(red())
+                                                    .text_color(error_color)
                                                     .child(error.clone().unwrap_or_default()),
                                             )
                                         })
@@ -303,15 +305,9 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Email.to_fluent_string();
                                 let error = validation_errors.as_ref().and_then(|e| {
-                                    e.email()
-                                        .non_empty_string_validation()
-                                        .map(|v| v.to_fluent_string())
-                                        .or_else(|| {
-                                            e.email()
-                                                .email_validation()
-                                                .map(|v| v.to_fluent_string())
-                                        })
+                                    e.email().email_validation().map(|v| v.to_fluent_string())
                                 });
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -321,7 +317,7 @@ impl Render for UserForm {
                                         .when(error.is_some(), |this| {
                                             this.child(
                                                 div()
-                                                    .text_color(red())
+                                                    .text_color(error_color)
                                                     .child(error.clone().unwrap_or_default()),
                                             )
                                         })
@@ -336,8 +332,9 @@ impl Render for UserForm {
                                 let description = UserDescriptionKvFtl::Age.to_fluent_string();
                                 let error = validation_errors
                                     .as_ref()
-                                    .and_then(|e| e.age().number_range_validation())
+                                    .and_then(|e| e.age().range_validation())
                                     .map(|v| v.to_fluent_string());
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -347,7 +344,7 @@ impl Render for UserForm {
                                         .when(error.is_some(), |this| {
                                             this.child(
                                                 div()
-                                                    .text_color(red())
+                                                    .text_color(error_color)
                                                     .child(error.clone().unwrap_or_default()),
                                             )
                                         })
@@ -362,8 +359,9 @@ impl Render for UserForm {
                                 let description = UserDescriptionKvFtl::Balance.to_fluent_string();
                                 let error = validation_errors
                                     .as_ref()
-                                    .and_then(|e| e.balance().positive_number_validation())
+                                    .and_then(|e| e.balance().positive_validation())
                                     .map(|v| v.to_fluent_string());
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -373,7 +371,7 @@ impl Render for UserForm {
                                         .when(error.is_some(), |this| {
                                             this.child(
                                                 div()
-                                                    .text_color(red())
+                                                    .text_color(error_color)
                                                     .child(error.clone().unwrap_or_default()),
                                             )
                                         })

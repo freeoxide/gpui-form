@@ -868,15 +868,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "castaway"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dec551ab6e7578819132c713a93c022a05d60159dc86e7a7050223577484c55a"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "cbc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1081,20 +1072,6 @@ checksum = "f849b92c694fe237ecd8fafd1ba0df7ae0d45c1df6daeb7f68ed4220d51640bd"
 dependencies = [
  "nix 0.30.1",
  "thiserror 2.0.17",
-]
-
-[[package]]
-name = "compact_str"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b79c4069c6cad78e2e0cdfcbd26275770669fb39fd308a752dc110e83b9af32"
-dependencies = [
- "castaway",
- "cfg-if",
- "itoa",
- "rustversion",
- "ryu",
- "static_assertions",
 ]
 
 [[package]]
@@ -2415,32 +2392,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "garde"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a74b56a4039a46e8c91cc9d84e8a7df4e1f8b24239ca57d1304b3263cb599b9"
-dependencies = [
- "compact_str",
- "garde_derive",
- "once_cell",
- "regex",
- "rust_decimal",
- "smallvec",
-]
-
-[[package]]
-name = "garde_derive"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7224c08ec489e2840af29ed882b47f7f6ac8f4ce15c275d9fc0d6d1b94578ae6"
-dependencies = [
- "proc-macro2",
- "quote",
- "regex",
- "syn 2.0.114",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3485,26 +3436,42 @@ dependencies = [
 
 [[package]]
 name = "koruma"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c33f36dd63c75eb400274cbe20a6b515fa04490a6f4abdf5e112be4fd9bf8e3"
+checksum = "bfcb3e0e095af278b2aff41e64976ab51f215db12495e946e87d6ae8aa7f01ff"
 dependencies = [
  "bon",
+ "es-fluent",
  "koruma-core",
  "koruma-derive",
 ]
 
 [[package]]
-name = "koruma-core"
-version = "0.1.0"
+name = "koruma-collection"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0de9edcd5bb9617e4afc8f2c6acdaf0b6af42569fc1e6f09e1798ef487389aa"
+checksum = "1f02aeac4616350702e299338ef1e44ed7a2816f2361be37df3cb6ebc25a3589"
+dependencies = [
+ "bon",
+ "es-fluent",
+ "es-fluent-manager-embedded",
+ "koruma",
+ "regex",
+ "rust-embed",
+ "unic-langid",
+]
+
+[[package]]
+name = "koruma-core"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5354279ff9b7a3c76e3aaf5b0d77793cfdfa44379748188563d9127343d36b41"
 
 [[package]]
 name = "koruma-derive"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0547c10e7769d5a1ec9508b0db82d31759167c67117cc896acfcab8825fe8165"
+checksum = "a7fb8b680e3b69aeb41305286e3245073091b97f104f0decf7d7b3e3c3e8b466"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-error2",
@@ -5779,7 +5746,6 @@ dependencies = [
  "chrono",
  "es-fluent",
  "es-fluent-manager-embedded",
- "garde",
  "gpui",
  "gpui-component",
  "gpui-form",
@@ -5787,6 +5753,7 @@ dependencies = [
  "gpui-storybook",
  "inventory",
  "koruma",
+ "koruma-collection",
  "nutype",
  "rust-embed",
  "rust_decimal",
@@ -5804,7 +5771,6 @@ dependencies = [
  "es-fluent",
  "es-fluent-lang",
  "es-fluent-manager-embedded",
- "garde",
  "gpui",
  "gpui-component",
  "gpui-form",
