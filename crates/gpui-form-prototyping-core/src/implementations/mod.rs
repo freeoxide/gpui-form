@@ -76,8 +76,8 @@ pub trait FieldCodeGenerator {
 
     fn generate_post_subscription_initialization(
         &self,
-        field: &FieldVariant,
-        component: &GpuiFormShape,
+        _field: &FieldVariant,
+        _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
     }
@@ -125,14 +125,6 @@ pub trait ComponentIdentities {
     }
     fn ftl_description_ident(&self) -> syn::Ident {
         let str_repr = format!("{}DescriptionKvFtl", self.struct_name());
-        syn::parse_str::<syn::Ident>(&str_repr).unwrap()
-    }
-    fn struct_form_errors_ident(&self) -> syn::Ident {
-        let str_repr = format!("{}FormErrors", self.struct_name());
-        syn::parse_str::<syn::Ident>(&str_repr).unwrap()
-    }
-    fn ftl_errors_ident(&self) -> syn::Ident {
-        let str_repr = format!("{}FormErrorsFtl", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
 }

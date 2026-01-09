@@ -11,7 +11,6 @@ impl super::ComponentLayout for CheckboxComponent {
             options: _,
             name: _,
             r#type: _,
-            item_type: _,
         } = &self.0;
     }
 }

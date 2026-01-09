@@ -4,6 +4,7 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
+    ActiveTheme as _, IndexPath,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
@@ -13,21 +14,9 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use rust_decimal::Decimal;
+use gpui_form_component::tuple_select::TupleEnumInner;
 use some_lib::structs::user::*;
 use std::sync::Arc;
-#[derive(Clone, Debug, es_fluent::EsFluent)]
-pub enum UserFormErrorsFtl {
-    Username { value: String },
-    Email { value: String },
-    Age { value: String },
-    Balance { value: String },
-    SubscribeNewsletter { value: String },
-    EnableNotifications { value: String },
-    Preferred { value: String },
-    Country { value: String },
-    BirthDate { value: String },
-}
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -35,7 +24,6 @@ pub fn init(cx: &mut App) {}
 pub struct UserForm {
     original_data: Arc<User>,
     current_data: UserFormValueHolder,
-    errors: UserFormErrors,
     fields: UserFormFields,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -143,7 +131,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                match text.parse::<Decimal>() {
+                match text.parse::<f64>() {
                     Ok(value) => {
                         self.current_data.balance = value.into();
                     },
@@ -163,14 +151,14 @@ impl UserForm {
         match event {
             NumberInputEvent::Step(step_action) => match step_action {
                 StepAction::Decrement => {
-                    let new_value = self.current_data.balance.saturating_sub(Decimal::from(1));
+                    let new_value = self.current_data.balance - 1 as f64;
                     self.current_data.balance = new_value;
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
                     });
                 },
                 StepAction::Increment => {
-                    let new_value = self.current_data.balance.saturating_add(Decimal::from(1));
+                    let new_value = self.current_data.balance + 1 as f64;
                     self.current_data.balance = new_value;
                     this.update(cx, |input, cx| {
                         input.set_value(self.current_data.balance.to_string(), window, cx);
@@ -233,7 +221,7 @@ impl UserForm {
         let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
         let birth_date_date_picker =
             cx.new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
-        let _subscriptions = vec![
+        let mut _subscriptions = vec![
             cx.subscribe_in(&username_input, window, Self::on_username_input_event),
             cx.subscribe_in(&email_input, window, Self::on_email_input_event),
             cx.subscribe_in(&age_number_input, window, Self::on_age_input_event),
@@ -255,7 +243,6 @@ impl UserForm {
         Self {
             original_data: Arc::new(original_data.clone()),
             current_data: original_data.into(),
-            errors: UserFormErrors::default(),
             fields: UserFormFields {
                 username_input,
                 email_input,
@@ -272,6 +259,7 @@ impl UserForm {
 }
 impl Render for UserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let validation_errors = User::from(self.current_data.clone()).validate().err();
         v_flex()
             .key_context(CONTEXT)
             .id("user-form")
@@ -286,17 +274,34 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.username.clone();
                                 let description = UserDescriptionKvFtl::Username.to_fluent_string();
+                                let error = {
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.username().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
+                                        .when(error.is_some(), |this| {
                                             this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
                                             )
                                         })
                                 }
@@ -307,17 +312,34 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.email.clone();
                                 let description = UserDescriptionKvFtl::Email.to_fluent_string();
+                                let error = {
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.email().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
+                                        .when(error.is_some(), |this| {
                                             this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
                                             )
                                         })
                                 }
@@ -328,17 +350,34 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.age.clone();
                                 let description = UserDescriptionKvFtl::Age.to_fluent_string();
+                                let error = {
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.age().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
+                                        .when(error.is_some(), |this| {
                                             this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
                                             )
                                         })
                                 }
@@ -349,17 +388,34 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.balance.clone();
                                 let description = UserDescriptionKvFtl::Balance.to_fluent_string();
+                                let error = {
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.balance().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
+                                        .when(error.is_some(), |this| {
                                             this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
                                             )
                                         })
                                 }
@@ -370,7 +426,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.subscribe_newsletter.clone();
                                 let description =
                                     UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string();
                                 move |_, _| {
@@ -379,11 +434,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(
@@ -399,7 +449,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.enable_notifications.clone();
                                 let description =
                                     UserDescriptionKvFtl::EnableNotifications.to_fluent_string();
                                 move |_, _| {
@@ -408,11 +457,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(
@@ -428,7 +472,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Preferred.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.preferred.clone();
                                 let description =
                                     UserDescriptionKvFtl::Preferred.to_fluent_string();
                                 move |_, _| {
@@ -437,11 +480,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Select::new(&self.fields.preferred_select)),
@@ -450,7 +488,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Country.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.country.clone();
                                 let description = UserDescriptionKvFtl::Country.to_fluent_string();
                                 move |_, _| {
                                     div()
@@ -458,11 +495,6 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(Select::new(&self.fields.country_select)),
@@ -471,7 +503,6 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::BirthDate.to_fluent_string())
                             .description_fn({
-                                let error = self.errors.birth_date.clone();
                                 let description =
                                     UserDescriptionKvFtl::BirthDate.to_fluent_string();
                                 move |_, _| {
@@ -480,18 +511,12 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(!error.is_empty(), |this| {
-                                            this.child(
-                                                div().text_color(gpui::red()).child(error.clone()),
-                                            )
-                                        })
                                 }
                             })
                             .child(DatePicker::new(&self.fields.birth_date_date_picker)),
                     ),
             )
             .child(Divider::horizontal())
-            .absolute()
             .child(format!("{:?}", self.current_data))
     }
 }

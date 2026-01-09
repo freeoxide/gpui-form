@@ -24,17 +24,22 @@ impl GpuiFormShape {
             source_path,
         }
     }
+
+    pub fn has_validations(&self) -> bool {
+        self.components
+            .iter()
+            .any(|field| !field.validations.is_empty())
+    }
 }
 
 #[derive(Debug)]
 pub struct FieldVariant {
     pub field_name: &'static str,
     pub field_type: &'static str,
-    /// The intermediate type used for parsing during input (e.g., u32 for a nutype Age).
-    /// If None, field_type is used for both parsing and final validation.
-    pub item_type: Option<&'static str>,
     pub optional: bool,
     pub behaviour: ComponentsBehaviour,
+    /// List of validation rule identifiers applied to this field (for diagnostics/rendering).
+    pub validations: &'static [&'static str],
 }
 
 impl FieldVariant {
@@ -47,46 +52,10 @@ impl FieldVariant {
         Self {
             field_name,
             field_type,
-            item_type: None,
             optional,
             behaviour,
+            validations: &[],
         }
-    }
-
-    /// Create a new FieldVariant with an item type for two-phase validation.
-    /// The item_type is used for intermediate parsing (e.g., u32),
-    /// while field_type is used for final validation (e.g., Age nutype).
-    pub const fn new_with_item(
-        field_name: &'static str,
-        field_type: &'static str,
-        item_type: &'static str,
-        optional: bool,
-        behaviour: ComponentsBehaviour,
-    ) -> Self {
-        Self {
-            field_name,
-            field_type,
-            item_type: Some(item_type),
-            optional,
-            behaviour,
-        }
-    }
-
-    /// Returns true if this field uses two-phase validation (has a separate item type)
-    pub const fn has_item_type(&self) -> bool {
-        self.item_type.is_some()
-    }
-
-    /// Returns the type to use for parsing input values.
-    /// If item_type is set, returns that; otherwise returns field_type.
-    pub fn parse_type(&self) -> &'static str {
-        self.item_type.unwrap_or(self.field_type)
-    }
-
-    /// Returns the type to use for final validation.
-    /// This is always the field_type.
-    pub fn validation_type(&self) -> &'static str {
-        self.field_type
     }
 
     pub fn full_type(&self) -> syn::Type {
@@ -122,6 +91,32 @@ impl FieldVariant {
 
     pub fn kebab_id(&self) -> String {
         self.field_name_with_behaviour().to_kebab_case()
+    }
+
+    /// Returns the validation rule identifiers attached to this field.
+    pub fn validation_rules(&self) -> &'static [&'static str] {
+        self.validations
+    }
+
+    /// Returns parsed validation rule idents as syn::Path values.
+    pub fn validation_paths(&self) -> Vec<syn::Path> {
+        self.validations
+            .iter()
+            .filter_map(|v| syn::parse_str::<syn::Path>(v).ok())
+            .collect()
+    }
+
+    /// Returns the first validation rule as a syn::Path, if any.
+    pub fn first_validation_path(&self) -> Option<syn::Path> {
+        self.validations
+            .iter()
+            .find_map(|v| syn::parse_str::<syn::Path>(v).ok())
+    }
+
+    /// Attach validation rule identifiers to this field metadata.
+    pub const fn with_validations(mut self, validations: &'static [&'static str]) -> Self {
+        self.validations = validations;
+        self
     }
 }
 

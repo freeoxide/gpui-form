@@ -13,7 +13,6 @@ impl super::ComponentLayout for DatePickerComponent {
             options: _,
             name,
             r#type: _,
-            item_type: _,
         } = &self.0;
 
         let field_name_ident = crate::component_field_name!(name);

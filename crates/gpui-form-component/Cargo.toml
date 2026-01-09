@@ -3,14 +3,13 @@ name = "gpui-form-component"
 description = """
 Custom components for gpui-form, including TupleSelect for nested enum support
 """
+version.workspace = true
+rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-version.workspace = true
 repository.workspace = true
-readme.workspace = true
-categories = [ "gui", "development-tools" ]
-keywords = [ "gpui", "gpui-component", "form", "component" ]
+readme = "README.md"
 
 [dependencies]
 gpui = { workspace = true }

@@ -71,15 +71,15 @@ location_form_this = Location Form
 
 ## LocationFormDescriptionKvFtl
 
+location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 location_form_description_kv_ftl-location = Choose a country, then a state/province, then a city
 location_form_description_kv_ftl-name = Enter the person's full name
-location_form_description_kv_ftl_this = Location Form Description Kv Ftl
 
 ## LocationFormLabelKvFtl
 
+location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 location_form_label_kv_ftl-location = Location
 location_form_label_kv_ftl-name = Full name
-location_form_label_kv_ftl_this = Location Form Label Kv Ftl
 
 ## NewYorkCity
 
@@ -89,48 +89,6 @@ new_york_city-Buffalo = Buffalo
 new_york_city-NewYorkCity = New York City
 new_york_city-Rochester = Rochester
 new_york_city-Syracuse = Syracuse
-
-## NutypeEnumCountry
-
-nutype_enum_country-China = China
-nutype_enum_country-France = France
-nutype_enum_country-UnitedStates = United States
-
-## NutypePreferedLanguage
-
-nutype_prefered_language-Chinese = Chinese
-nutype_prefered_language-English = English
-nutype_prefered_language-French = French
-
-## NutypeUser
-
-nutype_user_this = Nutype User
-
-## NutypeUserDescriptionKvFtl
-
-nutype_user_description_kv_ftl-age = Age
-nutype_user_description_kv_ftl-balance = Account balance
-nutype_user_description_kv_ftl-birth_date = Birth Date
-nutype_user_description_kv_ftl-country = Country
-nutype_user_description_kv_ftl-email = Email address
-nutype_user_description_kv_ftl-enable_notifications = Enable notifications
-nutype_user_description_kv_ftl-preferred = Preferred
-nutype_user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
-nutype_user_description_kv_ftl-username = Username
-nutype_user_description_kv_ftl_this = Nutype User Description Kv Ftl
-
-## NutypeUserLabelKvFtl
-
-nutype_user_label_kv_ftl-age = Age
-nutype_user_label_kv_ftl-balance = Balance
-nutype_user_label_kv_ftl-birth_date = Birth Date
-nutype_user_label_kv_ftl-country = Country
-nutype_user_label_kv_ftl-email = Email
-nutype_user_label_kv_ftl-enable_notifications = Enable Notifications
-nutype_user_label_kv_ftl-preferred = Preferred
-nutype_user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
-nutype_user_label_kv_ftl-username = Username
-nutype_user_label_kv_ftl_this = Nutype User Label Kv Ftl
 
 ## OntarioCity
 
@@ -192,6 +150,7 @@ user_this = User
 
 ## UserDescriptionKvFtl
 
+user_description_kv_ftl_this = User Description Kv Ftl
 user_description_kv_ftl-age = Age
 user_description_kv_ftl-balance = Account balance
 user_description_kv_ftl-birth_date = Birth Date
@@ -201,10 +160,10 @@ user_description_kv_ftl-enable_notifications = Whether notifications are enabled
 user_description_kv_ftl-preferred = Preferred
 user_description_kv_ftl-subscribe_newsletter = Subscribe to newsletter
 user_description_kv_ftl-username = Username
-user_description_kv_ftl_this = User Description Kv Ftl
 
 ## UserLabelKvFtl
 
+user_label_kv_ftl_this = User Label Kv Ftl
 user_label_kv_ftl-age = Age
 user_label_kv_ftl-balance = Balance
 user_label_kv_ftl-birth_date = Birth Date
@@ -214,4 +173,3 @@ user_label_kv_ftl-enable_notifications = Enable Notifications
 user_label_kv_ftl-preferred = Preferred
 user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
 user_label_kv_ftl-username = Username
-user_label_kv_ftl_this = User Label Kv Ftl

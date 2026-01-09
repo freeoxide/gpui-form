@@ -13,11 +13,16 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 - [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
 - [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
 
+## Custom components
+
+- [Tuple Select](<>)
+
 Compatibility of `gpui-form` versions:
 
 | `gpui-form` | `gpui-component` |
 | :---------- | :--------------- |
-| `0.5.x`     | `0.5.x`          |
+| `0.6.x` | `0.6.x` |
+| `0.5.x` | `0.5.x` |
 
 ## Showcase
 
