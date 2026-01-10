@@ -24,9 +24,13 @@ impl super::ComponentLayout for NumberInputComponent {
             pub #field_name_ident: #Entity<#InputState>,
         };
 
+        let validation_logic = quote! {
+            .validate(|value, _| value.parse::<#r#type>().is_ok())
+        };
+
         let field_base_declaration = quote! {
             pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #InputState>) -> #InputState {
-                #InputState::new(window, cx).validate(|value, _| value.parse::<#r#type>().is_ok())
+                #InputState::new(window, cx)#validation_logic
             }
         };
 

@@ -12,7 +12,7 @@ impl super::ComponentLayout for InputComponent {
         let FieldInformation::<InputOptions> {
             options: _,
             name,
-            r#type: _,
+            r#type,
         } = &self.0;
 
         let field_name_ident = crate::component_field_name!(name);
@@ -24,9 +24,19 @@ impl super::ComponentLayout for InputComponent {
             pub #field_name_ident: #Entity<#InputState>,
         };
 
+        // Skip validation for String types since they always parse successfully
+        let type_str = r#type.to_string();
+        let validation_logic = if type_str == "String" {
+            quote! {}
+        } else {
+            quote! {
+                .validate(|value, _| value.parse::<#r#type>().is_ok())
+            }
+        };
+
         let field_base_declaration = quote! {
             pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #InputState>) -> #InputState {
-                #InputState::new(window, cx)
+                #InputState::new(window, cx)#validation_logic
             }
         };
 

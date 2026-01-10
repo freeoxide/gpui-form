@@ -3,21 +3,23 @@ name = "gpui-form"
 description = """
 The gpui-form crate
 """
+version.workspace = true
+rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-version.workspace = true
 repository.workspace = true
-readme.workspace = true
-categories = [ "development-tools::procedural-macro-helpers" ]
+readme = "README.md"
 keywords = [ "gpui", "gpui-component", "form" ]
 
 [features]
+component = [ "dep:gpui-form-component" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive/inventory" ]
 
 [dependencies]
+gpui-form-component = { optional = true, workspace = true }
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
 unwrapped = { workspace = true }

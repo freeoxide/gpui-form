@@ -1,0 +1,20 @@
+[package]
+name = "gpui-form-component"
+description = """
+Custom components for gpui-form, including TupleSelect for nested enum support
+"""
+version.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+strum = { features = [ "derive" ], workspace = true }
+
+[lints]
+workspace = true

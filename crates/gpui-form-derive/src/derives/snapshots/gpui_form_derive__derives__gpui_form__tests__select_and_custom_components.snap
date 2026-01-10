@@ -83,3 +83,29 @@ impl AdvancedFormFormComponents {
         )
     }
 }
+/// Struct tracking which form fields have errors.
+#[derive(Clone, Debug)]
+pub struct AdvancedFormFormItemsErrors {
+    pub country: String,
+    pub language: String,
+    pub bio: String,
+}
+impl Default for AdvancedFormFormItemsErrors {
+    fn default() -> Self {
+        Self {
+            country: String::new(),
+            language: String::new(),
+            bio: String::new(),
+        }
+    }
+}
+impl AdvancedFormFormItemsErrors {
+    /// Returns true if any field has an error
+    pub fn has_errors(&self) -> bool {
+        !self.country.is_empty() || !self.language.is_empty() || !self.bio.is_empty()
+    }
+    /// Clears all errors
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+}

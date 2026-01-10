@@ -1,7 +1,13 @@
-use es_fluent::{EsFluent, EsFluentKv};
-use garde::Validate;
+use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
-use rust_decimal::Decimal;
+use koruma::{Koruma, KorumaAllFluent};
+use koruma_collection::{
+    collection::NonEmptyValidation,
+    format::EmailValidation,
+    general::RequiredValidation,
+    numeric::{PositiveValidation, RangeValidation},
+    string::{PrefixValidation, SuffixValidation},
+};
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
@@ -20,47 +26,42 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, GpuiForm, Validate)]
-#[fluent_kv(this, keys = ["description", "label"])]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
 pub struct User {
     #[gpui_form(component(input))]
-    #[garde(length(min = 3, max = 50))]
+    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
     pub username: Option<String>,
 
     #[gpui_form(component(input))]
-    #[garde(email)]
+    #[koruma(EmailValidation::<_>)]
     pub email: String,
 
     #[gpui_form(component(number_input))]
-    #[garde(range(min = 0, max = 150))]
+    #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
     #[gpui_form(component(number_input))]
-    #[garde(range(min = Decimal::ZERO))]
-    pub balance: Decimal,
+    #[koruma(PositiveValidation::<_>)]
+    pub balance: f64,
 
     #[gpui_form(component(checkbox))]
-    #[garde(skip)]
     pub subscribe_newsletter: bool,
 
     #[gpui_form(component(switch))]
-    #[garde(skip)]
     pub enable_notifications: bool,
 
     #[gpui_form(component(select(default)))]
-    #[garde(skip)]
     pub preferred: PreferedLanguage,
 
     #[gpui_form(component(select(searchable, index = EnumCountry::France)))]
-    #[garde(skip)]
     pub country: Option<EnumCountry>,
 
     #[gpui_form(component(date_picker))]
-    #[garde(skip)]
     pub birth_date: Option<chrono::NaiveDate>,
 
     #[gpui_form(skip)]
-    #[garde(skip)]
     #[fluent_kv(skip)]
     pub skip_me: bool,
 }

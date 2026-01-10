@@ -7,14 +7,28 @@ inventory::collect!(GpuiFormShape);
 pub struct GpuiFormShape {
     pub struct_name: &'static str,
     pub components: &'static [FieldVariant],
+    /// The source file path where the struct with #[derive(GpuiForm)] is declared.
+    /// This is the full path from file!() macro, useful for generating imports.
+    pub source_path: &'static str,
 }
 
 impl GpuiFormShape {
-    pub const fn new(struct_name: &'static str, components: &'static [FieldVariant]) -> Self {
+    pub const fn new(
+        struct_name: &'static str,
+        components: &'static [FieldVariant],
+        source_path: &'static str,
+    ) -> Self {
         Self {
             struct_name,
             components,
+            source_path,
         }
+    }
+
+    pub fn has_validations(&self) -> bool {
+        self.components
+            .iter()
+            .any(|field| !field.validations.is_empty())
     }
 }
 
@@ -24,6 +38,8 @@ pub struct FieldVariant {
     pub field_type: &'static str,
     pub optional: bool,
     pub behaviour: ComponentsBehaviour,
+    /// List of validation rule identifiers applied to this field (for diagnostics/rendering).
+    pub validations: &'static [&'static str],
 }
 
 impl FieldVariant {
@@ -38,8 +54,10 @@ impl FieldVariant {
             field_type,
             optional,
             behaviour,
+            validations: &[],
         }
     }
+
     pub fn full_type(&self) -> syn::Type {
         let mut ty = syn::parse_str(self.field_type).unwrap();
         if self.optional {
@@ -73,6 +91,32 @@ impl FieldVariant {
 
     pub fn kebab_id(&self) -> String {
         self.field_name_with_behaviour().to_kebab_case()
+    }
+
+    /// Returns the validation rule identifiers attached to this field.
+    pub fn validation_rules(&self) -> &'static [&'static str] {
+        self.validations
+    }
+
+    /// Returns parsed validation rule idents as syn::Path values.
+    pub fn validation_paths(&self) -> Vec<syn::Path> {
+        self.validations
+            .iter()
+            .filter_map(|v| syn::parse_str::<syn::Path>(v).ok())
+            .collect()
+    }
+
+    /// Returns the first validation rule as a syn::Path, if any.
+    pub fn first_validation_path(&self) -> Option<syn::Path> {
+        self.validations
+            .iter()
+            .find_map(|v| syn::parse_str::<syn::Path>(v).ok())
+    }
+
+    /// Attach validation rule identifiers to this field metadata.
+    pub const fn with_validations(mut self, validations: &'static [&'static str]) -> Self {
+        self.validations = validations;
+        self
     }
 }
 

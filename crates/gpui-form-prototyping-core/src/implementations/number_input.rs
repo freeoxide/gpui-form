@@ -44,16 +44,79 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         let ftl_label_ident = component.ftl_label_ident();
         let ftl_description_ident = component.ftl_description_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
+        let field_name_ident = field.field_ident();
 
         let component_gpui_type = field.behaviour.as_component_ident();
 
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
+        let description_tokens =
+            quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
+        let field_has_validations = !field.validations.is_empty();
+        let error_tokens = if field_has_validations {
+            quote! {{
+                validation_errors.as_ref().and_then(|e| {
+                    let errs = e.#field_name_ident().all();
+                    if errs.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            errs.iter()
+                                .map(|v| v.to_fluent_string())
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )
+                    }
+                })
+            }}
+        } else {
+            quote! {{ None }}
+        };
+        let error_color_tokens = quote! { cx.theme().danger };
+
+        let description_fn_tokens = if !field_has_validations {
+            quote! {
+                .description_fn({
+                    let description = #description_tokens;
+                    move |_, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().child(description.clone()))
+                    }
+                })
+            }
+        } else {
+            quote! {
+                .description_fn({
+                    let description = #description_tokens;
+                    let error = #error_tokens;
+                    let error_color = #error_color_tokens;
+                    move |_, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().child(description.clone()))
+                            .when(error.is_some(), |this| {
+                                this.child(
+                                    div()
+                                        .text_color(error_color)
+                                        .child(error.clone().unwrap_or_default()),
+                                )
+                            })
+                    }
+                })
+            }
+        };
+
+        // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
                     .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
-                    .description(#ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    #description_fn_tokens
                     .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
         }
@@ -108,8 +171,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 match event {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
-                        if let Ok(value) = text.parse::<#field_type_path>() {
-                            self.current_data.#field_name_ident = value.into();
+                        match text.parse::<#field_type_path>() {
+                            Ok(value) => {
+                                self.current_data.#field_name_ident = value.into();
+                            }
+                            _ => {}
                         }
                     }
                     _ => {}
@@ -118,41 +184,40 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         };
         handlers.push(on_input_event_handler);
 
-        let field_type_ty = syn::parse_str::<syn::Type>(field.field_type).unwrap();
-
+        // Generate increment/decrement logic
         let (decrement_logic, increment_logic) = if field.field_type.starts_with('f') {
-            // f*
+            // f32, f64
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident - 1 as #field_type_ty;
+                    let new_value = self.current_data.#field_name_ident - 1 as #field_type_path;
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident + 1 as #field_type_ty;
+                    let new_value = self.current_data.#field_name_ident + 1 as #field_type_path;
                     self.current_data.#field_name_ident = new_value;
                 },
             )
         } else if field.field_type.starts_with('u') || field.field_type.starts_with('i') {
-            // i*, u*,
+            // i*, u*
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(1 as #field_type_ty);
+                    let new_value = self.current_data.#field_name_ident.saturating_sub(1);
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(1 as #field_type_ty);
+                    let new_value = self.current_data.#field_name_ident.saturating_add(1);
                     self.current_data.#field_name_ident = new_value;
                 },
             )
         } else {
-            // external types (assuming they impl `impl_saturating!`)
+            // External types (e.g., Decimal) - assume saturating operations with From<i32>
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(#field_type_ty::from(1));
+                    let new_value = self.current_data.#field_name_ident.saturating_sub(#field_type_path::from(1));
                     self.current_data.#field_name_ident = new_value;
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(#field_type_ty::from(1));
+                    let new_value = self.current_data.#field_name_ident.saturating_add(#field_type_path::from(1));
                     self.current_data.#field_name_ident = new_value;
                 },
             )

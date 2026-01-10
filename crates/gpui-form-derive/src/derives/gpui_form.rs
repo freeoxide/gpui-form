@@ -26,10 +26,12 @@ impl ComponentField {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(gpui_form), supports(struct_named))]
+#[darling(attributes(gpui_form), supports(struct_named, struct_unit))]
 struct ComponentStruct {
     pub ident: Ident,
     pub data: ast::Data<(), ComponentField>,
+    #[darling(default)]
+    pub empty: bool,
 }
 
 fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
@@ -54,6 +56,21 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
                     ::gpui_form::core::components::BehaviourSelectOptions {
                         searchable: #searchable,
                         partial: #partial,
+                    }
+                )
+            }
+        },
+        Components::TupleSelect(options) => {
+            let searchable = options.behaviour.searchable;
+            let max_depth = match options.behaviour.max_depth {
+                Some(d) => quote! { Some(#d) },
+                None => quote! { None },
+            };
+            quote! {
+                ::gpui_form::core::components::ComponentsBehaviour::TupleSelect(
+                    ::gpui_form::core::components::BehaviourTupleSelectOptions {
+                        searchable: #searchable,
+                        max_depth: #max_depth,
                     }
                 )
             }
@@ -153,6 +170,18 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
             );
             should_be_unwrapped.1 = true;
         },
+        Components::TupleSelect(options) => {
+            let component = TupleSelectComponent(FieldInformation::new(
+                options.clone(),
+                field_name.clone(),
+                extract_type_ident(field_type),
+            ));
+            component.field_tokens(
+                &mut field_structure_tokens,
+                &mut field_base_declarations_tokens,
+            );
+            should_be_unwrapped.1 = true;
+        },
         Components::DatePicker => {
             let component = DatePickerComponent(FieldInformation::new(
                 DatePickerOptions,
@@ -183,6 +212,15 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
         field_structure_tokens,
         field_base_declarations_tokens,
         should_be_unwrapped,
+    }
+}
+
+/// Extracts the last path segment identifier from an expression.
+/// Handles both `Expr::Path` and nested expressions for call-like validators.
+fn extract_path_last_ident(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path_expr) => path_expr.path.segments.last().map(|s| s.ident.to_string()),
+        _ => None,
     }
 }
 
@@ -227,11 +265,89 @@ fn expand_gpui_form(
     let struct_name = &parsed.ident;
     let components_holder_name = format_ident!("{}FormFields", struct_name);
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
+    let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
+
+    // Handle empty structs with #[gpui_form(empty)] attribute
+    if parsed.empty {
+        let shape_impl = if options.generate_shape {
+            quote! {
+                ::gpui_form::core::registry::inventory::submit! {
+                    ::gpui_form::core::registry::GpuiFormShape::new(
+                        stringify!(#struct_name),
+                        &[],
+                        file!()
+                    )
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        return quote! {
+            pub struct #components_holder_name;
+
+            #shape_impl
+
+            pub struct #components_base_declarations_name;
+        };
+    }
 
     let fields_iter = match &parsed.data {
         ast::Data::Struct(s) => &s.fields,
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
+
+    let koruma_validations: HashMap<String, Vec<String>> = match &derive_input.data {
+        syn::Data::Struct(data_struct) => data_struct
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let ident = field.ident.as_ref()?.to_string();
+                let mut validations = Vec::new();
+                for attr in &field.attrs {
+                    if attr.path().is_ident("koruma") {
+                        // Parse as expressions to handle both simple paths and call-like validators
+                        // e.g., `NonEmptyValidation::<_>` and `PrefixValidation::<_>(prefix = "Xx")`
+                        if let Ok(exprs) = attr.parse_args_with(
+                            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
+                        ) {
+                            for expr in exprs {
+                                // Extract the validator name from the expression
+                                let validator_name = match &expr {
+                                    // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
+                                    syn::Expr::Call(call) => {
+                                        extract_path_last_ident(&call.func)
+                                    }
+                                    // Handle simple path expressions like `NonEmptyValidation::<_>`
+                                    syn::Expr::Path(path_expr) => {
+                                        path_expr.path.segments.last().map(|s| s.ident.to_string())
+                                    }
+                                    _ => None,
+                                };
+                                if let Some(name) = validator_name {
+                                    validations.push(name);
+                                }
+                            }
+                        }
+                    }
+                }
+                Some((ident, validations))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+
+    // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
+    if fields_iter.is_empty() {
+        return syn::Error::new_spanned(
+            &derive_input,
+            format!(
+                "Struct `{}` has no fields. Add `#[gpui_form(empty)]` attribute to explicitly mark it as an empty form.",
+                struct_name
+            ),
+        )
+        .to_compile_error();
+    }
 
     let component_field_pairs: Vec<ComponentFieldContent> = fields_iter
         .iter()
@@ -253,6 +369,42 @@ fn expand_gpui_form(
             )
         })
         .multiunzip();
+
+    // Generate error struct fields
+    let items_error_struct_fields: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                pub #field_name: String,
+            }
+        })
+        .collect();
+
+    // Generate Default implementation for items errors struct
+    let items_error_struct_defaults: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                #field_name: String::new(),
+            }
+        })
+        .collect();
+
+    // Generate methods on items errors struct to check if there are errors
+    let items_error_has_error_checks: Vec<TokenStream> = fields_iter
+        .iter()
+        .filter(|field| !field.skip() && field.component.is_some())
+        .map(|field| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                !self.#field_name.is_empty()
+            }
+        })
+        .collect();
 
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
@@ -280,13 +432,24 @@ fn expand_gpui_form(
                 let field_type_str = base_type.to_token_stream().to_string();
                 let component_def = field.component.as_ref().unwrap();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
+                let validation_rules = koruma_validations
+                    .get(&field_name_str)
+                    .cloned()
+                    .unwrap_or_default();
+                let validation_literals: Vec<_> = validation_rules
+                    .iter()
+                    .map(|v| syn::LitStr::new(v, proc_macro2::Span::call_site()))
+                    .collect();
+
                 Some(quote! {
                     ::gpui_form::core::registry::FieldVariant::new(
                         #field_name_str,
                         #field_type_str,
                         #is_optional,
                         #behaviour_tokens
-                    )
+                    ).with_validations(&[
+                        #( #validation_literals ),*
+                    ])
                 })
             }
         })
@@ -299,7 +462,8 @@ fn expand_gpui_form(
                     stringify!(#struct_name),
                     &[
                         #(#field_variant_construction_code),*
-                    ]
+                    ],
+                    file!()
                 )
             }
         }
@@ -328,6 +492,32 @@ fn expand_gpui_form(
 
         impl #components_base_declarations_name {
           #(#field_base_declarations_tokens)*
+        }
+
+        /// Struct tracking which form fields have errors.
+        #[derive(Clone, Debug)]
+        pub struct #items_errors_struct_name {
+            #(#items_error_struct_fields)*
+        }
+
+        impl Default for #items_errors_struct_name {
+            fn default() -> Self {
+                Self {
+                    #(#items_error_struct_defaults)*
+                }
+            }
+        }
+
+        impl #items_errors_struct_name {
+            /// Returns true if any field has an error
+            pub fn has_errors(&self) -> bool {
+                #(#items_error_has_error_checks)||*
+            }
+
+            /// Clears all errors
+            pub fn clear(&mut self) {
+                *self = Self::default();
+            }
         }
     };
 
