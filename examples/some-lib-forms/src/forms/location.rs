@@ -14,7 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use gpui_form_component::tuple_select::TupleEnumInner;
+use gpui_form::component::tuple_select::TupleEnumInner;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
@@ -64,9 +64,9 @@ impl LocationFormForm {
     fn on_location_master_select_event(
         &mut self,
         this: &Entity<
-            SelectState<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+            SelectState<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
         >,
-        event: &SelectEvent<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+        event: &SelectEvent<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -89,9 +89,9 @@ impl LocationFormForm {
     fn on_location_child_select_event(
         &mut self,
         this: &Entity<
-            SelectState<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+            SelectState<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
         >,
-        event: &SelectEvent<Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>>>,
+        event: &SelectEvent<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -136,8 +136,8 @@ impl LocationFormForm {
             column: 0,
         });
         let location_master_select = cx.new(|cx| {
-            let items: Vec<gpui_form_component::tuple_select::TupleSelectItem<Country>> =
-                gpui_form_component::tuple_select::tuple_enum_to_select_items::<Country>();
+            let items: Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>> =
+                gpui_form::component::tuple_select::tuple_enum_to_select_items::<Country>();
             gpui_component::select::SelectState::new(
                 items,
                 master_selected_index_location,
@@ -153,7 +153,7 @@ impl LocationFormForm {
                 Self::on_location_master_select_event,
             ),
         ];
-        let mut location_path = gpui_form_component::tuple_select::TupleSelectPath::new();
+        let mut location_path = gpui_form::component::tuple_select::TupleSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(
             &original_data.location,
@@ -172,7 +172,7 @@ impl LocationFormForm {
                 name_input,
                 location_master_select,
                 location_child_selects,
-                location_path: gpui_form_component::tuple_select::TupleSelectPath::new(),
+                location_path: gpui_form::component::tuple_select::TupleSelectPath::new(),
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,

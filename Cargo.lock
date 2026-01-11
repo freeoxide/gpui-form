@@ -5749,7 +5749,6 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
- "gpui-form-component",
  "gpui-storybook",
  "inventory",
  "koruma",

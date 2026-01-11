@@ -14,7 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use gpui_form_component::tuple_select::TupleEnumInner;
+use gpui_form::component::tuple_select::TupleEnumInner;
 use some_lib::structs::user::*;
 use std::sync::Arc;
 const CONTEXT: &str = "UserForm";

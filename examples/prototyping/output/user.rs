@@ -1,20 +1,22 @@
-use some_lib::structs::user::*;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
-    prelude::FluentBuilder as _,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    ActiveTheme as _, IndexPath, checkbox::Checkbox,
+    ActiveTheme as _, IndexPath,
+    checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, form::{field, v_form},
+    divider::Divider,
+    form::{field, v_form},
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
     select::{SearchableVec, Select, SelectEvent, SelectState},
-    switch::Switch, v_flex,
+    switch::Switch,
+    v_flex,
 };
-use gpui_form_component::tuple_select::TupleEnumInner;
+use gpui_form::component::tuple_select::TupleEnumInner;
+use some_lib::structs::user::*;
 use std::sync::Arc;
-use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -54,8 +56,8 @@ impl UserForm {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
                 self.current_data.username = text.to_owned().into();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_email_input_event(
@@ -69,8 +71,8 @@ impl UserForm {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
                 self.current_data.email = text.to_owned().into();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_age_input_event(
@@ -86,11 +88,11 @@ impl UserForm {
                 match text.parse::<u32>() {
                     Ok(value) => {
                         self.current_data.age = value.into();
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_age_number_input_event(
@@ -101,32 +103,22 @@ impl UserForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self.current_data.age.saturating_sub(1);
-                        self.current_data.age = new_value;
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input
-                                    .set_value(self.current_data.age.to_string(), window, cx);
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self.current_data.age.saturating_add(1);
-                        self.current_data.age = new_value;
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input
-                                    .set_value(self.current_data.age.to_string(), window, cx);
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self.current_data.age.saturating_sub(1);
+                    self.current_data.age = new_value;
+                    this.update(cx, |input, cx| {
+                        input.set_value(self.current_data.age.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self.current_data.age.saturating_add(1);
+                    self.current_data.age = new_value;
+                    this.update(cx, |input, cx| {
+                        input.set_value(self.current_data.age.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_balance_input_event(
@@ -142,11 +134,11 @@ impl UserForm {
                 match text.parse::<f64>() {
                     Ok(value) => {
                         self.current_data.balance = value.into();
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_balance_number_input_event(
@@ -157,40 +149,22 @@ impl UserForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self.current_data.balance - 1 as f64;
-                        self.current_data.balance = new_value;
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input
-                                    .set_value(
-                                        self.current_data.balance.to_string(),
-                                        window,
-                                        cx,
-                                    );
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self.current_data.balance + 1 as f64;
-                        self.current_data.balance = new_value;
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input
-                                    .set_value(
-                                        self.current_data.balance.to_string(),
-                                        window,
-                                        cx,
-                                    );
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self.current_data.balance - 1 as f64;
+                    self.current_data.balance = new_value;
+                    this.update(cx, |input, cx| {
+                        input.set_value(self.current_data.balance.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self.current_data.balance + 1 as f64;
+                    self.current_data.balance = new_value;
+                    this.update(cx, |input, cx| {
+                        input.set_value(self.current_data.balance.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_preferred_select_event(
@@ -205,7 +179,7 @@ impl UserForm {
                 if let Some(value) = value {
                     self.current_data.preferred = value.clone().into();
                 }
-            }
+            },
         }
     }
     fn on_country_select_event(
@@ -220,7 +194,7 @@ impl UserForm {
                 if let Some(value) = value {
                     self.current_data.country = value.clone().into();
                 }
-            }
+            },
         }
     }
     fn on_birth_date_date_picker_event(
@@ -232,36 +206,39 @@ impl UserForm {
     ) {
         match event {
             DatePickerEvent::Change(date) => {
-                self.current_data.birth_date = (<chrono::NaiveDate as std::str::FromStr>::from_str(
-                    &date.to_string(),
-                ))
-                    .ok();
-            }
+                self.current_data.birth_date =
+                    (<chrono::NaiveDate as std::str::FromStr>::from_str(&date.to_string())).ok();
+            },
         }
     }
     fn new(window: &mut Window, cx: &mut Context<Self>, original_data: User) -> Self {
         let username_input = cx.new(|cx| UserFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| UserFormComponents::email_input(window, cx));
-        let age_number_input = cx
-            .new(|cx| UserFormComponents::age_number_input(window, cx));
-        let balance_number_input = cx
-            .new(|cx| UserFormComponents::balance_number_input(window, cx));
-        let preferred_select = cx
-            .new(|cx| UserFormComponents::preferred_select(window, cx));
+        let age_number_input = cx.new(|cx| UserFormComponents::age_number_input(window, cx));
+        let balance_number_input =
+            cx.new(|cx| UserFormComponents::balance_number_input(window, cx));
+        let preferred_select = cx.new(|cx| UserFormComponents::preferred_select(window, cx));
         let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
-        let birth_date_date_picker = cx
-            .new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
+        let birth_date_date_picker =
+            cx.new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
         let mut _subscriptions = vec![
-            cx.subscribe_in(& username_input, window, Self::on_username_input_event), cx
-            .subscribe_in(& email_input, window, Self::on_email_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_number_input_event),
-            cx.subscribe_in(& balance_number_input, window,
-            Self::on_balance_input_event), cx.subscribe_in(& balance_number_input,
-            window, Self::on_balance_number_input_event), cx.subscribe_in(&
-            preferred_select, window, Self::on_preferred_select_event), cx.subscribe_in(&
-            country_select, window, Self::on_country_select_event), cx.subscribe_in(&
-            birth_date_date_picker, window, Self::on_birth_date_date_picker_event)
+            cx.subscribe_in(&username_input, window, Self::on_username_input_event),
+            cx.subscribe_in(&email_input, window, Self::on_email_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_number_input_event),
+            cx.subscribe_in(&balance_number_input, window, Self::on_balance_input_event),
+            cx.subscribe_in(
+                &balance_number_input,
+                window,
+                Self::on_balance_number_input_event,
+            ),
+            cx.subscribe_in(&preferred_select, window, Self::on_preferred_select_event),
+            cx.subscribe_in(&country_select, window, Self::on_country_select_event),
+            cx.subscribe_in(
+                &birth_date_date_picker,
+                window,
+                Self::on_birth_date_date_picker_event,
+            ),
         ];
         Self {
             original_data: Arc::new(original_data.clone()),
@@ -297,25 +274,21 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Username
-                                    .to_fluent_string();
+                                let description = UserDescriptionKvFtl::Username.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.username().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.username().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -324,16 +297,13 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -342,25 +312,21 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Email
-                                    .to_fluent_string();
+                                let description = UserDescriptionKvFtl::Email.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.email().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.email().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -369,16 +335,13 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -387,25 +350,21 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Age
-                                    .to_fluent_string();
+                                let description = UserDescriptionKvFtl::Age.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.age().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.age().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -414,16 +373,13 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -432,25 +388,21 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Balance
-                                    .to_fluent_string();
+                                let description = UserDescriptionKvFtl::Balance.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.balance().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.balance().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -459,28 +411,23 @@ impl Render for UserForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
                     )
                     .child(
                         field()
-                            .label(
-                                UserLabelKvFtl::SubscribeNewsletter.to_fluent_string(),
-                            )
+                            .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::SubscribeNewsletter
-                                    .to_fluent_string();
+                                let description =
+                                    UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -492,24 +439,18 @@ impl Render for UserForm {
                             .child(
                                 Checkbox::new("subscribe-newsletter-checkbox")
                                     .checked(self.current_data.subscribe_newsletter)
-                                    .on_click(
-                                        cx
-                                            .listener(|v, _, _, _| {
-                                                v.current_data.subscribe_newsletter = !v
-                                                    .current_data
-                                                    .subscribe_newsletter;
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(|v, _, _, _| {
+                                        v.current_data.subscribe_newsletter =
+                                            !v.current_data.subscribe_newsletter;
+                                    })),
                             ),
                     )
                     .child(
                         field()
-                            .label(
-                                UserLabelKvFtl::EnableNotifications.to_fluent_string(),
-                            )
+                            .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::EnableNotifications
-                                    .to_fluent_string();
+                                let description =
+                                    UserDescriptionKvFtl::EnableNotifications.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -521,21 +462,18 @@ impl Render for UserForm {
                             .child(
                                 Switch::new("enable-notifications-switch")
                                     .checked(self.current_data.enable_notifications)
-                                    .on_click(
-                                        cx
-                                            .listener(move |v, checked, _, cx| {
-                                                v.current_data.enable_notifications = *checked;
-                                                cx.notify();
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(move |v, checked, _, cx| {
+                                        v.current_data.enable_notifications = *checked;
+                                        cx.notify();
+                                    })),
                             ),
                     )
                     .child(
                         field()
                             .label(UserLabelKvFtl::Preferred.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Preferred
-                                    .to_fluent_string();
+                                let description =
+                                    UserDescriptionKvFtl::Preferred.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -550,8 +488,7 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::Country.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Country
-                                    .to_fluent_string();
+                                let description = UserDescriptionKvFtl::Country.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -566,8 +503,8 @@ impl Render for UserForm {
                         field()
                             .label(UserLabelKvFtl::BirthDate.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::BirthDate
-                                    .to_fluent_string();
+                                let description =
+                                    UserDescriptionKvFtl::BirthDate.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
