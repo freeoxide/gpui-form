@@ -12,6 +12,7 @@ pub fn gpui_form_derive(input: TokenStream) -> TokenStream {
         input,
         GpuiFormOptions {
             generate_shape: cfg!(feature = "inventory"),
+            fluent: cfg!(feature = "fluent"),
         },
     )
 }

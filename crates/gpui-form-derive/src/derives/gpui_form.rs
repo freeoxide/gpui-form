@@ -286,6 +286,7 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
 fn generate_value_holder(
     struct_name: &Ident,
     fields: &[FieldOptionality],
+    fluent: bool,
 ) -> (TokenStream, Vec<String>) {
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
@@ -427,7 +428,7 @@ fn generate_value_holder(
 
     // Generate derive attributes conditionally
     let derive_attrs = if needs_koruma_derive {
-        if cfg!(feature = "fluent") {
+        if fluent {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
         } else {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
@@ -472,6 +473,7 @@ fn generate_value_holder(
 
 pub struct GpuiFormOptions {
     pub generate_shape: bool,
+    pub fluent: bool,
 }
 
 fn expand_gpui_form(
@@ -644,7 +646,7 @@ fn expand_gpui_form(
 
     // Generate value holder struct and get list of fields requiring RequiredValidation
     let (value_holder_tokens, fields_requiring_required) =
-        generate_value_holder(struct_name, &field_optionality);
+        generate_value_holder(struct_name, &field_optionality, options.fluent);
 
     // Generate error struct fields
     let items_error_struct_fields: Vec<TokenStream> = fields_iter
@@ -811,7 +813,7 @@ mod tests {
     use super::*;
     use quote::quote;
 
-    fn render(tokens: proc_macro2::TokenStream) -> String {
+    fn render_with_options(tokens: proc_macro2::TokenStream, fluent: bool) -> String {
         let derive_input = syn::parse2::<syn::DeriveInput>(tokens)
             .expect("input should parse into a derive input");
 
@@ -819,12 +821,17 @@ mod tests {
             derive_input,
             GpuiFormOptions {
                 generate_shape: false,
+                fluent,
             },
         );
 
         let file = syn::parse2::<syn::File>(expanded).expect("macro output should parse back");
 
         prettyplease::unparse(&file)
+    }
+
+    fn render(tokens: proc_macro2::TokenStream) -> String {
+        render_with_options(tokens, false)
     }
 
     #[test]
@@ -845,6 +852,26 @@ mod tests {
         };
 
         insta::assert_snapshot!("standard_components", render(input));
+    }
+
+    #[test]
+    fn renders_standard_components_with_fluent() {
+        let input = quote! {
+            struct StandardForm {
+                #[gpui_form(component(input))]
+                title: String,
+                #[gpui_form(component(number_input))]
+                count: Option<i64>,
+                #[gpui_form(component(checkbox))]
+                is_admin: bool,
+                #[gpui_form(component(switch))]
+                is_active: Option<bool>,
+                #[gpui_form(component(date_picker))]
+                availability: chrono::NaiveDate,
+            }
+        };
+
+        insta::assert_snapshot!("standard_components_fluent", render_with_options(input, true));
     }
 
     #[test]
