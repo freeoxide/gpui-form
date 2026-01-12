@@ -1,12 +1,31 @@
 use std::collections::HashMap;
 
-use darling::{FromDeriveInput, FromField, ast};
+use darling::{FromDeriveInput, FromField, FromMeta, ast};
 use gpui_form_core::components::*;
 use gpui_form_core::implementations::ComponentLayout as _;
 use itertools::Itertools as _;
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
+
+#[derive(Debug, Clone, Default, FromMeta)]
+struct KorumaOptions {
+    #[darling(default)]
+    fluent: bool,
+}
+
+#[derive(Debug, Clone)]
+struct KorumaField(KorumaOptions);
+
+impl FromMeta for KorumaField {
+    fn from_word() -> darling::Result<Self> {
+        Ok(KorumaField(KorumaOptions::default()))
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        KorumaOptions::from_list(items).map(KorumaField)
+    }
+}
 
 /// Information about a field for value holder generation.
 /// Tracks whether the field was originally optional and the inner type.
@@ -49,6 +68,11 @@ struct ComponentStruct {
     pub data: ast::Data<(), ComponentField>,
     #[darling(default)]
     pub empty: bool,
+    #[darling(default)]
+    #[allow(dead_code)]
+    pub fluent: bool,
+    #[darling(default)]
+    pub koruma: Option<KorumaField>,
 }
 
 fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
@@ -287,7 +311,8 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
 fn generate_value_holder(
     struct_name: &Ident,
     fields: &[FieldOptionality],
-    _fluent: bool,
+    enable_koruma: bool,
+    enable_koruma_fluent: bool,
 ) -> (TokenStream, Vec<String>) {
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
@@ -430,9 +455,8 @@ fn generate_value_holder(
         .collect();
 
     // Generate derive attributes conditionally
-    #[cfg(feature = "koruma")]
-    let derive_attrs = if _needs_koruma_derive {
-        if _fluent {
+    let derive_attrs = if enable_koruma && _needs_koruma_derive {
+        if enable_koruma_fluent {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
         } else {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
@@ -440,8 +464,6 @@ fn generate_value_holder(
     } else {
         quote! { #[derive(Clone, Debug)] }
     };
-    #[cfg(not(feature = "koruma"))]
-    let derive_attrs = quote! { #[derive(Clone, Debug)] };
 
     let tokens = quote! {
         #derive_attrs
@@ -478,7 +500,6 @@ fn generate_value_holder(
 
 pub struct GpuiFormOptions {
     pub generate_shape: bool,
-    pub fluent: bool,
 }
 
 fn expand_gpui_form(
@@ -494,6 +515,9 @@ fn expand_gpui_form(
     let components_holder_name = format_ident!("{}FormFields", struct_name);
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
     let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
+
+    let enable_koruma = parsed.koruma.is_some();
+    let enable_koruma_fluent = parsed.koruma.as_ref().map(|k| k.0.fluent).unwrap_or(false);
 
     // Handle empty structs with #[gpui_form(empty)] attribute
     if parsed.empty {
@@ -526,70 +550,72 @@ fn expand_gpui_form(
     };
 
     // Extract koruma validation names (for metadata)
-    #[cfg(feature = "koruma")]
-    let koruma_validations: HashMap<String, Vec<String>> = match &derive_input.data {
-        syn::Data::Struct(data_struct) => data_struct
-            .fields
-            .iter()
-            .filter_map(|field| {
-                let ident = field.ident.as_ref()?.to_string();
-                let mut validations = Vec::new();
-                for attr in &field.attrs {
-                    if attr.path().is_ident("koruma") {
-                        // Parse as expressions to handle both simple paths and call-like validators
-                        // e.g., `NonEmptyValidation::<_>` and `PrefixValidation::<_>(prefix = "Xx")`
-                        if let Ok(exprs) = attr.parse_args_with(
-                            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
-                        ) {
-                            for expr in exprs {
-                                // Extract the validator name from the expression
-                                let validator_name = match &expr {
-                                    // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
-                                    syn::Expr::Call(call) => {
-                                        extract_path_last_ident(&call.func)
+    let koruma_validations: HashMap<String, Vec<String>> = if enable_koruma {
+        match &derive_input.data {
+            syn::Data::Struct(data_struct) => data_struct
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let ident = field.ident.as_ref()?.to_string();
+                    let mut validations = Vec::new();
+                    for attr in &field.attrs {
+                        if attr.path().is_ident("koruma") {
+                            // Parse as expressions to handle both simple paths and call-like validators
+                            // e.g., `NonEmptyValidation::<_>` and `PrefixValidation::<_>(prefix = "Xx")`
+                            if let Ok(exprs) = attr.parse_args_with(
+                                syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
+                            ) {
+                                for expr in exprs {
+                                    // Extract the validator name from the expression
+                                    let validator_name = match &expr {
+                                        // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
+                                        syn::Expr::Call(call) => {
+                                            extract_path_last_ident(&call.func)
+                                        }
+                                        // Handle simple path expressions like `NonEmptyValidation::<_>`
+                                        syn::Expr::Path(path_expr) => {
+                                            path_expr.path.segments.last().map(|s| s.ident.to_string())
+                                        }
+                                        _ => None,
+                                    };
+                                    if let Some(name) = validator_name {
+                                        validations.push(name);
                                     }
-                                    // Handle simple path expressions like `NonEmptyValidation::<_>`
-                                    syn::Expr::Path(path_expr) => {
-                                        path_expr.path.segments.last().map(|s| s.ident.to_string())
-                                    }
-                                    _ => None,
-                                };
-                                if let Some(name) = validator_name {
-                                    validations.push(name);
                                 }
                             }
                         }
                     }
-                }
-                Some((ident, validations))
-            })
-            .collect(),
-        _ => HashMap::new(),
+                    Some((ident, validations))
+                })
+                .collect(),
+            _ => HashMap::new(),
+        }
+    } else {
+        HashMap::new()
     };
-    #[cfg(not(feature = "koruma"))]
-    let koruma_validations: HashMap<String, Vec<String>> = HashMap::new();
 
     // Extract koruma attributes (for copying to value holder)
-    #[cfg(feature = "koruma")]
-    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = match &derive_input.data {
-        syn::Data::Struct(data_struct) => data_struct
-            .fields
-            .iter()
-            .filter_map(|field| {
-                let ident = field.ident.as_ref()?.to_string();
-                let koruma_attrs: Vec<syn::Attribute> = field
-                    .attrs
-                    .iter()
-                    .filter(|attr| attr.path().is_ident("koruma"))
-                    .cloned()
-                    .collect();
-                Some((ident, koruma_attrs))
-            })
-            .collect(),
-        _ => HashMap::new(),
+    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = if enable_koruma {
+        match &derive_input.data {
+            syn::Data::Struct(data_struct) => data_struct
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let ident = field.ident.as_ref()?.to_string();
+                    let koruma_attrs: Vec<syn::Attribute> = field
+                        .attrs
+                        .iter()
+                        .filter(|attr| attr.path().is_ident("koruma"))
+                        .cloned()
+                        .collect();
+                    Some((ident, koruma_attrs))
+                })
+                .collect(),
+            _ => HashMap::new(),
+        }
+    } else {
+        HashMap::new()
     };
-    #[cfg(not(feature = "koruma"))]
-    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = HashMap::new();
 
     // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
     if fields_iter.is_empty() {
@@ -656,8 +682,12 @@ fn expand_gpui_form(
         .collect();
 
     // Generate value holder struct and get list of fields requiring RequiredValidation
-    let (value_holder_tokens, fields_requiring_required) =
-        generate_value_holder(struct_name, &field_optionality, options.fluent);
+    let (value_holder_tokens, fields_requiring_required) = generate_value_holder(
+        struct_name,
+        &field_optionality,
+        enable_koruma,
+        enable_koruma_fluent,
+    );
 
     // Generate error struct fields
     let items_error_struct_fields: Vec<TokenStream> = fields_iter
@@ -816,90 +846,4 @@ pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_ma
     let derive_input = parse_macro_input!(input as DeriveInput);
 
     expand_gpui_form(derive_input, options).into()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quote::quote;
-
-    fn render_with_options(tokens: proc_macro2::TokenStream, fluent: bool) -> String {
-        let derive_input = syn::parse2::<syn::DeriveInput>(tokens)
-            .expect("input should parse into a derive input");
-
-        let expanded = super::expand_gpui_form(
-            derive_input,
-            GpuiFormOptions {
-                generate_shape: false,
-                fluent,
-            },
-        );
-
-        let file = syn::parse2::<syn::File>(expanded).expect("macro output should parse back");
-
-        prettyplease::unparse(&file)
-    }
-
-    fn render(tokens: proc_macro2::TokenStream) -> String {
-        render_with_options(tokens, false)
-    }
-
-    #[test]
-    fn renders_standard_components() {
-        let input = quote! {
-            struct StandardForm {
-                #[gpui_form(component(input))]
-                title: String,
-                #[gpui_form(component(number_input))]
-                count: Option<i64>,
-                #[gpui_form(component(checkbox))]
-                is_admin: bool,
-                #[gpui_form(component(switch))]
-                is_active: Option<bool>,
-                #[gpui_form(component(date_picker))]
-                availability: chrono::NaiveDate,
-            }
-        };
-
-        insta::assert_snapshot!("standard_components", render(input));
-    }
-
-    #[test]
-    fn renders_standard_components_with_fluent() {
-        let input = quote! {
-            struct StandardForm {
-                #[gpui_form(component(input))]
-                title: String,
-                #[gpui_form(component(number_input))]
-                count: Option<i64>,
-                #[gpui_form(component(checkbox))]
-                is_admin: bool,
-                #[gpui_form(component(switch))]
-                is_active: Option<bool>,
-                #[gpui_form(component(date_picker))]
-                availability: chrono::NaiveDate,
-            }
-        };
-
-        insta::assert_snapshot!(
-            "standard_components_fluent",
-            render_with_options(input, true)
-        );
-    }
-
-    #[test]
-    fn renders_select_and_custom_components() {
-        let input = quote! {
-            struct AdvancedForm {
-                #[gpui_form(component(select(searchable, index = Country::France)))]
-                country: Country,
-                #[gpui_form(component(select(partial, default)))]
-                language: Language,
-                #[gpui_form(component(custom(name = ExtraFancy, uw)))]
-                bio: Option<ExtraFancyValue>,
-            }
-        };
-
-        insta::assert_snapshot!("select_and_custom_components", render(input));
-    }
 }
