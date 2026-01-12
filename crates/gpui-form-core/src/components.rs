@@ -4,10 +4,6 @@ use heck::ToPascalCase as _;
 use quote::quote;
 use strum::{Display, EnumDiscriminants, EnumString, IntoStaticStr};
 
-fn default_true() -> bool {
-    true
-}
-
 pub trait ComponentOption {}
 
 pub trait ComponentDefinition {
@@ -36,21 +32,6 @@ pub struct BehaviourSelectOptions {
     pub partial: bool,
     #[darling(default)]
     pub searchable: bool,
-}
-
-#[derive(Clone, ComponentOption, Debug, Eq, FromMeta, PartialEq)]
-pub struct BehaviourCustomOptions {
-    #[darling(default = "default_true", rename = "uw")]
-    pub should_be_unwrapped: bool,
-    #[darling(default)]
-    pub partial: bool,
-    pub name: syn::Ident,
-}
-
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
-pub struct CustomOptions {
-    #[darling(flatten)]
-    pub behaviour: BehaviourCustomOptions,
 }
 
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
@@ -147,7 +128,6 @@ pub enum Components {
     Select(SelectOptions),
     TupleSelect(TupleSelectOptions),
     DatePicker,
-    Custom(CustomOptions),
 }
 
 impl Components {
@@ -166,8 +146,6 @@ impl Components {
             | Components::TupleSelect(_) => false,
             // Date picker already handles Option internally
             Components::DatePicker => false,
-            // Custom components declare their own behavior
-            Components::Custom(opts) => opts.behaviour.should_be_unwrapped,
         }
     }
 }

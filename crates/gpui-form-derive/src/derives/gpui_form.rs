@@ -116,10 +116,6 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
         Components::DatePicker => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::DatePicker }
         },
-        Components::Custom(custom_options) => {
-            let component_ident = &custom_options.behaviour.name;
-            quote! { #component_ident }
-        },
     }
 }
 
@@ -221,17 +217,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
         Components::DatePicker => {
             let component = DatePickerComponent(FieldInformation::new(
                 DatePickerOptions,
-                field_name.clone(),
-                extract_type_ident(field_type),
-            ));
-            component.field_tokens(
-                &mut field_structure_tokens,
-                &mut field_base_declarations_tokens,
-            );
-        },
-        Components::Custom(options) => {
-            let component = CustomComponent(FieldInformation::new(
-                options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),
             ));
