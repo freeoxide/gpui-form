@@ -12,12 +12,11 @@ pub fn gpui_form_derive(input: TokenStream) -> TokenStream {
         input,
         GpuiFormOptions {
             generate_shape: cfg!(feature = "inventory"),
-            fluent: cfg!(feature = "fluent"),
         },
     )
 }
 
-#[proc_macro_derive(SelectItem)]
+#[proc_macro_derive(SelectItem, attributes(select_item))]
 #[proc_macro_error]
 pub fn derive_select_item_for_ftl_enum(input: TokenStream) -> TokenStream {
     derives::select_item::from(input)

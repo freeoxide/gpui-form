@@ -20,5 +20,9 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { features = [ "full", "parsing" ], workspace = true }
 
+[features]
+default = []
+fluent = []
+
 [lints]
 workspace = true
