@@ -69,9 +69,6 @@ struct ComponentStruct {
     #[darling(default)]
     pub empty: bool,
     #[darling(default)]
-    #[allow(dead_code)]
-    pub fluent: bool,
-    #[darling(default)]
     pub koruma: Option<KorumaField>,
 }
 

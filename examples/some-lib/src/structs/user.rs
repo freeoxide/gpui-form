@@ -31,7 +31,7 @@ pub enum EnumCountry {
 #[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
-#[gpui_form(koruma(fluent), fluent)]
+#[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(component(input))]
     #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
