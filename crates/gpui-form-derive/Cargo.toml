@@ -35,8 +35,9 @@ thiserror = { workspace = true }
 workspace = true
 
 [features]
-default = [  ]
-inventory = [  ]
+default = []
+fluent = []
+inventory = []
 
 [dev-dependencies]
 insta = { workspace = true }

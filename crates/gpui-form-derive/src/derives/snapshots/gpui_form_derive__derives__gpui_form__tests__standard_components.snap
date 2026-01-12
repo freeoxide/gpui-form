@@ -2,7 +2,7 @@
 source: crates/gpui-form-derive/src/derives/gpui_form.rs
 expression: render(input)
 ---
-#[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)]
+#[derive(Clone, Debug, ::koruma::Koruma)]
 pub struct StandardFormFormValueHolder {
     #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)]
     pub title: Option<String>,

@@ -427,7 +427,11 @@ fn generate_value_holder(
 
     // Generate derive attributes conditionally
     let derive_attrs = if needs_koruma_derive {
-        quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
+        if cfg!(feature = "fluent") {
+            quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
+        } else {
+            quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
+        }
     } else {
         quote! { #[derive(Clone, Debug)] }
     };

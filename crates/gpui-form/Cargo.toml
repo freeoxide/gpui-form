@@ -17,6 +17,7 @@ component = [ "dep:gpui-form-component" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive/inventory" ]
+fluent = ["gpui-form-derive?/fluent"]
 
 [dependencies]
 gpui-form-component = { optional = true, workspace = true }
