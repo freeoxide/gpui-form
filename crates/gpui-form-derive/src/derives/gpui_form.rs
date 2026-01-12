@@ -21,6 +21,8 @@ struct FieldOptionality {
     /// Whether this field should be wrapped in Option in the value holder
     /// (true for component fields that need unwrapping behavior)
     wrap_in_option: bool,
+    /// The original koruma attributes on this field (to be copied to value holder)
+    koruma_attrs: Vec<syn::Attribute>,
 }
 
 #[derive(Debug, FromField)]
@@ -278,6 +280,8 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
 /// Generates the FormValueHolder struct and its implementations.
 /// Component fields that need unwrapping become Option<T> in the value holder.
 /// Other fields retain their original type.
+/// The value holder derives Koruma with copied attributes from original fields,
+/// plus RequiredValidation::<Option<_>> for non-optional fields wrapped in Option.
 /// Returns (value_holder_tokens, fields_requiring_required_validation).
 fn generate_value_holder(
     struct_name: &Ident,
@@ -285,19 +289,73 @@ fn generate_value_holder(
 ) -> (TokenStream, Vec<String>) {
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
-    // Generate value holder fields
+    // Check if we need to derive Koruma:
+    // - Any field has koruma attributes, OR
+    // - Any field needs RequiredValidation (non-optional wrapped in Option)
+    let has_any_koruma = fields.iter().any(|f| !f.koruma_attrs.is_empty());
+    let has_any_required = fields.iter().any(|f| f.wrap_in_option && !f.was_optional);
+    let needs_koruma_derive = has_any_koruma || has_any_required;
+
+    // Generate value holder fields with koruma attributes
     // - Fields with wrap_in_option=true become Option<inner_type>
     // - Other fields keep their original type
+    // - Copy koruma attributes from original fields
+    // - Add RequiredValidation::<Option<_>> for non-optional fields wrapped in Option
     let value_holder_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
             let name = &f.field_name;
+            let koruma_attrs = &f.koruma_attrs;
+
+            // Determine if we need to add RequiredValidation
+            // (non-optional field that gets wrapped in Option)
+            let needs_required = f.wrap_in_option && !f.was_optional;
+
+            // Build the koruma attribute(s) for this field
+            let koruma_attr = if needs_required || !koruma_attrs.is_empty() {
+                // Extract existing koruma validations as token streams
+                let existing_validations: Vec<TokenStream> = koruma_attrs
+                    .iter()
+                    .filter_map(|attr| {
+                        // Parse the attribute arguments
+                        attr.parse_args_with(
+                            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
+                        )
+                        .ok()
+                        .map(|exprs| {
+                            exprs.into_iter().map(|e| e.to_token_stream()).collect::<Vec<_>>()
+                        })
+                    })
+                    .flatten()
+                    .collect();
+
+                // Build the combined koruma attribute
+                if needs_required {
+                    if existing_validations.is_empty() {
+                        quote! { #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)] }
+                    } else {
+                        quote! { #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>, #(#existing_validations),*)] }
+                    }
+                } else {
+                    // Just copy the existing validations
+                    quote! { #[koruma(#(#existing_validations),*)] }
+                }
+            } else {
+                quote! {}
+            };
+
             if f.wrap_in_option {
                 let inner_ty = &f.inner_type;
-                quote! { pub #name: Option<#inner_ty>, }
+                quote! {
+                    #koruma_attr
+                    pub #name: Option<#inner_ty>,
+                }
             } else {
                 let orig_ty = &f.original_type;
-                quote! { pub #name: #orig_ty, }
+                quote! {
+                    #koruma_attr
+                    pub #name: #orig_ty,
+                }
             }
         })
         .collect();
@@ -365,8 +423,15 @@ fn generate_value_holder(
         .map(|f| f.field_name.to_string())
         .collect();
 
+    // Generate derive attributes conditionally
+    let derive_attrs = if needs_koruma_derive {
+        quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
+    } else {
+        quote! { #[derive(Clone, Debug)] }
+    };
+
     let tokens = quote! {
-        #[derive(Clone, Debug)]
+        #derive_attrs
         pub struct #value_holder_name {
             #(#value_holder_fields)*
         }
@@ -447,6 +512,7 @@ fn expand_gpui_form(
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
 
+    // Extract koruma validation names (for metadata)
     let koruma_validations: HashMap<String, Vec<String>> = match &derive_input.data {
         syn::Data::Struct(data_struct) => data_struct
             .fields
@@ -482,6 +548,25 @@ fn expand_gpui_form(
                     }
                 }
                 Some((ident, validations))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+
+    // Extract koruma attributes (for copying to value holder)
+    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = match &derive_input.data {
+        syn::Data::Struct(data_struct) => data_struct
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let ident = field.ident.as_ref()?.to_string();
+                let koruma_attrs: Vec<syn::Attribute> = field
+                    .attrs
+                    .iter()
+                    .filter(|attr| attr.path().is_ident("koruma"))
+                    .cloned()
+                    .collect();
+                Some((ident, koruma_attrs))
             })
             .collect(),
         _ => HashMap::new(),
@@ -535,12 +620,18 @@ fn expand_gpui_form(
                     .get(&field_name_str)
                     .copied()
                     .unwrap_or(false);
+            // Get koruma attributes for this field
+            let koruma_attrs = koruma_attrs_map
+                .get(&field_name_str)
+                .cloned()
+                .unwrap_or_default();
             FieldOptionality {
                 field_name,
                 original_type: field.ty.clone(),
                 inner_type,
                 was_optional,
                 wrap_in_option,
+                koruma_attrs,
             }
         })
         .collect();

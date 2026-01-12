@@ -2,8 +2,9 @@
 source: crates/gpui-form-derive/src/derives/gpui_form.rs
 expression: render(input)
 ---
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ::koruma::Koruma)]
 pub struct StandardFormFormValueHolder {
+    #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)]
     pub title: Option<String>,
     pub count: Option<i64>,
     pub is_admin: bool,
