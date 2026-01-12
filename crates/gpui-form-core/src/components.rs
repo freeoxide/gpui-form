@@ -150,6 +150,28 @@ pub enum Components {
     Custom(CustomOptions),
 }
 
+impl Components {
+    /// Returns whether this component's value should be wrapped in Option in the FormValueHolder.
+    ///
+    /// Components where an empty/missing value is meaningful (like text inputs) return true.
+    /// Components that always have a defined value (like checkboxes, switches, selects) return false.
+    pub fn wraps_in_option(&self) -> bool {
+        match self {
+            // Text-based inputs: empty string represents "no value"
+            Components::Input | Components::NumberInput => true,
+            // Always have a defined state (checked/unchecked, selected item)
+            Components::Checkbox
+            | Components::Switch
+            | Components::Select(_)
+            | Components::TupleSelect(_) => false,
+            // Date picker already handles Option internally
+            Components::DatePicker => false,
+            // Custom components declare their own behavior
+            Components::Custom(opts) => opts.behaviour.should_be_unwrapped,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
 #[strum(serialize_all = "snake_case")]
 pub enum ComponentsBehaviour {

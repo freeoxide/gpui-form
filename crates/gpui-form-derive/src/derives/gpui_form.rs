@@ -8,6 +8,21 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
 
+/// Information about a field for value holder generation.
+/// Tracks whether the field was originally optional and the inner type.
+struct FieldOptionality {
+    field_name: Ident,
+    /// The original type of the field
+    original_type: Type,
+    /// The inner type (unwrapped from Option if it was optional)
+    inner_type: Type,
+    /// Whether the original field was Option<T>
+    was_optional: bool,
+    /// Whether this field should be wrapped in Option in the value holder
+    /// (true for component fields that need unwrapping behavior)
+    wrap_in_option: bool,
+}
+
 #[derive(Debug, FromField)]
 #[darling(attributes(gpui_form))]
 struct ComponentField {
@@ -88,7 +103,8 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
 struct ComponentFieldContent {
     field_structure_tokens: TokenStream,
     field_base_declarations_tokens: TokenStream,
-    should_be_unwrapped: (String, bool),
+    /// (field_name, wrap_in_option) - whether this field should be wrapped in Option in the value holder
+    wrap_in_option: (String, bool),
 }
 
 fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
@@ -97,17 +113,20 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
 
     let mut field_structure_tokens = proc_macro2::TokenStream::new();
     let mut field_base_declarations_tokens = proc_macro2::TokenStream::new();
-    let mut should_be_unwrapped = (field_name.clone(), false);
 
-    let component_def = if field.component.is_some() {
-        field.component.as_ref().unwrap()
-    } else {
-        return ComponentFieldContent {
-            field_structure_tokens,
-            field_base_declarations_tokens,
-            should_be_unwrapped,
-        };
+    let component_def = match &field.component {
+        Some(c) => c,
+        None => {
+            return ComponentFieldContent {
+                field_structure_tokens,
+                field_base_declarations_tokens,
+                wrap_in_option: (field_name, false),
+            };
+        },
     };
+
+    // Use the component's wraps_in_option() method to determine if the field should be wrapped
+    let wrap_in_option = component_def.wraps_in_option();
 
     match component_def {
         Components::Input => {
@@ -120,7 +139,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::NumberInput => {
             let component = NumberInputComponent(FieldInformation::new(
@@ -132,7 +150,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::Checkbox => {
             let component = CheckboxComponent(FieldInformation::new(
@@ -144,7 +161,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::Switch => {
             let component = SwitchComponent(FieldInformation::new(
@@ -156,7 +172,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::Select(options) => {
             let component = SelectComponent(FieldInformation::new(
@@ -168,7 +183,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::TupleSelect(options) => {
             let component = TupleSelectComponent(FieldInformation::new(
@@ -180,7 +194,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = true;
         },
         Components::DatePicker => {
             let component = DatePickerComponent(FieldInformation::new(
@@ -192,7 +205,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = false;
         },
         Components::Custom(options) => {
             let component = CustomComponent(FieldInformation::new(
@@ -204,14 +216,13 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_structure_tokens,
                 &mut field_base_declarations_tokens,
             );
-            should_be_unwrapped.1 = options.behaviour.should_be_unwrapped;
         },
     }
 
     ComponentFieldContent {
         field_structure_tokens,
         field_base_declarations_tokens,
-        should_be_unwrapped,
+        wrap_in_option: (field_name, wrap_in_option),
     }
 }
 
@@ -247,6 +258,145 @@ fn extract_type_ident(ty: &Type) -> Ident {
             ty.to_token_stream()
         ),
     }
+}
+
+/// Checks if a type is Option<T> and returns (is_option, inner_type).
+/// If not an Option, returns the original type as inner_type.
+fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
+    if let Type::Path(type_path) = ty
+        && let Some(last_segment) = type_path.path.segments.last()
+        && last_segment.ident == "Option"
+        && let PathArguments::AngleBracketed(args) = &last_segment.arguments
+        && let Some(GenericArgument::Type(inner_type)) = args.args.first()
+    {
+        (true, inner_type.clone())
+    } else {
+        (false, ty.clone())
+    }
+}
+
+/// Generates the FormValueHolder struct and its implementations.
+/// Component fields that need unwrapping become Option<T> in the value holder.
+/// Other fields retain their original type.
+/// Returns (value_holder_tokens, fields_requiring_required_validation).
+fn generate_value_holder(
+    struct_name: &Ident,
+    fields: &[FieldOptionality],
+) -> (TokenStream, Vec<String>) {
+    let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
+
+    // Generate value holder fields
+    // - Fields with wrap_in_option=true become Option<inner_type>
+    // - Other fields keep their original type
+    let value_holder_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.field_name;
+            if f.wrap_in_option {
+                let inner_ty = &f.inner_type;
+                quote! { pub #name: Option<#inner_ty>, }
+            } else {
+                let orig_ty = &f.original_type;
+                quote! { pub #name: #orig_ty, }
+            }
+        })
+        .collect();
+
+    // Generate From<OriginalStruct> for ValueHolder
+    let from_original_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.field_name;
+            if f.wrap_in_option {
+                // Component field that needs option wrapping
+                if f.was_optional {
+                    // Original was Option<T>, value holder is Option<T> -> direct copy
+                    quote! { #name: from.#name, }
+                } else {
+                    // Original was T, value holder is Option<T> -> wrap in Some
+                    quote! { #name: Some(from.#name), }
+                }
+            } else {
+                // Non-component field or field without unwrapping -> direct copy
+                quote! { #name: from.#name, }
+            }
+        })
+        .collect();
+
+    // Generate From<ValueHolder> for OriginalStruct
+    let from_holder_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.field_name;
+            if f.wrap_in_option {
+                // Component field with option wrapping in value holder
+                if f.was_optional {
+                    // Original was Option<T>, value holder is Option<T> -> direct copy
+                    quote! { #name: from.#name, }
+                } else {
+                    // Original was T, value holder is Option<T> -> unwrap_or_default
+                    quote! { #name: from.#name.unwrap_or_default(), }
+                }
+            } else {
+                // Non-component field or field without unwrapping -> direct copy
+                quote! { #name: from.#name, }
+            }
+        })
+        .collect();
+
+    // Generate Default impl
+    let default_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let name = &f.field_name;
+            if f.wrap_in_option {
+                quote! { #name: None, }
+            } else {
+                quote! { #name: Default::default(), }
+            }
+        })
+        .collect();
+
+    // Collect field names that were originally non-optional and are wrapped in option
+    // (these require RequiredValidation)
+    let fields_requiring_required: Vec<String> = fields
+        .iter()
+        .filter(|f| f.wrap_in_option && !f.was_optional)
+        .map(|f| f.field_name.to_string())
+        .collect();
+
+    let tokens = quote! {
+        #[derive(Clone, Debug)]
+        pub struct #value_holder_name {
+            #(#value_holder_fields)*
+        }
+
+        impl Default for #value_holder_name {
+            fn default() -> Self {
+                Self {
+                    #(#default_fields)*
+                }
+            }
+        }
+
+        impl From<#struct_name> for #value_holder_name {
+            fn from(from: #struct_name) -> Self {
+                Self {
+                    #(#from_original_fields)*
+                }
+            }
+        }
+
+        impl From<#value_holder_name> for #struct_name {
+            fn from(from: #value_holder_name) -> Self {
+                Self {
+                    #(#from_holder_fields)*
+                }
+            }
+        }
+    };
+
+    (tokens, fields_requiring_required)
 }
 
 pub struct GpuiFormOptions {
@@ -355,7 +505,7 @@ fn expand_gpui_form(
         .map(generate_component_field)
         .collect();
 
-    let (field_structure_tokens, field_base_declarations_tokens, should_be_unwrapped): (
+    let (field_structure_tokens, field_base_declarations_tokens, wrap_in_option_map): (
         Vec<TokenStream>,
         Vec<TokenStream>,
         HashMap<String, bool>,
@@ -365,10 +515,39 @@ fn expand_gpui_form(
             (
                 content.field_structure_tokens,
                 content.field_base_declarations_tokens,
-                content.should_be_unwrapped,
+                content.wrap_in_option,
             )
         })
         .multiunzip();
+
+    // Build field optionality information for value holder generation
+    // Include ALL fields (even skipped ones) so From impls work correctly
+    let field_optionality: Vec<FieldOptionality> = fields_iter
+        .iter()
+        .map(|field| {
+            let field_name = field.ident.clone().unwrap();
+            let field_name_str = field_name.to_string();
+            let (was_optional, inner_type) = extract_option_inner_type(&field.ty);
+            // Wrap in option based on component's wraps_in_option() (and not skipped)
+            let wrap_in_option = !field.skip()
+                && field.component.is_some()
+                && wrap_in_option_map
+                    .get(&field_name_str)
+                    .copied()
+                    .unwrap_or(false);
+            FieldOptionality {
+                field_name,
+                original_type: field.ty.clone(),
+                inner_type,
+                was_optional,
+                wrap_in_option,
+            }
+        })
+        .collect();
+
+    // Generate value holder struct and get list of fields requiring RequiredValidation
+    let (value_holder_tokens, fields_requiring_required) =
+        generate_value_holder(struct_name, &field_optionality);
 
     // Generate error struct fields
     let items_error_struct_fields: Vec<TokenStream> = fields_iter
@@ -432,10 +611,19 @@ fn expand_gpui_form(
                 let field_type_str = base_type.to_token_stream().to_string();
                 let component_def = field.component.as_ref().unwrap();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
-                let validation_rules = koruma_validations
+                let mut validation_rules = koruma_validations
                     .get(&field_name_str)
                     .cloned()
                     .unwrap_or_default();
+
+                // Add implicit RequiredValidation for non-optional fields
+                // (fields that were not Option<T> in the original struct)
+                if fields_requiring_required.contains(&field_name_str)
+                    && !validation_rules.contains(&"RequiredValidation".to_string())
+                {
+                    validation_rules.insert(0, "RequiredValidation".to_string());
+                }
+
                 let validation_literals: Vec<_> = validation_rules
                     .iter()
                     .map(|v| syn::LitStr::new(v, proc_macro2::Span::call_site()))
@@ -471,17 +659,8 @@ fn expand_gpui_form(
         quote! {}
     };
 
-    let model_options = unwrapped_core::Opts::builder()
-        .suffix(format_ident!("FormValueHolder"))
-        .build();
-
-    let macro_options =
-        unwrapped_core::ProcUsageOpts::new(should_be_unwrapped, Some(format_ident!("gpui_form")));
-
-    let model_struct = unwrapped_core::unwrapped(&derive_input, Some(model_options), macro_options);
-
     let expanded = quote! {
-        #model_struct
+        #value_holder_tokens
         pub struct #components_holder_name {
             #(#field_structure_tokens)*
         }

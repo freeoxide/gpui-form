@@ -30,7 +30,6 @@ rust_decimal = { workspace = true }
 strum = { features = [ "derive" ], workspace = true }
 syn = { features = [ "full" ], workspace = true }
 thiserror = { workspace = true }
-unwrapped-core = { workspace = true }
 
 [lints]
 workspace = true

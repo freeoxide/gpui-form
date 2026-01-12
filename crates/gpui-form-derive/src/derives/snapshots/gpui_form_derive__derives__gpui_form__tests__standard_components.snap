@@ -2,25 +2,32 @@
 source: crates/gpui-form-derive/src/derives/gpui_form.rs
 expression: render(input)
 ---
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct StandardFormFormValueHolder {
-    pub title: String,
-    pub count: i64,
+    pub title: Option<String>,
+    pub count: Option<i64>,
     pub is_admin: bool,
-    pub is_active: bool,
+    pub is_active: Option<bool>,
     pub availability: chrono::NaiveDate,
 }
-impl From<StandardForm> for StandardFormFormValueHolder
-where
-    i64: ::core::default::Default,
-    bool: ::core::default::Default,
-{
+impl Default for StandardFormFormValueHolder {
+    fn default() -> Self {
+        Self {
+            title: None,
+            count: None,
+            is_admin: Default::default(),
+            is_active: Default::default(),
+            availability: Default::default(),
+        }
+    }
+}
+impl From<StandardForm> for StandardFormFormValueHolder {
     fn from(from: StandardForm) -> Self {
         Self {
-            title: from.title,
-            count: from.count.unwrap_or_default(),
+            title: Some(from.title),
+            count: from.count,
             is_admin: from.is_admin,
-            is_active: from.is_active.unwrap_or_default(),
+            is_active: from.is_active,
             availability: from.availability,
         }
     }
@@ -28,36 +35,12 @@ where
 impl From<StandardFormFormValueHolder> for StandardForm {
     fn from(from: StandardFormFormValueHolder) -> Self {
         Self {
-            title: from.title,
-            count: Some(from.count),
+            title: from.title.unwrap_or_default(),
+            count: from.count,
             is_admin: from.is_admin,
-            is_active: Some(from.is_active),
+            is_active: from.is_active,
             availability: from.availability,
         }
-    }
-}
-impl ::gpui_form::unwrapped::Unwrapped for StandardForm {
-    type Unwrapped = StandardFormFormValueHolder;
-}
-impl StandardFormFormValueHolder {
-    pub fn try_from(
-        from: StandardForm,
-    ) -> Result<Self, ::gpui_form::unwrapped::UnwrappedError> {
-        Ok(Self {
-            title: from.title,
-            count: from
-                .count
-                .ok_or(::gpui_form::unwrapped::UnwrappedError {
-                    field_name: "count",
-                })?,
-            is_admin: from.is_admin,
-            is_active: from
-                .is_active
-                .ok_or(::gpui_form::unwrapped::UnwrappedError {
-                    field_name: "is_active",
-                })?,
-            availability: from.availability,
-        })
     }
 }
 pub struct StandardFormFormFields {
