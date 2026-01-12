@@ -292,17 +292,19 @@ fn generate_value_holder(
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
     // Check if we need to derive Koruma:
-    // - Any field has koruma attributes, OR
-    // - Any field needs RequiredValidation (non-optional wrapped in Option)
+    // - Any field has koruma attributes
     let has_any_koruma = fields.iter().any(|f| !f.koruma_attrs.is_empty());
-    let has_any_required = fields.iter().any(|f| f.wrap_in_option && !f.was_optional);
+    // - Any field needs RequiredValidation (non-optional wrapped in Option AND has other validations)
+    let has_any_required = fields
+        .iter()
+        .any(|f| f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty());
     let _needs_koruma_derive = has_any_koruma || has_any_required;
 
     // Generate value holder fields with koruma attributes
     // - Fields with wrap_in_option=true become Option<inner_type>
     // - Other fields keep their original type
     // - Copy koruma attributes from original fields
-    // - Add RequiredValidation::<Option<_>> for non-optional fields wrapped in Option
+    // - Add RequiredValidation::<Option<_>> for non-optional fields wrapped in Option IF they have other validations
     let value_holder_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
@@ -310,8 +312,8 @@ fn generate_value_holder(
             let koruma_attrs = &f.koruma_attrs;
 
             // Determine if we need to add RequiredValidation
-            // (non-optional field that gets wrapped in Option)
-            let needs_required = f.wrap_in_option && !f.was_optional;
+            // (non-optional field that gets wrapped in Option AND has other validations)
+            let needs_required = f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty();
 
             // Build the koruma attribute(s) for this field
             let koruma_attr = if needs_required || !koruma_attrs.is_empty() {
@@ -420,15 +422,13 @@ fn generate_value_holder(
         .collect();
 
     // Collect field names that were originally non-optional and are wrapped in option
-    // (these require RequiredValidation)
+    // AND have custom validations (these require RequiredValidation)
     let fields_requiring_required: Vec<String> = fields
         .iter()
-        .filter(|f| f.wrap_in_option && !f.was_optional)
+        .filter(|f| f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty())
         .map(|f| f.field_name.to_string())
         .collect();
 
-    // Generate derive attributes conditionally
-    // Generate derive attributes conditionally
     // Generate derive attributes conditionally
     #[cfg(feature = "koruma")]
     let derive_attrs = if _needs_koruma_derive {
@@ -464,7 +464,6 @@ fn generate_value_holder(
                 }
             }
         }
-
         impl From<#value_holder_name> for #struct_name {
             fn from(from: #value_holder_name) -> Self {
                 Self {
@@ -727,8 +726,7 @@ fn expand_gpui_form(
                     .cloned()
                     .unwrap_or_default();
 
-                // Add implicit RequiredValidation for non-optional fields
-                // (fields that were not Option<T> in the original struct)
+                // Add implicit RequiredValidation for non-optional fields that HAVE other validations
                 if fields_requiring_required.contains(&field_name_str)
                     && !validation_rules.contains(&"RequiredValidation".to_string())
                 {

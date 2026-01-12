@@ -39,20 +39,18 @@ impl FieldCodeGenerator for InputCodeGenerator {
         field: &FieldVariant,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let ftl_label_ident = component.ftl_label_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
-
         let component_gpui_type = field.behaviour.as_component_ident();
 
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
         let description_fn_tokens = super::generate_description_fn_tokens(field, component);
+        let label_tokens = super::generate_label_tokens(field, component);
 
         // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
-                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .label(#label_tokens)
                     #description_fn_tokens
                     .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )

@@ -143,22 +143,55 @@ impl ComponentIdentities for GpuiFormShape {
 
 use quote::quote;
 
+/// Helper function to generate the label tokens for a field.
+pub fn generate_label_tokens(
+    field: &FieldVariant,
+    _component: &GpuiFormShape,
+) -> proc_macro2::TokenStream {
+    #[cfg(feature = "fluent")]
+    {
+        let ftl_label_ident = _component.ftl_label_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+        quote! { #ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string() }
+    }
+    #[cfg(not(feature = "fluent"))]
+    {
+        use heck::ToTitleCase;
+        let title = field.field_name.to_title_case();
+        quote! { #title }
+    }
+}
+
 /// Helper function to generate the description_fn tokens for a field.
 /// When the `koruma` feature is enabled, includes validation error display.
 /// When disabled, only shows the description.
 #[cfg(feature = "koruma")]
 pub fn generate_description_fn_tokens(
     field: &FieldVariant,
-    component: &GpuiFormShape,
+    _component: &GpuiFormShape,
 ) -> proc_macro2::TokenStream {
-    let ftl_description_ident = component.ftl_description_ident();
-    let field_name_pascal_case_ident = field.field_ident_pascal();
     let field_name_ident = field.field_ident();
 
-    let description_tokens =
-        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
+    #[cfg(feature = "fluent")]
+    let description_tokens = {
+        let ftl_description_ident = _component.ftl_description_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
+    };
+    #[cfg(not(feature = "fluent"))]
+    let description_tokens = {
+        use heck::ToTitleCase;
+        let title = field.field_name.to_title_case();
+        quote! { #title }
+    };
+
     let field_has_validations = !field.validations.is_empty();
     let error_tokens = if field_has_validations {
+        #[cfg(feature = "fluent")]
+        let conversion_tokens = quote! { v.to_fluent_string() };
+        #[cfg(not(feature = "fluent"))]
+        let conversion_tokens = quote! { v.to_string() };
+
         quote! {{
             validation_errors.as_ref().and_then(|e| {
                 let errs = e.#field_name_ident().all();
@@ -167,7 +200,7 @@ pub fn generate_description_fn_tokens(
                 } else {
                     Some(
                         errs.iter()
-                            .map(|v| v.to_fluent_string())
+                            .map(|v| #conversion_tokens)
                             .collect::<Vec<_>>()
                             .join("\n"),
                     )
@@ -222,13 +255,20 @@ pub fn generate_description_fn_tokens(
 #[cfg(not(feature = "koruma"))]
 pub fn generate_description_fn_tokens(
     field: &FieldVariant,
-    component: &GpuiFormShape,
+    _component: &GpuiFormShape,
 ) -> proc_macro2::TokenStream {
-    let ftl_description_ident = component.ftl_description_ident();
-    let field_name_pascal_case_ident = field.field_ident_pascal();
-
-    let description_tokens =
-        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
+    #[cfg(feature = "fluent")]
+    let description_tokens = {
+        let ftl_description_ident = _component.ftl_description_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
+    };
+    #[cfg(not(feature = "fluent"))]
+    let description_tokens = {
+        use heck::ToTitleCase;
+        let title = field.field_name.to_title_case();
+        quote! { #title }
+    };
 
     quote! {
         .description_fn({

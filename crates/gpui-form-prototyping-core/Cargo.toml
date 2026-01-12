@@ -21,7 +21,8 @@ quote = { workspace = true }
 syn = { features = [ "full", "parsing" ], workspace = true }
 
 [features]
-default = ["koruma"]
+default = []
+fluent = []
 koruma = []
 
 [lints]

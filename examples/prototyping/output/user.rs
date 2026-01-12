@@ -276,6 +276,7 @@ impl UserForm {
 }
 impl Render for UserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let validation_errors = self.current_data.validate().err();
         v_flex()
             .key_context(CONTEXT)
             .id("user-form")
@@ -292,12 +293,41 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Username
                                     .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.username().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -308,12 +338,41 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Email
                                     .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.email().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -324,12 +383,41 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Age
                                     .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.age().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -340,12 +428,41 @@ impl Render for UserForm {
                             .description_fn({
                                 let description = UserDescriptionKvFtl::Balance
                                     .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.balance().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
