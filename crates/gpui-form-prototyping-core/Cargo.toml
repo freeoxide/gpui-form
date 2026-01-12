@@ -23,7 +23,6 @@ syn = { features = [ "full", "parsing" ], workspace = true }
 [features]
 default = []
 fluent = []
-koruma = []
 
 [lints]
 workspace = true

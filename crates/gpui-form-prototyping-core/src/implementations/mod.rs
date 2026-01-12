@@ -163,9 +163,7 @@ pub fn generate_label_tokens(
 }
 
 /// Helper function to generate the description_fn tokens for a field.
-/// When the `koruma` feature is enabled, includes validation error display.
-/// When disabled, only shows the description.
-#[cfg(feature = "koruma")]
+/// Includes validation error display if validations are present.
 pub fn generate_description_fn_tokens(
     field: &FieldVariant,
     _component: &GpuiFormShape,
@@ -250,36 +248,3 @@ pub fn generate_description_fn_tokens(
     }
 }
 
-/// Helper function to generate the description_fn tokens for a field.
-/// Without koruma feature, only shows the description (no validation support).
-#[cfg(not(feature = "koruma"))]
-pub fn generate_description_fn_tokens(
-    field: &FieldVariant,
-    _component: &GpuiFormShape,
-) -> proc_macro2::TokenStream {
-    #[cfg(feature = "fluent")]
-    let description_tokens = {
-        let ftl_description_ident = _component.ftl_description_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
-        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
-    };
-    #[cfg(not(feature = "fluent"))]
-    let description_tokens = {
-        use heck::ToTitleCase;
-        let title = field.field_name.to_title_case();
-        quote! { #title }
-    };
-
-    quote! {
-        .description_fn({
-            let description = #description_tokens;
-            move |_, _| {
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .child(div().child(description.clone()))
-            }
-        })
-    }
-}

@@ -164,7 +164,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         .any(|field| !field.validations.is_empty());
 
     let validation_binding =
-        if any_validations && gpui_form_prototyping_core::has_koruma_support() {
+        if any_validations {
             quote! {
                 let validation_errors = self.current_data.validate().err();
             }
