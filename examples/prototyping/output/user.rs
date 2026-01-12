@@ -53,7 +53,11 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.username = text.to_owned().into();
+                self.current_data.username = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
             }
             _ => {}
         }
@@ -68,7 +72,11 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.email = text.to_owned().into();
+                self.current_data.email = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
             }
             _ => {}
         }
@@ -83,12 +91,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                match text.parse::<u32>() {
-                    Ok(value) => {
-                        self.current_data.age = value.into();
-                    }
-                    _ => {}
-                }
+                self.current_data.age = text.parse::<u32>().ok();
             }
             _ => {}
         }
@@ -104,24 +107,30 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self.current_data.age.saturating_sub(1);
-                        self.current_data.age = new_value;
+                        let new_value = self
+                            .current_data
+                            .age
+                            .unwrap_or_default()
+                            .saturating_sub(1);
+                        self.current_data.age = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
-                                input
-                                    .set_value(self.current_data.age.to_string(), window, cx);
+                                input.set_value(new_value.to_string(), window, cx);
                             },
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self.current_data.age.saturating_add(1);
-                        self.current_data.age = new_value;
+                        let new_value = self
+                            .current_data
+                            .age
+                            .unwrap_or_default()
+                            .saturating_add(1);
+                        self.current_data.age = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
-                                input
-                                    .set_value(self.current_data.age.to_string(), window, cx);
+                                input.set_value(new_value.to_string(), window, cx);
                             },
                         );
                     }
@@ -139,12 +148,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                match text.parse::<f64>() {
-                    Ok(value) => {
-                        self.current_data.balance = value.into();
-                    }
-                    _ => {}
-                }
+                self.current_data.balance = text.parse::<f64>().ok();
             }
             _ => {}
         }
@@ -160,32 +164,24 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self.current_data.balance - 1 as f64;
-                        self.current_data.balance = new_value;
+                        let new_value = self.current_data.balance.unwrap_or_default()
+                            - 1.0;
+                        self.current_data.balance = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
-                                input
-                                    .set_value(
-                                        self.current_data.balance.to_string(),
-                                        window,
-                                        cx,
-                                    );
+                                input.set_value(new_value.to_string(), window, cx);
                             },
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self.current_data.balance + 1 as f64;
-                        self.current_data.balance = new_value;
+                        let new_value = self.current_data.balance.unwrap_or_default()
+                            + 1.0;
+                        self.current_data.balance = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
-                                input
-                                    .set_value(
-                                        self.current_data.balance.to_string(),
-                                        window,
-                                        cx,
-                                    );
+                                input.set_value(new_value.to_string(), window, cx);
                             },
                         );
                     }
@@ -203,7 +199,7 @@ impl UserForm {
         match event {
             SelectEvent::Confirm(value) => {
                 if let Some(value) = value {
-                    self.current_data.preferred = value.clone().into();
+                    self.current_data.preferred = value.clone();
                 }
             }
         }
@@ -217,9 +213,7 @@ impl UserForm {
     ) {
         match event {
             SelectEvent::Confirm(value) => {
-                if let Some(value) = value {
-                    self.current_data.country = value.clone().into();
-                }
+                self.current_data.country = value.clone();
             }
         }
     }

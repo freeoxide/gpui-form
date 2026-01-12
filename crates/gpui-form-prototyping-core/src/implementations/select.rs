@@ -168,20 +168,41 @@ impl FieldCodeGenerator for SelectCodeGenerator {
             quote! { Vec }
         };
 
-        let handler = quote! {
-            fn #event_handler_fn_name_ident(
-                &mut self,
-                _this: &Entity<SelectState<#vec_type<#struct_name_ident>>>,
-                event: &SelectEvent<#vec_type<#struct_name_ident>>,
-                _window: &mut Window,
-                _cx: &mut Context<Self>,
-            ) {
-                match event {
-                    SelectEvent::Confirm(value) => {
-                        if let Some(value) = value {
-                            self.current_data.#field_name_ident = value.clone().into();
-                        }
-                    },
+        // Generate handler based on whether field is optional
+        // Optional fields: direct assignment (value is already Option<T>)
+        // Non-optional fields: unwrap with if let Some pattern
+        let handler = if field.optional {
+            quote! {
+                fn #event_handler_fn_name_ident(
+                    &mut self,
+                    _this: &Entity<SelectState<#vec_type<#struct_name_ident>>>,
+                    event: &SelectEvent<#vec_type<#struct_name_ident>>,
+                    _window: &mut Window,
+                    _cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        SelectEvent::Confirm(value) => {
+                            self.current_data.#field_name_ident = value.clone();
+                        },
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn #event_handler_fn_name_ident(
+                    &mut self,
+                    _this: &Entity<SelectState<#vec_type<#struct_name_ident>>>,
+                    event: &SelectEvent<#vec_type<#struct_name_ident>>,
+                    _window: &mut Window,
+                    _cx: &mut Context<Self>,
+                ) {
+                    match event {
+                        SelectEvent::Confirm(value) => {
+                            if let Some(value) = value {
+                                self.current_data.#field_name_ident = value.clone();
+                            }
+                        },
+                    }
                 }
             }
         };

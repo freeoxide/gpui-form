@@ -171,54 +171,49 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 match event {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
-                        match text.parse::<#field_type_path>() {
-                            Ok(value) => {
-                                self.current_data.#field_name_ident = value.into();
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
+                        self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
+                    },
+                    _ => {},
                 }
             }
         };
         handlers.push(on_input_event_handler);
 
-        // Generate increment/decrement logic
+        // Generate increment/decrement logic - value holder always wraps numeric fields in Option
         let (decrement_logic, increment_logic) = if field.field_type.starts_with('f') {
             // f32, f64
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident - 1 as #field_type_path;
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default() - 1.0;
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident + 1 as #field_type_path;
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default() + 1.0;
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
             )
         } else if field.field_type.starts_with('u') || field.field_type.starts_with('i') {
             // i*, u*
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(1);
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_sub(1);
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(1);
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_add(1);
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
             )
         } else {
             // External types (e.g., Decimal) - assume saturating operations with From<i32>
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_sub(#field_type_path::from(1));
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_sub(#field_type_path::from(1));
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.saturating_add(#field_type_path::from(1));
-                    self.current_data.#field_name_ident = new_value;
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_add(#field_type_path::from(1));
+                    self.current_data.#field_name_ident = Some(new_value);
                 },
             )
         };
@@ -236,13 +231,13 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                         StepAction::Decrement => {
                             #decrement_logic
                             this.update(cx, |input, cx| {
-                                input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
+                                input.set_value(new_value.to_string(), window, cx);
                             });
                         }
                         StepAction::Increment => {
                             #increment_logic
                             this.update(cx, |input, cx| {
-                                input.set_value(self.current_data.#field_name_ident.to_string(), window, cx);
+                                input.set_value(new_value.to_string(), window, cx);
                             });
                         }
                     },

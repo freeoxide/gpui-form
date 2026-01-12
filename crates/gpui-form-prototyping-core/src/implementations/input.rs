@@ -160,9 +160,13 @@ impl FieldCodeGenerator for InputCodeGenerator {
                 match event {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
-                        self.current_data.#field_name_ident = text.to_owned().into();
-                    }
-                    _ => {}
+                        self.current_data.#field_name_ident = if text.is_empty() {
+                            None
+                        } else {
+                            Some(text.to_string())
+                        };
+                    },
+                    _ => {},
                 }
             }
         };

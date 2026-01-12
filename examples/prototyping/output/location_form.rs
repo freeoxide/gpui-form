@@ -57,7 +57,11 @@ impl LocationFormForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.name = text.to_owned().into();
+                self.current_data.name = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
             }
             _ => {}
         }

@@ -458,7 +458,7 @@ impl Render for UserForm {
                             .child(
                                 Switch::new("enable-notifications-switch")
                                     .checked(self.current_data.enable_notifications)
-                                    .on_click(cx.listener(move |v, checked: &bool, _, cx| {
+                                    .on_click(cx.listener(move |v, checked, _, cx| {
                                         v.current_data.enable_notifications = *checked;
                                         cx.notify();
                                     })),

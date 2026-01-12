@@ -871,7 +871,10 @@ mod tests {
             }
         };
 
-        insta::assert_snapshot!("standard_components_fluent", render_with_options(input, true));
+        insta::assert_snapshot!(
+            "standard_components_fluent",
+            render_with_options(input, true)
+        );
     }
 
     #[test]
