@@ -371,8 +371,10 @@ fn generate_value_holder(
                     // Original was Option<T>, value holder is Option<T> -> direct copy
                     quote! { #name: from.#name, }
                 } else {
-                    // Original was T, value holder is Option<T> -> wrap in Some
-                    quote! { #name: Some(from.#name), }
+                    // Original was T, value holder is Option<T>
+                    // Use None if value equals default, otherwise wrap in Some
+                    let inner_ty = &f.inner_type;
+                    quote! { #name: if from.#name == <#inner_ty as Default>::default() { None } else { Some(from.#name) }, }
                 }
             } else {
                 // Non-component field or field without unwrapping -> direct copy

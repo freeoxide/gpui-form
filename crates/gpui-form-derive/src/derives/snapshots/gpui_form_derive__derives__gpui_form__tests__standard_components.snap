@@ -2,7 +2,7 @@
 source: crates/gpui-form-derive/src/derives/gpui_form.rs
 expression: render(input)
 ---
-#[derive(Clone, Debug, ::koruma::Koruma)]
+#[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)]
 pub struct StandardFormFormValueHolder {
     #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)]
     pub title: Option<String>,
@@ -25,7 +25,11 @@ impl Default for StandardFormFormValueHolder {
 impl From<StandardForm> for StandardFormFormValueHolder {
     fn from(from: StandardForm) -> Self {
         Self {
-            title: Some(from.title),
+            title: if from.title == <String as Default>::default() {
+                None
+            } else {
+                Some(from.title)
+            },
             count: from.count,
             is_admin: from.is_admin,
             is_active: from.is_active,
