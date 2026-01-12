@@ -140,3 +140,106 @@ impl ComponentIdentities for GpuiFormShape {
         self.struct_name
     }
 }
+
+use quote::quote;
+
+/// Helper function to generate the description_fn tokens for a field.
+/// When the `koruma` feature is enabled, includes validation error display.
+/// When disabled, only shows the description.
+#[cfg(feature = "koruma")]
+pub fn generate_description_fn_tokens(
+    field: &FieldVariant,
+    component: &GpuiFormShape,
+) -> proc_macro2::TokenStream {
+    let ftl_description_ident = component.ftl_description_ident();
+    let field_name_pascal_case_ident = field.field_ident_pascal();
+    let field_name_ident = field.field_ident();
+
+    let description_tokens =
+        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
+    let field_has_validations = !field.validations.is_empty();
+    let error_tokens = if field_has_validations {
+        quote! {{
+            validation_errors.as_ref().and_then(|e| {
+                let errs = e.#field_name_ident().all();
+                if errs.is_empty() {
+                    None
+                } else {
+                    Some(
+                        errs.iter()
+                            .map(|v| v.to_fluent_string())
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    )
+                }
+            })
+        }}
+    } else {
+        quote! {{ None }}
+    };
+    let error_color_tokens = quote! { cx.theme().danger };
+
+    if !field_has_validations {
+        quote! {
+            .description_fn({
+                let description = #description_tokens;
+                move |_, _| {
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(div().child(description.clone()))
+                }
+            })
+        }
+    } else {
+        quote! {
+            .description_fn({
+                let description = #description_tokens;
+                let error = #error_tokens;
+                let error_color = #error_color_tokens;
+                move |_, _| {
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(div().child(description.clone()))
+                        .when(error.is_some(), |this| {
+                            this.child(
+                                div()
+                                    .text_color(error_color)
+                                    .child(error.clone().unwrap_or_default()),
+                            )
+                        })
+                }
+            })
+        }
+    }
+}
+
+/// Helper function to generate the description_fn tokens for a field.
+/// Without koruma feature, only shows the description (no validation support).
+#[cfg(not(feature = "koruma"))]
+pub fn generate_description_fn_tokens(
+    field: &FieldVariant,
+    component: &GpuiFormShape,
+) -> proc_macro2::TokenStream {
+    let ftl_description_ident = component.ftl_description_ident();
+    let field_name_pascal_case_ident = field.field_ident_pascal();
+
+    let description_tokens =
+        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
+
+    quote! {
+        .description_fn({
+            let description = #description_tokens;
+            move |_, _| {
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(div().child(description.clone()))
+            }
+        })
+    }
+}

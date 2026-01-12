@@ -213,7 +213,6 @@ impl LocationFormForm {
 }
 impl Render for LocationFormForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let validation_errors = self.current_data.validate().err();
         v_flex()
             .key_context(CONTEXT)
             .id("location_form-form")
@@ -230,41 +229,12 @@ impl Render for LocationFormForm {
                             .description_fn({
                                 let description = LocationFormDescriptionKvFtl::Name
                                     .to_fluent_string();
-                                let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.name().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
-                                };
-                                let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()
                                         .flex()
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
                                 }
                             })
                             .child(Input::new(&self.fields.name_input)),
