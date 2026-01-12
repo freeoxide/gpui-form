@@ -1,8 +1,8 @@
 ---
 source: crates/gpui-form-derive/src/derives/gpui_form.rs
-expression: render(input)
+expression: "render_with_options(input, true)"
 ---
-#[derive(Clone, Debug, ::koruma::Koruma)]
+#[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)]
 pub struct StandardFormFormValueHolder {
     #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)]
     pub title: Option<String>,

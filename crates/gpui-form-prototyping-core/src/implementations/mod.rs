@@ -140,3 +140,110 @@ impl ComponentIdentities for GpuiFormShape {
         self.struct_name
     }
 }
+
+use quote::quote;
+
+/// Helper function to generate the label tokens for a field.
+pub fn generate_label_tokens(
+    field: &FieldVariant,
+    _component: &GpuiFormShape,
+) -> proc_macro2::TokenStream {
+    #[cfg(feature = "fluent")]
+    {
+        let ftl_label_ident = _component.ftl_label_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+        quote! { #ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string() }
+    }
+    #[cfg(not(feature = "fluent"))]
+    {
+        use heck::ToTitleCase;
+        let title = field.field_name.to_title_case();
+        quote! { #title }
+    }
+}
+
+/// Helper function to generate the description_fn tokens for a field.
+/// Includes validation error display if validations are present.
+pub fn generate_description_fn_tokens(
+    field: &FieldVariant,
+    _component: &GpuiFormShape,
+) -> proc_macro2::TokenStream {
+    let field_name_ident = field.field_ident();
+
+    #[cfg(feature = "fluent")]
+    let description_tokens = {
+        let ftl_description_ident = _component.ftl_description_ident();
+        let field_name_pascal_case_ident = field.field_ident_pascal();
+        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
+    };
+    #[cfg(not(feature = "fluent"))]
+    let description_tokens = {
+        use heck::ToTitleCase;
+        let title = field.field_name.to_title_case();
+        quote! { #title }
+    };
+
+    let field_has_validations = !field.validations.is_empty();
+    let error_tokens = if field_has_validations {
+        #[cfg(feature = "fluent")]
+        let conversion_tokens = quote! { v.to_fluent_string() };
+        #[cfg(not(feature = "fluent"))]
+        let conversion_tokens = quote! { v.to_string() };
+
+        quote! {{
+            validation_errors.as_ref().and_then(|e| {
+                let errs = e.#field_name_ident().all();
+                if errs.is_empty() {
+                    None
+                } else {
+                    Some(
+                        errs.iter()
+                            .map(|v| #conversion_tokens)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    )
+                }
+            })
+        }}
+    } else {
+        quote! {{ None }}
+    };
+    let error_color_tokens = quote! { cx.theme().danger };
+
+    if !field_has_validations {
+        quote! {
+            .description_fn({
+                let description = #description_tokens;
+                move |_, _| {
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(div().child(description.clone()))
+                }
+            })
+        }
+    } else {
+        quote! {
+            .description_fn({
+                let description = #description_tokens;
+                let error = #error_tokens;
+                let error_color = #error_color_tokens;
+                move |_, _| {
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(div().child(description.clone()))
+                        .when(error.is_some(), |this| {
+                            this.child(
+                                div()
+                                    .text_color(error_color)
+                                    .child(error.clone().unwrap_or_default()),
+                            )
+                        })
+                }
+            })
+        }
+    }
+}

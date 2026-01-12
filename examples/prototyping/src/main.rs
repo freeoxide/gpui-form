@@ -165,7 +165,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let validation_binding = if any_validations {
         quote! {
-            let validation_errors = #struct_name_ident::from(self.current_data.clone()).validate().err();
+            let validation_errors = self.current_data.validate().err();
         }
     } else {
         quote! {}

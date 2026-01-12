@@ -4,10 +4,6 @@ use heck::ToPascalCase as _;
 use quote::quote;
 use strum::{Display, EnumDiscriminants, EnumString, IntoStaticStr};
 
-fn default_true() -> bool {
-    true
-}
-
 pub trait ComponentOption {}
 
 pub trait ComponentDefinition {
@@ -36,21 +32,6 @@ pub struct BehaviourSelectOptions {
     pub partial: bool,
     #[darling(default)]
     pub searchable: bool,
-}
-
-#[derive(Clone, ComponentOption, Debug, Eq, FromMeta, PartialEq)]
-pub struct BehaviourCustomOptions {
-    #[darling(default = "default_true", rename = "uw")]
-    pub should_be_unwrapped: bool,
-    #[darling(default)]
-    pub partial: bool,
-    pub name: syn::Ident,
-}
-
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
-pub struct CustomOptions {
-    #[darling(flatten)]
-    pub behaviour: BehaviourCustomOptions,
 }
 
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
@@ -147,7 +128,26 @@ pub enum Components {
     Select(SelectOptions),
     TupleSelect(TupleSelectOptions),
     DatePicker,
-    Custom(CustomOptions),
+}
+
+impl Components {
+    /// Returns whether this component's value should be wrapped in Option in the FormValueHolder.
+    ///
+    /// Components where an empty/missing value is meaningful (like text inputs) return true.
+    /// Components that always have a defined value (like checkboxes, switches, selects) return false.
+    pub fn wraps_in_option(&self) -> bool {
+        match self {
+            // Text-based inputs: empty string represents "no value"
+            Components::Input | Components::NumberInput => true,
+            // Always have a defined state (checked/unchecked, selected item)
+            Components::Checkbox
+            | Components::Switch
+            | Components::Select(_)
+            | Components::TupleSelect(_) => false,
+            // Date picker already handles Option internally
+            Components::DatePicker => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq)]

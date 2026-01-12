@@ -1549,22 +1549,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
-dependencies = [
- "dirs-sys 0.5.0",
-]
-
-[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
 dependencies = [
  "libc",
- "redox_users 0.4.6",
+ "redox_users",
  "winapi",
 ]
 
@@ -1576,20 +1567,8 @@ checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users 0.4.6",
+ "redox_users",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
-dependencies = [
- "libc",
- "option-ext",
- "redox_users 0.5.2",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1799,7 +1778,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2722,7 +2701,6 @@ dependencies = [
  "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
- "unwrapped",
 ]
 
 [[package]]
@@ -2773,7 +2751,6 @@ dependencies = [
  "strum 0.27.2",
  "syn 2.0.114",
  "thiserror 2.0.17",
- "unwrapped-core",
 ]
 
 [[package]]
@@ -3450,9 +3427,8 @@ dependencies = [
 
 [[package]]
 name = "koruma"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfcb3e0e095af278b2aff41e64976ab51f215db12495e946e87d6ae8aa7f01ff"
+version = "0.3.0"
+source = "git+https://github.com/stayhydated/koruma#9b7bb2f75dbe24e7fdc5dfffb5eb97e5202d4a57"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3462,9 +3438,8 @@ dependencies = [
 
 [[package]]
 name = "koruma-collection"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f02aeac4616350702e299338ef1e44ed7a2816f2361be37df3cb6ebc25a3589"
+version = "0.3.0"
+source = "git+https://github.com/stayhydated/koruma#9b7bb2f75dbe24e7fdc5dfffb5eb97e5202d4a57"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3477,15 +3452,13 @@ dependencies = [
 
 [[package]]
 name = "koruma-core"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5354279ff9b7a3c76e3aaf5b0d77793cfdfa44379748188563d9127343d36b41"
+version = "0.3.0"
+source = "git+https://github.com/stayhydated/koruma#9b7bb2f75dbe24e7fdc5dfffb5eb97e5202d4a57"
 
 [[package]]
 name = "koruma-derive"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7fb8b680e3b69aeb41305286e3245073091b97f104f0decf7d7b3e3c3e8b466"
+version = "0.3.0"
+source = "git+https://github.com/stayhydated/koruma#9b7bb2f75dbe24e7fdc5dfffb5eb97e5202d4a57"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-error2",
@@ -4038,7 +4011,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5047,17 +5020,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redox_users"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
-dependencies = [
- "getrandom 0.2.16",
- "libredox",
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "ref-cast"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5346,7 +5308,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5664,7 +5626,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
 dependencies = [
- "dirs 6.0.0",
+ "dirs 5.0.1",
 ]
 
 [[package]]
@@ -5800,7 +5762,6 @@ dependencies = [
  "rust_decimal",
  "strum 0.27.2",
  "unic-langid",
- "unwrapped",
 ]
 
 [[package]]
@@ -5824,7 +5785,6 @@ dependencies = [
  "some-lib",
  "strum 0.27.2",
  "unic-langid",
- "unwrapped",
 ]
 
 [[package]]
@@ -6220,7 +6180,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.3",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6752,25 +6712,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
-name = "unwrapped"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "968d0904b9caa56ac5beb3c02f5062d7eb0aa1ec89345a0dcdce0ad4138b2019"
-
-[[package]]
-name = "unwrapped-core"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb21e5ab09b2276d246bf6bb111fa898441c2a8c86f0e052b7eab4eea1594563"
-dependencies = [
- "bon",
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7203,7 +7144,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

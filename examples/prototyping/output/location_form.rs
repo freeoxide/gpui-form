@@ -1,22 +1,20 @@
-use es_fluent::{ThisFtl as _, ToFluentString as _};
+use some_lib::structs::location::*;
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
+    prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    ActiveTheme as _, IndexPath,
-    checkbox::Checkbox,
+    ActiveTheme as _, IndexPath, checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider,
-    form::{field, v_form},
+    divider::Divider, form::{field, v_form},
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
     select::{SearchableVec, Select, SelectEvent, SelectState},
-    switch::Switch,
-    v_flex,
+    switch::Switch, v_flex,
 };
 use gpui_form::component::tuple_select::TupleEnumInner;
-use some_lib::structs::location::*;
 use std::sync::Arc;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -42,7 +40,11 @@ impl gpui_storybook::Story for LocationFormForm {
     }
 }
 impl LocationFormForm {
-    pub fn view(window: &mut Window, cx: &mut App, original_data: LocationForm) -> Entity<Self> {
+    pub fn view(
+        window: &mut Window,
+        cx: &mut App,
+        original_data: LocationForm,
+    ) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx, original_data))
     }
     fn on_name_input_event(
@@ -55,17 +57,25 @@ impl LocationFormForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.name = text.to_owned().into();
-            },
-            _ => {},
+                self.current_data.name = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
+            }
+            _ => {}
         }
     }
     fn on_location_master_select_event(
         &mut self,
         this: &Entity<
-            SelectState<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
+            SelectState<
+                Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+            >,
         >,
-        event: &SelectEvent<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
+        event: &SelectEvent<
+            Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+        >,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -75,10 +85,15 @@ impl LocationFormForm {
             }
             self.current_data.location = selected.clone();
             self.fields.location_child_selects.clear();
-            let new_children =
-                LocationFormFormComponents::location_child_selects(&selected, 0, window, cx);
+            let new_children = LocationFormFormComponents::location_child_selects(
+                &selected,
+                0,
+                window,
+                cx,
+            );
             for child in &new_children {
-                let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                let sub = cx
+                    .subscribe_in(child, window, Self::on_location_child_select_event);
                 self._subscriptions.push(sub);
             }
             self.fields.location_child_selects = new_children;
@@ -88,9 +103,13 @@ impl LocationFormForm {
     fn on_location_child_select_event(
         &mut self,
         this: &Entity<
-            SelectState<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
+            SelectState<
+                Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+            >,
         >,
-        event: &SelectEvent<Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>>,
+        event: &SelectEvent<
+            Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+        >,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -109,10 +128,18 @@ impl LocationFormForm {
             self.fields.location_child_selects.truncate(level);
             if selected.has_inner() {
                 let new_children = LocationFormFormComponents::location_child_selects(
-                    &selected, level, window, cx,
+                    &selected,
+                    level,
+                    window,
+                    cx,
                 );
                 for child in &new_children {
-                    let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+                    let sub = cx
+                        .subscribe_in(
+                            child,
+                            window,
+                            Self::on_location_child_select_event,
+                        );
                     self._subscriptions.push(sub);
                 }
                 self.fields.location_child_selects.extend(new_children);
@@ -120,7 +147,11 @@ impl LocationFormForm {
             cx.notify();
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: LocationForm) -> Self {
+    fn new(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        original_data: LocationForm,
+    ) -> Self {
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
         let initial_location = &original_data.location;
         let master_variants_location = Country::variants();
@@ -134,23 +165,24 @@ impl LocationFormForm {
             row: initial_variant_idx_location,
             column: 0,
         });
-        let location_master_select = cx.new(|cx| {
-            let items: Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>> =
-                gpui_form::component::tuple_select::tuple_enum_to_select_items::<Country>();
-            gpui_component::select::SelectState::new(
-                items,
-                master_selected_index_location,
-                window,
-                cx,
-            )
-        });
+        let location_master_select = cx
+            .new(|cx| {
+                let items: Vec<
+                    gpui_form::component::tuple_select::TupleSelectItem<Country>,
+                > = gpui_form::component::tuple_select::tuple_enum_to_select_items::<
+                    Country,
+                >();
+                gpui_component::select::SelectState::new(
+                    items,
+                    master_selected_index_location,
+                    window,
+                    cx,
+                )
+            });
         let mut _subscriptions = vec![
-            cx.subscribe_in(&name_input, window, Self::on_name_input_event),
-            cx.subscribe_in(
-                &location_master_select,
-                window,
-                Self::on_location_master_select_event,
-            ),
+            cx.subscribe_in(& name_input, window, Self::on_name_input_event), cx
+            .subscribe_in(& location_master_select, window,
+            Self::on_location_master_select_event)
         ];
         let mut location_path = gpui_form::component::tuple_select::TupleSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
@@ -161,7 +193,8 @@ impl LocationFormForm {
             cx,
         );
         for child in &location_child_selects {
-            let sub = cx.subscribe_in(child, window, Self::on_location_child_select_event);
+            let sub = cx
+                .subscribe_in(child, window, Self::on_location_child_select_event);
             _subscriptions.push(sub);
         }
         Self {
@@ -194,8 +227,8 @@ impl Render for LocationFormForm {
                         field()
                             .label(LocationFormLabelKvFtl::Name.to_fluent_string())
                             .description_fn({
-                                let description =
-                                    LocationFormDescriptionKvFtl::Name.to_fluent_string();
+                                let description = LocationFormDescriptionKvFtl::Name
+                                    .to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -210,7 +243,10 @@ impl Render for LocationFormForm {
                         field()
                             .label(self.current_data.location.type_label())
                             .description_fn({
-                                let description = self.current_data.location.type_description();
+                                let description = self
+                                    .current_data
+                                    .location
+                                    .type_description();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -229,7 +265,8 @@ impl Render for LocationFormForm {
                             .map(|(i, child)| {
                                 field()
                                     .label(
-                                        self.current_data
+                                        self
+                                            .current_data
                                             .location
                                             .child_label_at_depth(i)
                                             .unwrap_or("".into()),

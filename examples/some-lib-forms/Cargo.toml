@@ -24,7 +24,6 @@ rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }
 strum = { workspace = true }
 unic-langid = { workspace = true }
-unwrapped = { workspace = true }
 
 [lints]
 workspace = true

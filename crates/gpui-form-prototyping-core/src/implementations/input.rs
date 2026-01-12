@@ -39,81 +39,18 @@ impl FieldCodeGenerator for InputCodeGenerator {
         field: &FieldVariant,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let ftl_label_ident = component.ftl_label_ident();
-        let ftl_description_ident = component.ftl_description_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
-        let field_name_ident = field.field_ident();
-
         let component_gpui_type = field.behaviour.as_component_ident();
 
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
-        let description_tokens =
-            quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() };
-        let field_has_validations = !field.validations.is_empty();
-        let error_tokens = if field_has_validations {
-            quote! {{
-                validation_errors.as_ref().and_then(|e| {
-                    let errs = e.#field_name_ident().all();
-                    if errs.is_empty() {
-                        None
-                    } else {
-                        Some(
-                            errs.iter()
-                                .map(|v| v.to_fluent_string())
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        )
-                    }
-                })
-            }}
-        } else {
-            quote! {{ None }}
-        };
-        let error_color_tokens = quote! { cx.theme().danger };
-
-        let description_fn_tokens = if !field_has_validations {
-            quote! {
-                .description_fn({
-                    let description = #description_tokens;
-                    move |_, _| {
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .child(div().child(description.clone()))
-                    }
-                })
-            }
-        } else {
-            quote! {
-                .description_fn({
-                    let description = #description_tokens;
-                    let error = #error_tokens;
-                    let error_color = #error_color_tokens;
-                    move |_, _| {
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .child(div().child(description.clone()))
-                            .when(error.is_some(), |this| {
-                                this.child(
-                                    div()
-                                        .text_color(error_color)
-                                        .child(error.clone().unwrap_or_default()),
-                                )
-                            })
-                    }
-                })
-            }
-        };
+        let description_fn_tokens = super::generate_description_fn_tokens(field, component);
+        let label_tokens = super::generate_label_tokens(field, component);
 
         // Show description always, and error below it when present (hidden when empty)
         quote! {
             .child(
                 field()
-                    .label(#ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string())
+                    .label(#label_tokens)
                     #description_fn_tokens
                     .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
             )
@@ -160,9 +97,13 @@ impl FieldCodeGenerator for InputCodeGenerator {
                 match event {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
-                        self.current_data.#field_name_ident = text.to_owned().into();
-                    }
-                    _ => {}
+                        self.current_data.#field_name_ident = if text.is_empty() {
+                            None
+                        } else {
+                            Some(text.to_string())
+                        };
+                    },
+                    _ => {},
                 }
             }
         };
