@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 gpui-form = { features = [ "inventory" ], workspace = true }
-gpui-form-prototyping-core = { workspace = true, features = ["fluent"] }
+gpui-form-prototyping-core = { features = [ "fluent" ], workspace = true }
 heck = { workspace = true }
 inventory = { workspace = true }
 prettyplease = { workspace = true }

@@ -163,14 +163,13 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         .iter()
         .any(|field| !field.validations.is_empty());
 
-    let validation_binding =
-        if any_validations {
-            quote! {
-                let validation_errors = self.current_data.validate().err();
-            }
-        } else {
-            quote! {}
-        };
+    let validation_binding = if any_validations {
+        quote! {
+            let validation_errors = self.current_data.validate().err();
+        }
+    } else {
+        quote! {}
+    };
 
     let subscription_calls_tokens = adapter.subscription_calls().unwrap_or_default();
 

@@ -8,13 +8,13 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
 
-#[derive(Debug, Clone, Default, FromMeta)]
+#[derive(Clone, Debug, Default, FromMeta)]
 struct KorumaOptions {
     #[darling(default)]
     fluent: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 struct KorumaField(KorumaOptions);
 
 impl FromMeta for KorumaField {

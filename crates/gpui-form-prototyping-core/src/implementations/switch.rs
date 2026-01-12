@@ -2,7 +2,6 @@ use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct SwitchCodeGenerator;

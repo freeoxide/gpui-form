@@ -247,4 +247,3 @@ pub fn generate_description_fn_tokens(
         }
     }
 }
-
