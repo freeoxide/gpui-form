@@ -28,10 +28,21 @@ Compatibility of `gpui-form` versions:
 
 ## Showcase
 
-declaring:
-
 ```rs
-#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
+use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
+use gpui_form::{GpuiForm, SelectItem};
+use koruma::{Koruma, KorumaAllFluent};
+use koruma_collection::{
+    collection::NonEmptyValidation,
+    format::EmailValidation,
+    general::RequiredValidation,
+    numeric::{PositiveValidation, RangeValidation},
+    string::{PrefixValidation, SuffixValidation},
+};
+use strum::EnumIter;
+
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[select_item(fluent)]
 pub enum PreferedLanguage {
     #[default]
     English,
@@ -39,7 +50,8 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, SelectItem, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[select_item(fluent)]
 pub enum EnumCountry {
     #[default]
     UnitedStates,
@@ -47,20 +59,26 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, GpuiForm)]
-#[fluent_kv(this, keys = ["description", "label"])]
+#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
+#[fluent_this(origin, members)]
+#[fluent_kv(keys = ["description", "label"])]
+#[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
     pub username: Option<String>,
 
     #[gpui_form(component(input))]
+    #[koruma(EmailValidation::<_>)]
     pub email: String,
 
     #[gpui_form(component(number_input))]
+    #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
     #[gpui_form(component(number_input))]
-    pub balance: Decimal,
+    #[koruma(PositiveValidation::<_>)]
+    pub balance: f64,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,
@@ -68,7 +86,6 @@ pub struct User {
     #[gpui_form(component(switch))]
     pub enable_notifications: bool,
 
-    // Signals to use PreferedLanguage::default()
     #[gpui_form(component(select(default)))]
     pub preferred: PreferedLanguage,
 
@@ -79,195 +96,13 @@ pub struct User {
     pub birth_date: Option<chrono::NaiveDate>,
 
     #[gpui_form(skip)]
+    #[fluent_kv(skip)]
     pub skip_me: bool,
 }
 ```
 
-this would expand to a structure we normally would have to declare ourselves, reducing boilerplate
+## Prototyping
 
-```rs
-pub struct UserFormValueHolder {
-    pub username: String,
-    pub email: String,
-    pub age: u32,
-    pub balance: Decimal,
-    pub subscribe_newsletter: bool,
-    pub enable_notifications: bool,
-    pub preferred: PreferedLanguage,
-    pub country: EnumCountry,
-    pub birth_date: Option<chrono::NaiveDate>,
-    pub skip_me: bool,
-}
-impl From<User> for UserFormValueHolder
-where
-    String: ::core::default::Default,
-    u32: ::core::default::Default,
-    EnumCountry: ::core::default::Default,
-    chrono::NaiveDate: ::core::default::Default,
-{
-    fn from(from: User) -> Self {
-        Self {
-            username: from.username.unwrap_or_default(),
-            email: from.email,
-            age: from.age.unwrap_or_default(),
-            balance: from.balance,
-            subscribe_newsletter: from.subscribe_newsletter,
-            enable_notifications: from.enable_notifications,
-            preferred: from.preferred,
-            country: from.country.unwrap_or_default(),
-            birth_date: from.birth_date,
-            skip_me: from.skip_me,
-        }
-    }
-}
-impl From<UserFormValueHolder> for User {
-    fn from(from: UserFormValueHolder) -> Self {
-        Self {
-            username: Some(from.username),
-            email: from.email,
-            age: Some(from.age),
-            balance: from.balance,
-            subscribe_newsletter: from.subscribe_newsletter,
-            enable_notifications: from.enable_notifications,
-            preferred: from.preferred,
-            country: Some(from.country),
-            birth_date: from.birth_date,
-            skip_me: from.skip_me,
-        }
-    }
-}
-impl UserFormValueHolder {
-    pub fn try_from(
-        from: User,
-    ) -> Result<Self, ::gpui_form::unwrapped::UnwrappedError> {
-        Ok(Self {
-            username: from
-                .username
-                .ok_or(::gpui_form::unwrapped::UnwrappedError {
-                    field_name: "username",
-                })?,
-            email: from.email,
-            age: from
-                .age
-                .ok_or(::gpui_form::unwrapped::UnwrappedError {
-                    field_name: "age",
-                })?,
-            balance: from.balance,
-            subscribe_newsletter: from.subscribe_newsletter,
-            enable_notifications: from.enable_notifications,
-            preferred: from.preferred,
-            country: from
-                .country
-                .ok_or(::gpui_form::unwrapped::UnwrappedError {
-                    field_name: "country",
-                })?,
-            birth_date: from.birth_date,
-            skip_me: from.skip_me,
-        })
-    }
-}
-pub struct UserFormFields {
-    pub username_input: gpui::Entity<gpui_component::input::InputState>,
-    pub email_input: gpui::Entity<gpui_component::input::InputState>,
-    pub age_number_input: gpui::Entity<gpui_component::input::InputState>,
-    pub balance_number_input: gpui::Entity<gpui_component::input::InputState>,
-    pub preferred_select: gpui::Entity<
-        gpui_component::select::SelectState<Vec<PreferedLanguage>>,
-    >,
-    pub country_select: gpui::Entity<
-        gpui_component::select::SelectState<
-            gpui_component::select::SearchableVec<EnumCountry>,
-        >,
-    >,
-    pub birth_date_date_picker: gpui::Entity<
-        gpui_component::date_picker::DatePickerState,
-    >,
-}
-pub struct UserFormComponents;
-impl UserFormComponents {
-    pub fn username_input(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
-    ) -> gpui_component::input::InputState {
-        gpui_component::input::InputState::new(window, cx)
-    }
-    pub fn email_input(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
-    ) -> gpui_component::input::InputState {
-        gpui_component::input::InputState::new(window, cx)
-    }
-    pub fn age_number_input(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
-    ) -> gpui_component::input::InputState {
-        gpui_component::input::InputState::new(window, cx)
-            .validate(|s, _| s.parse::<u32>().is_ok())
-    }
-    pub fn balance_number_input(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<'_, gpui_component::input::InputState>,
-    ) -> gpui_component::input::InputState {
-        gpui_component::input::InputState::new(window, cx)
-            .validate(|s, _| s.parse::<Decimal>().is_ok())
-    }
-    pub fn preferred_select(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<
-            '_,
-            gpui_component::select::SelectState<Vec<PreferedLanguage>>,
-        >,
-    ) -> gpui_component::select::SelectState<Vec<PreferedLanguage>> {
-        use strum::IntoEnumIterator as _;
-        gpui_component::select::SelectState::new(
-            PreferedLanguage::iter().collect::<Vec<PreferedLanguage>>().into(),
-            Some(
-                gpui_component::IndexPath::new(
-                    PreferedLanguage::iter()
-                        .position(|x| x == PreferedLanguage::default())
-                        .unwrap(),
-                ),
-            ),
-            window,
-            cx,
-        )
-    }
-    pub fn country_select(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<
-            '_,
-            gpui_component::select::SelectState<
-                gpui_component::select::SearchableVec<EnumCountry>,
-            >,
-        >,
-    ) -> gpui_component::select::SelectState<
-        gpui_component::select::SearchableVec<EnumCountry>,
-    > {
-        use strum::IntoEnumIterator as _;
-        gpui_component::select::SelectState::new(
-            EnumCountry::iter().collect::<Vec<EnumCountry>>().into(),
-            Some(
-                gpui_component::IndexPath::new(
-                    EnumCountry::iter()
-                        .position(|x| x == EnumCountry::France)
-                        .unwrap(),
-                ),
-            ),
-            window,
-            cx,
-        )
-    }
-    pub fn birth_date_date_picker(
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<'_, gpui_component::date_picker::DatePickerState>,
-    ) -> gpui_component::date_picker::DatePickerState {
-        gpui_component::date_picker::DatePickerState::new(window, cx)
-    }
-}
-```
-
-## Bonus
-
-There's also a prototyping tool which you can customize to your needs (except the [gpui-form-prototyping-core](crates/gpui-form-prototyping-core))
+There's also a prototyping tool which you can customize to your needs (except the [gpui-form-prototyping-core](crates/gpui-form-prototyping-core), which you could fork)
 
 see examples's [README.md](examples/README.md)
