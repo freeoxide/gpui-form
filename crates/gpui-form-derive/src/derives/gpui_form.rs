@@ -230,6 +230,7 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
 
 /// Extracts the last path segment identifier from an expression.
 /// Handles both `Expr::Path` and nested expressions for call-like validators.
+#[allow(dead_code)]
 fn extract_path_last_ident(expr: &syn::Expr) -> Option<String> {
     match expr {
         syn::Expr::Path(path_expr) => path_expr.path.segments.last().map(|s| s.ident.to_string()),
@@ -286,7 +287,7 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
 fn generate_value_holder(
     struct_name: &Ident,
     fields: &[FieldOptionality],
-    fluent: bool,
+    _fluent: bool,
 ) -> (TokenStream, Vec<String>) {
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
@@ -295,7 +296,7 @@ fn generate_value_holder(
     // - Any field needs RequiredValidation (non-optional wrapped in Option)
     let has_any_koruma = fields.iter().any(|f| !f.koruma_attrs.is_empty());
     let has_any_required = fields.iter().any(|f| f.wrap_in_option && !f.was_optional);
-    let needs_koruma_derive = has_any_koruma || has_any_required;
+    let _needs_koruma_derive = has_any_koruma || has_any_required;
 
     // Generate value holder fields with koruma attributes
     // - Fields with wrap_in_option=true become Option<inner_type>
@@ -427,8 +428,11 @@ fn generate_value_holder(
         .collect();
 
     // Generate derive attributes conditionally
-    let derive_attrs = if needs_koruma_derive {
-        if fluent {
+    // Generate derive attributes conditionally
+    // Generate derive attributes conditionally
+    #[cfg(feature = "koruma")]
+    let derive_attrs = if _needs_koruma_derive {
+        if _fluent {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
         } else {
             quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
@@ -436,6 +440,8 @@ fn generate_value_holder(
     } else {
         quote! { #[derive(Clone, Debug)] }
     };
+    #[cfg(not(feature = "koruma"))]
+    let derive_attrs = quote! { #[derive(Clone, Debug)] };
 
     let tokens = quote! {
         #derive_attrs
@@ -521,6 +527,7 @@ fn expand_gpui_form(
     };
 
     // Extract koruma validation names (for metadata)
+    #[cfg(feature = "koruma")]
     let koruma_validations: HashMap<String, Vec<String>> = match &derive_input.data {
         syn::Data::Struct(data_struct) => data_struct
             .fields
@@ -560,8 +567,11 @@ fn expand_gpui_form(
             .collect(),
         _ => HashMap::new(),
     };
+    #[cfg(not(feature = "koruma"))]
+    let koruma_validations: HashMap<String, Vec<String>> = HashMap::new();
 
     // Extract koruma attributes (for copying to value holder)
+    #[cfg(feature = "koruma")]
     let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = match &derive_input.data {
         syn::Data::Struct(data_struct) => data_struct
             .fields
@@ -579,6 +589,8 @@ fn expand_gpui_form(
             .collect(),
         _ => HashMap::new(),
     };
+    #[cfg(not(feature = "koruma"))]
+    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = HashMap::new();
 
     // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
     if fields_iter.is_empty() {

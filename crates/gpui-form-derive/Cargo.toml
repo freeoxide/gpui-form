@@ -38,6 +38,7 @@ workspace = true
 default = [  ]
 fluent = [  ]
 inventory = [  ]
+koruma = [  ]
 
 [dev-dependencies]
 insta = { workspace = true }
