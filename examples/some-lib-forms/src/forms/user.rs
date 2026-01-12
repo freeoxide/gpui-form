@@ -255,7 +255,7 @@ impl UserForm {
 }
 impl Render for UserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let validation_errors = User::from(self.current_data.clone()).validate().err();
+        let validation_errors = self.current_data.validate().err();
         v_flex()
             .key_context(CONTEXT)
             .id("user-form")
