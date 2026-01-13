@@ -79,14 +79,12 @@ impl FromMeta for NumberInputOptions {
         let mut r#as = None;
 
         for item in items {
-            if let darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv)) = item {
-                if nv.path.is_ident("as") {
-                    if let syn::Expr::Path(expr_path) = &nv.value {
-                        if let Some(ident) = expr_path.path.get_ident() {
-                            r#as = Some(ident.clone());
-                        }
-                    }
-                }
+            if let darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv)) = item
+                && nv.path.is_ident("as")
+                && let syn::Expr::Path(expr_path) = &nv.value
+                && let Some(ident) = expr_path.path.get_ident()
+            {
+                r#as = Some(ident.clone());
             }
         }
 
