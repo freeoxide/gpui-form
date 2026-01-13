@@ -15,7 +15,7 @@ clippy:
     cargo clippy --workspace --all-features --exclude some-lib-forms
 
 check:
-    cargo check --workspace --all-features
+    cargo check --workspace --all-features --exclude some-lib-forms
 
 test:
     cargo test --workspace --all-features

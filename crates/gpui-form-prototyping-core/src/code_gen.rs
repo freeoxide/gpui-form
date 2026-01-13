@@ -5,9 +5,9 @@ use quote::quote;
 
 use super::implementations::{
     ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator,
-    date_picker::DatePickerCodeGenerator, input::InputCodeGenerator,
-    number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
-    switch::SwitchCodeGenerator, tuple_select::TupleSelectCodeGenerator,
+    date_picker::DatePickerCodeGenerator, infinite_select::InfiniteSelectCodeGenerator,
+    input::InputCodeGenerator, number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
+    switch::SwitchCodeGenerator,
 };
 
 fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
@@ -17,8 +17,8 @@ fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
         ComponentsBehaviour::Checkbox => FieldGenerator::Checkbox(CheckboxCodeGenerator),
         ComponentsBehaviour::Switch => FieldGenerator::Switch(SwitchCodeGenerator),
         ComponentsBehaviour::Select(_) => FieldGenerator::Select(SelectCodeGenerator),
-        ComponentsBehaviour::TupleSelect(_) => {
-            FieldGenerator::TupleSelect(TupleSelectCodeGenerator)
+        ComponentsBehaviour::InfiniteSelect(_) => {
+            FieldGenerator::InfiniteSelect(InfiniteSelectCodeGenerator)
         },
         ComponentsBehaviour::DatePicker => FieldGenerator::DatePicker(DatePickerCodeGenerator),
     }

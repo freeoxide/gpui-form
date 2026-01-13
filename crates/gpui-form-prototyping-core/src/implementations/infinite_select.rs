@@ -9,9 +9,9 @@ use crate::implementations::ComponentIdentities as _;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
-pub struct TupleSelectCodeGenerator;
+pub struct InfiniteSelectCodeGenerator;
 
-impl FieldCodeGenerator for TupleSelectCodeGenerator {
+impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
@@ -57,8 +57,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             });
 
             let #master_var_name_ident = cx.new(|cx| {
-                let items: Vec<gpui_form::component::tuple_select::TupleSelectItem<#struct_name_ident>> =
-                    gpui_form::component::tuple_select::tuple_enum_to_select_items::<#struct_name_ident>();
+                let items: Vec<gpui_form::component::infinite_select::InfiniteSelectItem<#struct_name_ident>> =
+                    gpui_form::component::infinite_select::tuple_enum_to_select_items::<#struct_name_ident>();
                 gpui_component::select::SelectState::new(items, #master_selected_index_ident, window, cx)
             });
         })
@@ -83,7 +83,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         Some(quote! {
             #master_var_name_ident,
             #child_selects_var_name_ident,
-            #path_var_name_ident: gpui_form::component::tuple_select::TupleSelectPath::new(),
+            #path_var_name_ident: gpui_form::component::infinite_select::InfiniteSelectPath::new(),
         })
     }
 
@@ -162,10 +162,10 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let struct_name_ident = field.struct_name_ident();
         let form_components_struct_ident = component.struct_form_components_ident();
 
-        let searchable = if let ComponentsBehaviour::TupleSelect(config) = &field.behaviour {
+        let searchable = if let ComponentsBehaviour::InfiniteSelect(config) = &field.behaviour {
             config.searchable
         } else {
-            panic!("Expected TupleSelect behaviour")
+            panic!("Expected InfiniteSelect behaviour")
         };
 
         let master_var_name = format!("{}_master_select", field.field_name);
@@ -205,8 +205,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let master_handler = quote! {
             fn #master_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form::component::tuple_select::TupleSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form::component::tuple_select::TupleSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#struct_name_ident>>>>,
+                event: &SelectEvent<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#struct_name_ident>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
@@ -236,8 +236,8 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
         let child_handler = quote! {
             fn #child_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form::component::tuple_select::TupleSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form::component::tuple_select::TupleSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#struct_name_ident>>>>,
+                event: &SelectEvent<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#struct_name_ident>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
@@ -309,7 +309,7 @@ impl FieldCodeGenerator for TupleSelectCodeGenerator {
             syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
 
         Some(quote! {
-            let mut #path_var_name_ident = gpui_form::component::tuple_select::TupleSelectPath::new();
+            let mut #path_var_name_ident = gpui_form::component::infinite_select::InfiniteSelectPath::new();
             #path_var_name_ident.set(0, #initial_variant_idx_ident);
 
             let #child_selects_var_name_ident = #form_components_struct_ident::#child_helper_fn_name_ident(

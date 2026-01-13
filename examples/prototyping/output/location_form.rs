@@ -12,7 +12,7 @@ use gpui_component::{
     select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch, v_flex,
 };
-use gpui_form::component::tuple_select::TupleEnumInner;
+use gpui_form::component::infinite_select::InfiniteSelect;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
 const CONTEXT: &str = "LocationFormForm";
@@ -70,11 +70,11 @@ impl LocationFormForm {
         &mut self,
         this: &Entity<
             SelectState<
-                Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+                Vec<gpui_form::component::infinite_select::InfiniteSelectItem<Country>>,
             >,
         >,
         event: &SelectEvent<
-            Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+            Vec<gpui_form::component::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -104,11 +104,11 @@ impl LocationFormForm {
         &mut self,
         this: &Entity<
             SelectState<
-                Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+                Vec<gpui_form::component::infinite_select::InfiniteSelectItem<Country>>,
             >,
         >,
         event: &SelectEvent<
-            Vec<gpui_form::component::tuple_select::TupleSelectItem<Country>>,
+            Vec<gpui_form::component::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -168,8 +168,8 @@ impl LocationFormForm {
         let location_master_select = cx
             .new(|cx| {
                 let items: Vec<
-                    gpui_form::component::tuple_select::TupleSelectItem<Country>,
-                > = gpui_form::component::tuple_select::tuple_enum_to_select_items::<
+                    gpui_form::component::infinite_select::InfiniteSelectItem<Country>,
+                > = gpui_form::component::infinite_select::tuple_enum_to_select_items::<
                     Country,
                 >();
                 gpui_component::select::SelectState::new(
@@ -184,7 +184,7 @@ impl LocationFormForm {
             .subscribe_in(& location_master_select, window,
             Self::on_location_master_select_event)
         ];
-        let mut location_path = gpui_form::component::tuple_select::TupleSelectPath::new();
+        let mut location_path = gpui_form::component::infinite_select::InfiniteSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(
             &original_data.location,
@@ -204,7 +204,7 @@ impl LocationFormForm {
                 name_input,
                 location_master_select,
                 location_child_selects,
-                location_path: gpui_form::component::tuple_select::TupleSelectPath::new(),
+                location_path: gpui_form::component::infinite_select::InfiniteSelectPath::new(),
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,

@@ -246,7 +246,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           switch::Switch,
           v_flex,
       };
-      use gpui_form::component::tuple_select::TupleEnumInner;
+      use gpui_form::component::infinite_select::InfiniteSelect;
       use std::sync::Arc;
       use es_fluent::{ThisFtl as _, ToFluentString as _};
 

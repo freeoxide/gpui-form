@@ -1,10 +1,10 @@
 pub mod checkbox;
 pub mod date_picker;
+pub mod infinite_select;
 pub mod input;
 pub mod number_input;
 pub mod select;
 pub mod switch;
-pub mod tuple_select;
 
 use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use heck::ToSnakeCase as _;
@@ -16,7 +16,7 @@ pub enum FieldGenerator {
     Checkbox(checkbox::CheckboxCodeGenerator),
     Switch(switch::SwitchCodeGenerator),
     Select(select::SelectCodeGenerator),
-    TupleSelect(tuple_select::TupleSelectCodeGenerator),
+    InfiniteSelect(infinite_select::InfiniteSelectCodeGenerator),
     DatePicker(date_picker::DatePickerCodeGenerator),
 }
 
@@ -28,7 +28,7 @@ impl FieldGenerator {
             FieldGenerator::Checkbox(generator) => generator,
             FieldGenerator::Switch(generator) => generator,
             FieldGenerator::Select(generator) => generator,
-            FieldGenerator::TupleSelect(generator) => generator,
+            FieldGenerator::InfiniteSelect(generator) => generator,
             FieldGenerator::DatePicker(generator) => generator,
         }
     }

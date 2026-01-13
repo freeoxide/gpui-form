@@ -14,7 +14,7 @@ struct VariantArgs {
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(tuple_enum), forward_attrs(fluent_kv), supports(enum_any))]
-struct TupleEnumInnerArgs {
+struct InfiniteSelectArgs {
     ident: Ident,
 
     data: darling::ast::Data<VariantArgs, ()>,
@@ -34,7 +34,7 @@ struct VariantInfo {
 pub fn from(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
 
-    let args = match TupleEnumInnerArgs::from_derive_input(&input) {
+    let args = match InfiniteSelectArgs::from_derive_input(&input) {
         Ok(args) => args,
 
         Err(err) => return err.write_errors().into(),
@@ -122,7 +122,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                             None
                         } else {
                             panic!(
-                                "TupleEnumInner only supports single-element tuple variants, got {} elements in {}",
+                                "InfiniteSelect only supports single-element tuple variants, got {} elements in {}",
                                 v.fields.fields.len(),
                                 v.ident
                             );
@@ -131,7 +131,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     darling::ast::Style::Unit => None,
                     darling::ast::Style::Struct => {
                         panic!(
-                            "TupleEnumInner does not support struct variants: {}",
+                            "InfiniteSelect does not support struct variants: {}",
                             v.ident
                         );
                     }
@@ -145,7 +145,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             })
             .collect(),
-        _ => unreachable!("TupleEnumInner only supports enums"),
+        _ => unreachable!("InfiniteSelect only supports enums"),
     };
 
     // Check if all variants are unit variants
@@ -203,7 +203,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
                     Self::#vident(_) => {
-                        <#inner_ty as gpui_form::component::tuple_select::TupleEnumInner>::variants()
+                        <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::variants()
                             .into_iter()
                             .map(|v| v.variant_name())
                             .collect()
@@ -271,7 +271,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
                     Self::#vident(_) => {
-                        let children = <#inner_ty as gpui_form::component::tuple_select::TupleEnumInner>::variants();
+                        let children = <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::variants();
                         children.get(index).map(|child| Self::#vident(child.clone()))
                     }
                 }
@@ -293,7 +293,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                         if path.is_empty() {
                             return None;
                         }
-                        let children = <#inner_ty as gpui_form::component::tuple_select::TupleEnumInner>::variants();
+                        let children = <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::variants();
                         let child = children.get(path[0])?.clone();
                         if path.len() == 1 {
                             // Last element in path - just set the child
@@ -319,7 +319,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             } else {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
-                    Self::#vident(_) => <#inner_ty as gpui_form::component::tuple_select::TupleEnumInner>::depth(),
+                    Self::#vident(_) => <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::depth(),
                 }
             }
         })
@@ -382,7 +382,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             .filter(|v| !v.is_unit)
             .map(|v| {
                 let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! { <#inner_ty as gpui_form::component::tuple_select::TupleEnumInner>::depth() }
+                quote! { <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::depth() }
             })
             .collect();
         quote! {
@@ -391,7 +391,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl gpui_form::component::tuple_select::TupleEnumInner for #enum_ident {
+        impl gpui_form::component::infinite_select::InfiniteSelect for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*

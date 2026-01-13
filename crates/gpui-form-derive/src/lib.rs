@@ -22,15 +22,15 @@ pub fn derive_select_item_for_ftl_enum(input: TokenStream) -> TokenStream {
     derives::select_item::from(input)
 }
 
-/// Derive macro for tuple enums to expose their inner values.
+/// Derive macro for infinite select enums to expose their inner values.
 ///
-/// This macro generates an implementation of `TupleEnumInner` trait which allows
+/// This macro generates an implementation of `InfiniteSelect` trait which allows
 /// accessing the inner value of tuple variants and enables cascading select behavior.
 ///
 /// # Example
 ///
 /// ```ignore
-/// #[derive(TupleEnumInner)]
+/// #[derive(InfiniteSelect)]
 /// enum Country {
 ///     USA(USAState),
 ///     Canada(CanadaProvince),
@@ -40,8 +40,8 @@ pub fn derive_select_item_for_ftl_enum(input: TokenStream) -> TokenStream {
 ///
 /// All tuple variants must have the same inner type. Unit variants are allowed
 /// and will return `None` from `inner()`.
-#[proc_macro_derive(TupleEnumInner, attributes(tuple_enum))]
+#[proc_macro_derive(InfiniteSelect, attributes(tuple_enum))]
 #[proc_macro_error]
-pub fn derive_tuple_enum_inner(input: TokenStream) -> TokenStream {
-    derives::tuple_enum_inner::from(input)
+pub fn derive_infinite_select(input: TokenStream) -> TokenStream {
+    derives::infinite_select::from(input)
 }

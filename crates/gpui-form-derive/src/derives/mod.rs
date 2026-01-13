@@ -1,3 +1,3 @@
 pub mod gpui_form;
+pub mod infinite_select;
 pub mod select_item;
-pub mod tuple_enum_inner;

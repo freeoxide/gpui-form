@@ -1,17 +1,17 @@
-//! Example of nested tuple enums for location selection.
+//! Example of nested infinite select enums for location selection.
 //!
 //! This demonstrates a 3-level hierarchy: Country -> State/Province -> City
-//! using the TupleEnumInner derive macro.
+//! using the InfiniteSelect derive macro.
 
 use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
-use gpui_form::TupleEnumInner;
+use gpui_form::InfiniteSelect;
 use strum::EnumIter;
 
 // ============================================================================
 // Level 3: Cities (leaf nodes - no inner values)
 // ============================================================================
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum CaliforniaCity {
     #[default]
@@ -22,7 +22,7 @@ pub enum CaliforniaCity {
     Sacramento,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum TexasCity {
     #[default]
@@ -33,7 +33,7 @@ pub enum TexasCity {
     FortWorth,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum NewYorkCity {
     #[default]
@@ -44,7 +44,7 @@ pub enum NewYorkCity {
     Syracuse,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum OntarioCity {
     #[default]
@@ -55,7 +55,7 @@ pub enum OntarioCity {
     London,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum QuebecCity {
     #[default]
@@ -66,7 +66,7 @@ pub enum QuebecCity {
     Longueuil,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin)]
 pub enum BritishColumbiaCity {
     #[default]
@@ -81,7 +81,7 @@ pub enum BritishColumbiaCity {
 // Level 2: States/Provinces (contain cities)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub enum USAState {
@@ -96,7 +96,7 @@ impl Default for USAState {
     }
 }
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub enum CanadaProvince {
@@ -115,7 +115,7 @@ impl Default for CanadaProvince {
 // Level 1: Countries (contain states/provinces)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, PartialEq, TupleEnumInner)]
+#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 pub enum Country {
@@ -130,7 +130,7 @@ impl Default for Country {
 }
 
 // ============================================================================
-// Form struct using the nested tuple enum
+// Form struct using the nested infinite select enum
 // ============================================================================
 
 use gpui_form::GpuiForm;
@@ -145,14 +145,16 @@ pub struct LocationForm {
     pub name: String,
 
     /// Location selection using cascading selects
-    #[gpui_form(component(tuple_select(default)))]
+    #[gpui_form(component(infinite_select(default)))]
     pub location: Country,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_form::component::tuple_select::{TupleEnumInner, TupleSelectPath, build_from_path};
+    use gpui_form::component::infinite_select::{
+        InfiniteSelect, InfiniteSelectPath, build_from_path,
+    };
 
     #[test]
     fn test_depth_calculation() {
@@ -235,7 +237,7 @@ mod tests {
     #[test]
     fn test_path_building() {
         // Build USA -> Texas -> Austin
-        let mut path = TupleSelectPath::new();
+        let mut path = InfiniteSelectPath::new();
         path.set(0, 0); // USA
         path.set(1, 1); // Texas
         path.set(2, 2); // Austin
