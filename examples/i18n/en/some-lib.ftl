@@ -40,7 +40,7 @@ canada_province_label_kv_ftl-Quebec = Quebec
 ## Country
 
 country_this = Country
-country-Canada = Canada { $f0 }
+country-Canada = Canada { $province }
 country-USA = Usa { $f0 }
 
 ## CountryDescriptionKvFtl

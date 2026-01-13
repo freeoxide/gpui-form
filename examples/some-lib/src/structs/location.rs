@@ -120,7 +120,7 @@ impl Default for CanadaProvince {
 #[fluent_kv(keys = ["description", "label"])]
 pub enum Country {
     USA(USAState),
-    Canada(CanadaProvince),
+    Canada { province: CanadaProvince },
 }
 
 impl Default for Country {
@@ -200,7 +200,9 @@ mod tests {
         assert_eq!(child_names[1], "Texas");
         assert_eq!(child_names[2], "NewYork");
 
-        let canada = Country::Canada(CanadaProvince::default());
+        let canada = Country::Canada {
+            province: CanadaProvince::default(),
+        };
         let child_names = canada.child_variant_names();
         assert_eq!(child_names.len(), 3);
         assert_eq!(child_names[0], "Ontario");
