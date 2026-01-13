@@ -5,7 +5,7 @@ use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
     general::RequiredValidation,
-    numeric::{PositiveValidation, RangeValidation},
+    numeric::{NegativeValidation, PositiveValidation, RangeValidation},
     string::{PrefixValidation, SuffixValidation},
 };
 use rust_decimal::Decimal;
@@ -46,9 +46,13 @@ pub struct User {
     #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(number_input))]
+    #[gpui_form(component(number_input(as = f64)))]
     #[koruma(PositiveValidation::<_>)]
     pub balance: Decimal,
+
+    #[gpui_form(component(number_input(as = f64)))]
+    #[koruma(NegativeValidation::<_>)]
+    pub debt: Decimal,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,

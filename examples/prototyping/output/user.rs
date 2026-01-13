@@ -169,7 +169,7 @@ impl UserForm {
                             .current_data
                             .balance
                             .unwrap_or_default()
-                            .saturating_sub(1.into());
+                            .saturating_sub(1u8.into());
                         self.current_data.balance = Some(new_value.into());
                         this.update(
                             cx,
@@ -183,8 +183,65 @@ impl UserForm {
                             .current_data
                             .balance
                             .unwrap_or_default()
-                            .saturating_add(1.into());
+                            .saturating_add(1u8.into());
                         self.current_data.balance = Some(new_value.into());
+                        this.update(
+                            cx,
+                            |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            },
+                        );
+                    }
+                }
+            }
+        }
+    }
+    fn on_debt_input_event(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                let text = state.read(_cx).value();
+                self.current_data.debt = text.parse::<Decimal>().ok();
+            }
+            _ => {}
+        }
+    }
+    fn on_debt_number_input_event(
+        &mut self,
+        this: &Entity<InputState>,
+        event: &NumberInputEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            NumberInputEvent::Step(step_action) => {
+                match step_action {
+                    StepAction::Decrement => {
+                        let new_value = self
+                            .current_data
+                            .debt
+                            .unwrap_or_default()
+                            .saturating_sub(1u8.into());
+                        self.current_data.debt = Some(new_value.into());
+                        this.update(
+                            cx,
+                            |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            },
+                        );
+                    }
+                    StepAction::Increment => {
+                        let new_value = self
+                            .current_data
+                            .debt
+                            .unwrap_or_default()
+                            .saturating_add(1u8.into());
+                        self.current_data.debt = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -247,6 +304,8 @@ impl UserForm {
             .new(|cx| UserFormComponents::age_number_input(window, cx));
         let balance_number_input = cx
             .new(|cx| UserFormComponents::balance_number_input(window, cx));
+        let debt_number_input = cx
+            .new(|cx| UserFormComponents::debt_number_input(window, cx));
         let preferred_select = cx
             .new(|cx| UserFormComponents::preferred_select(window, cx));
         let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
@@ -260,9 +319,12 @@ impl UserForm {
             cx.subscribe_in(& balance_number_input, window,
             Self::on_balance_input_event), cx.subscribe_in(& balance_number_input,
             window, Self::on_balance_number_input_event), cx.subscribe_in(&
-            preferred_select, window, Self::on_preferred_select_event), cx.subscribe_in(&
-            country_select, window, Self::on_country_select_event), cx.subscribe_in(&
-            birth_date_date_picker, window, Self::on_birth_date_date_picker_event)
+            debt_number_input, window, Self::on_debt_input_event), cx.subscribe_in(&
+            debt_number_input, window, Self::on_debt_number_input_event), cx
+            .subscribe_in(& preferred_select, window, Self::on_preferred_select_event),
+            cx.subscribe_in(& country_select, window, Self::on_country_select_event), cx
+            .subscribe_in(& birth_date_date_picker, window,
+            Self::on_birth_date_date_picker_event)
         ];
         Self {
             original_data: Arc::new(original_data.clone()),
@@ -272,6 +334,7 @@ impl UserForm {
                 email_input,
                 age_number_input,
                 balance_number_input,
+                debt_number_input,
                 preferred_select,
                 country_select,
                 birth_date_date_picker,
@@ -473,6 +536,51 @@ impl Render for UserForm {
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
+                    )
+                    .child(
+                        field()
+                            .label(UserLabelKvFtl::Debt.to_fluent_string())
+                            .description_fn({
+                                let description = UserDescriptionKvFtl::Debt
+                                    .to_fluent_string();
+                                let error = {
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.debt().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| v.to_fluent_string())
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
+                                };
+                                let error_color = cx.theme().danger;
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                        .when(
+                                            error.is_some(),
+                                            |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(error_color)
+                                                        .child(error.clone().unwrap_or_default()),
+                                                )
+                                            },
+                                        )
+                                }
+                            })
+                            .child(NumberInput::new(&self.fields.debt_number_input)),
                     )
                     .child(
                         field()
