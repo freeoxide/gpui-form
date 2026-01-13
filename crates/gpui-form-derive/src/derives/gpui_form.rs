@@ -98,15 +98,15 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
                 )
             }
         },
-        Components::TupleSelect(options) => {
+        Components::InfiniteSelect(options) => {
             let searchable = options.behaviour.searchable;
             let max_depth = match options.behaviour.max_depth {
                 Some(d) => quote! { Some(#d) },
                 None => quote! { None },
             };
             quote! {
-                ::gpui_form::core::components::ComponentsBehaviour::TupleSelect(
-                    ::gpui_form::core::components::BehaviourTupleSelectOptions {
+                ::gpui_form::core::components::ComponentsBehaviour::InfiniteSelect(
+                    ::gpui_form::core::components::BehaviourInfiniteSelectOptions {
                         searchable: #searchable,
                         max_depth: #max_depth,
                     }
@@ -203,8 +203,8 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_base_declarations_tokens,
             );
         },
-        Components::TupleSelect(options) => {
-            let component = TupleSelectComponent(FieldInformation::new(
+        Components::InfiniteSelect(options) => {
+            let component = InfiniteSelectComponent(FieldInformation::new(
                 options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),

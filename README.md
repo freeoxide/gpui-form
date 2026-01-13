@@ -15,7 +15,7 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 
 ## Custom components
 
-- [Tuple Select](<>)
+- [Infinite Select](<>)
 
 Compatibility of `gpui-form` versions:
 

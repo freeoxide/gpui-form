@@ -3,13 +3,13 @@ use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-impl super::ComponentLayout for TupleSelectComponent {
+impl super::ComponentLayout for InfiniteSelectComponent {
     fn field_tokens(
         &self,
         field_structure_tokens: &mut TokenStream,
         field_base_declarations_tokens: &mut TokenStream,
     ) {
-        let FieldInformation::<TupleSelectOptions> {
+        let FieldInformation::<InfiniteSelectOptions> {
             options,
             name,
             r#type,
@@ -31,7 +31,7 @@ impl super::ComponentLayout for TupleSelectComponent {
         };
 
         let master_state_type = quote! {
-            #SelectState<#vec_type<gpui_form::component::tuple_select::TupleSelectItem<#r#type>>>
+            #SelectState<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#r#type>>>
         };
 
         let child_selects_field_name = quote::format_ident!("{}_child_selects", name);
@@ -43,7 +43,7 @@ impl super::ComponentLayout for TupleSelectComponent {
             /// The dynamic list of child selects for nested variants
             pub #child_selects_field_name: Vec<#Entity<#master_state_type>>,
             /// The selection path tracking all levels of the hierarchy
-            pub #path_field_name: gpui_form::component::tuple_select::TupleSelectPath,
+            pub #path_field_name: gpui_form::component::infinite_select::InfiniteSelectPath,
         };
 
         // Generate initialization methods
@@ -52,7 +52,7 @@ impl super::ComponentLayout for TupleSelectComponent {
             quote! {
                 Some(
                     #IndexPath::new(
-                        <#r#type as gpui_form::component::tuple_select::TupleEnumInner>::variants()
+                        <#r#type as gpui_form::component::infinite_select::InfiniteSelect>::variants()
                             .iter()
                             .position(|x| x.variant_name() == #path.variant_name())
                             .unwrap()
@@ -68,10 +68,10 @@ impl super::ComponentLayout for TupleSelectComponent {
         };
 
         let field_base_declaration = quote! {
-            /// Initialize the master select for the tuple enum outer variants
+            /// Initialize the master select for the infinite select enum outer variants
             pub fn #master_field_name(window: &mut #Window, cx: &mut #Context<'_, #master_state_type>) -> #master_state_type {
-                let items: Vec<gpui_form::component::tuple_select::TupleSelectItem<#r#type>> =
-                    gpui_form::component::tuple_select::tuple_enum_to_select_items::<#r#type>();
+                let items: Vec<gpui_form::component::infinite_select::InfiniteSelectItem<#r#type>> =
+                    gpui_form::component::infinite_select::to_select_items::<#r#type>();
 
                 #SelectState::new(items.into(), #index, window, cx)
             }
@@ -79,7 +79,7 @@ impl super::ComponentLayout for TupleSelectComponent {
             /// Get the child variant names for a given parent value.
             /// Returns the names of variants available at the next level.
             pub fn #path_field_name(parent: &#r#type) -> Vec<&'static str> {
-                use gpui_form::component::tuple_select::TupleEnumInner as _;
+                use gpui_form::component::infinite_select::InfiniteSelect as _;
                 parent.child_variant_names()
             }
 
@@ -94,12 +94,12 @@ impl super::ComponentLayout for TupleSelectComponent {
             ) -> Vec<#Entity<#master_state_type>>
             where V: 'static
             {
-                use gpui_form::component::tuple_select::{TupleEnumInner, TupleSelectItem};
+                use gpui_form::component::infinite_select::{InfiniteSelect, InfiniteSelectItem};
                 use #SelectState;
                 use #IndexPath;
                 use #AppContext;
 
-                let max_depth = <#r#type as TupleEnumInner>::depth();
+                let max_depth = <#r#type as InfiniteSelect>::depth();
                 let mut current_value = parent.clone();
                 let mut selects = Vec::new();
 
@@ -115,7 +115,7 @@ impl super::ComponentLayout for TupleSelectComponent {
                     }
 
                     // Create items for this level
-                    let items: Vec<TupleSelectItem<#r#type>> = child_names
+                    let items: Vec<InfiniteSelectItem<#r#type>> = child_names
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, name)| {
@@ -124,7 +124,7 @@ impl super::ComponentLayout for TupleSelectComponent {
                             } else {
                                 current_value.inner_set_child_by_index(idx)
                             };
-                            variant.map(|v| TupleSelectItem::new(v, name.to_string()))
+                            variant.map(|v| InfiniteSelectItem::new(v, name.to_string()))
                         })
                         .collect();
 

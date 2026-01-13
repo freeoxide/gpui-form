@@ -1,4 +1,4 @@
-//! TupleSelect - A cascading select component for tuple enums
+//! InfiniteSelect - A cascading select component for infinite select enums
 //!
 //! This module provides support for enums where variants contain inner values,
 //! creating a master-slave relationship between selects. Supports infinite nesting depth
@@ -6,8 +6,11 @@
 //!
 //! # Example
 //!
+//! Both tuple-style and struct-style variants are supported:
+//!
 //! ```ignore
-//! #[derive(Clone, Debug, Default, TupleEnumInner)]
+//! // Tuple-style variants
+//! #[derive(Clone, Debug, Default, InfiniteSelect)]
 //! enum Country {
 //!     #[default]
 //!     USA(USAState),
@@ -15,7 +18,16 @@
 //!     Germany(GermanyState),
 //! }
 //!
-//! #[derive(Clone, Debug, Default, TupleEnumInner)]
+//! // Struct-style variants
+//! #[derive(Clone, Debug, Default, InfiniteSelect)]
+//! enum Country {
+//!     #[default]
+//!     USA { state: USAState },
+//!     Canada { province: CanadaProvince },
+//!     Germany { state: GermanyState },
+//! }
+//!
+//! #[derive(Clone, Debug, Default, InfiniteSelect)]
 //! enum USAState {
 //!     #[default]
 //!     California(CaliforniaCity),
@@ -23,7 +35,7 @@
 //!     NewYork(NewYorkCity),
 //! }
 //!
-//! #[derive(Clone, Debug, Default, TupleEnumInner)]
+//! #[derive(Clone, Debug, Default, InfiniteSelect)]
 //! enum CaliforniaCity {
 //!     #[default]
 //!     LosAngeles,
@@ -42,9 +54,9 @@
 use gpui::SharedString;
 use gpui_component::select::SelectItem;
 
-/// Trait for tuple enums that expose their inner type.
+/// Trait for infinite select enums that expose their inner type.
 ///
-/// This trait is derived using `#[derive(TupleEnumInner)]` and provides
+/// This trait is derived using `#[derive(InfiniteSelect)]` and provides
 /// the ability to:
 /// - Get all variants at the current level
 /// - Get child variant names for cascading selects
@@ -52,7 +64,7 @@ use gpui_component::select::SelectItem;
 ///
 /// Unlike a simple associated type approach, this trait supports heterogeneous
 /// inner types - each variant can contain a different type.
-pub trait TupleEnumInner: Sized + Clone + Default + 'static {
+pub trait InfiniteSelect: Sized + Clone + Default + 'static {
     /// Returns all possible variants at this level (with default inner values).
     fn variants() -> Vec<Self>;
 
@@ -116,18 +128,18 @@ pub trait TupleEnumInner: Sized + Clone + Default + 'static {
     fn inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 }
 
-/// A wrapper for tuple enum variants that implements SelectItem.
+/// A wrapper for infinite select enum variants that implements SelectItem.
 ///
-/// This allows tuple enum variants to be displayed in a select dropdown
+/// This allows infinite select enum variants to be displayed in a select dropdown
 /// while preserving access to their inner values.
 #[derive(Clone)]
-pub struct TupleSelectItem<T: TupleEnumInner> {
+pub struct InfiniteSelectItem<T: InfiniteSelect> {
     value: T,
     title: SharedString,
 }
 
-impl<T: TupleEnumInner> TupleSelectItem<T> {
-    /// Create a new TupleSelectItem with a custom title.
+impl<T: InfiniteSelect> InfiniteSelectItem<T> {
+    /// Create a new InfiniteSelectItem with a custom title.
     pub fn new(value: T, title: impl Into<SharedString>) -> Self {
         Self {
             value,
@@ -135,7 +147,7 @@ impl<T: TupleEnumInner> TupleSelectItem<T> {
         }
     }
 
-    /// Create a TupleSelectItem using the variant name as the title.
+    /// Create a InfiniteSelectItem using the variant name as the title.
     pub fn from_variant(value: T) -> Self {
         let title = value.variant_name();
         Self {
@@ -170,7 +182,7 @@ impl<T: TupleEnumInner> TupleSelectItem<T> {
     }
 }
 
-impl<T: TupleEnumInner> SelectItem for TupleSelectItem<T> {
+impl<T: InfiniteSelect> SelectItem for InfiniteSelectItem<T> {
     type Value = T;
 
     fn title(&self) -> SharedString {
@@ -182,26 +194,26 @@ impl<T: TupleEnumInner> SelectItem for TupleSelectItem<T> {
     }
 }
 
-/// Helper function to create select items from tuple enum variants.
-pub fn tuple_enum_to_select_items<T>() -> Vec<TupleSelectItem<T>>
+/// Helper function to create select items from infinite select enum variants.
+pub fn to_select_items<T>() -> Vec<InfiniteSelectItem<T>>
 where
-    T: TupleEnumInner,
+    T: InfiniteSelect,
 {
     T::variants()
         .into_iter()
-        .map(TupleSelectItem::from_variant)
+        .map(InfiniteSelectItem::from_variant)
         .collect()
 }
 
-/// Represents a selection path through nested tuple enums.
+/// Represents a selection path through nested infinite select enums.
 ///
 /// Each element is the index of the selected variant at that depth level.
 #[derive(Clone, Debug, Default)]
-pub struct TupleSelectPath {
+pub struct InfiniteSelectPath {
     indices: Vec<usize>,
 }
 
-impl TupleSelectPath {
+impl InfiniteSelectPath {
     /// Create a new empty selection path.
     pub fn new() -> Self {
         Self {
@@ -264,13 +276,13 @@ impl TupleSelectPath {
 /// # Example
 /// ```ignore
 /// // Build Country::USA(USAState::Texas(TexasCity::Austin))
-/// let mut path = TupleSelectPath::new();
+/// let mut path = InfiniteSelectPath::new();
 /// path.set(0, 0); // USA (index 0)
 /// path.set(1, 1); // Texas (index 1 within USAState)
 /// path.set(2, 2); // Austin (index 2 within TexasCity)
 /// let country: Country = build_from_path(&path).unwrap();
 /// ```
-pub fn build_from_path<T: TupleEnumInner>(path: &TupleSelectPath) -> Option<T> {
+pub fn build_from_path<T: InfiniteSelect>(path: &InfiniteSelectPath) -> Option<T> {
     if path.is_empty() {
         return None;
     }
