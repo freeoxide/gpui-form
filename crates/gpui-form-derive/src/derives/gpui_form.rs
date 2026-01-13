@@ -8,6 +8,26 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
 
+/// Known koruma modifiers that are not validators and should be filtered out
+/// when copying koruma attributes to the value holder.
+const KORUMA_MODIFIERS: &[&str] = &["newtype", "try_new", "skip"];
+
+/// Checks if an expression is a koruma modifier (not a validator).
+/// Modifiers are simple identifiers like `newtype`, `try_new`, `skip`.
+fn is_koruma_modifier(expr: &syn::Expr) -> bool {
+    if let syn::Expr::Path(path_expr) = expr {
+        // Must be a single-segment path (just an identifier, no :: or type params)
+        if path_expr.path.segments.len() == 1 {
+            let segment = &path_expr.path.segments[0];
+            // Must have no type arguments (modifiers are bare identifiers)
+            if segment.arguments.is_empty() {
+                return KORUMA_MODIFIERS.contains(&segment.ident.to_string().as_str());
+            }
+        }
+    }
+    false
+}
+
 #[derive(Clone, Debug, Default, FromMeta)]
 struct KorumaOptions {
     #[darling(default)]
@@ -334,7 +354,12 @@ fn generate_value_holder(
                         )
                         .ok()
                         .map(|exprs| {
-                            exprs.into_iter().map(|e| e.to_token_stream()).collect::<Vec<_>>()
+                            // Filter out koruma modifiers (newtype, try_new, skip) - they're not validators
+                            exprs
+                                .into_iter()
+                                .filter(|e| !is_koruma_modifier(e))
+                                .map(|e| e.to_token_stream())
+                                .collect::<Vec<_>>()
                         })
                     })
                     .flatten()
@@ -548,6 +573,10 @@ fn expand_gpui_form(
                                 syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
                             ) {
                                 for expr in exprs {
+                                    // Skip koruma modifiers (newtype, try_new, skip)
+                                    if is_koruma_modifier(&expr) {
+                                        continue;
+                                    }
                                     // Extract the validator name from the expression
                                     let validator_name = match &expr {
                                         // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
