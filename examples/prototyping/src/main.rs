@@ -35,6 +35,10 @@ fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
     for component in &components[src_index + 1..] {
         if let std::path::Component::Normal(s) = component {
             let segment = s.to_str()?;
+            // Skip mod.rs - the module is the parent directory
+            if segment == "mod.rs" {
+                continue;
+            }
             let segment = segment.strip_suffix(".rs").unwrap_or(segment);
             path_segments.push(segment.replace('-', "_"));
         }
