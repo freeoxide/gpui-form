@@ -107,7 +107,7 @@ fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
         Components::Input => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::Input }
         },
-        Components::NumberInput => {
+        Components::NumberInput(_) => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::NumberInput }
         },
         Components::Checkbox => {
@@ -189,9 +189,9 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
                 &mut field_base_declarations_tokens,
             );
         },
-        Components::NumberInput => {
+        Components::NumberInput(options) => {
             let component = NumberInputComponent(FieldInformation::new(
-                NumberInputOptions,
+                options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),
             ));

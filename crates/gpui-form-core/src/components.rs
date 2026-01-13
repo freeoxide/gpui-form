@@ -63,8 +63,34 @@ impl SelectOptions {
 #[derive(Clone, ComponentOption, Debug, Default, FromMeta)]
 pub struct InputOptions;
 
-#[derive(Clone, ComponentOption, Debug, Default, FromMeta)]
-pub struct NumberInputOptions;
+#[derive(Clone, ComponentOption, Debug, Default)]
+pub struct NumberInputOptions {
+    /// For custom numeric types (like Decimal), specify a standard numeric type
+    /// for validation purposes (e.g., f64, i32, u64)
+    pub r#as: Option<syn::Ident>,
+}
+
+impl FromMeta for NumberInputOptions {
+    fn from_word() -> darling::Result<Self> {
+        Ok(NumberInputOptions::default())
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let mut r#as = None;
+
+        for item in items {
+            if let darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv)) = item
+                && nv.path.is_ident("as")
+                && let syn::Expr::Path(expr_path) = &nv.value
+                && let Some(ident) = expr_path.path.get_ident()
+            {
+                r#as = Some(ident.clone());
+            }
+        }
+
+        Ok(NumberInputOptions { r#as })
+    }
+}
 
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
 pub struct CheckboxOptions;
@@ -122,7 +148,7 @@ impl InfiniteSelectOptions {
 #[darling(rename_all = "snake_case")]
 pub enum Components {
     Input,
-    NumberInput,
+    NumberInput(NumberInputOptions),
     Checkbox,
     Switch,
     Select(SelectOptions),
@@ -138,7 +164,7 @@ impl Components {
     pub fn wraps_in_option(&self) -> bool {
         match self {
             // Text-based inputs: empty string represents "no value"
-            Components::Input | Components::NumberInput => true,
+            Components::Input | Components::NumberInput(_) => true,
             // Always have a defined state (checked/unchecked, selected item)
             Components::Checkbox
             | Components::Switch

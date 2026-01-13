@@ -10,7 +10,7 @@ impl super::ComponentLayout for NumberInputComponent {
         field_base_declarations_tokens: &mut TokenStream,
     ) {
         let FieldInformation::<NumberInputOptions> {
-            options: _,
+            options,
             name,
             r#type,
         } = &self.0;
@@ -24,8 +24,28 @@ impl super::ComponentLayout for NumberInputComponent {
             pub #field_name_ident: #Entity<#InputState>,
         };
 
-        let validation_logic = quote! {
-            .validate(|value, _| value.parse::<#r#type>().is_ok())
+        // Determine if we have an `as` attribute for custom types
+        let has_as_type = options.r#as.is_some();
+
+        // Use the `as` option if provided for validation type detection, otherwise use the field type
+        let validation_type_ident = options.r#as.as_ref().unwrap_or(r#type);
+        let type_str = validation_type_ident.to_string();
+        let is_signed = type_str.starts_with('i') || type_str.starts_with('f');
+
+        let validation_logic = if is_signed {
+            let require_parse = !has_as_type;
+            quote! {
+                .validate(|value, _| {
+                    ::gpui_form::numeric::validate_signed_numeric::<#r#type>(value, #require_parse)
+                })
+            }
+        } else {
+            let require_parse = !has_as_type;
+            quote! {
+                .validate(|value, _| {
+                    ::gpui_form::numeric::validate_unsigned_numeric::<#r#type>(value, #require_parse)
+                })
+            }
         };
 
         let field_base_declaration = quote! {
