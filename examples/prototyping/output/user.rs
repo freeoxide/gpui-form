@@ -15,6 +15,7 @@ use gpui_component::{
 use gpui_form::component::infinite_select::InfiniteSelect;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
+use rust_decimal::Decimal;
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -148,7 +149,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.balance = text.parse::<f64>().ok();
+                self.current_data.balance = text.parse::<Decimal>().ok();
             }
             _ => {}
         }
@@ -164,9 +165,12 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            - 1.0;
-                        self.current_data.balance = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .balance
+                            .unwrap_or_default()
+                            .saturating_sub(1.into());
+                        self.current_data.balance = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -175,9 +179,12 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            + 1.0;
-                        self.current_data.balance = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .balance
+                            .unwrap_or_default()
+                            .saturating_add(1.into());
+                        self.current_data.balance = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {

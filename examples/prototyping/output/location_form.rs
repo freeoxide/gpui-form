@@ -15,6 +15,7 @@ use gpui_component::{
 use gpui_form::component::infinite_select::InfiniteSelect;
 use std::sync::Arc;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
+use rust_decimal::Decimal;
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

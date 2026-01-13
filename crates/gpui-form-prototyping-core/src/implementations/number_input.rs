@@ -142,15 +142,15 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 },
             )
         } else {
-            // External types (e.g., Decimal) - assume saturating operations with From<i32>
+            // Other types (e.g., Decimal, Newtype) - assume saturating
             (
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_sub(#field_type_path::from(1));
-                    self.current_data.#field_name_ident = Some(new_value);
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_sub(1.into());
+                    self.current_data.#field_name_ident = Some(new_value.into());
                 },
                 quote! {
-                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_add(#field_type_path::from(1));
-                    self.current_data.#field_name_ident = Some(new_value);
+                    let new_value = self.current_data.#field_name_ident.unwrap_or_default().saturating_add(1.into());
+                    self.current_data.#field_name_ident = Some(new_value.into());
                 },
             )
         };

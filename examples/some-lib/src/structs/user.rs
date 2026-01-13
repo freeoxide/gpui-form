@@ -8,6 +8,7 @@ use koruma_collection::{
     numeric::{PositiveValidation, RangeValidation},
     string::{PrefixValidation, SuffixValidation},
 };
+use rust_decimal::Decimal;
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
@@ -47,7 +48,7 @@ pub struct User {
 
     #[gpui_form(component(number_input))]
     #[koruma(PositiveValidation::<_>)]
-    pub balance: f64,
+    pub balance: Decimal,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,
