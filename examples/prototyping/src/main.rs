@@ -193,19 +193,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
     let event_handlers_tokens = adapter.event_handlers().unwrap_or_default();
 
     // For empty structs, don't generate FormValueHolder, FormErrors, or FormErrorsFtl
-    let (
-        error_ftl_enum,
-        current_data_field,
-        errors_field,
-        current_data_init,
-        errors_init,
-        fields_init,
-        debug_child,
-    ) = if is_empty {
+    let (current_data_field, current_data_init, fields_init, debug_child) = if is_empty {
         (
-            quote! {},
-            quote! {},
-            quote! {},
             quote! {},
             quote! {},
             quote! { fields: #struct_name_form_fields_ident, },
@@ -213,11 +202,8 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         )
     } else {
         (
-            quote! {},
             quote! { current_data: #struct_name_uw_ident, },
-            quote! {},
             quote! { current_data: original_data.into(), },
-            quote! {},
             quote! {
                 fields: #struct_name_form_fields_ident {
                     #field_initializers_tokens
@@ -249,8 +235,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       use gpui_form::component::infinite_select::InfiniteSelect;
       use std::sync::Arc;
       use es_fluent::{ThisFtl as _, ToFluentString as _};
-
-      #error_ftl_enum
     };
 
     let layout_tokens = quote! {
@@ -266,7 +250,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
       pub struct #struct_name_form_ident {
           original_data: Arc<#struct_name_ident>,
           #current_data_field
-          #errors_field
           fields: #struct_name_form_fields_ident,
           focus_handle: FocusHandle,
           #subscriptions_field
@@ -305,7 +288,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
               Self {
                   original_data: Arc::new(original_data.clone()),
                   #current_data_init
-                  #errors_init
                   #fields_init
                   focus_handle: cx.focus_handle(),
                   #subscriptions_init
