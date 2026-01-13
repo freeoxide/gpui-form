@@ -169,9 +169,7 @@ impl LocationFormForm {
             .new(|cx| {
                 let items: Vec<
                     gpui_form::component::infinite_select::InfiniteSelectItem<Country>,
-                > = gpui_form::component::infinite_select::to_select_items::<
-                    Country,
-                >();
+                > = gpui_form::component::infinite_select::to_select_items::<Country>();
                 gpui_component::select::SelectState::new(
                     items,
                     master_selected_index_location,

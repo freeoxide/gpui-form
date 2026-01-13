@@ -15,7 +15,6 @@ use gpui_component::{
     v_flex,
 };
 use gpui_form::component::infinite_select::InfiniteSelect;
-use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 use std::sync::Arc;
 const CONTEXT: &str = "LocationFormForm";
@@ -259,7 +258,6 @@ impl Render for LocationFormForm {
                                     })
                                     .child(Select::new(child))
                             })
-                            .collect::<Vec<_>>()
                     }),
             )
             .child(Divider::horizontal())
