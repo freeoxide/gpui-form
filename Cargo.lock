@@ -1778,7 +1778,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2743,6 +2743,7 @@ dependencies = [
  "heck 0.5.0",
  "insta",
  "itertools 0.14.0",
+ "koruma-derive-core",
  "prettyplease",
  "proc-macro-error2",
  "proc-macro2",
@@ -3428,7 +3429,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#0ff90d6da0253b0f7efc5f775fb74cbdb39f421a"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3439,7 +3440,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#0ff90d6da0253b0f7efc5f775fb74cbdb39f421a"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3453,15 +3454,26 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#0ff90d6da0253b0f7efc5f775fb74cbdb39f421a"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 
 [[package]]
 name = "koruma-derive"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#0ff90d6da0253b0f7efc5f775fb74cbdb39f421a"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "heck 0.5.0",
+ "koruma-derive-core",
  "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
+name = "koruma-derive-core"
+version = "0.3.0"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -4011,7 +4023,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5295,7 +5307,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5308,7 +5320,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5830,6 +5842,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
+ "windows-sys 0.52.0",
  "windows-sys 0.59.0",
 ]
 
@@ -6180,7 +6193,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.3",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7144,7 +7157,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

@@ -4,9 +4,39 @@ use darling::{FromDeriveInput, FromField, FromMeta, ast};
 use gpui_form_core::components::*;
 use gpui_form_core::implementations::ComponentLayout as _;
 use itertools::Itertools as _;
+use koruma_derive_core::{FieldInfo as KorumaFieldInfo, ParseFieldResult, ValidatorAttr};
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
+
+/// Convert a ValidatorAttr to a TokenStream for generating koruma attribute.
+/// This produces tokens like `ValidatorPath::<Type>(arg1 = val1, arg2 = val2)`.
+fn validator_attr_to_tokens(validator: &ValidatorAttr) -> TokenStream {
+    let path = &validator.validator;
+
+    // Build the type parameters if present
+    let type_params = if validator.infer_type {
+        quote! { ::<_> }
+    } else if let Some(explicit_ty) = &validator.explicit_type {
+        quote! { ::<#explicit_ty> }
+    } else {
+        quote! {}
+    };
+
+    // Build the arguments if present
+    let args = if validator.args.is_empty() {
+        quote! {}
+    } else {
+        let arg_tokens: Vec<_> = validator
+            .args
+            .iter()
+            .map(|(name, expr)| quote! { #name = #expr })
+            .collect();
+        quote! { (#(#arg_tokens),*) }
+    };
+
+    quote! { #path #type_params #args }
+}
 
 #[derive(Clone, Debug, Default, FromMeta)]
 struct KorumaOptions {
@@ -40,8 +70,8 @@ struct FieldOptionality {
     /// Whether this field should be wrapped in Option in the value holder
     /// (true for component fields that need unwrapping behavior)
     wrap_in_option: bool,
-    /// The original koruma attributes on this field (to be copied to value holder)
-    koruma_attrs: Vec<syn::Attribute>,
+    /// Parsed koruma validators for this field (from koruma_derive_core)
+    koruma_validators: Vec<ValidatorAttr>,
 }
 
 #[derive(Debug, FromField)]
@@ -234,16 +264,6 @@ fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
     }
 }
 
-/// Extracts the last path segment identifier from an expression.
-/// Handles both `Expr::Path` and nested expressions for call-like validators.
-#[allow(dead_code)]
-fn extract_path_last_ident(expr: &syn::Expr) -> Option<String> {
-    match expr {
-        syn::Expr::Path(path_expr) => path_expr.path.segments.last().map(|s| s.ident.to_string()),
-        _ => None,
-    }
-}
-
 fn extract_type_ident(ty: &Type) -> Ident {
     match ty {
         Type::Path(type_path) => {
@@ -299,45 +319,35 @@ fn generate_value_holder(
     let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
 
     // Check if we need to derive Koruma:
-    // - Any field has koruma attributes
-    let has_any_koruma = fields.iter().any(|f| !f.koruma_attrs.is_empty());
+    // - Any field has koruma validators
+    let has_any_koruma = fields.iter().any(|f| !f.koruma_validators.is_empty());
     // - Any field needs RequiredValidation (non-optional wrapped in Option AND has other validations)
     let has_any_required = fields
         .iter()
-        .any(|f| f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty());
+        .any(|f| f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty());
     let _needs_koruma_derive = has_any_koruma || has_any_required;
 
     // Generate value holder fields with koruma attributes
     // - Fields with wrap_in_option=true become Option<inner_type>
     // - Other fields keep their original type
-    // - Copy koruma attributes from original fields
+    // - Copy koruma validators from original fields (using koruma_derive_core parsed data)
     // - Add RequiredValidation::<Option<_>> for non-optional fields wrapped in Option IF they have other validations
     let value_holder_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
             let name = &f.field_name;
-            let koruma_attrs = &f.koruma_attrs;
 
             // Determine if we need to add RequiredValidation
             // (non-optional field that gets wrapped in Option AND has other validations)
-            let needs_required = f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty();
+            let needs_required = f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty();
 
             // Build the koruma attribute(s) for this field
-            let koruma_attr = if needs_required || !koruma_attrs.is_empty() {
-                // Extract existing koruma validations as token streams
-                let existing_validations: Vec<TokenStream> = koruma_attrs
+            let koruma_attr = if needs_required || !f.koruma_validators.is_empty() {
+                // Convert parsed validators to token streams
+                let existing_validations: Vec<TokenStream> = f
+                    .koruma_validators
                     .iter()
-                    .filter_map(|attr| {
-                        // Parse the attribute arguments
-                        attr.parse_args_with(
-                            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
-                        )
-                        .ok()
-                        .map(|exprs| {
-                            exprs.into_iter().map(|e| e.to_token_stream()).collect::<Vec<_>>()
-                        })
-                    })
-                    .flatten()
+                    .map(validator_attr_to_tokens)
                     .collect();
 
                 // Build the combined koruma attribute
@@ -432,7 +442,7 @@ fn generate_value_holder(
     // AND have custom validations (these require RequiredValidation)
     let fields_requiring_required: Vec<String> = fields
         .iter()
-        .filter(|f| f.wrap_in_option && !f.was_optional && !f.koruma_attrs.is_empty())
+        .filter(|f| f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty())
         .map(|f| f.field_name.to_string())
         .collect();
 
@@ -531,43 +541,19 @@ fn expand_gpui_form(
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
 
-    // Extract koruma validation names (for metadata)
-    let koruma_validations: HashMap<String, Vec<String>> = if enable_koruma {
+    // Parse koruma fields using koruma_derive_core for proper attribute parsing
+    // This replaces manual parsing and gives us both validation names and ValidatorAttr structs
+    let parsed_koruma_fields: HashMap<String, KorumaFieldInfo> = if enable_koruma {
         match &derive_input.data {
             syn::Data::Struct(data_struct) => data_struct
                 .fields
                 .iter()
                 .filter_map(|field| {
                     let ident = field.ident.as_ref()?.to_string();
-                    let mut validations = Vec::new();
-                    for attr in &field.attrs {
-                        if attr.path().is_ident("koruma") {
-                            // Parse as expressions to handle both simple paths and call-like validators
-                            // e.g., `NonEmptyValidation::<_>` and `PrefixValidation::<_>(prefix = "Xx")`
-                            if let Ok(exprs) = attr.parse_args_with(
-                                syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
-                            ) {
-                                for expr in exprs {
-                                    // Extract the validator name from the expression
-                                    let validator_name = match &expr {
-                                        // Handle call expressions like `PrefixValidation::<_>(prefix = "Xx")`
-                                        syn::Expr::Call(call) => {
-                                            extract_path_last_ident(&call.func)
-                                        }
-                                        // Handle simple path expressions like `NonEmptyValidation::<_>`
-                                        syn::Expr::Path(path_expr) => {
-                                            path_expr.path.segments.last().map(|s| s.ident.to_string())
-                                        }
-                                        _ => None,
-                                    };
-                                    if let Some(name) = validator_name {
-                                        validations.push(name);
-                                    }
-                                }
-                            }
-                        }
+                    match koruma_derive_core::parse_field(field) {
+                        ParseFieldResult::Valid(info) => Some((ident, info)),
+                        ParseFieldResult::Skip | ParseFieldResult::Error(_) => None,
                     }
-                    Some((ident, validations))
                 })
                 .collect(),
             _ => HashMap::new(),
@@ -576,28 +562,18 @@ fn expand_gpui_form(
         HashMap::new()
     };
 
-    // Extract koruma attributes (for copying to value holder)
-    let koruma_attrs_map: HashMap<String, Vec<syn::Attribute>> = if enable_koruma {
-        match &derive_input.data {
-            syn::Data::Struct(data_struct) => data_struct
-                .fields
+    // Extract koruma validation names (for metadata) from parsed data
+    let koruma_validations: HashMap<String, Vec<String>> = parsed_koruma_fields
+        .iter()
+        .map(|(name, info)| {
+            let validator_names: Vec<String> = info
+                .field_validators
                 .iter()
-                .filter_map(|field| {
-                    let ident = field.ident.as_ref()?.to_string();
-                    let koruma_attrs: Vec<syn::Attribute> = field
-                        .attrs
-                        .iter()
-                        .filter(|attr| attr.path().is_ident("koruma"))
-                        .cloned()
-                        .collect();
-                    Some((ident, koruma_attrs))
-                })
-                .collect(),
-            _ => HashMap::new(),
-        }
-    } else {
-        HashMap::new()
-    };
+                .map(|v| v.name().to_string())
+                .collect();
+            (name.clone(), validator_names)
+        })
+        .collect();
 
     // Check if struct has no fields but is missing #[gpui_form(empty)] attribute
     if fields_iter.is_empty() {
@@ -647,10 +623,10 @@ fn expand_gpui_form(
                     .get(&field_name_str)
                     .copied()
                     .unwrap_or(false);
-            // Get koruma attributes for this field
-            let koruma_attrs = koruma_attrs_map
+            // Get parsed koruma validators for this field
+            let koruma_validators = parsed_koruma_fields
                 .get(&field_name_str)
-                .cloned()
+                .map(|info| info.field_validators.clone())
                 .unwrap_or_default();
             FieldOptionality {
                 field_name,
@@ -658,7 +634,7 @@ fn expand_gpui_form(
                 inner_type,
                 was_optional,
                 wrap_in_option,
-                koruma_attrs,
+                koruma_validators,
             }
         })
         .collect();
