@@ -28,7 +28,51 @@ struct VariantInfo {
 
     inner_type: Option<Type>,
 
+    /// For struct variants, the name of the field (e.g., `state` in `USA { state: USAState }`)
+    field_name: Option<Ident>,
+
     is_unit: bool,
+}
+
+impl VariantInfo {
+    /// Generate a match pattern that ignores the inner value (for patterns where we don't need the value)
+    /// Returns `Variant(_)` for tuple or `Variant { field: _ }` for struct
+    fn ignore_pattern(&self) -> proc_macro2::TokenStream {
+        let vident = &self.ident;
+        if self.is_unit {
+            quote! { Self::#vident }
+        } else if let Some(fname) = &self.field_name {
+            quote! { Self::#vident { #fname: _ } }
+        } else {
+            quote! { Self::#vident(_) }
+        }
+    }
+
+    /// Generate a match pattern that binds the inner value to `inner`
+    /// Returns `Variant(inner)` for tuple or `Variant { field: inner }` for struct
+    fn binding_pattern(&self) -> proc_macro2::TokenStream {
+        let vident = &self.ident;
+        if self.is_unit {
+            quote! { Self::#vident }
+        } else if let Some(fname) = &self.field_name {
+            quote! { Self::#vident { #fname: inner } }
+        } else {
+            quote! { Self::#vident(inner) }
+        }
+    }
+
+    /// Generate a constructor expression with a value
+    /// Returns `Variant(value)` for tuple or `Variant { field: value }` for struct
+    fn constructor(&self, value: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+        let vident = &self.ident;
+        if self.is_unit {
+            quote! { Self::#vident }
+        } else if let Some(fname) = &self.field_name {
+            quote! { Self::#vident { #fname: #value } }
+        } else {
+            quote! { Self::#vident(#value) }
+        }
+    }
 }
 
 pub fn from(input: TokenStream) -> TokenStream {
@@ -107,60 +151,75 @@ pub fn from(input: TokenStream) -> TokenStream {
         quote! { stringify!(#enum_ident).into() }
     };
 
-    let variants: Vec<VariantInfo> = match &args.data {
-
-
+    let variants: Result<Vec<VariantInfo>, syn::Error> = match &args.data {
         darling::ast::Data::Enum(variants) => variants
             .iter()
             .filter(|v| !v.skip)
             .map(|v| {
-                let inner_type = match &v.fields.style {
+                let (inner_type, field_name) = match &v.fields.style {
                     darling::ast::Style::Tuple => {
                         if v.fields.fields.len() == 1 {
-                            Some(v.fields.fields[0].ty.clone())
+                            (Some(v.fields.fields[0].ty.clone()), None)
                         } else if v.fields.fields.is_empty() {
-                            None
+                            (None, None)
                         } else {
-                            panic!(
-                                "InfiniteSelect only supports single-element tuple variants, got {} elements in {}",
-                                v.fields.fields.len(),
-                                v.ident
-                            );
+                            return Err(syn::Error::new_spanned(
+                                &v.ident,
+                                format!(
+                                    "InfiniteSelect only supports single-element tuple variants for tree construction, got {} elements in variant `{}`",
+                                    v.fields.fields.len(),
+                                    v.ident
+                                ),
+                            ));
                         }
                     }
-                    darling::ast::Style::Unit => None,
+                    darling::ast::Style::Unit => (None, None),
                     darling::ast::Style::Struct => {
-                        panic!(
-                            "InfiniteSelect does not support struct variants: {}",
-                            v.ident
-                        );
+                        if v.fields.fields.len() == 1 {
+                            let field = &v.fields.fields[0];
+                            let fname = field.ident.clone().expect("Struct field must have a name");
+                            (Some(field.ty.clone()), Some(fname))
+                        } else if v.fields.fields.is_empty() {
+                            (None, None)
+                        } else {
+                            return Err(syn::Error::new_spanned(
+                                &v.ident,
+                                format!(
+                                    "InfiniteSelect only supports single-field struct variants for tree construction, got {} fields in variant `{}`",
+                                    v.fields.fields.len(),
+                                    v.ident
+                                ),
+                            ));
+                        }
                     }
                 };
 
                 let is_unit = inner_type.is_none();
-                VariantInfo {
+                Ok(VariantInfo {
                     ident: v.ident.clone(),
                     inner_type,
+                    field_name,
                     is_unit,
-                }
+                })
             })
             .collect(),
         _ => unreachable!("InfiniteSelect only supports enums"),
     };
 
+    let variants = match variants {
+        Ok(v) => v,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
     // Check if all variants are unit variants
     let all_unit = variants.iter().all(|v| v.is_unit);
 
-    // Generate variants() items - for tuple variants, use Default::default() for inner
+    // Generate variants() items - for tuple/struct variants, use Default::default() for inner
     let variant_items: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
-            if v.is_unit {
-                quote! { Self::#vident, }
-            } else {
-                quote! { Self::#vident(Default::default()), }
-            }
+            let constructor = v.constructor(quote! { Default::default() });
+            quote! { #constructor, }
         })
         .collect();
 
@@ -168,13 +227,9 @@ pub fn from(input: TokenStream) -> TokenStream {
     let variant_name_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
-            let name = vident.to_string();
-            if v.is_unit {
-                quote! { Self::#vident => #name, }
-            } else {
-                quote! { Self::#vident(_) => #name, }
-            }
+            let pattern = v.ignore_pattern();
+            let name = v.ident.to_string();
+            quote! { #pattern => #name, }
         })
         .collect();
 
@@ -182,12 +237,9 @@ pub fn from(input: TokenStream) -> TokenStream {
     let has_inner_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
-            if v.is_unit {
-                quote! { Self::#vident => false, }
-            } else {
-                quote! { Self::#vident(_) => true, }
-            }
+            let pattern = v.ignore_pattern();
+            let has = !v.is_unit;
+            quote! { #pattern => #has, }
         })
         .collect();
 
@@ -196,13 +248,13 @@ pub fn from(input: TokenStream) -> TokenStream {
     let child_variant_names_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
+            let pattern = v.ignore_pattern();
             if v.is_unit {
-                quote! { Self::#vident => vec![], }
+                quote! { #pattern => vec![], }
             } else {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
-                    Self::#vident(_) => {
+                    #pattern => {
                         <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::variants()
                             .into_iter()
                             .map(|v| v.variant_name())
@@ -217,12 +269,13 @@ pub fn from(input: TokenStream) -> TokenStream {
     let inner_child_variant_names_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
+            let pattern = v.binding_pattern();
             if v.is_unit {
-                quote! { Self::#vident => vec![], }
+                let ignore_pattern = v.ignore_pattern();
+                quote! { #ignore_pattern => vec![], }
             } else {
                 quote! {
-                    Self::#vident(inner) => inner.child_variant_names(),
+                    #pattern => inner.child_variant_names(),
                 }
             }
         })
@@ -232,13 +285,15 @@ pub fn from(input: TokenStream) -> TokenStream {
     let inner_set_child_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
+                let pattern = v.binding_pattern();
+                let constructor = v.constructor(quote! { new_inner });
                 quote! {
-                    Self::#vident(inner) => {
-                        inner.set_child_by_index(index).map(|new_inner| Self::#vident(new_inner))
+                    #pattern => {
+                        inner.set_child_by_index(index).map(|new_inner| #constructor)
                     }
                 }
             }
@@ -249,12 +304,13 @@ pub fn from(input: TokenStream) -> TokenStream {
     let inner_has_inner_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => false, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => false, }
             } else {
+                let pattern = v.binding_pattern();
                 quote! {
-                    Self::#vident(inner) => inner.has_inner(),
+                    #pattern => inner.has_inner(),
                 }
             }
         })
@@ -264,15 +320,17 @@ pub fn from(input: TokenStream) -> TokenStream {
     let set_child_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
+                let pattern = v.ignore_pattern();
                 let inner_ty = v.inner_type.as_ref().unwrap();
+                let constructor = v.constructor(quote! { child.clone() });
                 quote! {
-                    Self::#vident(_) => {
+                    #pattern => {
                         let children = <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::variants();
-                        children.get(index).map(|child| Self::#vident(child.clone()))
+                        children.get(index).map(|child| #constructor)
                     }
                 }
             }
@@ -283,13 +341,16 @@ pub fn from(input: TokenStream) -> TokenStream {
     let set_child_by_path_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
+                let pattern = v.ignore_pattern();
                 let inner_ty = v.inner_type.as_ref().unwrap();
+                let constructor_child = v.constructor(quote! { child });
+                let constructor_updated = v.constructor(quote! { updated_child });
                 quote! {
-                    Self::#vident(_) => {
+                    #pattern => {
                         if path.is_empty() {
                             return None;
                         }
@@ -297,11 +358,11 @@ pub fn from(input: TokenStream) -> TokenStream {
                         let child = children.get(path[0])?.clone();
                         if path.len() == 1 {
                             // Last element in path - just set the child
-                            Some(Self::#vident(child))
+                            Some(#constructor_child)
                         } else {
                             // More path elements - recursively set on the child
                             let updated_child = child.set_child_by_path(&path[1..])?;
-                            Some(Self::#vident(updated_child))
+                            Some(#constructor_updated)
                         }
                     }
                 }
@@ -313,13 +374,13 @@ pub fn from(input: TokenStream) -> TokenStream {
     let child_depth_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
+            let pattern = v.ignore_pattern();
             if v.is_unit {
-                quote! { Self::#vident => 0, }
+                quote! { #pattern => 0, }
             } else {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
-                    Self::#vident(_) => <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::depth(),
+                    #pattern => <#inner_ty as gpui_form::component::infinite_select::InfiniteSelect>::depth(),
                 }
             }
         })
@@ -328,11 +389,12 @@ pub fn from(input: TokenStream) -> TokenStream {
     let inner_child_label_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
-                quote! { Self::#vident(inner) => inner.child_label_at_depth(depth), }
+                let pattern = v.binding_pattern();
+                quote! { #pattern => inner.child_label_at_depth(depth), }
             }
         })
         .collect();
@@ -340,11 +402,12 @@ pub fn from(input: TokenStream) -> TokenStream {
     let inner_child_description_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
-                quote! { Self::#vident(inner) => inner.child_description_at_depth(depth), }
+                let pattern = v.binding_pattern();
+                quote! { #pattern => inner.child_description_at_depth(depth), }
             }
         })
         .collect();
@@ -352,11 +415,12 @@ pub fn from(input: TokenStream) -> TokenStream {
     let child_label_immediate_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
-                quote! { Self::#vident(inner) => Some(inner.type_label()), }
+                let pattern = v.binding_pattern();
+                quote! { #pattern => Some(inner.type_label()), }
             }
         })
         .collect();
@@ -364,11 +428,12 @@ pub fn from(input: TokenStream) -> TokenStream {
     let child_description_immediate_arms: Vec<_> = variants
         .iter()
         .map(|v| {
-            let vident = &v.ident;
             if v.is_unit {
-                quote! { Self::#vident => None, }
+                let pattern = v.ignore_pattern();
+                quote! { #pattern => None, }
             } else {
-                quote! { Self::#vident(inner) => Some(inner.type_description()), }
+                let pattern = v.binding_pattern();
+                quote! { #pattern => Some(inner.type_description()), }
             }
         })
         .collect();

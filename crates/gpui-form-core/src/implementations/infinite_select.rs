@@ -71,7 +71,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             /// Initialize the master select for the infinite select enum outer variants
             pub fn #master_field_name(window: &mut #Window, cx: &mut #Context<'_, #master_state_type>) -> #master_state_type {
                 let items: Vec<gpui_form::component::infinite_select::InfiniteSelectItem<#r#type>> =
-                    gpui_form::component::infinite_select::tuple_enum_to_select_items::<#r#type>();
+                    gpui_form::component::infinite_select::to_select_items::<#r#type>();
 
                 #SelectState::new(items.into(), #index, window, cx)
             }

@@ -6,13 +6,25 @@
 //!
 //! # Example
 //!
+//! Both tuple-style and struct-style variants are supported:
+//!
 //! ```ignore
+//! // Tuple-style variants
 //! #[derive(Clone, Debug, Default, InfiniteSelect)]
 //! enum Country {
 //!     #[default]
 //!     USA(USAState),
 //!     Canada(CanadaProvince),
 //!     Germany(GermanyState),
+//! }
+//!
+//! // Struct-style variants
+//! #[derive(Clone, Debug, Default, InfiniteSelect)]
+//! enum Country {
+//!     #[default]
+//!     USA { state: USAState },
+//!     Canada { province: CanadaProvince },
+//!     Germany { state: GermanyState },
 //! }
 //!
 //! #[derive(Clone, Debug, Default, InfiniteSelect)]
@@ -183,7 +195,7 @@ impl<T: InfiniteSelect> SelectItem for InfiniteSelectItem<T> {
 }
 
 /// Helper function to create select items from infinite select enum variants.
-pub fn tuple_enum_to_select_items<T>() -> Vec<InfiniteSelectItem<T>>
+pub fn to_select_items<T>() -> Vec<InfiniteSelectItem<T>>
 where
     T: InfiniteSelect,
 {
