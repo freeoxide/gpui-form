@@ -192,7 +192,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let event_handlers_tokens = adapter.event_handlers().unwrap_or_default();
 
-    // For empty structs, don't generate FormValueHolder, FormErrors, or FormErrorsFtl
+    // For empty structs, don't generate current_data_field, current_data_init, and debug_child
     let (current_data_field, current_data_init, fields_init, debug_child) = if is_empty {
         (
             quote! {},
