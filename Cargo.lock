@@ -3429,7 +3429,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=derive-core#dbc2f9175f83a0e2f56af6123369649ed7ec9801"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3440,7 +3440,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=derive-core#dbc2f9175f83a0e2f56af6123369649ed7ec9801"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3454,12 +3454,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=derive-core#dbc2f9175f83a0e2f56af6123369649ed7ec9801"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 
 [[package]]
 name = "koruma-derive"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=derive-core#dbc2f9175f83a0e2f56af6123369649ed7ec9801"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -3472,7 +3472,7 @@ dependencies = [
 [[package]]
 name = "koruma-derive-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=derive-core#dbc2f9175f83a0e2f56af6123369649ed7ec9801"
+source = "git+https://github.com/stayhydated/koruma#b2137f5d0a49c7b158a4367fc0715c68f16bb7f5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5638,7 +5638,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
 dependencies = [
- "dirs 5.0.1",
+ "dirs 4.0.0",
 ]
 
 [[package]]
@@ -7157,7 +7157,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
