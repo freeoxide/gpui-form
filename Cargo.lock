@@ -3397,7 +3397,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#2ff44b8a57ff39098a5fc2612dc9be0d4d2e08eb"
+source = "git+https://github.com/stayhydated/koruma?branch=sch#8b64d67bbdeff8f53e2e18115de4c13530fa4d1c"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3408,7 +3408,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#2ff44b8a57ff39098a5fc2612dc9be0d4d2e08eb"
+source = "git+https://github.com/stayhydated/koruma?branch=sch#8b64d67bbdeff8f53e2e18115de4c13530fa4d1c"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3422,12 +3422,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#2ff44b8a57ff39098a5fc2612dc9be0d4d2e08eb"
+source = "git+https://github.com/stayhydated/koruma?branch=sch#8b64d67bbdeff8f53e2e18115de4c13530fa4d1c"
 
 [[package]]
 name = "koruma-derive"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#2ff44b8a57ff39098a5fc2612dc9be0d4d2e08eb"
+source = "git+https://github.com/stayhydated/koruma?branch=sch#8b64d67bbdeff8f53e2e18115de4c13530fa4d1c"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -3440,11 +3440,12 @@ dependencies = [
 [[package]]
 name = "koruma-derive-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#2ff44b8a57ff39098a5fc2612dc9be0d4d2e08eb"
+source = "git+https://github.com/stayhydated/koruma?branch=sch#8b64d67bbdeff8f53e2e18115de4c13530fa4d1c"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.114",
+ "syn-cfg-attr",
 ]
 
 [[package]]
@@ -6051,6 +6052,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "syn-cfg-attr"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4068c75d2063c41207d83c304d69ed62179b15d4246cd5b81459678e35caa788"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
 ]
 
 [[package]]

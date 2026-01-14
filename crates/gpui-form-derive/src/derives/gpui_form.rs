@@ -529,7 +529,8 @@ fn generate_value_holder(
 
             // Determine if we need to add RequiredValidation
             // (non-optional field that gets wrapped in Option AND has other validations)
-            let needs_required = f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty();
+            let needs_required =
+                f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty();
 
             // Build the koruma attribute(s) for this field
             let koruma_attr = if needs_required || !f.koruma_validators.is_empty() || f.is_newtype {
@@ -542,20 +543,22 @@ fn generate_value_holder(
 
                 // Build a combined list of all koruma items
                 let mut koruma_items: Vec<TokenStream> = Vec::new();
-                
+
                 // Add RequiredValidation if needed
                 if needs_required {
-                    koruma_items.push(quote! { koruma_collection::general::RequiredValidation::<Option<_>> });
+                    koruma_items.push(
+                        quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
+                    );
                 }
-                
+
                 // Add newtype flag if present
                 if f.is_newtype {
                     koruma_items.push(quote! { newtype });
                 }
-                
+
                 // Add existing validators
                 koruma_items.extend(existing_validations);
-                
+
                 // Generate the attribute if we have any items
                 if !koruma_items.is_empty() {
                     quote! { #[koruma(#(#koruma_items),*)] }
@@ -762,7 +765,7 @@ fn expand_gpui_form(
             .filter_map(|field| {
                 let ident = field.ident.as_ref()?.to_string();
                 match koruma_derive_core::parse_field(field) {
-                    ParseFieldResult::Valid(info) => Some((ident, info)),
+                    ParseFieldResult::Valid(info) => Some((ident, *info)),
                     ParseFieldResult::Skip | ParseFieldResult::Error(_) => None,
                 }
             })
