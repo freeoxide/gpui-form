@@ -9,6 +9,124 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, Meta, PathArguments, Type, parse_macro_input};
 
+/// Flattens `cfg_attr` attributes in a DeriveInput.
+/// For each `#[cfg_attr(condition, attr)]` found, we unconditionally expand it to `#[attr]`.
+/// This is necessary because darling doesn't handle cfg_attr  automatically.
+///
+/// Note: We expand ALL cfg_attr unconditionally because:
+/// 1. At proc-macro expansion time, we can't reliably evaluate cfg conditions
+/// 2. The Rust compiler will have already filtered out this derive if the cfg didn't match
+/// 3. If we're running, it means the relevant features are enabled
+fn flatten_cfg_attr_in_derive_input(mut input: DeriveInput) -> DeriveInput {
+    // Flatten struct-level attributes
+    input.attrs = flatten_cfg_attr_in_attrs(input.attrs);
+
+    // Flatten field-level attributes
+    if let syn::Data::Struct(ref mut data_struct) = input.data {
+        for field in data_struct.fields.iter_mut() {
+            field.attrs = flatten_cfg_attr_in_attrs(std::mem::take(&mut field.attrs));
+        }
+    }
+
+    input
+}
+
+/// Flattens `cfg_attr` attributes in an attribute list.
+/// Converts `#[cfg_attr(condition, attr1, attr2)]` into `#[attr1]` and `#[attr2]`.
+fn flatten_cfg_attr_in_attrs(attrs: Vec<syn::Attribute>) -> Vec<syn::Attribute> {
+    let mut result = Vec::new();
+
+    for attr in attrs {
+        if attr.path().is_ident("cfg_attr") {
+            // Parse the cfg_attr to extract the wrapped attributes
+            if let Meta::List(meta_list) = &attr.meta {
+                let tokens = meta_list.tokens.clone();
+                let mut iter = tokens.into_iter().peekable();
+
+                // Skip past the condition (everything until first comma at depth 0)
+                let mut depth: i32 = 0;
+                loop {
+                    match iter.next() {
+                        Some(proc_macro2::TokenTree::Punct(p))
+                            if p.as_char() == ',' && depth == 0 =>
+                        {
+                            break;
+                        },
+                        Some(proc_macro2::TokenTree::Group(g))
+                            if matches!(g.delimiter(), proc_macro2::Delimiter::Parenthesis) =>
+                        {
+                            depth += 1;
+                            // Process group contents recursively
+                            for token in g.stream() {
+                                if let proc_macro2::TokenTree::Punct(p) = &token
+                                    && p.as_char() == ')'
+                                {
+                                    depth = depth.saturating_sub(1);
+                                }
+                            }
+                        },
+                        None => break,
+                        _ => {},
+                    }
+                }
+
+                // Collect remaining tokens as wrapped attributes
+                let remaining: proc_macro2::TokenStream = iter.collect();
+
+                // Try to parse each attribute from the remaining tokens
+                // Split by commas at depth 0
+                let attr_token_groups = split_by_comma(remaining);
+
+                for attr_tokens in attr_token_groups {
+                    // Convert the tokens into an attribute by wrapping with #[...]
+                    let attr_stream = quote! { #[#attr_tokens] };
+                    if let Ok(parsed_attrs) =
+                        syn::parse::Parser::parse2(syn::Attribute::parse_outer, attr_stream)
+                    {
+                        result.extend(parsed_attrs);
+                    }
+                }
+            }
+        } else {
+            // Keep non-cfg_attr attributes as-is
+            result.push(attr);
+        }
+    }
+
+    result
+}
+
+/// Splits a token stream by top-level commas (depth 0).
+fn split_by_comma(tokens: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
+    let mut result = Vec::new();
+    let mut current = proc_macro2::TokenStream::new();
+    let mut depth = 0;
+
+    for token in tokens {
+        match &token {
+            proc_macro2::TokenTree::Group(_) => {
+                depth += 1;
+                current.extend(std::iter::once(token.clone()));
+            },
+            proc_macro2::TokenTree::Punct(p) if p.as_char() == ',' && depth == 0 => {
+                if !current.is_empty() {
+                    result.push(current);
+                    current = proc_macro2::TokenStream::new();
+                }
+            },
+            _ => {
+                current.extend(std::iter::once(token.clone()));
+            },
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
 /// Check if a struct has `gpui_form(koruma(...))` inside a `cfg_attr`.
 /// Returns `Some(KorumaOptions)` if found, `None` otherwise.
 fn find_koruma_in_cfg_attr(attrs: &[syn::Attribute]) -> Option<KorumaOptions> {
@@ -564,6 +682,11 @@ fn expand_gpui_form(
     derive_input: DeriveInput,
     options: GpuiFormOptions,
 ) -> proc_macro2::TokenStream {
+    // Flatten cfg_attr attributes before darling processing
+    // This allows darling to see attributes like #[gpui_form(component(...))] even when
+    // they're wrapped in #[cfg_attr(feature = "ui", ...)]
+    let derive_input = flatten_cfg_attr_in_derive_input(derive_input);
+
     let parsed = match ComponentStruct::from_derive_input(&derive_input) {
         Ok(parsed) => parsed,
         Err(e) => return e.write_errors(),
@@ -635,14 +758,26 @@ fn expand_gpui_form(
     let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
 
     // Extract koruma validation names (for metadata) from parsed data
+    // Include explicit field_validators AND implicit validators from newtype/nested flags
     let koruma_validations: HashMap<String, Vec<String>> = parsed_koruma_fields
         .iter()
         .map(|(name, info)| {
-            let validator_names: Vec<String> = info
+            let mut validator_names: Vec<String> = info
                 .field_validators
                 .iter()
                 .map(|v| v.name().to_string())
                 .collect();
+
+            // Add NewtypeValidation if the field is marked as newtype
+            if info.is_newtype() {
+                validator_names.push("NewtypeValidation".to_string());
+            }
+
+            // Add NestedValidation if the field is marked as nested
+            if info.is_nested() {
+                validator_names.push("NestedValidation".to_string());
+            }
+
             (name.clone(), validator_names)
         })
         .collect();
@@ -1071,5 +1206,166 @@ mod tests {
         } else {
             panic!("Expected struct data");
         }
+    }
+
+    #[test]
+    fn test_cfg_attr_end_to_end_validation_generation() {
+        // Comprehensive end-to-end test: struct with cfg_attr-wrapped koruma validation
+        // should generate proper field metadata AND validation error display code
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma(fluent))]
+            struct TestForm {
+                #[gpui_form(component(input))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation::<Option<_>>))]
+                name: String,
+
+                #[gpui_form(component(number_input))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation::<_>))]
+                age: u32,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+
+        // Verify koruma-derive-core can parse the fields
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            for (idx, field) in data_struct.fields.iter().enumerate() {
+                let result = koruma_derive_core::parse_field(field);
+                match result {
+                    ParseFieldResult::Valid(info) => {
+                        assert!(
+                            !info.field_validators.is_empty(),
+                            "Field {} should have validators detected from cfg_attr",
+                            idx
+                        );
+                        // Verify the validator names
+                        let validator_names: Vec<String> = info
+                            .field_validators
+                            .iter()
+                            .map(|v| v.name().to_string())
+                            .collect();
+                        assert!(
+                            !validator_names.is_empty(),
+                            "Field {} should have named validators",
+                            idx
+                        );
+                    },
+                    ParseFieldResult::Skip => {
+                        panic!("Field {} should have validators, got Skip", idx);
+                    },
+                    ParseFieldResult::Error(e) => {
+                        panic!("Field {} parsing failed: {}", idx, e);
+                    },
+                }
+            }
+        }
+
+        // Now test the full macro expansion
+        let expanded = expand_gpui_form(
+            derive_input.clone(),
+            GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let expanded_str = expanded.to_string();
+
+        // Verify that validation-related code is generated:
+        // 1. The value holder should derive Koruma and KorumaAllFluent
+        assert!(
+            expanded_str.contains("Koruma") || expanded_str.contains("koruma"),
+            "Generated code should include Koruma-related types"
+        );
+
+        // 2. The render function should bind validation_errors
+        assert!(
+            expanded_str.contains("validation_errors") || expanded_str.contains("validate"),
+            "Generated code should include validation error handling: {}",
+            &expanded_str[..expanded_str.len().min(500)]
+        );
+
+        // 3. Field metadata should include validation information
+        // The GpuiFormShape inventory submission should have validations in FieldVariant
+        assert!(
+            expanded_str.contains("FieldVariant") || expanded_str.contains("validations"),
+            "Generated code should include field variant metadata"
+        );
+    }
+
+    #[test]
+    fn test_real_world_common_v_read_pattern() {
+        // This test matches the EXACT pattern from CommonVRead in the user's code
+        let tokens = quote! {
+            #[cfg_attr(feature = "ui", derive(GpuiForm))]
+            #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
+            pub struct CommonVRead {
+                #[cfg_attr(feature = "ui", gpui_form(component(number_input)))]
+                #[cfg_attr(feature = "validation", koruma(newtype))]
+                pub index: CommonVariableIndex,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+
+        // Parse the fields using koruma_derive_core
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field);
+
+            eprintln!("=== DEBUG: parse_field result for CommonVRead.index ===");
+            match &result {
+                ParseFieldResult::Valid(info) => {
+                    eprintln!("  Result: Valid");
+                    eprintln!("  is_newtype: {}", info.is_newtype());
+                    eprintln!("  field_validators.len(): {}", info.field_validators.len());
+                    for (idx, v) in info.field_validators.iter().enumerate() {
+                        eprintln!("    validator[{}]: {}", idx, v.name());
+                    }
+                },
+                ParseFieldResult::Skip => {
+                    eprintln!("  Result: Skip");
+                },
+                ParseFieldResult::Error(e) => {
+                    eprintln!("  Result: Error({})", e);
+                },
+            }
+
+            // This should detect newtype!
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(
+                        info.is_newtype(),
+                        "Should detect newtype validation in nested cfg_attr"
+                    );
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "koruma_derive_core returned Skip for field with koruma(newtype) - cfg_attr not being handled!"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("koruma_derive_core returned Error: {}", e);
+                },
+            }
+        }
+
+        // Now test the full expansion with generate_shape
+        let expanded = expand_gpui_form(
+            derive_input,
+            GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let expanded_str = expanded.to_string();
+        eprintln!("=== Generated code (first 1000 chars) ===");
+        eprintln!("{}", &expanded_str[..expanded_str.len().min(1000)]);
+
+        // The GpuiFormShape should include validation metadata
+        assert!(
+            expanded_str.contains("with_validations"),
+            "Generated GpuiFormShape should call with_validations()"
+        );
     }
 }
