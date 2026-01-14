@@ -877,3 +877,199 @@ pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_ma
 
     expand_gpui_form(derive_input, options).into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_direct_koruma() {
+        // Test: #[cfg_attr(feature = "ui", gpui_form(koruma))]
+        let tokens = quote! {
+            #[cfg_attr(feature = "ui", gpui_form(koruma))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(result.is_some(), "Should find koruma in cfg_attr");
+        assert!(!result.unwrap().fluent, "fluent should be false");
+    }
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_with_fluent() {
+        // Test: #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
+        let tokens = quote! {
+            #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(result.is_some(), "Should find koruma in cfg_attr");
+        assert!(result.unwrap().fluent, "fluent should be true");
+    }
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_no_koruma() {
+        // Test: #[cfg_attr(feature = "ui", gpui_form(empty))]
+        let tokens = quote! {
+            #[cfg_attr(feature = "ui", gpui_form(empty))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(result.is_none(), "Should not find koruma");
+    }
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_not_cfg_attr() {
+        // Test: #[gpui_form(koruma(fluent))] - direct attribute, not cfg_attr
+        let tokens = quote! {
+            #[gpui_form(koruma(fluent))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(result.is_none(), "Should not find koruma in non-cfg_attr");
+    }
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_complex_condition() {
+        // Test: #[cfg_attr(all(feature = "ui", feature = "validation"), gpui_form(koruma(fluent)))]
+        let tokens = quote! {
+            #[cfg_attr(all(feature = "ui", feature = "validation"), gpui_form(koruma(fluent)))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(
+            result.is_some(),
+            "Should find koruma with complex condition"
+        );
+        assert!(result.unwrap().fluent, "fluent should be true");
+    }
+
+    #[test]
+    fn test_find_koruma_in_cfg_attr_multiple_attrs_in_cfg_attr() {
+        // Test: #[cfg_attr(feature = "ui", derive(Something), gpui_form(koruma))]
+        let tokens = quote! {
+            #[cfg_attr(feature = "ui", derive(Something), gpui_form(koruma))]
+            struct Test;
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
+        assert!(
+            result.is_some(),
+            "Should find koruma among multiple attrs in cfg_attr"
+        );
+    }
+
+    #[test]
+    fn test_koruma_field_parsing_with_cfg_attr() {
+        // Test that koruma_derive_core::parse_field works with cfg_attr
+        // This tests the integration with koruma's cfg_attr parsing
+        let tokens = quote! {
+            struct Test {
+                #[cfg_attr(feature = "validation", koruma(SomeValidator::<_>))]
+                field: u32,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field);
+
+            // This should find the validator if koruma_derive_core handles cfg_attr
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(
+                        !info.field_validators.is_empty(),
+                        "Should find validators in cfg_attr"
+                    );
+                    assert_eq!(
+                        info.field_validators[0].name().to_string(),
+                        "SomeValidator",
+                        "Should extract correct validator name"
+                    );
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
+        }
+    }
+
+    #[test]
+    fn test_koruma_field_parsing_newtype_in_cfg_attr() {
+        // Test parsing #[cfg_attr(feature = "validation", koruma(newtype))]
+        let tokens = quote! {
+            struct Test {
+                #[cfg_attr(feature = "validation", koruma(newtype))]
+                field: SomeNewtype,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field);
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(info.is_newtype(), "Should detect newtype in cfg_attr");
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for newtype"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
+        }
+    }
+
+    #[test]
+    fn test_koruma_field_parsing_nested_in_cfg_attr() {
+        // Test parsing #[cfg_attr(feature = "validation", koruma(nested))]
+        let tokens = quote! {
+            struct Test {
+                #[cfg_attr(feature = "validation", koruma(nested))]
+                field: NestedStruct,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field);
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(info.is_nested(), "Should detect nested in cfg_attr");
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for nested"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
+        }
+    }
+}
