@@ -4,7 +4,9 @@ use darling::{FromDeriveInput, FromField, FromMeta, ast};
 use gpui_form_core::components::*;
 use gpui_form_core::implementations::ComponentLayout as _;
 use itertools::Itertools as _;
-use koruma_derive_core::{FieldInfo as KorumaFieldInfo, ParseFieldResult, ValidatorAttr};
+use koruma_derive_core::{
+    FieldInfo as KorumaFieldInfo, ParseFieldResult, ValidationInfo, ValidatorAttr,
+};
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
@@ -102,12 +104,8 @@ struct FieldOptionality {
     /// Whether this field should be wrapped in Option in the value holder
     /// (true for component fields that need unwrapping behavior)
     wrap_in_option: bool,
-    /// Parsed koruma validators for this field (from koruma_derive_core)
-    koruma_validators: Vec<ValidatorAttr>,
-    /// Whether this field is marked with #[koruma(newtype)]
-    is_newtype: bool,
-    /// Whether this field is marked with #[koruma(nested)]
-    is_nested: bool,
+    /// Validation info for this field (validators, modifiers, etc.)
+    validation: ValidationInfo,
 }
 
 #[derive(Debug, FromField)]
@@ -356,13 +354,19 @@ fn generate_value_holder(
 
     // Check if we need to derive Koruma:
     // - Any field has koruma validators
-    let has_any_koruma = fields
-        .iter()
-        .any(|f| !f.koruma_validators.is_empty() || f.is_newtype || f.is_nested);
+    let has_any_koruma = fields.iter().any(|f| {
+        !f.validation.field_validators.is_empty()
+            || !f.validation.element_validators.is_empty()
+            || f.validation.is_newtype
+            || f.validation.is_nested
+    });
     // - Any field needs RequiredValidation (non-optional wrapped in Option AND has other validations)
-    let has_any_required = fields
-        .iter()
-        .any(|f| f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty());
+    let has_any_required = fields.iter().any(|f| {
+        f.wrap_in_option
+            && !f.was_optional
+            && (!f.validation.field_validators.is_empty()
+                || !f.validation.element_validators.is_empty())
+    });
     let _needs_koruma_derive = has_any_koruma || has_any_required;
 
     // Generate value holder fields with koruma attributes
@@ -377,15 +381,23 @@ fn generate_value_holder(
 
             // Determine if we need to add RequiredValidation
             // (non-optional field that gets wrapped in Option AND has other validations)
-            let needs_required =
-                f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty();
+            let needs_required = f.wrap_in_option
+                && !f.was_optional
+                && (!f.validation.field_validators.is_empty()
+                    || !f.validation.element_validators.is_empty());
 
             // Build the koruma attribute(s) for this field
-            let koruma_attr = if needs_required || !f.koruma_validators.is_empty() || f.is_newtype {
+            let koruma_attr = if needs_required
+                || !f.validation.field_validators.is_empty()
+                || !f.validation.element_validators.is_empty()
+                || f.validation.is_newtype
+            {
                 // Convert parsed validators to token streams
                 let existing_validations: Vec<TokenStream> = f
-                    .koruma_validators
+                    .validation
+                    .field_validators
                     .iter()
+                    .chain(f.validation.element_validators.iter())
                     .map(validator_attr_to_tokens)
                     .collect();
 
@@ -400,7 +412,7 @@ fn generate_value_holder(
                 }
 
                 // Add newtype flag if present
-                if f.is_newtype {
+                if f.validation.is_newtype {
                     koruma_items.push(quote! { newtype });
                 }
 
@@ -494,7 +506,12 @@ fn generate_value_holder(
     // AND have custom validations (these require RequiredValidation)
     let fields_requiring_required: Vec<String> = fields
         .iter()
-        .filter(|f| f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty())
+        .filter(|f| {
+            f.wrap_in_option
+                && !f.was_optional
+                && (!f.validation.field_validators.is_empty()
+                    || !f.validation.element_validators.is_empty())
+        })
         .map(|f| f.field_name.to_string())
         .collect();
 
@@ -626,6 +643,7 @@ fn expand_gpui_form(
         .iter()
         .map(|(name, info)| {
             let mut validator_names: Vec<String> = info
+                .validation
                 .field_validators
                 .iter()
                 .map(|v| v.name().to_string())
@@ -695,20 +713,16 @@ fn expand_gpui_form(
                     .unwrap_or(false);
             // Get parsed koruma validators for this field
             let koruma_info = parsed_koruma_fields.get(&field_name_str);
-            let koruma_validators = koruma_info
-                .map(|info| info.field_validators.clone())
+            let validation = koruma_info
+                .map(|info| info.validation.clone())
                 .unwrap_or_default();
-            let is_newtype = koruma_info.map(|info| info.is_newtype()).unwrap_or(false);
-            let is_nested = koruma_info.map(|info| info.is_nested()).unwrap_or(false);
             FieldOptionality {
                 field_name,
                 original_type: field.ty.clone(),
                 inner_type,
                 was_optional,
                 wrap_in_option,
-                koruma_validators,
-                is_newtype,
-                is_nested,
+                validation,
             }
         })
         .collect();
@@ -905,11 +919,11 @@ mod tests {
             match result {
                 ParseFieldResult::Valid(info) => {
                     assert!(
-                        !info.field_validators.is_empty(),
+                        !info.validation.field_validators.is_empty(),
                         "Should find validators in cfg_attr"
                     );
                     assert_eq!(
-                        info.field_validators[0].name().to_string(),
+                        info.validation.field_validators[0].name().to_string(),
                         "SomeValidator",
                         "Should extract correct validator name"
                     );
@@ -1021,12 +1035,13 @@ mod tests {
                 match result {
                     ParseFieldResult::Valid(info) => {
                         assert!(
-                            !info.field_validators.is_empty(),
+                            !info.validation.field_validators.is_empty(),
                             "Field {} should have validators detected from cfg_attr",
                             idx
                         );
                         // Verify the validator names
                         let validator_names: Vec<String> = info
+                            .validation
                             .field_validators
                             .iter()
                             .map(|v| v.name().to_string())
@@ -1104,8 +1119,11 @@ mod tests {
                 ParseFieldResult::Valid(info) => {
                     eprintln!("  Result: Valid");
                     eprintln!("  is_newtype: {}", info.is_newtype());
-                    eprintln!("  field_validators.len(): {}", info.field_validators.len());
-                    for (idx, v) in info.field_validators.iter().enumerate() {
+                    eprintln!(
+                        "  field_validators.len(): {}",
+                        info.validation.field_validators.len()
+                    );
+                    for (idx, v) in info.validation.field_validators.iter().enumerate() {
                         eprintln!("    validator[{}]: {}", idx, v.name());
                     }
                 },
