@@ -256,6 +256,10 @@ struct FieldOptionality {
     wrap_in_option: bool,
     /// Parsed koruma validators for this field (from koruma_derive_core)
     koruma_validators: Vec<ValidatorAttr>,
+    /// Whether this field is marked with #[koruma(newtype)]
+    is_newtype: bool,
+    /// Whether this field is marked with #[koruma(nested)]
+    is_nested: bool,
 }
 
 #[derive(Debug, FromField)]
@@ -504,7 +508,9 @@ fn generate_value_holder(
 
     // Check if we need to derive Koruma:
     // - Any field has koruma validators
-    let has_any_koruma = fields.iter().any(|f| !f.koruma_validators.is_empty());
+    let has_any_koruma = fields
+        .iter()
+        .any(|f| !f.koruma_validators.is_empty() || f.is_newtype || f.is_nested);
     // - Any field needs RequiredValidation (non-optional wrapped in Option AND has other validations)
     let has_any_required = fields
         .iter()
@@ -526,7 +532,7 @@ fn generate_value_holder(
             let needs_required = f.wrap_in_option && !f.was_optional && !f.koruma_validators.is_empty();
 
             // Build the koruma attribute(s) for this field
-            let koruma_attr = if needs_required || !f.koruma_validators.is_empty() {
+            let koruma_attr = if needs_required || !f.koruma_validators.is_empty() || f.is_newtype {
                 // Convert parsed validators to token streams
                 let existing_validations: Vec<TokenStream> = f
                     .koruma_validators
@@ -534,16 +540,27 @@ fn generate_value_holder(
                     .map(validator_attr_to_tokens)
                     .collect();
 
-                // Build the combined koruma attribute
+                // Build a combined list of all koruma items
+                let mut koruma_items: Vec<TokenStream> = Vec::new();
+                
+                // Add RequiredValidation if needed
                 if needs_required {
-                    if existing_validations.is_empty() {
-                        quote! { #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>)] }
-                    } else {
-                        quote! { #[koruma(koruma_collection::general::RequiredValidation::<Option<_>>, #(#existing_validations),*)] }
-                    }
+                    koruma_items.push(quote! { koruma_collection::general::RequiredValidation::<Option<_>> });
+                }
+                
+                // Add newtype flag if present
+                if f.is_newtype {
+                    koruma_items.push(quote! { newtype });
+                }
+                
+                // Add existing validators
+                koruma_items.extend(existing_validations);
+                
+                // Generate the attribute if we have any items
+                if !koruma_items.is_empty() {
+                    quote! { #[koruma(#(#koruma_items),*)] }
                 } else {
-                    // Just copy the existing validations
-                    quote! { #[koruma(#(#existing_validations),*)] }
+                    quote! {}
                 }
             } else {
                 quote! {}
@@ -831,10 +848,12 @@ fn expand_gpui_form(
                     .copied()
                     .unwrap_or(false);
             // Get parsed koruma validators for this field
-            let koruma_validators = parsed_koruma_fields
-                .get(&field_name_str)
+            let koruma_info = parsed_koruma_fields.get(&field_name_str);
+            let koruma_validators = koruma_info
                 .map(|info| info.field_validators.clone())
                 .unwrap_or_default();
+            let is_newtype = koruma_info.map(|info| info.is_newtype()).unwrap_or(false);
+            let is_nested = koruma_info.map(|info| info.is_nested()).unwrap_or(false);
             FieldOptionality {
                 field_name,
                 original_type: field.ty.clone(),
@@ -842,6 +861,8 @@ fn expand_gpui_form(
                 was_optional,
                 wrap_in_option,
                 koruma_validators,
+                is_newtype,
+                is_nested,
             }
         })
         .collect();
