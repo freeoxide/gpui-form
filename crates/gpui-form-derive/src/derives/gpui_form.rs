@@ -7,7 +7,73 @@ use itertools::Itertools as _;
 use koruma_derive_core::{FieldInfo as KorumaFieldInfo, ParseFieldResult, ValidatorAttr};
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
-use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
+use syn::{DeriveInput, GenericArgument, Ident, Meta, PathArguments, Type, parse_macro_input};
+
+/// Check if a struct has `gpui_form(koruma(...))` inside a `cfg_attr`.
+/// Returns `Some(KorumaOptions)` if found, `None` otherwise.
+fn find_koruma_in_cfg_attr(attrs: &[syn::Attribute]) -> Option<KorumaOptions> {
+    for attr in attrs {
+        if !attr.path().is_ident("cfg_attr") {
+            continue;
+        }
+
+        if let Meta::List(meta_list) = &attr.meta {
+            let tokens = meta_list.tokens.clone();
+            let mut iter = tokens.into_iter().peekable();
+
+            // Skip the condition (everything until we hit a comma at depth 0)
+            let mut depth: i32 = 0;
+            loop {
+                match iter.next() {
+                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == ',' && depth == 0 => {
+                        break;
+                    },
+                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '<' => depth += 1,
+                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '>' => {
+                        depth = depth.saturating_sub(1);
+                    },
+                    None => break,
+                    _ => {},
+                }
+            }
+
+            // Now check if any of the remaining attributes is "gpui_form"
+            while let Some(token) = iter.next() {
+                if let proc_macro2::TokenTree::Ident(ident) = token
+                    && ident == "gpui_form"
+                {
+                    // Next should be a group containing the gpui_form content
+                    if let Some(proc_macro2::TokenTree::Group(group)) = iter.next() {
+                        // Parse the content to check for koruma(...)
+                        let group_tokens: proc_macro2::TokenStream = group.stream();
+                        let mut group_iter = group_tokens.into_iter().peekable();
+
+                        while let Some(inner_token) = group_iter.next() {
+                            if let proc_macro2::TokenTree::Ident(inner_ident) = inner_token
+                                && inner_ident == "koruma"
+                            {
+                                // Found koruma - check for options
+                                if let Some(proc_macro2::TokenTree::Group(koruma_group)) =
+                                    group_iter.next()
+                                {
+                                    // Manually check for "fluent" in koruma options
+                                    let koruma_stream = koruma_group.stream();
+                                    let has_fluent = koruma_stream.into_iter().any(|t| {
+                                                matches!(t, proc_macro2::TokenTree::Ident(id) if id == "fluent")
+                                            });
+                                    return Some(KorumaOptions { fluent: has_fluent });
+                                }
+                                // koruma without options
+                                return Some(KorumaOptions::default());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 /// Convert a ValidatorAttr to a TokenStream for generating koruma attribute.
 /// This produces tokens like `ValidatorPath::<Type>(arg1 = val1, arg2 = val2)`.
@@ -508,8 +574,13 @@ fn expand_gpui_form(
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
     let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
 
-    let enable_koruma = parsed.koruma.is_some();
-    let enable_koruma_fluent = parsed.koruma.as_ref().map(|k| k.0.fluent).unwrap_or(false);
+    // Check for koruma options from direct attribute or cfg_attr
+    let cfg_attr_koruma = find_koruma_in_cfg_attr(&derive_input.attrs);
+    let koruma_options = parsed
+        .koruma
+        .as_ref()
+        .map(|k| k.0.clone())
+        .or(cfg_attr_koruma);
 
     // Handle empty structs with #[gpui_form(empty)] attribute
     if parsed.empty {
@@ -543,24 +614,25 @@ fn expand_gpui_form(
 
     // Parse koruma fields using koruma_derive_core for proper attribute parsing
     // This replaces manual parsing and gives us both validation names and ValidatorAttr structs
-    let parsed_koruma_fields: HashMap<String, KorumaFieldInfo> = if enable_koruma {
-        match &derive_input.data {
-            syn::Data::Struct(data_struct) => data_struct
-                .fields
-                .iter()
-                .filter_map(|field| {
-                    let ident = field.ident.as_ref()?.to_string();
-                    match koruma_derive_core::parse_field(field) {
-                        ParseFieldResult::Valid(info) => Some((ident, info)),
-                        ParseFieldResult::Skip | ParseFieldResult::Error(_) => None,
-                    }
-                })
-                .collect(),
-            _ => HashMap::new(),
-        }
-    } else {
-        HashMap::new()
+    // Always parse - koruma_derive_core handles cfg_attr internally
+    let parsed_koruma_fields: HashMap<String, KorumaFieldInfo> = match &derive_input.data {
+        syn::Data::Struct(data_struct) => data_struct
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let ident = field.ident.as_ref()?.to_string();
+                match koruma_derive_core::parse_field(field) {
+                    ParseFieldResult::Valid(info) => Some((ident, info)),
+                    ParseFieldResult::Skip | ParseFieldResult::Error(_) => None,
+                }
+            })
+            .collect(),
+        _ => HashMap::new(),
     };
+
+    // Enable koruma if we have explicit options OR if any koruma fields were found
+    let enable_koruma = koruma_options.is_some() || !parsed_koruma_fields.is_empty();
+    let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
 
     // Extract koruma validation names (for metadata) from parsed data
     let koruma_validations: HashMap<String, Vec<String>> = parsed_koruma_fields
