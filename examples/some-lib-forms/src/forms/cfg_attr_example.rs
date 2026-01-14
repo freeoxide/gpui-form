@@ -359,7 +359,7 @@ impl Render for CfgAttrExampleForm {
                                     CfgAttrExampleDescriptionKvFtl::Age.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
-                                        let errs = e.age().inner()?.all();
+                                        let errs = e.age().all();
                                         if errs.is_empty() {
                                             None
                                         } else {

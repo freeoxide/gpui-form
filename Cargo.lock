@@ -2760,7 +2760,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook?branch=git#d9b9f129c3439d7499f20c76bd70bb40b305e836"
+source = "git+https://github.com/stayhydated/gpui-storybook#1178036e46a3db55b705d2eb0843dc9d5545d8b7"
 dependencies = [
  "gpui",
  "gpui-storybook-core",
@@ -2772,7 +2772,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-core"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook?branch=git#d9b9f129c3439d7499f20c76bd70bb40b305e836"
+source = "git+https://github.com/stayhydated/gpui-storybook#1178036e46a3db55b705d2eb0843dc9d5545d8b7"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -2791,7 +2791,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-macros"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook?branch=git#d9b9f129c3439d7499f20c76bd70bb40b305e836"
+source = "git+https://github.com/stayhydated/gpui-storybook#1178036e46a3db55b705d2eb0843dc9d5545d8b7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3398,7 +3398,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
+source = "git+https://github.com/stayhydated/koruma#4c9919ef856a51ac748b386282aec0e1d5120ecb"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3409,7 +3409,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
+source = "git+https://github.com/stayhydated/koruma#4c9919ef856a51ac748b386282aec0e1d5120ecb"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3423,12 +3423,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
+source = "git+https://github.com/stayhydated/koruma#4c9919ef856a51ac748b386282aec0e1d5120ecb"
 
 [[package]]
 name = "koruma-derive"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
+source = "git+https://github.com/stayhydated/koruma#4c9919ef856a51ac748b386282aec0e1d5120ecb"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -3441,7 +3441,7 @@ dependencies = [
 [[package]]
 name = "koruma-derive-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
+source = "git+https://github.com/stayhydated/koruma#4c9919ef856a51ac748b386282aec0e1d5120ecb"
 dependencies = [
  "proc-macro2",
  "quote",

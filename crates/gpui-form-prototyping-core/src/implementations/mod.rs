@@ -184,24 +184,15 @@ pub fn generate_description_fn_tokens(
     };
 
     let field_has_validations = !field.validations.is_empty();
-    let is_newtype = field.validations.iter().any(|v| *v == "NewtypeValidation");
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
         let conversion_tokens = quote! { v.to_fluent_string() };
         #[cfg(not(feature = "fluent"))]
         let conversion_tokens = quote! { v.to_string() };
 
-        // Newtype fields have a different error structure - use .inner()?.all()
-        // Regular fields use .all() directly
-        let get_errors_tokens = if is_newtype {
-            quote! { e.#field_name_ident().inner()?.all() }
-        } else {
-            quote! { e.#field_name_ident().all() }
-        };
-
         quote! {{
             validation_errors.as_ref().and_then(|e| {
-                let errs = #get_errors_tokens;
+                let errs = e.#field_name_ident().all();
                 if errs.is_empty() {
                     None
                 } else {

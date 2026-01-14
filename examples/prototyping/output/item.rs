@@ -143,7 +143,7 @@ impl Render for ItemForm {
                                     validation_errors
                                         .as_ref()
                                         .and_then(|e| {
-                                            let errs = e.index().inner()?.all();
+                                            let errs = e.index().all();
                                             if errs.is_empty() {
                                                 None
                                             } else {
