@@ -2719,6 +2719,7 @@ dependencies = [
  "rust_decimal",
  "strum 0.27.2",
  "syn 2.0.114",
+ "syn-cfg-attr",
  "thiserror 2.0.17",
 ]
 

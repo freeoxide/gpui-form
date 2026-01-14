@@ -7,190 +7,38 @@ use itertools::Itertools as _;
 use koruma_derive_core::{FieldInfo as KorumaFieldInfo, ParseFieldResult, ValidatorAttr};
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
-use syn::{DeriveInput, GenericArgument, Ident, Meta, PathArguments, Type, parse_macro_input};
+use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
+use syn_cfg_attr::{AttributeHelpers as _, ExpandedAttr};
 
 /// Flattens `cfg_attr` attributes in a DeriveInput.
-/// For each `#[cfg_attr(condition, attr)]` found, we unconditionally expand it to `#[attr]`.
-/// This is necessary because darling doesn't handle cfg_attr  automatically.
-///
-/// Note: We expand ALL cfg_attr unconditionally because:
-/// 1. At proc-macro expansion time, we can't reliably evaluate cfg conditions
-/// 2. The Rust compiler will have already filtered out this derive if the cfg didn't match
-/// 3. If we're running, it means the relevant features are enabled
 fn flatten_cfg_attr_in_derive_input(mut input: DeriveInput) -> DeriveInput {
     // Flatten struct-level attributes
-    input.attrs = flatten_cfg_attr_in_attrs(input.attrs);
+    input.attrs = flatten_attrs(input.attrs);
 
     // Flatten field-level attributes
     if let syn::Data::Struct(ref mut data_struct) = input.data {
         for field in data_struct.fields.iter_mut() {
-            field.attrs = flatten_cfg_attr_in_attrs(std::mem::take(&mut field.attrs));
+            field.attrs = flatten_attrs(field.attrs.clone());
         }
     }
 
     input
 }
 
-/// Flattens `cfg_attr` attributes in an attribute list.
-/// Converts `#[cfg_attr(condition, attr1, attr2)]` into `#[attr1]` and `#[attr2]`.
-fn flatten_cfg_attr_in_attrs(attrs: Vec<syn::Attribute>) -> Vec<syn::Attribute> {
-    let mut result = Vec::new();
-
-    for attr in attrs {
-        if attr.path().is_ident("cfg_attr") {
-            // Parse the cfg_attr to extract the wrapped attributes
-            if let Meta::List(meta_list) = &attr.meta {
-                let tokens = meta_list.tokens.clone();
-                let mut iter = tokens.into_iter().peekable();
-
-                // Skip past the condition (everything until first comma at depth 0)
-                let mut depth: i32 = 0;
-                loop {
-                    match iter.next() {
-                        Some(proc_macro2::TokenTree::Punct(p))
-                            if p.as_char() == ',' && depth == 0 =>
-                        {
-                            break;
-                        },
-                        Some(proc_macro2::TokenTree::Group(g))
-                            if matches!(g.delimiter(), proc_macro2::Delimiter::Parenthesis) =>
-                        {
-                            depth += 1;
-                            // Process group contents recursively
-                            for token in g.stream() {
-                                if let proc_macro2::TokenTree::Punct(p) = &token
-                                    && p.as_char() == ')'
-                                {
-                                    depth = depth.saturating_sub(1);
-                                }
-                            }
-                        },
-                        None => break,
-                        _ => {},
-                    }
-                }
-
-                // Collect remaining tokens as wrapped attributes
-                let remaining: proc_macro2::TokenStream = iter.collect();
-
-                // Try to parse each attribute from the remaining tokens
-                // Split by commas at depth 0
-                let attr_token_groups = split_by_comma(remaining);
-
-                for attr_tokens in attr_token_groups {
-                    // Convert the tokens into an attribute by wrapping with #[...]
-                    let attr_stream = quote! { #[#attr_tokens] };
-                    if let Ok(parsed_attrs) =
-                        syn::parse::Parser::parse2(syn::Attribute::parse_outer, attr_stream)
-                    {
-                        result.extend(parsed_attrs);
-                    }
-                }
-            }
-        } else {
-            // Keep non-cfg_attr attributes as-is
-            result.push(attr);
-        }
-    }
-
-    result
-}
-
-/// Splits a token stream by top-level commas (depth 0).
-fn split_by_comma(tokens: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
-    let mut result = Vec::new();
-    let mut current = proc_macro2::TokenStream::new();
-    let mut depth = 0;
-
-    for token in tokens {
-        match &token {
-            proc_macro2::TokenTree::Group(_) => {
-                depth += 1;
-                current.extend(std::iter::once(token.clone()));
+fn flatten_attrs(attrs: Vec<syn::Attribute>) -> Vec<syn::Attribute> {
+    attrs
+        .flattened_attributes()
+        .into_iter()
+        .map(|expanded| match expanded {
+            ExpandedAttr::Direct(attr) => attr,
+            ExpandedAttr::Nested { attr, .. } => syn::Attribute {
+                pound_token: Default::default(),
+                style: syn::AttrStyle::Outer,
+                bracket_token: Default::default(),
+                meta: attr,
             },
-            proc_macro2::TokenTree::Punct(p) if p.as_char() == ',' && depth == 0 => {
-                if !current.is_empty() {
-                    result.push(current);
-                    current = proc_macro2::TokenStream::new();
-                }
-            },
-            _ => {
-                current.extend(std::iter::once(token.clone()));
-            },
-        }
-    }
-
-    if !current.is_empty() {
-        result.push(current);
-    }
-
-    result
-}
-
-/// Check if a struct has `gpui_form(koruma(...))` inside a `cfg_attr`.
-/// Returns `Some(KorumaOptions)` if found, `None` otherwise.
-fn find_koruma_in_cfg_attr(attrs: &[syn::Attribute]) -> Option<KorumaOptions> {
-    for attr in attrs {
-        if !attr.path().is_ident("cfg_attr") {
-            continue;
-        }
-
-        if let Meta::List(meta_list) = &attr.meta {
-            let tokens = meta_list.tokens.clone();
-            let mut iter = tokens.into_iter().peekable();
-
-            // Skip the condition (everything until we hit a comma at depth 0)
-            let mut depth: i32 = 0;
-            loop {
-                match iter.next() {
-                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == ',' && depth == 0 => {
-                        break;
-                    },
-                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '<' => depth += 1,
-                    Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '>' => {
-                        depth = depth.saturating_sub(1);
-                    },
-                    None => break,
-                    _ => {},
-                }
-            }
-
-            // Now check if any of the remaining attributes is "gpui_form"
-            while let Some(token) = iter.next() {
-                if let proc_macro2::TokenTree::Ident(ident) = token
-                    && ident == "gpui_form"
-                {
-                    // Next should be a group containing the gpui_form content
-                    if let Some(proc_macro2::TokenTree::Group(group)) = iter.next() {
-                        // Parse the content to check for koruma(...)
-                        let group_tokens: proc_macro2::TokenStream = group.stream();
-                        let mut group_iter = group_tokens.into_iter().peekable();
-
-                        while let Some(inner_token) = group_iter.next() {
-                            if let proc_macro2::TokenTree::Ident(inner_ident) = inner_token
-                                && inner_ident == "koruma"
-                            {
-                                // Found koruma - check for options
-                                if let Some(proc_macro2::TokenTree::Group(koruma_group)) =
-                                    group_iter.next()
-                                {
-                                    // Manually check for "fluent" in koruma options
-                                    let koruma_stream = koruma_group.stream();
-                                    let has_fluent = koruma_stream.into_iter().any(|t| {
-                                                matches!(t, proc_macro2::TokenTree::Ident(id) if id == "fluent")
-                                            });
-                                    return Some(KorumaOptions { fluent: has_fluent });
-                                }
-                                // koruma without options
-                                return Some(KorumaOptions::default());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
+        })
+        .collect()
 }
 
 /// Convert a ValidatorAttr to a TokenStream for generating koruma attribute.
@@ -717,13 +565,8 @@ fn expand_gpui_form(
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
     let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
 
-    // Check for koruma options from direct attribute or cfg_attr
-    let cfg_attr_koruma = find_koruma_in_cfg_attr(&derive_input.attrs);
-    let koruma_options = parsed
-        .koruma
-        .as_ref()
-        .map(|k| k.0.clone())
-        .or(cfg_attr_koruma);
+    // Check for koruma options from direct attribute
+    let koruma_options = parsed.koruma.as_ref().map(|k| k.0.clone());
 
     // Handle empty structs with #[gpui_form(empty)] attribute
     if parsed.empty {
@@ -1041,87 +884,6 @@ pub fn from(input: proc_macro::TokenStream, options: GpuiFormOptions) -> proc_ma
 mod tests {
     use super::*;
     use quote::quote;
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_direct_koruma() {
-        // Test: #[cfg_attr(feature = "ui", gpui_form(koruma))]
-        let tokens = quote! {
-            #[cfg_attr(feature = "ui", gpui_form(koruma))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(result.is_some(), "Should find koruma in cfg_attr");
-        assert!(!result.unwrap().fluent, "fluent should be false");
-    }
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_with_fluent() {
-        // Test: #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
-        let tokens = quote! {
-            #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(result.is_some(), "Should find koruma in cfg_attr");
-        assert!(result.unwrap().fluent, "fluent should be true");
-    }
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_no_koruma() {
-        // Test: #[cfg_attr(feature = "ui", gpui_form(empty))]
-        let tokens = quote! {
-            #[cfg_attr(feature = "ui", gpui_form(empty))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(result.is_none(), "Should not find koruma");
-    }
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_not_cfg_attr() {
-        // Test: #[gpui_form(koruma(fluent))] - direct attribute, not cfg_attr
-        let tokens = quote! {
-            #[gpui_form(koruma(fluent))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(result.is_none(), "Should not find koruma in non-cfg_attr");
-    }
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_complex_condition() {
-        // Test: #[cfg_attr(all(feature = "ui", feature = "validation"), gpui_form(koruma(fluent)))]
-        let tokens = quote! {
-            #[cfg_attr(all(feature = "ui", feature = "validation"), gpui_form(koruma(fluent)))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(
-            result.is_some(),
-            "Should find koruma with complex condition"
-        );
-        assert!(result.unwrap().fluent, "fluent should be true");
-    }
-
-    #[test]
-    fn test_find_koruma_in_cfg_attr_multiple_attrs_in_cfg_attr() {
-        // Test: #[cfg_attr(feature = "ui", derive(Something), gpui_form(koruma))]
-        let tokens = quote! {
-            #[cfg_attr(feature = "ui", derive(Something), gpui_form(koruma))]
-            struct Test;
-        };
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = find_koruma_in_cfg_attr(&derive_input.attrs);
-        assert!(
-            result.is_some(),
-            "Should find koruma among multiple attrs in cfg_attr"
-        );
-    }
 
     #[test]
     fn test_koruma_field_parsing_with_cfg_attr() {

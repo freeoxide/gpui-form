@@ -30,6 +30,7 @@ quote = { workspace = true }
 rust_decimal = { workspace = true }
 strum = { features = [ "derive" ], workspace = true }
 syn = { features = [ "full" ], workspace = true }
+syn-cfg-attr = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]
