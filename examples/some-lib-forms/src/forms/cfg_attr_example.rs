@@ -1,21 +1,23 @@
-use some_lib::structs::cfg_attr_example::*;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
-    prelude::FluentBuilder as _,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    ActiveTheme as _, IndexPath, checkbox::Checkbox,
+    ActiveTheme as _, IndexPath,
+    checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, form::{field, v_form},
+    divider::Divider,
+    form::{field, v_form},
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
     select::{SearchableVec, Select, SelectEvent, SelectState},
-    switch::Switch, v_flex,
+    switch::Switch,
+    v_flex,
 };
 use gpui_form::component::infinite_select::InfiniteSelect;
-use std::sync::Arc;
-use es_fluent::{ThisFtl as _, ToFluentString as _};
 use rust_decimal::Decimal;
+use some_lib::structs::cfg_attr_example::*;
+use std::sync::Arc;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -41,11 +43,7 @@ impl gpui_storybook::Story for CfgAttrExampleForm {
     }
 }
 impl CfgAttrExampleForm {
-    pub fn view(
-        window: &mut Window,
-        cx: &mut App,
-        original_data: CfgAttrExample,
-    ) -> Entity<Self> {
+    pub fn view(window: &mut Window, cx: &mut App, original_data: CfgAttrExample) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx, original_data))
     }
     fn on_username_input_event(
@@ -63,8 +61,8 @@ impl CfgAttrExampleForm {
                 } else {
                     Some(text.to_string())
                 };
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_email_input_event(
@@ -82,8 +80,8 @@ impl CfgAttrExampleForm {
                 } else {
                     Some(text.to_string())
                 };
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_age_input_event(
@@ -96,9 +94,9 @@ impl CfgAttrExampleForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.age = text.parse::<u32>().ok();
-            }
-            _ => {}
+                self.current_data.age = text.parse::<Age>().ok();
+            },
+            _ => {},
         }
     }
     fn on_age_number_input_event(
@@ -109,38 +107,30 @@ impl CfgAttrExampleForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .age
-                            .unwrap_or_default()
-                            .saturating_sub(1);
-                        self.current_data.age = Some(new_value);
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .age
-                            .unwrap_or_default()
-                            .saturating_add(1);
-                        self.current_data.age = Some(new_value);
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self
+                        .current_data
+                        .age
+                        .unwrap_or_default()
+                        .saturating_sub(1u8.into());
+                    self.current_data.age = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self
+                        .current_data
+                        .age
+                        .unwrap_or_default()
+                        .saturating_add(1u8.into());
+                    self.current_data.age = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_balance_input_event(
@@ -154,8 +144,8 @@ impl CfgAttrExampleForm {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
                 self.current_data.balance = text.parse::<Decimal>().ok();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_balance_number_input_event(
@@ -166,38 +156,30 @@ impl CfgAttrExampleForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .unwrap_or_default()
-                            .saturating_sub(1u8.into());
-                        self.current_data.balance = Some(new_value.into());
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .unwrap_or_default()
-                            .saturating_add(1u8.into());
-                        self.current_data.balance = Some(new_value.into());
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self
+                        .current_data
+                        .balance
+                        .unwrap_or_default()
+                        .saturating_sub(1u8.into());
+                    self.current_data.balance = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self
+                        .current_data
+                        .balance
+                        .unwrap_or_default()
+                        .saturating_add(1u8.into());
+                    self.current_data.balance = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_account_type_select_event(
@@ -212,7 +194,7 @@ impl CfgAttrExampleForm {
                 if let Some(value) = value {
                     self.current_data.account_type = value.clone();
                 }
-            }
+            },
         }
     }
     fn on_created_at_date_picker_event(
@@ -224,41 +206,43 @@ impl CfgAttrExampleForm {
     ) {
         match event {
             DatePickerEvent::Change(date) => {
-                self.current_data.created_at = (<chrono::NaiveDate as std::str::FromStr>::from_str(
-                    &date.to_string(),
-                ))
-                    .ok();
-            }
+                self.current_data.created_at =
+                    (<chrono::NaiveDate as std::str::FromStr>::from_str(&date.to_string())).ok();
+            },
         }
     }
-    fn new(
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        original_data: CfgAttrExample,
-    ) -> Self {
-        let username_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::username_input(window, cx));
-        let email_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::email_input(window, cx));
-        let age_number_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::age_number_input(window, cx));
-        let balance_number_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::balance_number_input(window, cx));
-        let account_type_select = cx
-            .new(|cx| CfgAttrExampleFormComponents::account_type_select(window, cx));
-        let created_at_date_picker = cx
-            .new(|cx| CfgAttrExampleFormComponents::created_at_date_picker(window, cx));
+    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: CfgAttrExample) -> Self {
+        let username_input = cx.new(|cx| CfgAttrExampleFormComponents::username_input(window, cx));
+        let email_input = cx.new(|cx| CfgAttrExampleFormComponents::email_input(window, cx));
+        let age_number_input =
+            cx.new(|cx| CfgAttrExampleFormComponents::age_number_input(window, cx));
+        let balance_number_input =
+            cx.new(|cx| CfgAttrExampleFormComponents::balance_number_input(window, cx));
+        let account_type_select =
+            cx.new(|cx| CfgAttrExampleFormComponents::account_type_select(window, cx));
+        let created_at_date_picker =
+            cx.new(|cx| CfgAttrExampleFormComponents::created_at_date_picker(window, cx));
         let mut _subscriptions = vec![
-            cx.subscribe_in(& username_input, window, Self::on_username_input_event), cx
-            .subscribe_in(& email_input, window, Self::on_email_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_number_input_event),
-            cx.subscribe_in(& balance_number_input, window,
-            Self::on_balance_input_event), cx.subscribe_in(& balance_number_input,
-            window, Self::on_balance_number_input_event), cx.subscribe_in(&
-            account_type_select, window, Self::on_account_type_select_event), cx
-            .subscribe_in(& created_at_date_picker, window,
-            Self::on_created_at_date_picker_event)
+            cx.subscribe_in(&username_input, window, Self::on_username_input_event),
+            cx.subscribe_in(&email_input, window, Self::on_email_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_number_input_event),
+            cx.subscribe_in(&balance_number_input, window, Self::on_balance_input_event),
+            cx.subscribe_in(
+                &balance_number_input,
+                window,
+                Self::on_balance_number_input_event,
+            ),
+            cx.subscribe_in(
+                &account_type_select,
+                window,
+                Self::on_account_type_select_event,
+            ),
+            cx.subscribe_in(
+                &created_at_date_picker,
+                window,
+                Self::on_created_at_date_picker_event,
+            ),
         ];
         Self {
             original_data: Arc::new(original_data.clone()),
@@ -293,25 +277,22 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Username.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Username
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Username.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.username().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.username().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -320,16 +301,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -338,25 +316,22 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Email.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Email
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Email.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.email().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.email().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -365,16 +340,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -383,25 +355,22 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Age.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Age
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Age.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.age().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.age().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -410,16 +379,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
@@ -428,25 +394,22 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Balance.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Balance
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Balance.to_fluent_string();
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.balance().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.balance().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -455,16 +418,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
@@ -473,8 +433,8 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Active.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Active
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Active.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -486,20 +446,17 @@ impl Render for CfgAttrExampleForm {
                             .child(
                                 Checkbox::new("active-checkbox")
                                     .checked(self.current_data.active)
-                                    .on_click(
-                                        cx
-                                            .listener(|v, _, _, _| {
-                                                v.current_data.active = !v.current_data.active;
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(|v, _, _, _| {
+                                        v.current_data.active = !v.current_data.active;
+                                    })),
                             ),
                     )
                     .child(
                         field()
                             .label(CfgAttrExampleLabelKvFtl::Enabled.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::Enabled
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::Enabled.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -511,23 +468,18 @@ impl Render for CfgAttrExampleForm {
                             .child(
                                 Switch::new("enabled-switch")
                                     .checked(self.current_data.enabled)
-                                    .on_click(
-                                        cx
-                                            .listener(move |v, checked, _, cx| {
-                                                v.current_data.enabled = *checked;
-                                                cx.notify();
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(move |v, checked, _, cx| {
+                                        v.current_data.enabled = *checked;
+                                        cx.notify();
+                                    })),
                             ),
                     )
                     .child(
                         field()
-                            .label(
-                                CfgAttrExampleLabelKvFtl::AccountType.to_fluent_string(),
-                            )
+                            .label(CfgAttrExampleLabelKvFtl::AccountType.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::AccountType
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::AccountType.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -540,12 +492,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(
-                                CfgAttrExampleLabelKvFtl::CreatedAt.to_fluent_string(),
-                            )
+                            .label(CfgAttrExampleLabelKvFtl::CreatedAt.to_fluent_string())
                             .description_fn({
-                                let description = CfgAttrExampleDescriptionKvFtl::CreatedAt
-                                    .to_fluent_string();
+                                let description =
+                                    CfgAttrExampleDescriptionKvFtl::CreatedAt.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()

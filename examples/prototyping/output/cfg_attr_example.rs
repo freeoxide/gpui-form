@@ -96,7 +96,7 @@ impl CfgAttrExampleForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.age = text.parse::<u32>().ok();
+                self.current_data.age = text.parse::<Age>().ok();
             }
             _ => {}
         }
@@ -116,8 +116,8 @@ impl CfgAttrExampleForm {
                             .current_data
                             .age
                             .unwrap_or_default()
-                            .saturating_sub(1);
-                        self.current_data.age = Some(new_value);
+                            .saturating_sub(1u8.into());
+                        self.current_data.age = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -130,8 +130,8 @@ impl CfgAttrExampleForm {
                             .current_data
                             .age
                             .unwrap_or_default()
-                            .saturating_add(1);
-                        self.current_data.age = Some(new_value);
+                            .saturating_add(1u8.into());
+                        self.current_data.age = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {

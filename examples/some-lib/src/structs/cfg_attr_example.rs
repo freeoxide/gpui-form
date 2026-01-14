@@ -4,7 +4,7 @@ use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
     general::RequiredValidation,
-    numeric::{PositiveValidation, RangeValidation},
+    numeric::{NonNegativeValidation, PositiveValidation, RangeValidation},
 };
 use rust_decimal::Decimal;
 use strum::EnumIter;
@@ -18,6 +18,32 @@ pub enum AccountType {
     Free,
     Premium,
     Enterprise,
+}
+
+#[derive(
+    koruma::Koruma,
+    koruma::KorumaAllFluent,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Default,
+    Ord,
+    derive_more::Display,
+    derive_more::From,
+    derive_more::Into,
+    derive_more::Deref,
+    derive_more::AsRef,
+    derive_more::FromStr,
+)]
+#[display("{}", value)]
+#[koruma(try_new, newtype)]
+pub struct Age {
+    #[koruma(NonNegativeValidation::<_>)]
+    pub value: i32,
 }
 
 /// Example struct demonstrating cfg_attr for all gpui_form and koruma attributes.
@@ -47,8 +73,8 @@ pub struct CfgAttrExample {
 
     /// Age field with number input component
     #[cfg_attr(feature = "ui", gpui_form(component(number_input)))]
-    #[cfg_attr(feature = "validation", koruma(RangeValidation::<_>(min = 13, max = 120)))]
-    pub age: Option<u32>,
+    #[cfg_attr(feature = "validation", koruma(newtype))]
+    pub age: Option<Age>,
 
     /// Balance field demonstrating decimal with positive validation
     #[cfg_attr(feature = "ui", gpui_form(component(number_input(as = f64))))]
