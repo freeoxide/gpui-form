@@ -4,7 +4,7 @@ use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
     general::RequiredValidation,
-    numeric::{NonNegativeValidation, PositiveValidation, RangeValidation},
+    numeric::{NonNegativeValidation, PositiveValidation},
 };
 use rust_decimal::Decimal;
 use strum::EnumIter;
