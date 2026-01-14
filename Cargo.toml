@@ -47,7 +47,7 @@ gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.5.1" }
 gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.5.0" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
-gpui-storybook = { branch = "git", git = "https://github.com/stayhydated/gpui-storybook" }
+gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook" }
 heck = "0.5.0"
 insta = { version = "1.46.0" }
 inventory = "0.3.21"
@@ -71,6 +71,7 @@ serde = "1.0.228"
 serde_json = "1.0.149"
 strum = "0.27.2"
 syn = "2.0.114"
+syn-cfg-attr = "0.1.0"
 thiserror = "2.0.17"
 tokio = "1.49.0"
 tracing-subscriber = "0.3.22"

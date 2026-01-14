@@ -9,6 +9,7 @@ publish = false
 anyhow = { workspace = true }
 bon = { workspace = true }
 chrono = { workspace = true }
+derive_more = { features = [ "full" ], workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
@@ -23,6 +24,12 @@ rust-embed = { workspace = true }
 rust_decimal = { workspace = true }
 strum = { workspace = true }
 unic-langid = { workspace = true }
+
+[features]
+default = [ "fluent", "ui", "validation" ]
+fluent = [  ]
+ui = [  ]
+validation = [  ]
 
 [lints]
 workspace = true

@@ -143,6 +143,7 @@ user_description_kv_ftl-age = Age
 user_description_kv_ftl-balance = Balance
 user_description_kv_ftl-birth_date = Birth Date
 user_description_kv_ftl-country = Country
+user_description_kv_ftl-debt = Debt
 user_description_kv_ftl-email = Email
 user_description_kv_ftl-enable_notifications = Enable Notifications
 user_description_kv_ftl-preferred = Preferred
@@ -156,6 +157,7 @@ user_label_kv_ftl-age = Age
 user_label_kv_ftl-balance = Balance
 user_label_kv_ftl-birth_date = Birth Date
 user_label_kv_ftl-country = Country
+user_label_kv_ftl-debt = Debt
 user_label_kv_ftl-email = Email
 user_label_kv_ftl-enable_notifications = Enable Notifications
 user_label_kv_ftl-preferred = Preferred
@@ -173,3 +175,51 @@ enum_country-UnitedStates = United States
 prefered_language-Chinese = Chinese
 prefered_language-English = English
 prefered_language-French = French
+
+## CfgAttrExample
+
+cfg_attr_example_this = Cfg Attr Example
+
+## CfgAttrExampleDescriptionKvFtl
+
+cfg_attr_example_description_kv_ftl_this = Cfg Attr Example Description Kv Ftl
+cfg_attr_example_description_kv_ftl-account_type = Account Type
+cfg_attr_example_description_kv_ftl-active = Active
+cfg_attr_example_description_kv_ftl-age = Age
+cfg_attr_example_description_kv_ftl-balance = Balance
+cfg_attr_example_description_kv_ftl-created_at = Created At
+cfg_attr_example_description_kv_ftl-email = Email
+cfg_attr_example_description_kv_ftl-enabled = Enabled
+cfg_attr_example_description_kv_ftl-username = Username
+
+## CfgAttrExampleLabelKvFtl
+
+cfg_attr_example_label_kv_ftl_this = Cfg Attr Example Label Kv Ftl
+cfg_attr_example_label_kv_ftl-account_type = Account Type
+cfg_attr_example_label_kv_ftl-active = Active
+cfg_attr_example_label_kv_ftl-age = Age
+cfg_attr_example_label_kv_ftl-balance = Balance
+cfg_attr_example_label_kv_ftl-created_at = Created At
+cfg_attr_example_label_kv_ftl-email = Email
+cfg_attr_example_label_kv_ftl-enabled = Enabled
+cfg_attr_example_label_kv_ftl-username = Username
+
+## Item
+
+item_this = Item
+
+## ItemDescriptionKvFtl
+
+item_description_kv_ftl_this = Item Description Kv Ftl
+item_description_kv_ftl-index = Index
+
+## ItemLabelKvFtl
+
+item_label_kv_ftl_this = Item Label Kv Ftl
+item_label_kv_ftl-index = Index
+
+## AccountType
+
+account_type-Enterprise = Enterprise
+account_type-Free = Free
+account_type-Premium = Premium
