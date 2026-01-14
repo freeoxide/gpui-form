@@ -3398,7 +3398,7 @@ dependencies = [
 [[package]]
 name = "koruma"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=em#e60143c2d5e98ab7958f630e587d01090737c79e"
+source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3409,7 +3409,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=em#e60143c2d5e98ab7958f630e587d01090737c79e"
+source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3423,12 +3423,12 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=em#e60143c2d5e98ab7958f630e587d01090737c79e"
+source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
 
 [[package]]
 name = "koruma-derive"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=em#e60143c2d5e98ab7958f630e587d01090737c79e"
+source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -3441,7 +3441,7 @@ dependencies = [
 [[package]]
 name = "koruma-derive-core"
 version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma?branch=em#e60143c2d5e98ab7958f630e587d01090737c79e"
+source = "git+https://github.com/stayhydated/koruma?branch=support-unnamed#af1b20e038db70d08a93723e7e459c749ef40a57"
 dependencies = [
  "proc-macro2",
  "quote",

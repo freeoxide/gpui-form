@@ -389,7 +389,7 @@ impl Render for CfgAttrExampleForm {
                                     validation_errors
                                         .as_ref()
                                         .and_then(|e| {
-                                            let errs = e.age().all();
+                                            let errs = e.age().inner()?.all();
                                             if errs.is_empty() {
                                                 None
                                             } else {

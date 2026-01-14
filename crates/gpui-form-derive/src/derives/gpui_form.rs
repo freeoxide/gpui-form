@@ -624,7 +624,7 @@ fn expand_gpui_form(
             .iter()
             .filter_map(|field| {
                 let ident = field.ident.as_ref()?.to_string();
-                match koruma_derive_core::parse_field(field) {
+                match koruma_derive_core::parse_field(field, 0) {
                     ParseFieldResult::Valid(info) => Some((ident, *info)),
                     ParseFieldResult::Skip | ParseFieldResult::Error(_) => None,
                 }
@@ -913,7 +913,7 @@ mod tests {
 
         if let syn::Data::Struct(data_struct) = &derive_input.data {
             let field = data_struct.fields.iter().next().unwrap();
-            let result = koruma_derive_core::parse_field(field);
+            let result = koruma_derive_core::parse_field(field, 0);
 
             // This should find the validator if koruma_derive_core handles cfg_attr
             match result {
@@ -955,7 +955,7 @@ mod tests {
 
         if let syn::Data::Struct(data_struct) = &derive_input.data {
             let field = data_struct.fields.iter().next().unwrap();
-            let result = koruma_derive_core::parse_field(field);
+            let result = koruma_derive_core::parse_field(field, 0);
 
             match result {
                 ParseFieldResult::Valid(info) => {
@@ -988,7 +988,7 @@ mod tests {
 
         if let syn::Data::Struct(data_struct) = &derive_input.data {
             let field = data_struct.fields.iter().next().unwrap();
-            let result = koruma_derive_core::parse_field(field);
+            let result = koruma_derive_core::parse_field(field, 0);
 
             match result {
                 ParseFieldResult::Valid(info) => {
@@ -1031,7 +1031,7 @@ mod tests {
         // Verify koruma-derive-core can parse the fields
         if let syn::Data::Struct(data_struct) = &derive_input.data {
             for (idx, field) in data_struct.fields.iter().enumerate() {
-                let result = koruma_derive_core::parse_field(field);
+                let result = koruma_derive_core::parse_field(field, idx);
                 match result {
                     ParseFieldResult::Valid(info) => {
                         assert!(
@@ -1112,7 +1112,7 @@ mod tests {
         // Parse the fields using koruma_derive_core
         if let syn::Data::Struct(data_struct) = &derive_input.data {
             let field = data_struct.fields.iter().next().unwrap();
-            let result = koruma_derive_core::parse_field(field);
+            let result = koruma_derive_core::parse_field(field, 0);
 
             eprintln!("=== DEBUG: parse_field result for CommonVRead.index ===");
             match &result {
