@@ -272,7 +272,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           }
 
           fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-              Self::view(window, cx, #struct_name_ident::default())
+              Self::view(window, cx, #struct_name_uw_ident::default().into())
           }
       }
 
