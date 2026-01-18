@@ -9,7 +9,7 @@ use koruma_derive_core::{
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
-use syn::{DeriveInput, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
+use syn::{DeriveInput, Expr, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
 use syn_cfg_attr::{AttributeHelpers as _, ExpandedAttr};
 
 /// Flattens `cfg_attr` attributes in a DeriveInput.
@@ -106,6 +106,8 @@ struct FieldOptionality {
     wrap_in_option: bool,
     /// Validation info for this field (validators, modifiers, etc.)
     validation: ValidationInfo,
+    /// Custom default expression for this field (original type), if provided.
+    default_expr: Option<TokenStream>,
 }
 
 #[derive(Debug, FromField)]
@@ -115,6 +117,8 @@ struct ComponentField {
     pub ty: Type,
     #[darling(default)]
     pub component: Option<Components>,
+    #[darling(default)]
+    pub default: Option<Expr>,
     #[darling(default)]
     skip: bool,
 }
@@ -338,6 +342,10 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
     }
 }
 
+fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
+    field.default.as_ref().map(|expr| quote! { #expr })
+}
+
 /// Generates the FormValueHolder struct and its implementations.
 /// Component fields that need unwrapping become Option<T> in the value holder.
 /// Other fields retain their original type.
@@ -346,6 +354,7 @@ fn extract_option_inner_type(ty: &Type) -> (bool, Type) {
 /// Returns (value_holder_tokens, fields_requiring_required_validation).
 fn generate_value_holder(
     struct_name: &Ident,
+    struct_is_unit: bool,
     fields: &[FieldOptionality],
     enable_koruma: bool,
     enable_koruma_fluent: bool,
@@ -459,7 +468,12 @@ fn generate_value_holder(
                     // Original was T, value holder is Option<T>
                     // Use None if value equals default, otherwise wrap in Some
                     let inner_ty = &f.inner_type;
-                    quote! { #name: if from.#name == <#inner_ty as Default>::default() { None } else { Some(from.#name) }, }
+                    let default_expr = f
+                        .default_expr
+                        .as_ref()
+                        .map(|expr| quote! { #expr })
+                        .unwrap_or_else(|| quote! { <#inner_ty as Default>::default() });
+                    quote! { #name: if from.#name == #default_expr { None } else { Some(from.#name) }, }
                 }
             } else {
                 // Non-component field or field without unwrapping -> direct copy
@@ -480,7 +494,11 @@ fn generate_value_holder(
                     quote! { #name: from.#name, }
                 } else {
                     // Original was T, value holder is Option<T> -> unwrap_or_default
-                    quote! { #name: from.#name.unwrap_or_default(), }
+                    if let Some(default_expr) = &f.default_expr {
+                        quote! { #name: from.#name.unwrap_or_else(|| #default_expr), }
+                    } else {
+                        quote! { #name: from.#name.unwrap_or_default(), }
+                    }
                 }
             } else {
                 // Non-component field or field without unwrapping -> direct copy
@@ -495,7 +513,17 @@ fn generate_value_holder(
         .map(|f| {
             let name = &f.field_name;
             if f.wrap_in_option {
-                quote! { #name: None, }
+                if f.was_optional {
+                    if let Some(default_expr) = &f.default_expr {
+                        quote! { #name: #default_expr, }
+                    } else {
+                        quote! { #name: None, }
+                    }
+                } else {
+                    quote! { #name: None, }
+                }
+            } else if let Some(default_expr) = &f.default_expr {
+                quote! { #name: #default_expr, }
             } else {
                 quote! { #name: Default::default(), }
             }
@@ -526,6 +554,22 @@ fn generate_value_holder(
         quote! { #[derive(Clone, Debug)] }
     };
 
+    let from_holder_constructor = if struct_is_unit {
+        quote! { Self }
+    } else {
+        quote! {
+            Self {
+                #(#from_holder_fields)*
+            }
+        }
+    };
+
+    let from_unused_suppress = if fields.is_empty() {
+        quote! { let _ = from; }
+    } else {
+        quote! {}
+    };
+
     let tokens = quote! {
         #derive_attrs
         pub struct #value_holder_name {
@@ -542,6 +586,7 @@ fn generate_value_holder(
 
         impl From<#struct_name> for #value_holder_name {
             fn from(from: #struct_name) -> Self {
+                #from_unused_suppress
                 Self {
                     #(#from_original_fields)*
                 }
@@ -549,9 +594,8 @@ fn generate_value_holder(
         }
         impl From<#value_holder_name> for #struct_name {
             fn from(from: #value_holder_name) -> Self {
-                Self {
-                    #(#from_holder_fields)*
-                }
+                #from_unused_suppress
+                #from_holder_constructor
             }
         }
     };
@@ -578,6 +622,13 @@ fn expand_gpui_form(
     };
 
     let struct_name = &parsed.ident;
+    let struct_is_unit = matches!(
+        derive_input.data,
+        syn::Data::Struct(syn::DataStruct {
+            fields: syn::Fields::Unit,
+            ..
+        })
+    );
     let components_holder_name = format_ident!("{}FormFields", struct_name);
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
     let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
@@ -587,6 +638,16 @@ fn expand_gpui_form(
 
     // Handle empty structs with #[gpui_form(empty)] attribute
     if parsed.empty {
+        let enable_koruma = koruma_options.is_some();
+        let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
+        let empty_fields: Vec<FieldOptionality> = Vec::new();
+        let (value_holder_tokens, _) = generate_value_holder(
+            struct_name,
+            struct_is_unit,
+            &empty_fields,
+            enable_koruma,
+            enable_koruma_fluent,
+        );
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::core::registry::inventory::submit! {
@@ -602,6 +663,7 @@ fn expand_gpui_form(
         };
 
         return quote! {
+            #value_holder_tokens
             pub struct #components_holder_name;
 
             #shape_impl
@@ -698,38 +760,39 @@ fn expand_gpui_form(
 
     // Build field optionality information for value holder generation
     // Include ALL fields (even skipped ones) so From impls work correctly
-    let field_optionality: Vec<FieldOptionality> = fields_iter
-        .iter()
-        .map(|field| {
-            let field_name = field.ident.clone().unwrap();
-            let field_name_str = field_name.to_string();
-            let (was_optional, inner_type) = extract_option_inner_type(&field.ty);
-            // Wrap in option based on component's wraps_in_option() (and not skipped)
-            let wrap_in_option = !field.skip()
-                && field.component.is_some()
-                && wrap_in_option_map
-                    .get(&field_name_str)
-                    .copied()
-                    .unwrap_or(false);
-            // Get parsed koruma validators for this field
-            let koruma_info = parsed_koruma_fields.get(&field_name_str);
-            let validation = koruma_info
-                .map(|info| info.validation.clone())
-                .unwrap_or_default();
-            FieldOptionality {
-                field_name,
-                original_type: field.ty.clone(),
-                inner_type,
-                was_optional,
-                wrap_in_option,
-                validation,
-            }
-        })
-        .collect();
+    let mut field_optionality = Vec::new();
+    for field in fields_iter {
+        let field_name = field.ident.clone().unwrap();
+        let field_name_str = field_name.to_string();
+        let (was_optional, inner_type) = extract_option_inner_type(&field.ty);
+        // Wrap in option based on component's wraps_in_option() (and not skipped)
+        let wrap_in_option = !field.skip()
+            && field.component.is_some()
+            && wrap_in_option_map
+                .get(&field_name_str)
+                .copied()
+                .unwrap_or(false);
+        // Get parsed koruma validators for this field
+        let koruma_info = parsed_koruma_fields.get(&field_name_str);
+        let validation = koruma_info
+            .map(|info| info.validation.clone())
+            .unwrap_or_default();
+        let default_expr = parse_field_default(field);
+        field_optionality.push(FieldOptionality {
+            field_name,
+            original_type: field.ty.clone(),
+            inner_type,
+            was_optional,
+            wrap_in_option,
+            validation,
+            default_expr,
+        });
+    }
 
     // Generate value holder struct and get list of fields requiring RequiredValidation
     let (value_holder_tokens, fields_requiring_required) = generate_value_holder(
         struct_name,
+        struct_is_unit,
         &field_optionality,
         enable_koruma,
         enable_koruma_fluent,
