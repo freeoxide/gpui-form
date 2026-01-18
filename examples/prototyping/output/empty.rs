@@ -35,7 +35,7 @@ impl gpui_storybook::Story for EmptyForm {
         Empty::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, Empty::default())
+        Self::view(window, cx, EmptyFormValueHolder::default().into())
     }
 }
 impl EmptyForm {

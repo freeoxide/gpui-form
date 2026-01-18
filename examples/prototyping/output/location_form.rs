@@ -37,7 +37,7 @@ impl gpui_storybook::Story for LocationFormForm {
         LocationForm::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, LocationForm::default())
+        Self::view(window, cx, LocationFormFormValueHolder::default().into())
     }
 }
 impl LocationFormForm {

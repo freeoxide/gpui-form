@@ -37,7 +37,7 @@ impl gpui_storybook::Story for UserForm {
         User::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, User::default())
+        Self::view(window, cx, UserFormValueHolder::default().into())
     }
 }
 impl UserForm {

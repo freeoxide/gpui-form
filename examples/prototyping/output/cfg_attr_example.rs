@@ -37,7 +37,7 @@ impl gpui_storybook::Story for CfgAttrExampleForm {
         CfgAttrExample::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, CfgAttrExample::default())
+        Self::view(window, cx, CfgAttrExampleFormValueHolder::default().into())
     }
 }
 impl CfgAttrExampleForm {

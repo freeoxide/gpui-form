@@ -37,7 +37,7 @@ impl gpui_storybook::Story for ItemForm {
         Item::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, Item::default())
+        Self::view(window, cx, ItemFormValueHolder::default().into())
     }
 }
 impl ItemForm {

@@ -29,7 +29,7 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
+#[derive(Clone, Debug, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
 #[fluent_this(origin, members)]
 #[fluent_kv(keys = ["description", "label"])]
 #[gpui_form(koruma(fluent))]
