@@ -522,12 +522,10 @@ fn generate_value_holder(
                 } else {
                     quote! { #name: None, }
                 }
+            } else if let Some(default_expr) = &f.default_expr {
+                quote! { #name: #default_expr, }
             } else {
-                if let Some(default_expr) = &f.default_expr {
-                    quote! { #name: #default_expr, }
-                } else {
-                    quote! { #name: Default::default(), }
-                }
+                quote! { #name: Default::default(), }
             }
         })
         .collect();
