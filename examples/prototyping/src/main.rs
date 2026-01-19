@@ -52,7 +52,7 @@ struct LayoutIdentities {
     struct_name_str: &'static str,
     context_str: String,
     struct_name_ident: syn::Ident,
-    struct_name_uw_ident: syn::Ident,
+    struct_name_form_value_holder_ident: syn::Ident,
     struct_name_form_ident: syn::Ident,
     struct_name_form_fields_ident: syn::Ident,
     form_id_literal: String,
@@ -66,7 +66,8 @@ impl LayoutIdentities {
         let struct_name_str = shape.struct_name;
         let context_str = format!("{}Form", struct_name_str);
         let struct_name_ident = shape.struct_name_ident();
-        let struct_name_uw_ident = format_ident!("{}FormValueHolder", struct_name_ident);
+        let struct_name_form_value_holder_ident =
+            format_ident!("{}FormValueHolder", struct_name_ident);
         let struct_name_form_ident = shape.struct_form_ident();
         let struct_name_form_fields_ident = shape.struct_form_fields_ident();
         let form_id_literal = shape.form_id_literal();
@@ -77,7 +78,7 @@ impl LayoutIdentities {
             struct_name_str,
             context_str,
             struct_name_ident,
-            struct_name_uw_ident,
+            struct_name_form_value_holder_ident,
             struct_name_form_ident,
             struct_name_form_fields_ident,
             form_id_literal,
@@ -131,7 +132,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         struct_name_str,
         context_str,
         struct_name_ident,
-        struct_name_uw_ident,
+        struct_name_form_value_holder_ident,
         struct_name_form_ident,
         struct_name_form_fields_ident,
         form_id_literal,
@@ -206,7 +207,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         )
     } else {
         (
-            quote! { current_data: #struct_name_uw_ident, },
+            quote! { current_data: #struct_name_form_value_holder_ident, },
             quote! { current_data: original_data.into(), },
             quote! {
                 fields: #struct_name_form_fields_ident {
@@ -272,7 +273,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           }
 
           fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-              Self::view(window, cx, #struct_name_uw_ident::default().into())
+              Self::view(window, cx, #struct_name_form_value_holder_ident::default().into())
           }
       }
 
