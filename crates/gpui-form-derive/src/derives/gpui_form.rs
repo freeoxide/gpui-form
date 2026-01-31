@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use darling::{FromDeriveInput, FromField, FromMeta, ast};
 use gpui_form_core::components::*;
 use gpui_form_core::implementations::ComponentLayout as _;
@@ -9,8 +7,10 @@ use koruma_derive_core::{
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, format_ident, quote};
+use std::collections::HashMap;
 use syn::{DeriveInput, Expr, GenericArgument, Ident, PathArguments, Type, parse_macro_input};
 use syn_cfg_attr::{AttributeHelpers as _, ExpandedAttr};
+use unwrapped_core::{WrappedOpts, WrappedProcUsageOpts};
 
 /// Flattens `cfg_attr` attributes in a DeriveInput.
 fn flatten_cfg_attr_in_derive_input(mut input: DeriveInput) -> DeriveInput {
@@ -346,7 +346,7 @@ fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
     field.default.as_ref().map(|expr| quote! { #expr })
 }
 
-/// Generates the FormValueHolder struct and its implementations.
+/// Generates the FormValueHolder struct and its implementations using unwrapped.
 /// Component fields that need unwrapping become Option<T> in the value holder.
 /// Other fields retain their original type.
 /// The value holder derives Koruma with copied attributes from original fields.
@@ -354,200 +354,11 @@ fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
 /// for non-optional fields wrapped in Option.
 /// Returns (value_holder_tokens, fields_requiring_required_validation).
 fn generate_value_holder(
-    struct_name: &Ident,
-    struct_is_unit: bool,
+    original_input: &DeriveInput,
     fields: &[FieldOptionality],
     enable_koruma: bool,
     enable_koruma_fluent: bool,
 ) -> (TokenStream, Vec<String>) {
-    let value_holder_name = format_ident!("{}FormValueHolder", struct_name);
-
-    // Check if we need to derive Koruma:
-    // - Any field has koruma validators (including newtype/nested flags)
-    let has_any_koruma = fields.iter().any(|f| {
-        !f.validation.field_validators.is_empty()
-            || !f.validation.element_validators.is_empty()
-            || f.validation.is_nested
-            || f.validation.is_newtype
-    });
-    // - Any field needs RequiredValidation (non-optional wrapped in Option, excluding newtype/nested)
-    let has_any_required = fields.iter().any(|f| {
-        f.wrap_in_option && !f.was_optional && !f.validation.is_newtype && !f.validation.is_nested
-    });
-    let _needs_koruma_derive = has_any_koruma || has_any_required;
-
-    // Generate value holder fields with koruma attributes
-    // - Fields with wrap_in_option=true become Option<inner_type>
-    // - Other fields keep their original type
-    // - Copy koruma validators from original fields (using koruma_derive_core parsed data)
-    // - Add RequiredValidation::<Option<_>> for non-optional fields wrapped in Option
-    let value_holder_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let name = &f.field_name;
-
-            // Determine if we need to add RequiredValidation
-            // (non-optional field that gets wrapped in Option)
-            // This ensures that non-optional fields cannot be None in the value holder
-            // Only add RequiredValidation when koruma support is enabled for this value holder.
-            // Koruma treats `newtype`/`nested` as standalone modifiers, so we avoid
-            // mixing them with additional validators.
-            let needs_required = enable_koruma
-                && f.wrap_in_option
-                && !f.was_optional
-                && !f.validation.is_newtype
-                && !f.validation.is_nested;
-
-            // Build the koruma attribute(s) for this field
-            // Only generate koruma attribute if:
-            // - We need RequiredValidation for non-optional wrapped fields, OR
-            // - The field has existing koruma validators (and koruma is enabled), OR
-            // - The field has newtype flag (and koruma is enabled)
-            let has_existing_validations = !f.validation.field_validators.is_empty()
-                || !f.validation.element_validators.is_empty();
-            // Only include newtype in the condition if koruma is enabled
-            let has_newtype = enable_koruma && f.validation.is_newtype;
-            let koruma_attr =
-                if needs_required || (enable_koruma && has_existing_validations) || has_newtype {
-                    let mut koruma_attrs: Vec<TokenStream> = Vec::new();
-
-                    // Emit modifiers as separate attributes (koruma parses these only when standalone).
-                    if enable_koruma && f.validation.is_newtype {
-                        koruma_attrs.push(quote! { #[koruma(newtype)] });
-                    }
-                    if enable_koruma && f.validation.is_nested {
-                        koruma_attrs.push(quote! { #[koruma(nested)] });
-                    }
-
-                    // Convert parsed validators to token streams
-                    let existing_validations: Vec<TokenStream> = f
-                        .validation
-                        .field_validators
-                        .iter()
-                        .chain(f.validation.element_validators.iter())
-                        .map(validator_attr_to_tokens)
-                        .collect();
-
-                    // Build a combined list of validator items
-                    let mut koruma_items: Vec<TokenStream> = Vec::new();
-
-                    // Add RequiredValidation if needed
-                    if needs_required {
-                        koruma_items.push(
-                            quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
-                        );
-                    }
-
-                    // Add existing validators (only if koruma is enabled)
-                    if enable_koruma {
-                        koruma_items.extend(existing_validations);
-                    }
-
-                    if !koruma_items.is_empty() {
-                        koruma_attrs.push(quote! { #[koruma(#(#koruma_items),*)] });
-                    }
-
-                    if !koruma_attrs.is_empty() {
-                        quote! { #(#koruma_attrs)* }
-                    } else {
-                        quote! {}
-                    }
-                } else {
-                    quote! {}
-                };
-
-            if f.wrap_in_option {
-                let inner_ty = &f.inner_type;
-                quote! {
-                    #koruma_attr
-                    pub #name: Option<#inner_ty>,
-                }
-            } else {
-                let orig_ty = &f.original_type;
-                quote! {
-                    #koruma_attr
-                    pub #name: #orig_ty,
-                }
-            }
-        })
-        .collect();
-
-    // Generate From<OriginalStruct> for ValueHolder
-    let from_original_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let name = &f.field_name;
-            if f.wrap_in_option {
-                // Component field that needs option wrapping
-                if f.was_optional {
-                    // Original was Option<T>, value holder is Option<T> -> direct copy
-                    quote! { #name: from.#name, }
-                } else {
-                    // Original was T, value holder is Option<T>
-                    // Use None if value equals default, otherwise wrap in Some
-                    let inner_ty = &f.inner_type;
-                    let default_expr = f
-                        .default_expr
-                        .as_ref()
-                        .map(|expr| quote! { #expr })
-                        .unwrap_or_else(|| quote! { <#inner_ty as Default>::default() });
-                    quote! { #name: if from.#name == #default_expr { None } else { Some(from.#name) }, }
-                }
-            } else {
-                // Non-component field or field without unwrapping -> direct copy
-                quote! { #name: from.#name, }
-            }
-        })
-        .collect();
-
-    // Generate From<ValueHolder> for OriginalStruct
-    let from_holder_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let name = &f.field_name;
-            if f.wrap_in_option {
-                // Component field with option wrapping in value holder
-                if f.was_optional {
-                    // Original was Option<T>, value holder is Option<T> -> direct copy
-                    quote! { #name: from.#name, }
-                } else {
-                    // Original was T, value holder is Option<T> -> unwrap_or_default
-                    if let Some(default_expr) = &f.default_expr {
-                        quote! { #name: from.#name.unwrap_or_else(|| #default_expr), }
-                    } else {
-                        quote! { #name: from.#name.unwrap_or_default(), }
-                    }
-                }
-            } else {
-                // Non-component field or field without unwrapping -> direct copy
-                quote! { #name: from.#name, }
-            }
-        })
-        .collect();
-
-    // Generate Default impl
-    let default_fields: Vec<TokenStream> = fields
-        .iter()
-        .map(|f| {
-            let name = &f.field_name;
-            if f.wrap_in_option {
-                if f.was_optional {
-                    if let Some(default_expr) = &f.default_expr {
-                        quote! { #name: #default_expr, }
-                    } else {
-                        quote! { #name: None, }
-                    }
-                } else {
-                    quote! { #name: None, }
-                }
-            } else if let Some(default_expr) = &f.default_expr {
-                quote! { #name: #default_expr, }
-            } else {
-                quote! { #name: Default::default(), }
-            }
-        })
-        .collect();
-
     // Collect field names that were originally non-optional and are wrapped in option
     // (these require RequiredValidation)
     let fields_requiring_required: Vec<String> = fields
@@ -561,67 +372,111 @@ fn generate_value_holder(
         .map(|f| f.field_name.to_string())
         .collect();
 
-    // Generate derive attributes conditionally
-    // Derive Koruma if:
-    // - enable_koruma is true AND there are actual koruma validators (existing behavior), OR
-    // - There are fields that need RequiredValidation (even without other koruma validators)
-    //   to ensure RequiredValidation is applied to non-optional fields wrapped in Option
+    // Check if we need to derive Koruma:
+    // - Any field has koruma validators (including newtype/nested flags)
+    let has_any_koruma = fields.iter().any(|f| {
+        !f.validation.field_validators.is_empty()
+            || !f.validation.element_validators.is_empty()
+            || f.validation.is_nested
+            || f.validation.is_newtype
+    });
+    // - Any field needs RequiredValidation (non-optional wrapped in Option, excluding newtype/nested)
+    let has_any_required = fields.iter().any(|f| {
+        f.wrap_in_option && !f.was_optional && !f.validation.is_newtype && !f.validation.is_nested
+    });
+
+    // Configure which fields to wrap and their attributes
+    let mut fields_to_wrap: HashMap<String, bool> = HashMap::new();
+    let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
+
+    for f in fields {
+        let field_name = f.field_name.to_string();
+        fields_to_wrap.insert(field_name.clone(), f.wrap_in_option);
+
+        // Build koruma attributes for this field if needed
+        if enable_koruma {
+            let needs_required = f.wrap_in_option
+                && !f.was_optional
+                && !f.validation.is_newtype
+                && !f.validation.is_nested;
+
+            let has_existing_validations = !f.validation.field_validators.is_empty()
+                || !f.validation.element_validators.is_empty();
+            let has_newtype = f.validation.is_newtype;
+
+            if needs_required || has_existing_validations || has_newtype {
+                let mut attrs: Vec<TokenStream> = Vec::new();
+
+                // Emit modifiers as separate attributes
+                if f.validation.is_newtype {
+                    attrs.push(quote! { #[koruma(newtype)] });
+                }
+                if f.validation.is_nested {
+                    attrs.push(quote! { #[koruma(nested)] });
+                }
+
+                // Build a combined list of validator items
+                let mut koruma_items: Vec<TokenStream> = Vec::new();
+
+                // Add RequiredValidation if needed
+                if needs_required {
+                    koruma_items.push(
+                        quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
+                    );
+                }
+
+                // Add existing validators
+                let existing_validations: Vec<TokenStream> = f
+                    .validation
+                    .field_validators
+                    .iter()
+                    .chain(f.validation.element_validators.iter())
+                    .map(validator_attr_to_tokens)
+                    .collect();
+                koruma_items.extend(existing_validations);
+
+                if !koruma_items.is_empty() {
+                    attrs.push(quote! { #[koruma(#(#koruma_items),*)] });
+                }
+
+                if !attrs.is_empty() {
+                    field_attrs.insert(field_name, attrs);
+                }
+            }
+        }
+    }
+
+    // Check if we need to add koruma derives
     let needs_koruma_for_required = has_any_required && enable_koruma;
-    let derive_attrs = if (enable_koruma && has_any_koruma) || needs_koruma_for_required {
+    let needs_koruma_derive = (enable_koruma && has_any_koruma) || needs_koruma_for_required;
+
+    // Build the unwrapped options with derives and field attributes
+    let mut wrapped_options = WrappedOpts::builder()
+        .suffix(format_ident!("FormValueHolder"))
+        .build();
+
+    wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug, Default });
+    if needs_koruma_derive {
         if enable_koruma_fluent {
-            quote! { #[derive(Clone, Debug, ::koruma::Koruma, ::koruma::KorumaAllFluent)] }
+            wrapped_options =
+                wrapped_options.with_derive(quote! { ::koruma::Koruma, ::koruma::KorumaAllFluent });
         } else {
-            quote! { #[derive(Clone, Debug, ::koruma::Koruma)] }
+            wrapped_options = wrapped_options.with_derive(quote! { ::koruma::Koruma });
         }
-    } else {
-        quote! { #[derive(Clone, Debug)] }
-    };
+    }
 
-    let from_holder_constructor = if struct_is_unit {
-        quote! { Self }
-    } else {
-        quote! {
-            Self {
-                #(#from_holder_fields)*
-            }
+    // Add field attributes
+    for (field_name, attrs) in field_attrs {
+        for attr in attrs {
+            wrapped_options = wrapped_options.with_field_attr(&field_name, attr);
         }
-    };
+    }
 
-    let from_unused_suppress = if fields.is_empty() {
-        quote! { let _ = from; }
-    } else {
-        quote! {}
-    };
+    // Set the library holder name so unwrapped generates ::gpui_form::unwrapped paths
+    let macro_options = WrappedProcUsageOpts::new(fields_to_wrap, Some(format_ident!("gpui_form")));
 
-    let tokens = quote! {
-        #derive_attrs
-        pub struct #value_holder_name {
-            #(#value_holder_fields)*
-        }
-
-        impl Default for #value_holder_name {
-            fn default() -> Self {
-                Self {
-                    #(#default_fields)*
-                }
-            }
-        }
-
-        impl From<#struct_name> for #value_holder_name {
-            fn from(from: #struct_name) -> Self {
-                #from_unused_suppress
-                Self {
-                    #(#from_original_fields)*
-                }
-            }
-        }
-        impl From<#value_holder_name> for #struct_name {
-            fn from(from: #value_holder_name) -> Self {
-                #from_unused_suppress
-                #from_holder_constructor
-            }
-        }
-    };
+    // Generate the wrapped struct with all derives and attributes
+    let tokens = unwrapped_core::wrapped(original_input, Some(wrapped_options), macro_options);
 
     (tokens, fields_requiring_required)
 }
@@ -634,6 +489,8 @@ fn expand_gpui_form(
     derive_input: DeriveInput,
     options: GpuiFormOptions,
 ) -> proc_macro2::TokenStream {
+    // Save the original derive_input for unwrapped
+    let original_input = derive_input.clone();
     // Flatten cfg_attr attributes before darling processing
     // This allows darling to see attributes like #[gpui_form(component(...))] even when
     // they're wrapped in #[cfg_attr(feature = "ui", ...)]
@@ -645,7 +502,7 @@ fn expand_gpui_form(
     };
 
     let struct_name = &parsed.ident;
-    let struct_is_unit = matches!(
+    let _struct_is_unit = matches!(
         derive_input.data,
         syn::Data::Struct(syn::DataStruct {
             fields: syn::Fields::Unit,
@@ -665,8 +522,7 @@ fn expand_gpui_form(
         let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
         let empty_fields: Vec<FieldOptionality> = Vec::new();
         let (value_holder_tokens, _) = generate_value_holder(
-            struct_name,
-            struct_is_unit,
+            &original_input,
             &empty_fields,
             enable_koruma,
             enable_koruma_fluent,
@@ -831,8 +687,7 @@ fn expand_gpui_form(
     let effective_enable_koruma =
         enable_koruma || (has_fields_needing_required && has_any_koruma_validations);
     let (value_holder_tokens, fields_requiring_required) = generate_value_holder(
-        struct_name,
-        struct_is_unit,
+        &original_input,
         &field_optionality,
         effective_enable_koruma,
         enable_koruma_fluent,
