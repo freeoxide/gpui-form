@@ -349,8 +349,9 @@ fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
 /// Generates the FormValueHolder struct and its implementations.
 /// Component fields that need unwrapping become Option<T> in the value holder.
 /// Other fields retain their original type.
-/// The value holder derives Koruma with copied attributes from original fields,
-/// plus RequiredValidation::<Option<_>> for non-optional fields wrapped in Option.
+/// The value holder derives Koruma with copied attributes from original fields.
+/// When koruma support is enabled, it also adds RequiredValidation::<Option<_>>
+/// for non-optional fields wrapped in Option.
 /// Returns (value_holder_tokens, fields_requiring_required_validation).
 fn generate_value_holder(
     struct_name: &Ident,
@@ -385,7 +386,8 @@ fn generate_value_holder(
             // Determine if we need to add RequiredValidation
             // (non-optional field that gets wrapped in Option)
             // This ensures that non-optional fields cannot be None in the value holder
-            let needs_required = f.wrap_in_option && !f.was_optional;
+            // Only add RequiredValidation when koruma support is enabled for this value holder.
+            let needs_required = enable_koruma && f.wrap_in_option && !f.was_optional;
 
             // Build the koruma attribute(s) for this field
             // Only generate koruma attribute if:
@@ -396,40 +398,41 @@ fn generate_value_holder(
                 || !f.validation.element_validators.is_empty();
             // Only include newtype in the condition if koruma is enabled
             let has_newtype = enable_koruma && f.validation.is_newtype;
-            let koruma_attr = if needs_required || (enable_koruma && has_existing_validations) || has_newtype {
-                // Convert parsed validators to token streams
-                let existing_validations: Vec<TokenStream> = f
-                    .validation
-                    .field_validators
-                    .iter()
-                    .chain(f.validation.element_validators.iter())
-                    .map(validator_attr_to_tokens)
-                    .collect();
+            let koruma_attr =
+                if needs_required || (enable_koruma && has_existing_validations) || has_newtype {
+                    // Convert parsed validators to token streams
+                    let existing_validations: Vec<TokenStream> = f
+                        .validation
+                        .field_validators
+                        .iter()
+                        .chain(f.validation.element_validators.iter())
+                        .map(validator_attr_to_tokens)
+                        .collect();
 
-                // Build a combined list of all koruma items
-                let mut koruma_items: Vec<TokenStream> = Vec::new();
+                    // Build a combined list of all koruma items
+                    let mut koruma_items: Vec<TokenStream> = Vec::new();
 
-                // Add RequiredValidation if needed
-                if needs_required {
-                    koruma_items.push(
-                        quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
-                    );
-                }
+                    // Add RequiredValidation if needed
+                    if needs_required {
+                        koruma_items.push(
+                            quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
+                        );
+                    }
 
-                // Add existing validators (only if koruma is enabled)
-                if enable_koruma {
-                    koruma_items.extend(existing_validations);
-                }
+                    // Add existing validators (only if koruma is enabled)
+                    if enable_koruma {
+                        koruma_items.extend(existing_validations);
+                    }
 
-                // Generate the attribute if we have any items
-                if !koruma_items.is_empty() {
-                    quote! { #[koruma(#(#koruma_items),*)] }
+                    // Generate the attribute if we have any items
+                    if !koruma_items.is_empty() {
+                        quote! { #[koruma(#(#koruma_items),*)] }
+                    } else {
+                        quote! {}
+                    }
                 } else {
                     quote! {}
-                }
-            } else {
-                quote! {}
-            };
+                };
 
             if f.wrap_in_option {
                 let inner_ty = &f.inner_type;
@@ -785,7 +788,9 @@ fn expand_gpui_form(
     // Generate value holder struct and get list of fields requiring RequiredValidation
     // Pass true for enable_koruma if there are any fields that need RequiredValidation,
     // even if the original struct doesn't have koruma attributes
-    let has_fields_needing_required = field_optionality.iter().any(|f| f.wrap_in_option && !f.was_optional);
+    let has_fields_needing_required = field_optionality
+        .iter()
+        .any(|f| f.wrap_in_option && !f.was_optional);
     // Only enable koruma for the value holder if:
     // - The original struct has koruma attributes (enable_koruma), OR
     // - There are fields needing RequiredValidation AND there are existing koruma validations
@@ -796,7 +801,8 @@ fn expand_gpui_form(
             || !f.validation.element_validators.is_empty()
             || f.validation.is_nested
     });
-    let effective_enable_koruma = enable_koruma || (has_fields_needing_required && has_any_koruma_validations);
+    let effective_enable_koruma =
+        enable_koruma || (has_fields_needing_required && has_any_koruma_validations);
     let (value_holder_tokens, fields_requiring_required) = generate_value_holder(
         struct_name,
         struct_is_unit,
