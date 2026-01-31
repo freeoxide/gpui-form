@@ -124,7 +124,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     }
 
     let type_label_impl = if has_label && keys_this {
-        let label_enum = quote::format_ident!("{}LabelKvFtl", enum_ident);
+        let label_enum = quote::format_ident!("{}LabelVariants", enum_ident);
 
         quote! {
 
@@ -138,7 +138,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let type_description_impl = if has_description && keys_this {
-        let desc_enum = quote::format_ident!("{}DescriptionKvFtl", enum_ident);
+        let desc_enum = quote::format_ident!("{}DescriptionVariants", enum_ident);
 
         quote! {
 

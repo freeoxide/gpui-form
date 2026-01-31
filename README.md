@@ -29,7 +29,7 @@ Compatibility of `gpui-form` versions:
 ## Showcase
 
 ```rs
-use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
+use es_fluent::{EsFluent, EsFluentVariants, EsFluentThis};
 use gpui_form::{GpuiForm, SelectItem};
 use koruma::{Koruma, KorumaAllFluent};
 use koruma_collection::{
@@ -59,9 +59,9 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
+#[derive(Clone, Debug, Default, EsFluentVariants, EsFluentThis, GpuiForm, Koruma, KorumaAllFluent)]
 #[fluent_this(origin, members)]
-#[fluent_kv(keys = ["description", "label"])]
+#[fluent_variants(keys = ["description", "label"])]
 #[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(component(input))]
@@ -96,7 +96,7 @@ pub struct User {
     pub birth_date: Option<chrono::NaiveDate>,
 
     #[gpui_form(skip)]
-    #[fluent_kv(skip)]
+    #[fluent_variants(skip)]
     pub skip_me: bool,
 }
 ```

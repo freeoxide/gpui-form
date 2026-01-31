@@ -275,10 +275,10 @@ impl Render for CfgAttrExampleForm {
                 v_form()
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Username.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Username.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Username.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Username.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -314,10 +314,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Email.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Email.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Email.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Email.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -353,10 +353,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Age.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Age.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Age.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Age.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.age().all();
@@ -392,10 +392,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Balance.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Balance.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Balance.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Balance.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -431,10 +431,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Active.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Active.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Active.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Active.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -453,10 +453,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::Enabled.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::Enabled.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::Enabled.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::Enabled.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -476,10 +476,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::AccountType.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::AccountType.to_fluent_string())
                             .description_fn({
-                                let description =
-                                    CfgAttrExampleDescriptionKvFtl::AccountType.to_fluent_string();
+                                let description = CfgAttrExampleDescriptionVariants::AccountType
+                                    .to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -492,10 +492,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(CfgAttrExampleLabelKvFtl::CreatedAt.to_fluent_string())
+                            .label(CfgAttrExampleLabelVariants::CreatedAt.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    CfgAttrExampleDescriptionKvFtl::CreatedAt.to_fluent_string();
+                                    CfgAttrExampleDescriptionVariants::CreatedAt.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()

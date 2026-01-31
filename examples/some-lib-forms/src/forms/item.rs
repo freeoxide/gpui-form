@@ -128,9 +128,9 @@ impl Render for ItemForm {
             .child(
                 v_form().child(
                     field()
-                        .label(ItemLabelKvFtl::Index.to_fluent_string())
+                        .label(ItemLabelVariants::Index.to_fluent_string())
                         .description_fn({
-                            let description = ItemDescriptionKvFtl::Index.to_fluent_string();
+                            let description = ItemDescriptionVariants::Index.to_fluent_string();
                             let error = {
                                 validation_errors.as_ref().and_then(|e| {
                                     let errs = e.index().all();

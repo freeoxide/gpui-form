@@ -1,4 +1,4 @@
-use es_fluent::{EsFluentKv, EsFluentThis};
+use es_fluent::{EsFluentThis, EsFluentVariants};
 use gpui_form::SelectItem;
 use koruma_collection::{
     collection::NonEmptyValidation,
@@ -52,9 +52,9 @@ pub struct Age {
 /// Features required: ui, validation, fluent
 #[cfg_attr(feature = "ui", derive(gpui_form::GpuiForm))]
 #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
-#[cfg_attr(feature = "fluent", derive(EsFluentKv, EsFluentThis))]
+#[cfg_attr(feature = "fluent", derive(EsFluentVariants, EsFluentThis))]
 #[cfg_attr(feature = "fluent", fluent_this(origin, members))]
-#[cfg_attr(feature = "fluent", fluent_kv(keys = ["description", "label"]))]
+#[cfg_attr(feature = "fluent", fluent_variants(keys = ["description", "label"]))]
 #[cfg_attr(
     feature = "validation",
     derive(koruma::Koruma, koruma::KorumaAllFluent)
@@ -99,6 +99,6 @@ pub struct CfgAttrExample {
 
     /// Field to skip
     #[cfg_attr(feature = "ui", gpui_form(skip))]
-    #[cfg_attr(feature = "fluent", fluent_kv(skip))]
+    #[cfg_attr(feature = "fluent", fluent_variants(skip))]
     pub internal_id: u64,
 }

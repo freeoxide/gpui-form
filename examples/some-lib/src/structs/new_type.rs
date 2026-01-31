@@ -30,13 +30,13 @@ pub struct Age {
 #[cfg_attr(feature = "ui", derive(gpui_form::GpuiForm,))]
 #[cfg_attr(
     feature = "fluent",
-    derive(es_fluent::EsFluentKv, es_fluent::EsFluentThis,)
+    derive(es_fluent::EsFluentVariants, es_fluent::EsFluentThis,)
 )]
 #[cfg_attr(
     feature = "validation",
     derive(koruma::Koruma, koruma::KorumaAllFluent)
 )]
-#[cfg_attr(feature = "fluent", fluent_kv(keys = ["description", "label"]))]
+#[cfg_attr(feature = "fluent", fluent_variants(keys = ["description", "label"]))]
 #[cfg_attr(feature = "fluent", fluent_this(origin, members))]
 #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
 pub struct Item {

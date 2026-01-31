@@ -330,9 +330,10 @@ impl Render for UserForm {
                 v_form()
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Username.to_fluent_string())
+                            .label(UserLabelVariants::Username.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Username.to_fluent_string();
+                                let description =
+                                    UserDescriptionVariants::Username.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -368,9 +369,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Email.to_fluent_string())
+                            .label(UserLabelVariants::Email.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Email.to_fluent_string();
+                                let description = UserDescriptionVariants::Email.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -406,9 +407,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Age.to_fluent_string())
+                            .label(UserLabelVariants::Age.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Age.to_fluent_string();
+                                let description = UserDescriptionVariants::Age.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.age().all();
@@ -444,9 +445,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Balance.to_fluent_string())
+                            .label(UserLabelVariants::Balance.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Balance.to_fluent_string();
+                                let description =
+                                    UserDescriptionVariants::Balance.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -482,9 +484,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Debt.to_fluent_string())
+                            .label(UserLabelVariants::Debt.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Debt.to_fluent_string();
+                                let description = UserDescriptionVariants::Debt.to_fluent_string();
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.debt().all();
@@ -520,10 +522,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::SubscribeNewsletter.to_fluent_string())
+                            .label(UserLabelVariants::SubscribeNewsletter.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    UserDescriptionKvFtl::SubscribeNewsletter.to_fluent_string();
+                                    UserDescriptionVariants::SubscribeNewsletter.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -543,10 +545,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::EnableNotifications.to_fluent_string())
+                            .label(UserLabelVariants::EnableNotifications.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    UserDescriptionKvFtl::EnableNotifications.to_fluent_string();
+                                    UserDescriptionVariants::EnableNotifications.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -566,10 +568,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Preferred.to_fluent_string())
+                            .label(UserLabelVariants::Preferred.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    UserDescriptionKvFtl::Preferred.to_fluent_string();
+                                    UserDescriptionVariants::Preferred.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -582,9 +584,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::Country.to_fluent_string())
+                            .label(UserLabelVariants::Country.to_fluent_string())
                             .description_fn({
-                                let description = UserDescriptionKvFtl::Country.to_fluent_string();
+                                let description =
+                                    UserDescriptionVariants::Country.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -597,10 +600,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelKvFtl::BirthDate.to_fluent_string())
+                            .label(UserLabelVariants::BirthDate.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    UserDescriptionKvFtl::BirthDate.to_fluent_string();
+                                    UserDescriptionVariants::BirthDate.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()

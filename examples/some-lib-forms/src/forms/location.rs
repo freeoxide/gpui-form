@@ -200,10 +200,10 @@ impl Render for LocationFormForm {
                 v_form()
                     .child(
                         field()
-                            .label(LocationFormLabelKvFtl::Name.to_fluent_string())
+                            .label(LocationFormLabelVariants::Name.to_fluent_string())
                             .description_fn({
                                 let description =
-                                    LocationFormDescriptionKvFtl::Name.to_fluent_string();
+                                    LocationFormDescriptionVariants::Name.to_fluent_string();
                                 move |_, _| {
                                     div()
                                         .flex()

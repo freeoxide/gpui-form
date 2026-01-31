@@ -3,7 +3,7 @@
 //! This demonstrates a 3-level hierarchy: Country -> State/Province -> City
 //! using the InfiniteSelect derive macro.
 
-use es_fluent::{EsFluent, EsFluentKv, EsFluentThis};
+use es_fluent::{EsFluent, EsFluentThis, EsFluentVariants};
 use gpui_form::InfiniteSelect;
 use strum::EnumIter;
 
@@ -81,9 +81,11 @@ pub enum BritishColumbiaCity {
 // Level 2: States/Provinces (contain cities)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
+#[derive(
+    Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
+)]
 #[fluent_this(origin, members)]
-#[fluent_kv(keys = ["description", "label"])]
+#[fluent_variants(keys = ["description", "label"])]
 pub enum USAState {
     California(CaliforniaCity),
     Texas(TexasCity),
@@ -96,9 +98,11 @@ impl Default for USAState {
     }
 }
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
+#[derive(
+    Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
+)]
 #[fluent_this(origin, members)]
-#[fluent_kv(keys = ["description", "label"])]
+#[fluent_variants(keys = ["description", "label"])]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
     Quebec(QuebecCity),
@@ -115,9 +119,11 @@ impl Default for CanadaProvince {
 // Level 1: Countries (contain states/provinces)
 // ============================================================================
 
-#[derive(Clone, Debug, EnumIter, EsFluent, EsFluentKv, EsFluentThis, InfiniteSelect, PartialEq)]
+#[derive(
+    Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
+)]
 #[fluent_this(origin, members)]
-#[fluent_kv(keys = ["description", "label"])]
+#[fluent_variants(keys = ["description", "label"])]
 pub enum Country {
     USA(USAState),
     Canada { province: CanadaProvince },
@@ -136,9 +142,9 @@ impl Default for Country {
 use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
-#[derive(Clone, Debug, Default, EsFluentKv, EsFluentThis, GpuiForm)]
+#[derive(Clone, Debug, Default, EsFluentThis, EsFluentVariants, GpuiForm)]
 #[fluent_this(origin, members)]
-#[fluent_kv(keys = ["description", "label"])]
+#[fluent_variants(keys = ["description", "label"])]
 pub struct LocationForm {
     /// User's name
     #[gpui_form(component(input))]

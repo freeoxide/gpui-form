@@ -23,19 +23,19 @@ canada_province-BritishColumbia = British Columbia { $f0 }
 canada_province-Ontario = Ontario { $f0 }
 canada_province-Quebec = Quebec { $f0 }
 
-## CanadaProvinceDescriptionKvFtl
+## CanadaProvinceDescription
 
-canada_province_description_kv_ftl_this = Canada Province Description Kv Ftl
-canada_province_description_kv_ftl-BritishColumbia = British Columbia
-canada_province_description_kv_ftl-Ontario = Ontario
-canada_province_description_kv_ftl-Quebec = Quebec
+canada_province_description_this = Canada Province Description
+canada_province_description-BritishColumbia = British Columbia
+canada_province_description-Ontario = Ontario
+canada_province_description-Quebec = Quebec
 
-## CanadaProvinceLabelKvFtl
+## CanadaProvinceLabel
 
-canada_province_label_kv_ftl_this = Canada Province Label Kv Ftl
-canada_province_label_kv_ftl-BritishColumbia = British Columbia
-canada_province_label_kv_ftl-Ontario = Ontario
-canada_province_label_kv_ftl-Quebec = Quebec
+canada_province_label_this = Canada Province Label
+canada_province_label-BritishColumbia = British Columbia
+canada_province_label-Ontario = Ontario
+canada_province_label-Quebec = Quebec
 
 ## Country
 
@@ -43,17 +43,17 @@ country_this = Country
 country-Canada = Canada { $province }
 country-USA = Usa { $f0 }
 
-## CountryDescriptionKvFtl
+## CountryDescription
 
-country_description_kv_ftl_this = Country Description Kv Ftl
-country_description_kv_ftl-Canada = Canada
-country_description_kv_ftl-USA = Usa
+country_description_this = Country Description
+country_description-Canada = Canada
+country_description-USA = Usa
 
-## CountryLabelKvFtl
+## CountryLabel
 
-country_label_kv_ftl_this = Country Label Kv Ftl
-country_label_kv_ftl-Canada = Canada
-country_label_kv_ftl-USA = Usa
+country_label_this = Country Label
+country_label-Canada = Canada
+country_label-USA = Usa
 
 ## Empty
 
@@ -63,17 +63,17 @@ empty_this = Empty
 
 location_form_this = Location Form
 
-## LocationFormDescriptionKvFtl
+## LocationFormDescription
 
-location_form_description_kv_ftl_this = Location Form Description Kv Ftl
-location_form_description_kv_ftl-location = Location
-location_form_description_kv_ftl-name = Name
+location_form_description_this = Location Form Description
+location_form_description-location = Location
+location_form_description-name = Name
 
-## LocationFormLabelKvFtl
+## LocationFormLabel
 
-location_form_label_kv_ftl_this = Location Form Label Kv Ftl
-location_form_label_kv_ftl-location = Location
-location_form_label_kv_ftl-name = Name
+location_form_label_this = Location Form Label
+location_form_label-location = Location
+location_form_label-name = Name
 
 ## NewYorkCity
 
@@ -118,49 +118,49 @@ usa_state-California = California { $f0 }
 usa_state-NewYork = New York { $f0 }
 usa_state-Texas = Texas { $f0 }
 
-## USAStateDescriptionKvFtl
+## USAStateDescription
 
-usa_state_description_kv_ftl_this = Usa State Description Kv Ftl
-usa_state_description_kv_ftl-California = California
-usa_state_description_kv_ftl-NewYork = New York
-usa_state_description_kv_ftl-Texas = Texas
+usa_state_description_this = Usa State Description
+usa_state_description-California = California
+usa_state_description-NewYork = New York
+usa_state_description-Texas = Texas
 
-## USAStateLabelKvFtl
+## USAStateLabel
 
-usa_state_label_kv_ftl_this = Usa State Label Kv Ftl
-usa_state_label_kv_ftl-California = California
-usa_state_label_kv_ftl-NewYork = New York
-usa_state_label_kv_ftl-Texas = Texas
+usa_state_label_this = Usa State Label
+usa_state_label-California = California
+usa_state_label-NewYork = New York
+usa_state_label-Texas = Texas
 
 ## User
 
 user_this = User
 
-## UserDescriptionKvFtl
+## UserDescription
 
-user_description_kv_ftl_this = User Description Kv Ftl
-user_description_kv_ftl-age = Age
-user_description_kv_ftl-balance = Balance
-user_description_kv_ftl-birth_date = Birth Date
-user_description_kv_ftl-country = Country
-user_description_kv_ftl-email = Email
-user_description_kv_ftl-enable_notifications = Enable Notifications
-user_description_kv_ftl-preferred = Preferred
-user_description_kv_ftl-subscribe_newsletter = Subscribe Newsletter
-user_description_kv_ftl-username = Username
+user_description_this = User Description
+user_description-age = Age
+user_description-balance = Balance
+user_description-birth_date = Birth Date
+user_description-country = Country
+user_description-email = Email
+user_description-enable_notifications = Enable Notifications
+user_description-preferred = Preferred
+user_description-subscribe_newsletter = Subscribe Newsletter
+user_description-username = Username
 
-## UserLabelKvFtl
+## UserLabel
 
-user_label_kv_ftl_this = User Label Kv Ftl
-user_label_kv_ftl-age = Age
-user_label_kv_ftl-balance = Balance
-user_label_kv_ftl-birth_date = Birth Date
-user_label_kv_ftl-country = Country
-user_label_kv_ftl-email = Email
-user_label_kv_ftl-enable_notifications = Enable Notifications
-user_label_kv_ftl-preferred = Preferred
-user_label_kv_ftl-subscribe_newsletter = Subscribe Newsletter
-user_label_kv_ftl-username = Username
+user_label_this = User Label
+user_label-age = Age
+user_label-balance = Balance
+user_label-birth_date = Birth Date
+user_label-country = Country
+user_label-email = Email
+user_label-enable_notifications = Enable Notifications
+user_label-preferred = Preferred
+user_label-subscribe_newsletter = Subscribe Newsletter
+user_label-username = Username
 
 ## EnumCountry
 
