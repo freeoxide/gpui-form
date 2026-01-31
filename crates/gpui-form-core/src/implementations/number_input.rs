@@ -30,20 +30,21 @@ impl super::ComponentLayout for NumberInputComponent {
         // Use the `as` option if provided for validation type detection, otherwise use the field type
         let validation_type_ident = options.r#as.as_ref().unwrap_or(r#type);
         let type_str = validation_type_ident.to_string();
-        let is_signed = type_str.starts_with('i') || type_str.starts_with('f');
+        // Treat custom types as signed by default; only explicit `u*` types are unsigned.
+        let is_unsigned = type_str.starts_with('u');
 
-        let validation_logic = if is_signed {
+        let validation_logic = if is_unsigned {
             let require_parse = !has_as_type;
             quote! {
                 .validate(|value, _| {
-                    ::gpui_form::numeric::validate_signed_numeric::<#r#type>(value, #require_parse)
+                    ::gpui_form::numeric::validate_unsigned_numeric::<#r#type>(value, #require_parse)
                 })
             }
         } else {
             let require_parse = !has_as_type;
             quote! {
                 .validate(|value, _| {
-                    ::gpui_form::numeric::validate_unsigned_numeric::<#r#type>(value, #require_parse)
+                    ::gpui_form::numeric::validate_signed_numeric::<#r#type>(value, #require_parse)
                 })
             }
         };
