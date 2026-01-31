@@ -29,6 +29,7 @@ Field attributes:
 - `#[gpui_form(default = <expr>)]` to set default in the value holder
 
 Notes:
+
 - `select` expects `strum::IntoEnumIterator` and `PartialEq`; `select(default)` also needs `Default`.
 - `infinite_select(max_depth = ...)` is currently stored in metadata but not enforced by generated code.
 
