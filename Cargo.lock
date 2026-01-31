@@ -2723,6 +2723,7 @@ dependencies = [
  "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
+ "unwrapped",
 ]
 
 [[package]]
@@ -2775,6 +2776,7 @@ dependencies = [
  "syn 2.0.114",
  "syn-cfg-attr",
  "thiserror 2.0.17",
+ "unwrapped-core",
 ]
 
 [[package]]
@@ -6757,6 +6759,35 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
+name = "unwrapped"
+version = "0.1.2"
+source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+dependencies = [
+ "unwrapped-derive",
+]
+
+[[package]]
+name = "unwrapped-core"
+version = "0.1.2"
+source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+dependencies = [
+ "bon",
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
+name = "unwrapped-derive"
+version = "0.1.2"
+source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+dependencies = [
+ "syn 2.0.114",
+ "unwrapped-core",
+]
 
 [[package]]
 name = "url"

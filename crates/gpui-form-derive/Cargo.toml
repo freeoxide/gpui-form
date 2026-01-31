@@ -32,6 +32,7 @@ strum = { features = [ "derive" ], workspace = true }
 syn = { features = [ "full" ], workspace = true }
 syn-cfg-attr = { workspace = true }
 thiserror = { workspace = true }
+unwrapped-core = { workspace = true }
 
 [lints]
 workspace = true
