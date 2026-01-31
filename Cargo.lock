@@ -6762,16 +6762,18 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "unwrapped"
-version = "0.1.2"
-source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fe0f1c195214768f5489766d1de05034f74ba8dc5730999d2ad26919549eb93"
 dependencies = [
  "unwrapped-derive",
 ]
 
 [[package]]
 name = "unwrapped-core"
-version = "0.1.2"
-source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c5ed2870d67498ea3bb96f1c8c3ffa484f615384af57e295b401ebb6e3c53df"
 dependencies = [
  "bon",
  "darling",
@@ -6782,8 +6784,9 @@ dependencies = [
 
 [[package]]
 name = "unwrapped-derive"
-version = "0.1.2"
-source = "git+https://github.com/stayhydated/unwrapped#93ec010d1dfc1132696c8cb9754c808b84b9958f"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cda9230f1952c6040edb5ebf13425e514f0b5c91f670f65efea06e36342f1b77"
 dependencies = [
  "syn 2.0.114",
  "unwrapped-core",
