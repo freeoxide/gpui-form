@@ -40,6 +40,8 @@ pub struct FieldVariant {
     pub behaviour: ComponentsBehaviour,
     /// List of validation rule identifiers applied to this field (for diagnostics/rendering).
     pub validations: &'static [&'static str],
+    /// Default value expression as a string, if one was specified.
+    pub default_expr: Option<&'static str>,
 }
 
 impl FieldVariant {
@@ -55,7 +57,14 @@ impl FieldVariant {
             optional,
             behaviour,
             validations: &[],
+            default_expr: None,
         }
+    }
+
+    /// Attach a default value expression to this field metadata.
+    pub const fn with_default(mut self, default_expr: &'static str) -> Self {
+        self.default_expr = Some(default_expr);
+        self
     }
 
     pub fn full_type(&self) -> syn::Type {

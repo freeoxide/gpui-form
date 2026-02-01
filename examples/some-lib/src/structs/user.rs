@@ -38,7 +38,7 @@ pub struct User {
     #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
     pub username: Option<String>,
 
-    #[gpui_form(component(input))]
+    #[gpui_form(component(input), default = String::from("test@example.com"))]
     #[koruma(EmailValidation::<_>)]
     pub email: String,
 
@@ -46,7 +46,7 @@ pub struct User {
     #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(number_input(as = f64)))]
+    #[gpui_form(component(number_input(as = f64)), default = 67.into())]
     #[koruma(PositiveValidation::<_>)]
     pub balance: Decimal,
 

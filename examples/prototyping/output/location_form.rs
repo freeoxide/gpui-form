@@ -142,7 +142,7 @@ impl LocationFormForm {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = LocationFormFormValueHolder::default();
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
-        let initial_location = &original_data.location;
+        let initial_location = &current_data.location;
         let master_variants_location = Country::variants();
         let initial_variant_name_location = initial_location.variant_name();
         let initial_variant_idx_location = master_variants_location
@@ -171,10 +171,19 @@ impl LocationFormForm {
             .subscribe_in(& location_master_select, window,
             Self::on_location_master_select_event)
         ];
+        if let Some(value) = current_data.name.as_ref() {
+            name_input
+                .update(
+                    cx,
+                    |state, cx| {
+                        state.set_value(value.to_string(), window, cx);
+                    },
+                );
+        }
         let mut location_path = gpui_form::component::infinite_select::InfiniteSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(
-            &original_data.location,
+            &current_data.location,
             0,
             window,
             cx,

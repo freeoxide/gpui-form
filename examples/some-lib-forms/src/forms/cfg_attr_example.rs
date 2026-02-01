@@ -240,6 +240,26 @@ impl CfgAttrExampleForm {
                 Self::on_created_at_date_picker_event,
             ),
         ];
+        if let Some(value) = current_data.username.as_ref() {
+            username_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
+        if let Some(value) = current_data.email.as_ref() {
+            email_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
+        if let Some(value) = current_data.age.as_ref() {
+            age_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
+        if let Some(value) = current_data.balance.as_ref() {
+            balance_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
         Self {
             current_data,
             fields: CfgAttrExampleFormFields {

@@ -101,6 +101,11 @@ impl ItemForm {
                 Self::on_index_number_input_event,
             ),
         ];
+        if let Some(value) = current_data.index.as_ref() {
+            index_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
         Self {
             current_data,
             fields: ItemFormFields { index_number_input },

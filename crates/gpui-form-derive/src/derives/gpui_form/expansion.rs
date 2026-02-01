@@ -266,6 +266,11 @@ pub fn expand_gpui_form(
                     .map(|v| syn::LitStr::new(v, proc_macro2::Span::call_site()))
                     .collect();
 
+                let default_expr_tokens = field.default.as_ref().map(|expr| {
+                    let expr_str = expr.to_token_stream().to_string();
+                    quote! { .with_default(#expr_str) }
+                });
+
                 Some(quote! {
                     ::gpui_form::core::registry::FieldVariant::new(
                         #field_name_str,
@@ -275,6 +280,7 @@ pub fn expand_gpui_form(
                     ).with_validations(&[
                         #( #validation_literals ),*
                     ])
+                    #default_expr_tokens
                 })
             }
         })

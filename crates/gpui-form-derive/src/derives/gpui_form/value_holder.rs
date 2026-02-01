@@ -7,6 +7,47 @@ use unwrapped_core::{WrappedOpts, WrappedProcUsageOpts};
 use crate::derives::gpui_form::koruma::validator_attr_to_tokens;
 use crate::derives::gpui_form::structs::{ComponentField, FieldOptionality};
 
+/// Generates a custom Default implementation for the FormValueHolder that uses
+/// the specified default expressions for fields that have them.
+fn generate_default_impl(
+    _original_input: &DeriveInput,
+    fields: &[FieldOptionality],
+    struct_name: &syn::Ident,
+) -> TokenStream {
+    let default_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let field_name = &f.field_name;
+            if let Some(default_expr) = &f.default_expr {
+                // Field has a custom default - wrap it in Some()
+                quote! {
+                    #field_name: Some(#default_expr)
+                }
+            } else if f.wrap_in_option {
+                // Field is wrapped in Option but has no custom default
+                quote! {
+                    #field_name: None
+                }
+            } else {
+                // Field is not wrapped, use standard Default
+                quote! {
+                    #field_name: ::core::default::Default::default()
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        impl ::core::default::Default for #struct_name {
+            fn default() -> Self {
+                Self {
+                    #(#default_fields),*
+                }
+            }
+        }
+    }
+}
+
 pub fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
     field.default.as_ref().map(|expr| quote! { #expr })
 }
@@ -98,11 +139,20 @@ pub fn generate_value_holder(
     let needs_koruma_for_required = has_any_required && enable_koruma;
     let needs_koruma_derive = (enable_koruma && has_any_koruma) || needs_koruma_for_required;
 
+    // Check if any field has a custom default expression
+    let has_custom_defaults = fields.iter().any(|f| f.default_expr.is_some());
+
     let mut wrapped_options = WrappedOpts::builder()
         .suffix(format_ident!("FormValueHolder"))
         .build();
 
-    wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug, Default });
+    // Only derive Default automatically if there are no custom defaults
+    // If there are custom defaults, we'll generate a custom Default impl
+    if !has_custom_defaults {
+        wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug, Default });
+    } else {
+        wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug });
+    }
     if needs_koruma_derive {
         if enable_koruma_fluent {
             wrapped_options =
@@ -118,9 +168,34 @@ pub fn generate_value_holder(
         }
     }
 
-    let macro_options = WrappedProcUsageOpts::new(fields_to_wrap, Some(format_ident!("gpui_form")));
+    let mut macro_options =
+        WrappedProcUsageOpts::new(fields_to_wrap, Some(format_ident!("gpui_form")));
 
-    let tokens = unwrapped_core::wrapped(original_input, Some(wrapped_options), macro_options);
+    // Add default expressions to field options
+    for field in fields {
+        if let Some(default_expr) = &field.default_expr {
+            macro_options = macro_options.with_field_opts(
+                &field.field_name.to_string(),
+                unwrapped_core::wrapped::FieldProcOpts::new(field.wrap_in_option)
+                    .with_default(default_expr.clone()),
+            );
+        }
+    }
+
+    let mut tokens = unwrapped_core::wrapped(original_input, Some(wrapped_options), macro_options);
+
+    // If there are custom defaults, generate a custom Default implementation
+    if has_custom_defaults {
+        // Get the original struct name and create the wrapped struct name
+        let original_ident = &original_input.ident;
+        let wrapped_ident = format_ident!("{}FormValueHolder", original_ident);
+
+        let default_impl = generate_default_impl(original_input, fields, &wrapped_ident);
+        tokens = quote! {
+            #tokens
+            #default_impl
+        };
+    }
 
     (tokens, fields_requiring_required)
 }
