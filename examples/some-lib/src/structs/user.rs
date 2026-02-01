@@ -20,10 +20,9 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[select_item(fluent)]
 pub enum EnumCountry {
-    #[default]
     UnitedStates,
     France,
     China,
@@ -38,7 +37,7 @@ pub struct User {
     #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
     pub username: Option<String>,
 
-    #[gpui_form(component(input))]
+    #[gpui_form(component(input), default = String::from("test@example.com"))]
     #[koruma(EmailValidation::<_>)]
     pub email: String,
 
@@ -46,7 +45,7 @@ pub struct User {
     #[koruma(RangeValidation::<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(number_input(as = f64)))]
+    #[gpui_form(component(number_input(as = f64)), default = 67.into())]
     #[koruma(PositiveValidation::<_>)]
     pub balance: Decimal,
 
@@ -60,10 +59,10 @@ pub struct User {
     #[gpui_form(component(switch))]
     pub enable_notifications: bool,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select))]
     pub preferred: PreferedLanguage,
 
-    #[gpui_form(component(select(searchable, index = EnumCountry::France)))]
+    #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
     #[gpui_form(component(date_picker))]
