@@ -17,13 +17,11 @@ use gpui_component::{
 use gpui_form::component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::cfg_attr_example::*;
-use std::sync::Arc;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct CfgAttrExampleForm {
-    original_data: Arc<CfgAttrExample>,
     current_data: CfgAttrExampleFormValueHolder,
     fields: CfgAttrExampleFormFields,
     focus_handle: FocusHandle,
@@ -39,13 +37,10 @@ impl gpui_storybook::Story for CfgAttrExampleForm {
         CfgAttrExample::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, CfgAttrExample::default())
+        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl CfgAttrExampleForm {
-    pub fn view(window: &mut Window, cx: &mut App, original_data: CfgAttrExample) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx, original_data))
-    }
     fn on_username_input_event(
         &mut self,
         state: &Entity<InputState>,
@@ -211,7 +206,8 @@ impl CfgAttrExampleForm {
             },
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: CfgAttrExample) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let current_data = CfgAttrExampleFormValueHolder::default();
         let username_input = cx.new(|cx| CfgAttrExampleFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| CfgAttrExampleFormComponents::email_input(window, cx));
         let age_number_input =
@@ -245,8 +241,7 @@ impl CfgAttrExampleForm {
             ),
         ];
         Self {
-            original_data: Arc::new(original_data.clone()),
-            current_data: original_data.into(),
+            current_data,
             fields: CfgAttrExampleFormFields {
                 username_input,
                 email_input,

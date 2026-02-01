@@ -17,13 +17,11 @@ use gpui_component::{
 use gpui_form::component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::user::*;
-use std::sync::Arc;
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct UserForm {
-    original_data: Arc<User>,
     current_data: UserFormValueHolder,
     fields: UserFormFields,
     focus_handle: FocusHandle,
@@ -39,13 +37,10 @@ impl gpui_storybook::Story for UserForm {
         User::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, UserFormValueHolder::default().into())
+        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl UserForm {
-    pub fn view(window: &mut Window, cx: &mut App, original_data: User) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx, original_data))
-    }
     fn on_username_input_event(
         &mut self,
         state: &Entity<InputState>,
@@ -265,7 +260,8 @@ impl UserForm {
             },
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: User) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let current_data = UserFormValueHolder::default();
         let username_input = cx.new(|cx| UserFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| UserFormComponents::email_input(window, cx));
         let age_number_input = cx.new(|cx| UserFormComponents::age_number_input(window, cx));
@@ -298,8 +294,7 @@ impl UserForm {
             ),
         ];
         Self {
-            original_data: Arc::new(original_data.clone()),
-            current_data: original_data.into(),
+            current_data,
             fields: UserFormFields {
                 username_input,
                 email_input,

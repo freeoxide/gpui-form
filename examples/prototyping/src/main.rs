@@ -208,7 +208,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
     } else {
         (
             quote! { current_data: #struct_name_form_value_holder_ident, },
-            quote! { current_data: original_data.into(), },
+            quote! { current_data, },
             quote! {
                 fields: #struct_name_form_fields_ident {
                     #field_initializers_tokens
@@ -238,7 +238,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           v_flex,
       };
       use gpui_form::component::infinite_select::InfiniteSelect;
-      use std::sync::Arc;
       use es_fluent::{ThisFtl as _, ToFluentString as _};
       use rust_decimal::Decimal;
     };
@@ -254,7 +253,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
       #[gpui_storybook::story]
       pub struct #struct_name_form_ident {
-          original_data: Arc<#struct_name_ident>,
           #current_data_field
           fields: #struct_name_form_fields_ident,
           focus_handle: FocusHandle,
@@ -273,18 +271,16 @@ fn layout(data: &GpuiFormShape) -> syn::File {
           }
 
           fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-              Self::view(window, cx, #struct_name_form_value_holder_ident::default().into())
+              cx.new(|cx| Self::new(window, cx))
           }
       }
 
       impl #struct_name_form_ident {
-          pub fn view(window: &mut Window, cx: &mut App, original_data: #struct_name_ident) -> Entity<Self> {
-              cx.new(|cx| Self::new(window, cx, original_data))
-          }
-
           #event_handlers_tokens
 
-          fn new(window: &mut Window, cx: &mut Context<Self>, original_data: #struct_name_ident) -> Self {
+          fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let current_data = #struct_name_form_value_holder_ident::default();
+
             #component_creations_tokens
 
             #subscription_calls_tokens
@@ -292,8 +288,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
             #post_subscription_init_tokens
 
               Self {
-                  original_data: Arc::new(original_data.clone()),
-                  #current_data_init
+                  current_data,
                   #fields_init
                   focus_handle: cx.focus_handle(),
                   #subscriptions_init
