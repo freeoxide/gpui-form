@@ -175,7 +175,7 @@ pub fn generate_value_holder(
     for field in fields {
         if let Some(default_expr) = &field.default_expr {
             macro_options = macro_options.with_field_opts(
-                &field.field_name.to_string(),
+                field.field_name.to_string(),
                 unwrapped_core::wrapped::FieldProcOpts::new(field.wrap_in_option)
                     .with_default(default_expr.clone()),
             );

@@ -228,9 +228,9 @@ pub fn expand_gpui_form(
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
         .filter_map(|field| {
-            if field.skip() || field.component.is_none() {
+            if field.skip() {
                 None
-            } else {
+            } else if let Some(component_def) = field.component.as_ref() {
                 let field_name_str = field
                     .ident
                     .as_ref()
@@ -249,7 +249,6 @@ pub fn expand_gpui_form(
                 };
 
                 let field_type_str = base_type.to_token_stream().to_string();
-                let component_def = field.component.as_ref().unwrap();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
                 let mut validation_rules = koruma_validations
                     .get(&field_name_str)
@@ -283,6 +282,8 @@ pub fn expand_gpui_form(
                     ])
                     #default_expr_tokens
                 })
+            } else {
+                None
             }
         })
         .collect();
