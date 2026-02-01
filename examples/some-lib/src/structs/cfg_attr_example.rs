@@ -90,7 +90,7 @@ pub struct CfgAttrExample {
     pub enabled: bool,
 
     /// Select with enum
-    #[cfg_attr(feature = "ui", gpui_form(component(select(default))))]
+    #[cfg_attr(feature = "ui", gpui_form(component(select)))]
     pub account_type: AccountType,
 
     /// Date picker

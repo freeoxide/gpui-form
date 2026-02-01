@@ -20,10 +20,9 @@ pub enum PreferedLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[select_item(fluent)]
 pub enum EnumCountry {
-    #[default]
     UnitedStates,
     France,
     China,
@@ -60,10 +59,10 @@ pub struct User {
     #[gpui_form(component(switch))]
     pub enable_notifications: bool,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select))]
     pub preferred: PreferedLanguage,
 
-    #[gpui_form(component(select(searchable, index = EnumCountry::France)))]
+    #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
     #[gpui_form(component(date_picker))]
