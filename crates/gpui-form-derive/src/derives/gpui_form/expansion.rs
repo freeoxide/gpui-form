@@ -49,7 +49,8 @@ pub fn expand_gpui_form(
                     ::gpui_form::core::registry::GpuiFormShape::new(
                         stringify!(#struct_name),
                         &[],
-                        file!()
+                        file!(),
+                        #enable_koruma
                     )
                 }
             }
@@ -294,7 +295,8 @@ pub fn expand_gpui_form(
                     &[
                         #(#field_variant_construction_code),*
                     ],
-                    file!()
+                    file!(),
+                    #effective_enable_koruma
                 )
             }
         }

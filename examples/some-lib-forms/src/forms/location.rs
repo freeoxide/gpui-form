@@ -15,6 +15,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_form::component::infinite_select::InfiniteSelect;
+use rust_decimal::Decimal;
 use some_lib::structs::location::*;
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
@@ -156,6 +157,11 @@ impl LocationFormForm {
                 Self::on_location_master_select_event,
             ),
         ];
+        if let Some(value) = current_data.name.as_ref() {
+            name_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
         let mut location_path = gpui_form::component::infinite_select::InfiniteSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(

@@ -10,6 +10,8 @@ pub struct GpuiFormShape {
     /// The source file path where the struct with #[derive(GpuiForm)] is declared.
     /// This is the full path from file!() macro, useful for generating imports.
     pub source_path: &'static str,
+    /// Whether the struct has koruma validation enabled at the struct level.
+    pub koruma_enabled: bool,
 }
 
 impl GpuiFormShape {
@@ -17,18 +19,27 @@ impl GpuiFormShape {
         struct_name: &'static str,
         components: &'static [FieldVariant],
         source_path: &'static str,
+        koruma_enabled: bool,
     ) -> Self {
         Self {
             struct_name,
             components,
             source_path,
+            koruma_enabled,
         }
     }
 
     pub fn has_validations(&self) -> bool {
-        self.components
-            .iter()
-            .any(|field| !field.validations.is_empty())
+        self.koruma_enabled
+            && self
+                .components
+                .iter()
+                .any(|field| !field.validations.is_empty())
+    }
+
+    /// Returns true if the struct has koruma validation enabled at the struct level.
+    pub const fn has_koruma(&self) -> bool {
+        self.koruma_enabled
     }
 }
 

@@ -163,12 +163,7 @@ fn layout(data: &GpuiFormShape) -> syn::File {
 
     let render_children_tokens = adapter.child_elements();
 
-    let any_validations = data
-        .components
-        .iter()
-        .any(|field| !field.validations.is_empty());
-
-    let validation_binding = if any_validations {
+    let validation_binding = if data.has_koruma() {
         quote! {
             let validation_errors = self.current_data.validate().err();
         }
