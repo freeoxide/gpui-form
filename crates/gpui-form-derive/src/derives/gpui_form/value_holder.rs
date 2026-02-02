@@ -61,12 +61,7 @@ pub fn generate_value_holder(
 ) -> (TokenStream, Vec<String>) {
     let fields_requiring_required: Vec<String> = fields
         .iter()
-        .filter(|f| {
-            f.wrap_in_option
-                && !f.was_optional
-                && !f.validation.is_newtype
-                && !f.validation.is_nested
-        })
+        .filter(|f| f.wrap_in_option && !f.was_optional && !f.validation.is_nested)
         .map(|f| f.field_name.to_string())
         .collect();
 
@@ -77,9 +72,9 @@ pub fn generate_value_holder(
             || f.validation.is_newtype
     });
 
-    let has_any_required = fields.iter().any(|f| {
-        f.wrap_in_option && !f.was_optional && !f.validation.is_newtype && !f.validation.is_nested
-    });
+    let has_any_required = fields
+        .iter()
+        .any(|f| f.wrap_in_option && !f.was_optional && !f.validation.is_nested);
 
     let mut fields_to_wrap: HashMap<String, bool> = HashMap::new();
     let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
@@ -89,25 +84,13 @@ pub fn generate_value_holder(
         fields_to_wrap.insert(field_name.clone(), f.wrap_in_option);
 
         if enable_koruma {
-            let needs_required = f.wrap_in_option
-                && !f.was_optional
-                && !f.validation.is_newtype
-                && !f.validation.is_nested;
+            let needs_required = f.wrap_in_option && !f.was_optional && !f.validation.is_nested;
 
             let has_existing_validations = !f.validation.field_validators.is_empty()
                 || !f.validation.element_validators.is_empty();
             let has_newtype = f.validation.is_newtype;
 
             if needs_required || has_existing_validations || has_newtype {
-                let mut attrs: Vec<TokenStream> = Vec::new();
-
-                if f.validation.is_newtype {
-                    attrs.push(quote! { #[koruma(newtype)] });
-                }
-                if f.validation.is_nested {
-                    attrs.push(quote! { #[koruma(nested)] });
-                }
-
                 let mut koruma_items: Vec<TokenStream> = Vec::new();
 
                 if needs_required {
@@ -125,8 +108,21 @@ pub fn generate_value_holder(
                     .collect();
                 koruma_items.extend(existing_validations);
 
+                // Build koruma attributes - newtype/nested must be separate attributes
+                // when combined with other validators to avoid type resolution issues
+                let mut attrs: Vec<TokenStream> = Vec::new();
+
+                // Add validators first (if any)
                 if !koruma_items.is_empty() {
                     attrs.push(quote! { #[koruma(#(#koruma_items),*)] });
+                }
+
+                // Add newtype/nested as separate attributes
+                if f.validation.is_newtype {
+                    attrs.insert(0, quote! { #[koruma(newtype)] });
+                }
+                if f.validation.is_nested {
+                    attrs.insert(0, quote! { #[koruma(nested)] });
                 }
 
                 if !attrs.is_empty() {
