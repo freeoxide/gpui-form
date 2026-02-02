@@ -61,7 +61,7 @@ pub fn generate_value_holder(
 ) -> (TokenStream, Vec<String>) {
     let fields_requiring_required: Vec<String> = fields
         .iter()
-        .filter(|f| f.wrap_in_option && !f.was_optional && !f.validation.is_nested)
+        .filter(|f| f.needs_required_validation())
         .map(|f| f.field_name.to_string())
         .collect();
 
@@ -72,9 +72,7 @@ pub fn generate_value_holder(
             || f.validation.is_newtype
     });
 
-    let has_any_required = fields
-        .iter()
-        .any(|f| f.wrap_in_option && !f.was_optional && !f.validation.is_nested);
+    let has_any_required = fields.iter().any(|f| f.needs_required_validation());
 
     let mut fields_to_wrap: HashMap<String, bool> = HashMap::new();
     let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
@@ -84,7 +82,7 @@ pub fn generate_value_holder(
         fields_to_wrap.insert(field_name.clone(), f.wrap_in_option);
 
         if enable_koruma {
-            let needs_required = f.wrap_in_option && !f.was_optional && !f.validation.is_nested;
+            let needs_required = f.needs_required_validation();
 
             let has_existing_validations = !f.validation.field_validators.is_empty()
                 || !f.validation.element_validators.is_empty();

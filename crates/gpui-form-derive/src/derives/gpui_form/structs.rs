@@ -17,6 +17,17 @@ pub struct FieldOptionality {
     pub default_expr: Option<TokenStream>,
 }
 
+impl FieldOptionality {
+    /// Returns true if this field needs the `RequiredValidation` koruma validator.
+    /// This applies to fields that:
+    /// - Are wrapped in Option (for form handling)
+    /// - Were not originally Optional in the source struct
+    /// - Are not nested structs (nested fields have their own validation)
+    pub fn needs_required_validation(&self) -> bool {
+        self.wrap_in_option && !self.was_optional && !self.validation.is_nested
+    }
+}
+
 #[derive(Clone, Debug, Default, FromMeta)]
 pub struct KorumaOptions {
     #[darling(default)]
