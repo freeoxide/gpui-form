@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = ["examples/some-lib-forms"]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -52,9 +52,9 @@ heck = "0.5.0"
 insta = { version = "1.46" }
 inventory = "0.3"
 itertools = "0.14"
-koruma = { branch = "ntd", git = "https://github.com/stayhydated/koruma" }
-koruma-collection = { branch = "ntd", git = "https://github.com/stayhydated/koruma" }
-koruma-derive-core = { branch = "ntd", git = "https://github.com/stayhydated/koruma" }
+koruma = { git = "https://github.com/stayhydated/koruma" }
+koruma-collection = { git = "https://github.com/stayhydated/koruma" }
+koruma-derive-core = { git = "https://github.com/stayhydated/koruma" }
 log = "0.4"
 nutype = "0.6"
 once_cell = "1.21"
