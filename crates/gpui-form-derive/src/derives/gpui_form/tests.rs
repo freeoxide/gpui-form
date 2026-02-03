@@ -5,6 +5,10 @@ mod tests {
     use quote::quote;
     use syn::DeriveInput;
 
+    fn compact_tokens(tokens: &str) -> String {
+        tokens.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
     #[test]
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
@@ -256,6 +260,47 @@ mod tests {
         assert!(
             expanded_str.contains("with_validations"),
             "Generated GpuiFormShape should call with_validations()"
+        );
+    }
+
+    #[test]
+    fn test_type_override_and_conversions() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    from = |ts| to_form(ts),
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
+                birth_date: Option<Timestamp>,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("FieldVariant::new(\"birth_date\",\"chrono::NaiveDate\",true"),
+            "FieldVariant should use override type for metadata"
+        );
+
+        assert!(
+            compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_form"),
+            "From<Original> for FormValueHolder should apply `from` conversion"
+        );
+
+        assert!(
+            compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_model"),
+            "From<FormValueHolder> for Original should apply `into` conversion"
         );
     }
 }
