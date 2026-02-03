@@ -99,14 +99,6 @@ impl Timestamp {
     }
 }
 
-impl std::str::FromStr for Timestamp {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Timestamp::parse_from_rfc3339(s)
-    }
-}
-
 fn to_form_datetime(value: Timestamp) -> chrono::NaiveDate {
     chrono::DateTime::<chrono::Utc>::from_timestamp_micros(
         value.__timestamp_micros_since_unix_epoch__,
