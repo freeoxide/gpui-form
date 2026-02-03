@@ -117,6 +117,7 @@ fn to_form_datetime(value: Timestamp) -> chrono::NaiveDate {
 
 fn to_model_timestamp(value: chrono::NaiveDate) -> Timestamp {
     let naive_datetime = value.and_hms_opt(0, 0, 0).unwrap();
-    let datetime = chrono::DateTime::<chrono::Utc>::from_utc(naive_datetime, chrono::Utc);
+    let datetime =
+        chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive_datetime, chrono::Utc);
     Timestamp::from_micros_since_unix_epoch(datetime.timestamp_micros())
 }
