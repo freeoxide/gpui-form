@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use es_fluent::{EsFluent, EsFluentThis, EsFluentVariants};
 use gpui_form::{GpuiForm, SelectItem};
 use koruma::{Koruma, KorumaAllFluent};
@@ -65,10 +66,57 @@ pub struct User {
     #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
-    #[gpui_form(component(date_picker))]
-    pub birth_date: Option<chrono::NaiveDate>,
+    #[gpui_form(
+        type = chrono::NaiveDate,
+        from = |ts| to_form_datetime(ts),     // Original -> Form type
+        into = |dt| to_model_timestamp(dt),   // Form type -> Original
+        component(date_picker)
+    )]
+    pub birth_date: Option<Timestamp>,
 
     #[gpui_form(skip)]
     #[fluent_variants(skip)]
     pub skip_me: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct Timestamp {
+    __timestamp_micros_since_unix_epoch__: i64,
+}
+
+impl Timestamp {
+    pub fn parse_from_rfc3339(str: &str) -> anyhow::Result<Timestamp> {
+        chrono::DateTime::parse_from_rfc3339(str)
+             .map_err(|err| anyhow::anyhow!(err))
+             .with_context(|| "Invalid timestamp format. Expected RFC 3339 format (e.g. '2025-02-10 15:45:30').")
+             .map(|dt| dt.timestamp_micros())
+             .map(Timestamp::from_micros_since_unix_epoch)
+    }
+    pub fn from_micros_since_unix_epoch(micros: i64) -> Self {
+        Self {
+            __timestamp_micros_since_unix_epoch__: micros,
+        }
+    }
+}
+
+impl std::str::FromStr for Timestamp {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Timestamp::parse_from_rfc3339(s)
+    }
+}
+
+fn to_form_datetime(value: Timestamp) -> chrono::NaiveDate {
+    chrono::DateTime::<chrono::Utc>::from_timestamp_micros(
+        value.__timestamp_micros_since_unix_epoch__,
+    )
+    .unwrap_or_else(|| chrono::DateTime::<chrono::Utc>::from_timestamp_micros(0).unwrap())
+    .date_naive()
+}
+
+fn to_model_timestamp(value: chrono::NaiveDate) -> Timestamp {
+    let naive_datetime = value.and_hms_opt(0, 0, 0).unwrap();
+    let datetime = chrono::DateTime::<chrono::Utc>::from_utc(naive_datetime, chrono::Utc);
+    Timestamp::from_micros_since_unix_epoch(datetime.timestamp_micros())
 }

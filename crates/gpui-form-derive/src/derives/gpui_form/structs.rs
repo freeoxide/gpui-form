@@ -1,8 +1,41 @@
-use darling::{FromField, FromMeta};
+use darling::{Error as DarlingError, FromField, FromMeta};
 use gpui_form_core::components::Components;
 use koruma_derive_core::ValidationInfo;
 use proc_macro2::TokenStream;
-use syn::{Expr, Ident, Type};
+use syn::{Expr, Ident, Lit, Type, TypePath};
+
+#[derive(Clone, Debug)]
+pub struct TypeOverride(pub Type);
+
+impl FromMeta for TypeOverride {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        match expr {
+            Expr::Path(expr_path) => Ok(TypeOverride(Type::Path(TypePath {
+                qself: expr_path.qself.clone(),
+                path: expr_path.path.clone(),
+            }))),
+            Expr::Group(group) => Self::from_expr(&group.expr),
+            Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
+            _ => Err(DarlingError::unexpected_expr_type(expr)),
+        }
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<Type>(value)
+            .map(TypeOverride)
+            .map_err(|_| DarlingError::unknown_value(value))
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        if let Lit::Str(v) = value {
+            v.parse::<Type>()
+                .map(TypeOverride)
+                .map_err(|_| DarlingError::unknown_value(&v.value()).with_span(v))
+        } else {
+            Err(DarlingError::unexpected_lit_type(value))
+        }
+    }
+}
 
 /// Information about a field for value holder generation.
 pub struct FieldOptionality {
@@ -15,6 +48,9 @@ pub struct FieldOptionality {
     pub wrap_in_option: bool,
     pub validation: ValidationInfo,
     pub default_expr: Option<TokenStream>,
+    pub override_type: Option<Type>,
+    pub into_expr: Option<Expr>,
+    pub from_expr: Option<Expr>,
 }
 
 impl FieldOptionality {
@@ -52,6 +88,12 @@ impl FromMeta for KorumaField {
 pub struct ComponentField {
     pub ident: Option<Ident>,
     pub ty: Type,
+    #[darling(default, rename = "type")]
+    pub r#type: Option<TypeOverride>,
+    #[darling(default)]
+    pub into: Option<Expr>,
+    #[darling(default)]
+    pub from: Option<Expr>,
     #[darling(default)]
     pub component: Option<Components>,
     #[darling(default)]

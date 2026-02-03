@@ -1,35 +1,84 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
-use syn::DeriveInput;
-use unwrapped_core::{WrappedOpts, WrappedProcUsageOpts};
+use syn::{DeriveInput, Type};
 
 use crate::derives::gpui_form::koruma::validator_attr_to_tokens;
 use crate::derives::gpui_form::structs::{ComponentField, FieldOptionality};
+use crate::derives::gpui_form::utils::extract_option_inner_type;
+
+fn should_wrap(field: &FieldOptionality) -> bool {
+    field.was_optional || field.wrap_in_option
+}
+
+fn form_base_type(field: &FieldOptionality) -> Type {
+    if let Some(override_type) = &field.override_type {
+        extract_option_inner_type(override_type).1
+    } else {
+        field.inner_type.clone()
+    }
+}
+
+fn form_field_type_tokens(field: &FieldOptionality) -> TokenStream {
+    let base_type = form_base_type(field);
+    if should_wrap(field) {
+        quote! { Option<#base_type> }
+    } else {
+        quote! { #base_type }
+    }
+}
+
+fn apply_from_conversion(field: &FieldOptionality, value: TokenStream) -> TokenStream {
+    if let Some(expr) = &field.from_expr {
+        quote! { (#expr)(#value) }
+    } else if field.override_type.is_some() {
+        quote! { ::core::convert::From::from(#value) }
+    } else {
+        value
+    }
+}
+
+fn apply_into_conversion(field: &FieldOptionality, value: TokenStream) -> TokenStream {
+    if let Some(expr) = &field.into_expr {
+        quote! { (#expr)(#value) }
+    } else if field.override_type.is_some() {
+        quote! { ::core::convert::From::from(#value) }
+    } else {
+        value
+    }
+}
+
+fn needs_from_conversion(field: &FieldOptionality) -> bool {
+    field.from_expr.is_some() || field.override_type.is_some()
+}
+
+fn needs_into_conversion(field: &FieldOptionality) -> bool {
+    field.into_expr.is_some() || field.override_type.is_some()
+}
 
 /// Generates a custom Default implementation for the FormValueHolder that uses
 /// the specified default expressions for fields that have them.
-fn generate_default_impl(
-    _original_input: &DeriveInput,
-    fields: &[FieldOptionality],
-    struct_name: &syn::Ident,
-) -> TokenStream {
+fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) -> TokenStream {
     let default_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
             let field_name = &f.field_name;
             if let Some(default_expr) = &f.default_expr {
-                // Field has a custom default - wrap it in Some()
-                quote! {
-                    #field_name: Some(#default_expr)
+                let default_value = apply_from_conversion(f, default_expr.clone());
+                if should_wrap(f) {
+                    quote! {
+                        #field_name: Some(#default_value)
+                    }
+                } else {
+                    quote! {
+                        #field_name: #default_value
+                    }
                 }
-            } else if f.wrap_in_option {
-                // Field is wrapped in Option but has no custom default
+            } else if should_wrap(f) {
                 quote! {
                     #field_name: None
                 }
             } else {
-                // Field is not wrapped, use standard Default
                 quote! {
                     #field_name: ::core::default::Default::default()
                 }
@@ -52,7 +101,7 @@ pub fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
     field.default.as_ref().map(|expr| quote! { #expr })
 }
 
-/// Generates the FormValueHolder struct and its implementations using unwrapped.
+/// Generates the FormValueHolder struct and its implementations.
 pub fn generate_value_holder(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
@@ -74,12 +123,10 @@ pub fn generate_value_holder(
 
     let has_any_required = fields.iter().any(|f| f.needs_required_validation());
 
-    let mut fields_to_wrap: HashMap<String, bool> = HashMap::new();
     let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
 
     for f in fields {
         let field_name = f.field_name.to_string();
-        fields_to_wrap.insert(field_name.clone(), f.wrap_in_option);
 
         if enable_koruma {
             let needs_required = f.needs_required_validation();
@@ -136,55 +183,255 @@ pub fn generate_value_holder(
     // Check if any field has a custom default expression
     let has_custom_defaults = fields.iter().any(|f| f.default_expr.is_some());
 
-    let mut wrapped_options = WrappedOpts::builder()
-        .suffix(format_ident!("FormValueHolder"))
-        .build();
-
-    // Only derive Default automatically if there are no custom defaults
-    // If there are custom defaults, we'll generate a custom Default impl
+    let mut derives: Vec<TokenStream> = vec![quote! { Clone }, quote! { Debug }];
     if !has_custom_defaults {
-        wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug, Default });
-    } else {
-        wrapped_options = wrapped_options.with_derive(quote! { Clone, Debug });
+        derives.push(quote! { Default });
     }
     if needs_koruma_derive {
         if enable_koruma_fluent {
-            wrapped_options =
-                wrapped_options.with_derive(quote! { ::koruma::Koruma, ::koruma::KorumaAllFluent });
+            derives.push(quote! { ::koruma::Koruma });
+            derives.push(quote! { ::koruma::KorumaAllFluent });
         } else {
-            wrapped_options = wrapped_options.with_derive(quote! { ::koruma::Koruma });
+            derives.push(quote! { ::koruma::Koruma });
         }
     }
 
-    for (field_name, attrs) in field_attrs {
-        for attr in attrs {
-            wrapped_options = wrapped_options.with_field_attr(&field_name, attr);
+    let derive_output = quote! { #[derive(#(#derives),*)] };
+
+    let original_ident = &original_input.ident;
+    let wrapped_ident = format_ident!("{}FormValueHolder", original_ident);
+    let (impl_generics, ty_generics, where_clause) = original_input.generics.split_for_impl();
+
+    let field_definitions: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let field_name = &f.field_name;
+            let field_type = form_field_type_tokens(f);
+            let attrs = field_attrs
+                .get(&field_name.to_string())
+                .cloned()
+                .unwrap_or_default();
+            quote! {
+                #(#attrs)* pub #field_name: #field_type
+            }
+        })
+        .collect();
+
+    let to_wrapped_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let field_name = &f.field_name;
+            if f.was_optional {
+                if needs_from_conversion(f) {
+                    let converted = apply_from_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: from.#field_name.map(|value| #converted)
+                    }
+                } else {
+                    quote! {
+                        #field_name: from.#field_name
+                    }
+                }
+            } else if f.wrap_in_option {
+                if let Some(default_expr) = &f.default_expr {
+                    if needs_from_conversion(f) {
+                        let converted = apply_from_conversion(f, quote! { value });
+                        quote! {
+                            #field_name: {
+                                let value = from.#field_name;
+                                if value == (#default_expr) {
+                                    None
+                                } else {
+                                    Some(#converted)
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            #field_name: if from.#field_name == (#default_expr) {
+                                None
+                            } else {
+                                Some(from.#field_name)
+                            }
+                        }
+                    }
+                } else {
+                    if needs_from_conversion(f) {
+                        let converted = apply_from_conversion(f, quote! { value });
+                        quote! {
+                            #field_name: {
+                                let value = from.#field_name;
+                                Some(#converted)
+                            }
+                        }
+                    } else {
+                        quote! {
+                            #field_name: Some(from.#field_name)
+                        }
+                    }
+                }
+            } else {
+                let converted = apply_from_conversion(f, quote! { from.#field_name });
+                quote! {
+                    #field_name: #converted
+                }
+            }
+        })
+        .collect();
+
+    let from_wrapped_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let field_name = &f.field_name;
+            if f.was_optional {
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: from.#field_name.map(|value| #converted)
+                    }
+                } else {
+                    quote! {
+                        #field_name: from.#field_name
+                    }
+                }
+            } else if f.wrap_in_option {
+                if let Some(default_expr) = &f.default_expr {
+                    if needs_into_conversion(f) {
+                        let converted = apply_into_conversion(f, quote! { value });
+                        quote! {
+                            #field_name: from.#field_name
+                                .map(|value| #converted)
+                                .unwrap_or(#default_expr)
+                        }
+                    } else {
+                        quote! {
+                            #field_name: from.#field_name.unwrap_or(#default_expr)
+                        }
+                    }
+                } else {
+                    if needs_into_conversion(f) {
+                        let converted = apply_into_conversion(f, quote! { value });
+                        quote! {
+                            #field_name: from.#field_name
+                                .map(|value| #converted)
+                                .unwrap_or_default()
+                        }
+                    } else {
+                        quote! {
+                            #field_name: from.#field_name.unwrap_or_default()
+                        }
+                    }
+                }
+            } else {
+                let converted = apply_into_conversion(f, quote! { from.#field_name });
+                quote! {
+                    #field_name: #converted
+                }
+            }
+        })
+        .collect();
+
+    let try_from_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            let field_name = &f.field_name;
+            if f.was_optional {
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: from.#field_name.map(|value| #converted)
+                    }
+                } else {
+                    quote! {
+                        #field_name: from.#field_name
+                    }
+                }
+            } else if f.wrap_in_option {
+                let field_name_str = field_name.to_string();
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: {
+                            let value = from.#field_name.ok_or(::gpui_form::unwrapped::UnwrappedError{
+                                field_name: #field_name_str
+                            })?;
+                            #converted
+                        }
+                    }
+                } else {
+                    quote! {
+                        #field_name: from.#field_name.ok_or(::gpui_form::unwrapped::UnwrappedError{
+                            field_name: #field_name_str
+                        })?
+                    }
+                }
+            } else {
+                let converted = apply_into_conversion(f, quote! { from.#field_name });
+                quote! {
+                    #field_name: #converted
+                }
+            }
+        })
+        .collect();
+
+    let mut from_where_clause = where_clause.cloned();
+    let mut new_predicates: Vec<syn::WherePredicate> = Vec::new();
+    for f in fields {
+        if !f.was_optional && f.wrap_in_option {
+            let original_type = &f.original_type;
+            new_predicates.push(syn::parse_quote!(#original_type: ::core::default::Default));
         }
     }
-
-    let mut macro_options =
-        WrappedProcUsageOpts::new(fields_to_wrap, Some(format_ident!("gpui_form")));
-
-    // Add default expressions to field options
-    for field in fields {
-        if let Some(default_expr) = &field.default_expr {
-            macro_options = macro_options.with_field_opts(
-                field.field_name.to_string(),
-                unwrapped_core::wrapped::FieldProcOpts::new(field.wrap_in_option)
-                    .with_default(default_expr.clone()),
-            );
-        }
+    if !new_predicates.is_empty() {
+        let wc = from_where_clause.get_or_insert_with(|| syn::parse_quote!(where));
+        wc.predicates.extend(new_predicates);
     }
 
-    let mut tokens = unwrapped_core::wrapped(original_input, Some(wrapped_options), macro_options);
+    let mut tokens = quote! {
+        #derive_output
+        pub struct #wrapped_ident #ty_generics #where_clause {
+            #(#field_definitions),*
+        }
 
-    // If there are custom defaults, generate a custom Default implementation
+        impl #impl_generics ::core::convert::From<#original_ident #ty_generics>
+            for #wrapped_ident #ty_generics #where_clause
+        {
+            fn from(from: #original_ident #ty_generics) -> Self {
+                Self {
+                    #(#to_wrapped_fields),*
+                }
+            }
+        }
+
+        impl #impl_generics ::core::convert::From<#wrapped_ident #ty_generics>
+            for #original_ident #ty_generics #from_where_clause
+        {
+            fn from(from: #wrapped_ident #ty_generics) -> Self {
+                Self {
+                    #(#from_wrapped_fields),*
+                }
+            }
+        }
+
+        impl #impl_generics ::gpui_form::unwrapped::Wrapped
+            for #original_ident #ty_generics #where_clause
+        {
+            type Wrapped = #wrapped_ident #ty_generics;
+        }
+
+        impl #impl_generics #wrapped_ident #ty_generics #where_clause {
+            pub fn try_from(
+                from: #wrapped_ident #ty_generics
+            ) -> Result<#original_ident #ty_generics, ::gpui_form::unwrapped::UnwrappedError> {
+                Ok(#original_ident {
+                    #(#try_from_fields),*
+                })
+            }
+        }
+    };
+
     if has_custom_defaults {
-        // Get the original struct name and create the wrapped struct name
-        let original_ident = &original_input.ident;
-        let wrapped_ident = format_ident!("{}FormValueHolder", original_ident);
-
-        let default_impl = generate_default_impl(original_input, fields, &wrapped_ident);
+        let default_impl = generate_default_impl(fields, &wrapped_ident);
         tokens = quote! {
             #tokens
             #default_impl
