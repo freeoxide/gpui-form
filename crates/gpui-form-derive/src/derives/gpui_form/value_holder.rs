@@ -255,19 +255,17 @@ pub fn generate_value_holder(
                             }
                         }
                     }
+                } else if needs_from_conversion(f) {
+                    let converted = apply_from_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: {
+                            let value = from.#field_name;
+                            Some(#converted)
+                        }
+                    }
                 } else {
-                    if needs_from_conversion(f) {
-                        let converted = apply_from_conversion(f, quote! { value });
-                        quote! {
-                            #field_name: {
-                                let value = from.#field_name;
-                                Some(#converted)
-                            }
-                        }
-                    } else {
-                        quote! {
-                            #field_name: Some(from.#field_name)
-                        }
+                    quote! {
+                        #field_name: Some(from.#field_name)
                     }
                 }
             } else {
@@ -308,18 +306,16 @@ pub fn generate_value_holder(
                             #field_name: from.#field_name.unwrap_or(#default_expr)
                         }
                     }
+                } else if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        #field_name: from.#field_name
+                            .map(|value| #converted)
+                            .unwrap_or_default()
+                    }
                 } else {
-                    if needs_into_conversion(f) {
-                        let converted = apply_into_conversion(f, quote! { value });
-                        quote! {
-                            #field_name: from.#field_name
-                                .map(|value| #converted)
-                                .unwrap_or_default()
-                        }
-                    } else {
-                        quote! {
-                            #field_name: from.#field_name.unwrap_or_default()
-                        }
+                    quote! {
+                        #field_name: from.#field_name.unwrap_or_default()
                     }
                 }
             } else {

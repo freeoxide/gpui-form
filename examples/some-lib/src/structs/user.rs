@@ -68,7 +68,7 @@ pub struct User {
 
     #[gpui_form(
         type = chrono::NaiveDate,
-        from = |ts| to_form_datetime(ts),     // Original -> Form type
+        from = to_form_datetime,     // Original -> Form type
         into = |dt| to_model_timestamp(dt),   // Form type -> Original
         component(date_picker)
     )]
