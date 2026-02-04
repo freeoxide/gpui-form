@@ -2720,6 +2720,7 @@ dependencies = [
 name = "gpui-form"
 version = "0.5.1"
 dependencies = [
+ "bon",
  "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
@@ -6763,20 +6764,20 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 [[package]]
 name = "unwrapped"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212f0ac6305f3edbf0a080820ae3db0249b2880e61c9c8dda505598ac743f1d8"
+source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
 dependencies = [
+ "bon",
  "unwrapped-derive",
 ]
 
 [[package]]
 name = "unwrapped-core"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9ceb7f05afa633b839ff84b1aaf06a2d30fcd66724f750f4d237a4bcde72941"
+source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
 dependencies = [
  "bon",
  "darling",
+ "ident_case",
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -6785,8 +6786,7 @@ dependencies = [
 [[package]]
 name = "unwrapped-derive"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29696c178570c5686ff4db50efcb984cdbaf015a45d712e0bebca73cfde4b012"
+source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
 dependencies = [
  "syn 2.0.114",
  "unwrapped-core",

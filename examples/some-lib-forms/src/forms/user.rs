@@ -636,7 +636,10 @@ impl Render for UserForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", User::from(self.current_data.clone())))
+            .child(format!(
+                "{:?}",
+                self.current_data.clone().into_original(false)
+            ))
             .child(format!("{:?}", self.current_data))
     }
 }

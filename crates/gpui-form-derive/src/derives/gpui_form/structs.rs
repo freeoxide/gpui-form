@@ -51,6 +51,7 @@ pub struct FieldOptionality {
     pub override_type: Option<Type>,
     pub into_expr: Option<Expr>,
     pub from_expr: Option<Expr>,
+    pub skip: bool,
 }
 
 impl FieldOptionality {
@@ -60,7 +61,7 @@ impl FieldOptionality {
     /// - Were not originally Optional in the source struct
     /// - Are not nested structs (nested fields have their own validation)
     pub fn needs_required_validation(&self) -> bool {
-        self.wrap_in_option && !self.was_optional && !self.validation.is_nested
+        !self.skip && self.wrap_in_option && !self.was_optional && !self.validation.is_nested
     }
 }
 
@@ -104,7 +105,7 @@ pub struct ComponentField {
 
 impl ComponentField {
     pub fn skip(&self) -> bool {
-        self.skip && self.component.is_none()
+        self.skip
     }
 }
 

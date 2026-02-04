@@ -173,17 +173,23 @@ pub fn expand_gpui_form(
             override_type: field.r#type.as_ref().map(|ty| ty.0.clone()),
             into_expr: field.into.clone(),
             from_expr: field.from.clone(),
+            skip: field.skip(),
         });
     }
 
     let has_fields_needing_required = field_optionality.iter().any(|f| {
-        f.wrap_in_option && !f.was_optional && !f.validation.is_newtype && !f.validation.is_nested
+        !f.skip
+            && f.wrap_in_option
+            && !f.was_optional
+            && !f.validation.is_newtype
+            && !f.validation.is_nested
     });
 
     let has_any_koruma_validations = field_optionality.iter().any(|f| {
-        !f.validation.field_validators.is_empty()
-            || !f.validation.element_validators.is_empty()
-            || f.validation.is_nested
+        !f.skip
+            && (!f.validation.field_validators.is_empty()
+                || !f.validation.element_validators.is_empty()
+                || f.validation.is_nested)
     });
 
     let effective_enable_koruma =

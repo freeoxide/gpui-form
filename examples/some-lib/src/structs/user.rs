@@ -35,8 +35,8 @@ pub enum EnumCountry {
 #[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
-    pub username: Option<String>,
+    #[koruma(NonEmptyValidation::<_>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
+    pub username: String,
 
     #[gpui_form(component(input), default = String::from("test@example.com"))]
     #[koruma(EmailValidation::<_>)]
