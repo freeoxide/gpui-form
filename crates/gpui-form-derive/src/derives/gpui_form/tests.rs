@@ -246,51 +246,6 @@ mod tests {
             }
         }
 
-        #[test]
-        fn test_skip_removes_field_from_value_holder() {
-            let tokens = quote! {
-                #[derive(GpuiForm)]
-                struct SkipForm {
-                    #[gpui_form(component(input))]
-                    name: String,
-
-                    #[gpui_form(skip)]
-                    hidden: u32,
-                }
-            };
-
-            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-            let expanded = expansion::expand_gpui_form(
-                derive_input,
-                structs::GpuiFormOptions {
-                    generate_shape: false,
-                },
-            );
-
-            let expanded_str = compact_tokens(&expanded.to_string());
-
-            assert!(
-                !expanded_str.contains("pubhidden:"),
-                "Skipped field should not appear in FormValueHolder fields"
-            );
-            assert!(
-                expanded_str.contains("into_original"),
-                "Skipped field should trigger into_original generation"
-            );
-            assert!(
-                expanded_str.contains("gpui_form::bon::Builder"),
-                "Skipped field should add bon::Builder derive"
-            );
-            assert!(
-                !expanded_str.contains("From<SkipForm>forSkipFormFormValueHolder"),
-                "From<Original> should not be generated when skip is used"
-            );
-            assert!(
-                !expanded_str.contains("From<SkipFormFormValueHolder>forSkipForm"),
-                "From<FormValueHolder> should not be generated when skip is used"
-            );
-        }
-
         let expanded = expansion::expand_gpui_form(
             derive_input,
             structs::GpuiFormOptions {

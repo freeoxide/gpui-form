@@ -73,6 +73,35 @@ pub fn expand_gpui_form(
         _ => unreachable!("GpuiForm derive only supports named structs"),
     };
 
+    let has_skipped_fields = fields_iter.iter().any(|field| field.skip());
+    if has_skipped_fields
+        && let Some(from_field) = fields_iter
+            .iter()
+            .find(|field| !field.skip() && field.from.is_some())
+    {
+        let from_name = from_field
+            .ident
+            .as_ref()
+            .map(|ident| ident.to_string())
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let skip_name = fields_iter
+            .iter()
+            .find(|field| field.skip())
+            .and_then(|field| field.ident.as_ref())
+            .map(|ident| ident.to_string())
+            .unwrap_or_else(|| "<unknown>".to_string());
+        return syn::Error::new_spanned(
+            from_field.from.as_ref().expect("checked from above"),
+            format!(
+                "field `{}` uses `from = ...`, but `#[gpui_form(skip)]` on `{}` disables \
+                     generating `From<Original>` for the form value holder, so `from` conversions \
+                     are ignored. Remove `skip` items or remove this `from`",
+                from_name, skip_name
+            ),
+        )
+        .to_compile_error();
+    }
+
     let parsed_koruma_fields: HashMap<String, KorumaFieldInfo> = match &derive_input.data {
         syn::Data::Struct(data_struct) => data_struct
             .fields

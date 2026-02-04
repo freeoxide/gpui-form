@@ -5,7 +5,6 @@ use koruma::{Koruma, KorumaAllFluent};
 use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
-    general::RequiredValidation,
     numeric::{NegativeValidation, PositiveValidation, RangeValidation},
     string::{PrefixValidation, SuffixValidation},
 };
@@ -68,8 +67,9 @@ pub struct User {
 
     #[gpui_form(
         type = chrono::NaiveDate,
-        from = to_form_datetime,     // Original -> Form type
-        into = |dt| to_model_timestamp(dt),   // Form type -> Original
+        // field birth_date uses from = ..., but #[gpui_form(skip)] on skip_me disables generating From<Original> for the form value holder, so from conversions are ignored. Remove skip items or remove this from (rustc)
+        // from = |x| to_form_datetime(x),     // Original -> Form type
+        into = to_model_timestamp,   // Form type -> Original
         component(date_picker)
     )]
     pub birth_date: Option<Timestamp>,
@@ -99,6 +99,7 @@ impl Timestamp {
     }
 }
 
+#[allow(dead_code)]
 fn to_form_datetime(value: Timestamp) -> chrono::NaiveDate {
     chrono::DateTime::<chrono::Utc>::from_timestamp_micros(
         value.__timestamp_micros_since_unix_epoch__,

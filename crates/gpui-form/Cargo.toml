@@ -10,13 +10,13 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
-keywords = ["gpui", "gpui-component", "form"]
+keywords = [ "gpui", "gpui-component", "form" ]
 
 [features]
-component = ["dep:gpui-form-component"]
-default = ["derive"]
-derive = ["dep:gpui-form-derive"]
-inventory = ["gpui-form-derive?/inventory"]
+component = [ "dep:gpui-form-component" ]
+default = [ "derive" ]
+derive = [ "dep:gpui-form-derive" ]
+inventory = [ "gpui-form-derive?/inventory" ]
 
 [dependencies]
 bon = { workspace = true }
