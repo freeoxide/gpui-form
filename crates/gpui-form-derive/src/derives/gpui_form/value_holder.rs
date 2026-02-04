@@ -99,6 +99,27 @@ fn try_from_field_tokens(field: &FieldOptionality, source: TokenStream) -> Token
 
 /// Generates a custom Default implementation for the FormValueHolder that uses
 /// the specified default expressions for fields that have them.
+fn unwrap_expr(expr: &syn::Expr) -> &syn::Expr {
+    match expr {
+        syn::Expr::Group(group) => unwrap_expr(&group.expr),
+        syn::Expr::Paren(paren) => unwrap_expr(&paren.expr),
+        _ => expr,
+    }
+}
+
+fn should_wrap_default_into(expr: &syn::Expr) -> bool {
+    matches!(unwrap_expr(expr), syn::Expr::Lit(_))
+}
+
+fn default_expr_for_original(expr: &syn::Expr) -> TokenStream {
+    let expr_tokens = quote! { #expr };
+    if should_wrap_default_into(expr) {
+        quote! { ::core::convert::Into::into(#expr_tokens) }
+    } else {
+        expr_tokens
+    }
+}
+
 fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) -> TokenStream {
     let default_fields: Vec<TokenStream> = fields
         .iter()
@@ -106,7 +127,8 @@ fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) 
         .map(|f| {
             let field_name = &f.field_name;
             if let Some(default_expr) = &f.default_expr {
-                let default_value = apply_from_conversion(f, default_expr.clone());
+                let default_original = default_expr_for_original(default_expr);
+                let default_value = apply_from_conversion(f, default_original);
                 if should_wrap(f) {
                     quote! {
                         #field_name: Some(#default_value)
@@ -139,8 +161,8 @@ fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) 
     }
 }
 
-pub fn parse_field_default(field: &ComponentField) -> Option<TokenStream> {
-    field.default.as_ref().map(|expr| quote! { #expr })
+pub fn parse_field_default(field: &ComponentField) -> Option<syn::Expr> {
+    field.default.as_ref().map(|expr| expr.0.clone())
 }
 
 /// Generates the FormValueHolder struct and its implementations.
@@ -286,12 +308,13 @@ pub fn generate_value_holder(
                 }
             } else if f.wrap_in_option {
                 if let Some(default_expr) = &f.default_expr {
+                    let default_original = default_expr_for_original(default_expr);
                     if needs_from_conversion(f) {
                         let converted = apply_from_conversion(f, quote! { value });
                         quote! {
                             #field_name: {
                                 let value = from.#field_name;
-                                if value == (#default_expr) {
+                                if value == (#default_original) {
                                     None
                                 } else {
                                     Some(#converted)
@@ -300,7 +323,7 @@ pub fn generate_value_holder(
                         }
                     } else {
                         quote! {
-                            #field_name: if from.#field_name == (#default_expr) {
+                            #field_name: if from.#field_name == (#default_original) {
                                 None
                             } else {
                                 Some(from.#field_name)
@@ -347,16 +370,17 @@ pub fn generate_value_holder(
                 }
             } else if f.wrap_in_option {
                 if let Some(default_expr) = &f.default_expr {
+                    let default_original = default_expr_for_original(default_expr);
                     if needs_into_conversion(f) {
                         let converted = apply_into_conversion(f, quote! { value });
                         quote! {
                             #field_name: from.#field_name
                                 .map(|value| #converted)
-                                .unwrap_or(#default_expr)
+                                .unwrap_or(#default_original)
                         }
                     } else {
                         quote! {
-                            #field_name: from.#field_name.unwrap_or(#default_expr)
+                            #field_name: from.#field_name.unwrap_or(#default_original)
                         }
                     }
                 } else if needs_into_conversion(f) {

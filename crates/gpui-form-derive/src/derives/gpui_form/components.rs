@@ -57,7 +57,7 @@ pub fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
 /// Extracts a path from a field default expression if it's a path expression
 fn extract_default_path(field: &ComponentField) -> Option<syn::Path> {
     field.default.as_ref().and_then(|expr| {
-        if let syn::Expr::Path(expr_path) = expr {
+        if let syn::Expr::Path(expr_path) = &expr.0 {
             Some(expr_path.path.clone())
         } else {
             None

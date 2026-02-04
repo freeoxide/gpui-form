@@ -303,4 +303,30 @@ mod tests {
             "From<FormValueHolder> for Original should apply `into` conversion"
         );
     }
+
+    #[test]
+    fn test_default_uses_into_conversion() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(input), default = "test@example.com")]
+                email: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("Into::into(\"test@example.com\")"),
+            "Default should be wrapped in Into::into for string literals"
+        );
+    }
 }

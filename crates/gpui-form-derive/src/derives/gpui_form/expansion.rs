@@ -301,7 +301,7 @@ pub fn expand_gpui_form(
                     .collect();
 
                 let default_expr_tokens = field.default.as_ref().map(|expr| {
-                    let expr_str = expr.to_token_stream().to_string();
+                    let expr_str = expr.0.to_token_stream().to_string();
                     quote! { .with_default(#expr_str) }
                 });
 
