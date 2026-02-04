@@ -67,7 +67,7 @@ fn extract_default_path(field: &ComponentField) -> Option<syn::Path> {
 
 pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
     let field_name = field.ident.as_ref().unwrap().to_string();
-    let field_type = &field.ty;
+    let field_type = field.r#type.as_ref().map(|ty| &ty.0).unwrap_or(&field.ty);
 
     let mut field_structure_tokens = proc_macro2::TokenStream::new();
     let mut field_base_declarations_tokens = proc_macro2::TokenStream::new();

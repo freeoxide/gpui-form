@@ -170,6 +170,9 @@ pub fn expand_gpui_form(
             wrap_in_option,
             validation,
             default_expr,
+            override_type: field.r#type.as_ref().map(|ty| ty.0.clone()),
+            into_expr: field.into.clone(),
+            from_expr: field.from.clone(),
         });
     }
 
@@ -236,18 +239,14 @@ pub fn expand_gpui_form(
                     .as_ref()
                     .expect("Field should have an ident if not skipped and has component")
                     .to_string();
-                let (is_optional, base_type) = 'option_check: {
-                    if let syn::Type::Path(type_path) = &field.ty
-                        && let Some(segment) = type_path.path.segments.last()
-                        && segment.ident == "Option"
-                        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-                        && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first()
-                    {
-                        break 'option_check (true, inner_ty);
-                    }
-                    (false, &field.ty)
-                };
+                let (was_optional, original_inner_type) = extract_option_inner_type(&field.ty);
+                let base_type = field
+                    .r#type
+                    .as_ref()
+                    .map(|ty| extract_option_inner_type(&ty.0).1)
+                    .unwrap_or(original_inner_type);
 
+                let is_optional = was_optional;
                 let field_type_str = base_type.to_token_stream().to_string();
                 let behaviour_tokens = get_components_behaviour_tokens(component_def);
                 let mut validation_rules = koruma_validations
