@@ -19,6 +19,7 @@ derive = [ "dep:gpui-form-derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
 
 [dependencies]
+bon = { workspace = true }
 gpui-form-component = { optional = true, workspace = true }
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }

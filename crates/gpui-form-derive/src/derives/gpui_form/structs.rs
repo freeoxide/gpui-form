@@ -37,6 +37,28 @@ impl FromMeta for TypeOverride {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct DefaultExpr(pub Expr);
+
+impl FromMeta for DefaultExpr {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        Ok(DefaultExpr(expr.clone()))
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<Expr>(value)
+            .map(DefaultExpr)
+            .map_err(|_| DarlingError::unknown_value(value))
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        Ok(DefaultExpr(Expr::Lit(syn::ExprLit {
+            attrs: Vec::new(),
+            lit: value.clone(),
+        })))
+    }
+}
+
 /// Information about a field for value holder generation.
 pub struct FieldOptionality {
     pub field_name: Ident,
@@ -47,10 +69,11 @@ pub struct FieldOptionality {
     pub was_optional: bool,
     pub wrap_in_option: bool,
     pub validation: ValidationInfo,
-    pub default_expr: Option<TokenStream>,
+    pub default_expr: Option<Expr>,
     pub override_type: Option<Type>,
     pub into_expr: Option<Expr>,
     pub from_expr: Option<Expr>,
+    pub skip: bool,
 }
 
 impl FieldOptionality {
@@ -60,7 +83,7 @@ impl FieldOptionality {
     /// - Were not originally Optional in the source struct
     /// - Are not nested structs (nested fields have their own validation)
     pub fn needs_required_validation(&self) -> bool {
-        self.wrap_in_option && !self.was_optional && !self.validation.is_nested
+        !self.skip && self.wrap_in_option && !self.was_optional && !self.validation.is_nested
     }
 }
 
@@ -97,14 +120,14 @@ pub struct ComponentField {
     #[darling(default)]
     pub component: Option<Components>,
     #[darling(default)]
-    pub default: Option<Expr>,
+    pub default: Option<DefaultExpr>,
     #[darling(default)]
     pub skip: bool,
 }
 
 impl ComponentField {
     pub fn skip(&self) -> bool {
-        self.skip && self.component.is_none()
+        self.skip
     }
 }
 
