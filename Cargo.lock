@@ -1789,7 +1789,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4048,7 +4048,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5345,7 +5345,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5664,7 +5664,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
 dependencies = [
- "dirs 4.0.0",
+ "dirs 5.0.1",
 ]
 
 [[package]]
@@ -6230,7 +6230,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.3",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6763,8 +6763,9 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "unwrapped"
-version = "0.2.1"
-source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5db93f9d105c03ed894144e097e564fe5bc72fb1f45b525d77a48462a91d8536"
 dependencies = [
  "bon",
  "unwrapped-derive",
@@ -6772,8 +6773,9 @@ dependencies = [
 
 [[package]]
 name = "unwrapped-core"
-version = "0.2.1"
-source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52afbb19ffeeb5f8013e1c47f0434f7a529c4df018b67a607396d1b80b4a2edb"
 dependencies = [
  "bon",
  "darling",
@@ -6785,8 +6787,9 @@ dependencies = [
 
 [[package]]
 name = "unwrapped-derive"
-version = "0.2.1"
-source = "git+https://github.com/stayhydated/unwrapped?branch=excludes#62832c595cfa9fd22b7a80aaa5f0058c40559f74"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a317c246433368df24c5b2a8cf790515b2e7ddf3ac252e932a674c4fdf4c386"
 dependencies = [
  "syn 2.0.114",
  "unwrapped-core",
@@ -7228,7 +7231,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
