@@ -183,7 +183,7 @@ pub fn generate_description_fn_tokens(
         quote! { #title }
     };
 
-    let field_has_validations = !field.validations.is_empty();
+    let field_has_validations = !field.validations.is_empty() && _component.has_koruma();
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
         let conversion_tokens = quote! { v.to_fluent_string() };

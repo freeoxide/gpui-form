@@ -50,7 +50,10 @@ impl super::ComponentLayout for NumberInputComponent {
         };
 
         let field_base_declaration = quote! {
-            pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #InputState>) -> #InputState {
+            pub fn #field_name_ident(
+                window: &mut #Window,
+                cx: &mut #Context<'_, #InputState>
+            ) -> #InputState {
                 #InputState::new(window, cx)#validation_logic
             }
         };

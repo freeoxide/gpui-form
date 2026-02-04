@@ -59,7 +59,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
                     )
                 )
             }
-        } else if options.index_default() {
+        } else if options.use_enum_default() {
             quote! {
                 Some(#IndexPath::new(0))
             }

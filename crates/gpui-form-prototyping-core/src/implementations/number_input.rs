@@ -24,6 +24,23 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         })
     }
 
+    fn generate_post_subscription_initialization(
+        &self,
+        field: &FieldVariant,
+        _component: &GpuiFormShape,
+    ) -> Option<TokenStream> {
+        let field_var_name_ident = field.field_ident_with_behaviour();
+        let field_name_ident = field.field_ident();
+
+        Some(quote! {
+            if let Some(value) = current_data.#field_name_ident.as_ref() {
+                #field_var_name_ident.update(cx, |state, cx| {
+                    state.set_value(value.to_string(), window, cx);
+                });
+            }
+        })
+    }
+
     fn generate_field_initializers(
         &self,
         field: &FieldVariant,

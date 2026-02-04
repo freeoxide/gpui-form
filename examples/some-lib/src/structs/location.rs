@@ -151,7 +151,7 @@ pub struct LocationForm {
     pub name: String,
 
     /// Location selection using cascading selects
-    #[gpui_form(component(infinite_select(default)))]
+    #[gpui_form(component(infinite_select))]
     pub location: Country,
 }
 

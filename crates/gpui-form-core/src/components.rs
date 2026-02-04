@@ -34,29 +34,43 @@ pub struct BehaviourSelectOptions {
     pub searchable: bool,
 }
 
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
+#[derive(Clone, ComponentOption, Debug, Default)]
 pub struct SelectOptions {
-    #[darling(flatten)]
     pub behaviour: BehaviourSelectOptions,
-    #[darling(default, rename = "index")]
-    named_index: Option<syn::Path>,
-    #[darling(default, rename = "default")]
-    index_default: bool,
+    /// Field-level default value as a path expression (e.g., EnumCountry::France)
+    /// This is set by the derive macro when the field has a `default = ...` attribute
+    field_default: Option<syn::Path>,
+}
+
+impl FromMeta for SelectOptions {
+    fn from_word() -> darling::Result<Self> {
+        Ok(SelectOptions::default())
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let behaviour = BehaviourSelectOptions::from_list(items)?;
+        Ok(SelectOptions {
+            behaviour,
+            field_default: None,
+        })
+    }
 }
 
 impl SelectOptions {
-    pub fn named_index(&self) -> Option<&syn::Path> {
-        if self.named_index.is_some() && self.index_default {
-            panic!("Cannot specify both named_index and index_default");
-        }
-        self.named_index.as_ref()
+    /// Set the field-level default value
+    pub fn with_field_default(mut self, default: Option<syn::Path>) -> Self {
+        self.field_default = default;
+        self
     }
 
-    pub fn index_default(&self) -> bool {
-        if self.named_index.is_some() && self.index_default {
-            panic!("Cannot specify both named_index and index_default");
-        }
-        self.index_default
+    /// Get the named index from field default, if specified
+    pub fn named_index(&self) -> Option<&syn::Path> {
+        self.field_default.as_ref()
+    }
+
+    /// Check if we should use the enum's default variant
+    pub fn use_enum_default(&self) -> bool {
+        self.field_default.is_none()
     }
 }
 
@@ -113,31 +127,43 @@ pub struct BehaviourInfiniteSelectOptions {
     pub max_depth: Option<usize>,
 }
 
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
+#[derive(Clone, ComponentOption, Debug, Default)]
 pub struct InfiniteSelectOptions {
-    #[darling(flatten)]
     pub behaviour: BehaviourInfiniteSelectOptions,
-    /// Initial value path for the selection
-    #[darling(default, rename = "index")]
-    named_index: Option<syn::Path>,
-    /// Use default value for initial selection
-    #[darling(default, rename = "default")]
-    index_default: bool,
+    /// Field-level default value as a path expression (e.g., EnumCountry::France)
+    /// This is set by the derive macro when the field has a `default = ...` attribute
+    field_default: Option<syn::Path>,
+}
+
+impl FromMeta for InfiniteSelectOptions {
+    fn from_word() -> darling::Result<Self> {
+        Ok(InfiniteSelectOptions::default())
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let behaviour = BehaviourInfiniteSelectOptions::from_list(items)?;
+        Ok(InfiniteSelectOptions {
+            behaviour,
+            field_default: None,
+        })
+    }
 }
 
 impl InfiniteSelectOptions {
-    pub fn named_index(&self) -> Option<&syn::Path> {
-        if self.named_index.is_some() && self.index_default {
-            panic!("Cannot specify both named_index and index_default");
-        }
-        self.named_index.as_ref()
+    /// Set the field-level default value
+    pub fn with_field_default(mut self, default: Option<syn::Path>) -> Self {
+        self.field_default = default;
+        self
     }
 
-    pub fn index_default(&self) -> bool {
-        if self.named_index.is_some() && self.index_default {
-            panic!("Cannot specify both named_index and index_default");
-        }
-        self.index_default
+    /// Get the named index from field default, if specified
+    pub fn named_index(&self) -> Option<&syn::Path> {
+        self.field_default.as_ref()
+    }
+
+    /// Check if we should use the enum's default variant
+    pub fn use_enum_default(&self) -> bool {
+        self.field_default.is_none()
     }
 }
 

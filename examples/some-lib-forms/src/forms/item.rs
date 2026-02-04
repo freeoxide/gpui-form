@@ -17,13 +17,11 @@ use gpui_component::{
 use gpui_form::component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::new_type::*;
-use std::sync::Arc;
 const CONTEXT: &str = "ItemForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct ItemForm {
-    original_data: Arc<Item>,
     current_data: ItemFormValueHolder,
     fields: ItemFormFields,
     focus_handle: FocusHandle,
@@ -39,13 +37,10 @@ impl gpui_storybook::Story for ItemForm {
         Item::this_ftl()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx, Item::default())
+        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl ItemForm {
-    pub fn view(window: &mut Window, cx: &mut App, original_data: Item) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx, original_data))
-    }
     fn on_index_input_event(
         &mut self,
         state: &Entity<InputState>,
@@ -95,7 +90,8 @@ impl ItemForm {
             },
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>, original_data: Item) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let current_data = ItemFormValueHolder::default();
         let index_number_input = cx.new(|cx| ItemFormComponents::index_number_input(window, cx));
         let mut _subscriptions = vec![
             cx.subscribe_in(&index_number_input, window, Self::on_index_input_event),
@@ -105,9 +101,13 @@ impl ItemForm {
                 Self::on_index_number_input_event,
             ),
         ];
+        if let Some(value) = current_data.index.as_ref() {
+            index_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
         Self {
-            original_data: Arc::new(original_data.clone()),
-            current_data: original_data.into(),
+            current_data,
             fields: ItemFormFields { index_number_input },
             focus_handle: cx.focus_handle(),
             _subscriptions,

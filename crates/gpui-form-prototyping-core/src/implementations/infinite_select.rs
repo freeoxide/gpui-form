@@ -42,7 +42,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
             syn::parse_str::<syn::Ident>(&master_selected_index_var).unwrap();
 
         Some(quote! {
-            let #initial_location_ident = &original_data.#field_name_ident;
+            let #initial_location_ident = &current_data.#field_name_ident;
             let #master_variants_ident = #struct_name_ident::variants();
             let #initial_variant_name_ident = #initial_location_ident.variant_name();
             let #initial_variant_idx_ident = #master_variants_ident
@@ -313,7 +313,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
             #path_var_name_ident.set(0, #initial_variant_idx_ident);
 
             let #child_selects_var_name_ident = #form_components_struct_ident::#child_helper_fn_name_ident(
-                &original_data.#field_name_ident,
+                &current_data.#field_name_ident,
                 0,
                 window,
                 cx,
