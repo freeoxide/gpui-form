@@ -956,6 +956,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "chunky-vec"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb7bdea464ae038f09197b82430b921c53619fc8d2bcaf7b151013b3ca008017"
+
+[[package]]
 name = "cipher"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1057,7 +1063,7 @@ dependencies = [
 [[package]]
 name = "collections"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "indexmap",
  "rustc-hash 2.1.1",
@@ -1523,7 +1529,7 @@ dependencies = [
 [[package]]
 name = "derive_refineable"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1794,9 +1800,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45c4333c51d2f27d95c64d04cd95ecce5bf30d608d63e3fddbbc7cbf00a9cac2"
+checksum = "f58b2b76599943ae9c711c0661ec3d6c67b1a68b92df7fae58ac8b1c34416a70"
 dependencies = [
  "arc-swap",
  "bon",
@@ -1814,9 +1820,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-derive"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1d532763ee9f1740480ebd873e303d346c038a2ed10efdc996e4c0a326093c6"
+checksum = "99496cafb1c22bef77246984c74e8a2b60f530208fc8cce4d12aa5b0e27fb69c"
 dependencies = [
  "darling",
  "es-fluent-derive-core",
@@ -1831,9 +1837,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-derive-core"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b564d975a37bf2276cbbceccc5e83d67ff1a7825d5111ed589baa0cc4c93e458"
+checksum = "2d425710a89f119fb8d05f95303c5dd1279e6126037a5ad81c1a2346ebbcf2e2"
 dependencies = [
  "anyhow",
  "bon",
@@ -1857,23 +1863,24 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-lang"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edece39116c15e092cf8522538f8f18737d1c92f3210cb001161ba08b34712ca"
+checksum = "4531b78421a648a70a5a1dcd8c1a28511f3bda9cc6b4b610217a3602df4b0bf2"
 dependencies = [
  "es-fluent-lang-macro",
  "es-fluent-manager-core",
  "fluent-bundle",
  "inventory",
+ "rust-embed",
  "tracing",
  "unic-langid",
 ]
 
 [[package]]
 name = "es-fluent-lang-macro"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53682ec2f43379c453df7cc1217483adcfff5b7a9710a60e6aa7a6f4245e2bee"
+checksum = "c40ed3fd657f63dd3bf408d2feece582d95fe098aaf4097c7b1d8b975addc9c2"
 dependencies = [
  "es-fluent-toml",
  "heck 0.5.0",
@@ -1886,13 +1893,14 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-manager-core"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c033badd12ab8a9b44a38050890a360ed8bfc2ba6c1eca9674f866f175cf1a"
+checksum = "dd970ff9a8adb5397f3d622a771088065277f56dbfdaf359eeeed95e3f8dc492"
 dependencies = [
  "anyhow",
  "es-fluent-derive-core",
  "fluent-bundle",
+ "fluent-fallback",
  "inventory",
  "rust-embed",
  "thiserror 2.0.17",
@@ -1902,9 +1910,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-manager-embedded"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f53fdc1bb70ec5369bcc7c0eb7c243f3ea4cae69fc4408755f0a7092a5b9a01"
+checksum = "208ddfed47ba8a991faedc5fa1c0e213b7048d5302666a69d8238120fe07add8"
 dependencies = [
  "arc-swap",
  "es-fluent",
@@ -1916,9 +1924,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-manager-macros"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9afc7984ae805a7f4eafee504cad65f254081fa54eb6c9b13913a5dda07d421"
+checksum = "de1e520255004e86925e102c7c50dc41d352bc74464614d5e5a6a239c3c6d855"
 dependencies = [
  "darling",
  "es-fluent-toml",
@@ -1930,9 +1938,9 @@ dependencies = [
 
 [[package]]
 name = "es-fluent-toml"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91cfc7fc49c6d1d41e094ce04985d1e0820aaa4cf58fd62c2fb0e4f76bdbde70"
+checksum = "da45dff2414cb315368e1b4f32ce3a8cf678b8faab5826d74873122634155dcb"
 dependencies = [
  "serde",
  "thiserror 2.0.17",
@@ -2115,6 +2123,22 @@ dependencies = [
  "rustc-hash 2.1.1",
  "self_cell",
  "smallvec",
+ "unic-langid",
+]
+
+[[package]]
+name = "fluent-fallback"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38637647e8853f0bae81ffb20f53b2b3b60fec70ab30ad8a84583682fc02629b"
+dependencies = [
+ "async-trait",
+ "chunky-vec",
+ "fluent-bundle",
+ "futures",
+ "once_cell",
+ "pin-cell",
+ "rustc-hash 2.1.1",
  "unic-langid",
 ]
 
@@ -2559,7 +2583,7 @@ dependencies = [
 [[package]]
 name = "gpui"
 version = "0.2.2"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "anyhow",
  "as-raw-xcb-connection",
@@ -2661,7 +2685,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.5.0"
-source = "git+https://github.com/longbridge/gpui-component#023f2e85690c45c452ab2a094299ac616f663547"
+source = "git+https://github.com/longbridge/gpui-component#38b3e6c9656e2eab978f2ac03f0d7e6d57df0f62"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2699,7 +2723,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-assets"
 version = "0.5.0"
-source = "git+https://github.com/longbridge/gpui-component#023f2e85690c45c452ab2a094299ac616f663547"
+source = "git+https://github.com/longbridge/gpui-component#38b3e6c9656e2eab978f2ac03f0d7e6d57df0f62"
 dependencies = [
  "anyhow",
  "gpui",
@@ -2709,7 +2733,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.5.0"
-source = "git+https://github.com/longbridge/gpui-component#023f2e85690c45c452ab2a094299ac616f663547"
+source = "git+https://github.com/longbridge/gpui-component#38b3e6c9656e2eab978f2ac03f0d7e6d57df0f62"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2817,7 +2841,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook#c2c4b16bff894142c69228d7eca3384e0051ef91"
+source = "git+https://github.com/stayhydated/gpui-storybook#c6cc1c22d3ca9f42a7b0230e6d6ef02a05ffaabd"
 dependencies = [
  "gpui",
  "gpui-storybook-core",
@@ -2829,7 +2853,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-core"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook#c2c4b16bff894142c69228d7eca3384e0051ef91"
+source = "git+https://github.com/stayhydated/gpui-storybook#c6cc1c22d3ca9f42a7b0230e6d6ef02a05ffaabd"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -2848,7 +2872,7 @@ dependencies = [
 [[package]]
 name = "gpui-storybook-macros"
 version = "0.5.0"
-source = "git+https://github.com/stayhydated/gpui-storybook#c2c4b16bff894142c69228d7eca3384e0051ef91"
+source = "git+https://github.com/stayhydated/gpui-storybook#c6cc1c22d3ca9f42a7b0230e6d6ef02a05ffaabd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2858,7 +2882,7 @@ dependencies = [
 [[package]]
 name = "gpui_macros"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3019,7 +3043,7 @@ dependencies = [
 [[package]]
 name = "http_client"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -3454,8 +3478,8 @@ dependencies = [
 
 [[package]]
 name = "koruma"
-version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#f82ef3a8d571859ab97bc0ceb206daa37c14b608"
+version = "0.4.0"
+source = "git+https://github.com/stayhydated/koruma#df60e75adfb07a28ad8a3c62ce3bfc9dc1bfd4d9"
 dependencies = [
  "bon",
  "koruma-core",
@@ -3464,8 +3488,8 @@ dependencies = [
 
 [[package]]
 name = "koruma-collection"
-version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#f82ef3a8d571859ab97bc0ceb206daa37c14b608"
+version = "0.4.0"
+source = "git+https://github.com/stayhydated/koruma#df60e75adfb07a28ad8a3c62ce3bfc9dc1bfd4d9"
 dependencies = [
  "bon",
  "es-fluent",
@@ -3478,13 +3502,13 @@ dependencies = [
 
 [[package]]
 name = "koruma-core"
-version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#f82ef3a8d571859ab97bc0ceb206daa37c14b608"
+version = "0.4.0"
+source = "git+https://github.com/stayhydated/koruma#df60e75adfb07a28ad8a3c62ce3bfc9dc1bfd4d9"
 
 [[package]]
 name = "koruma-derive"
-version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#f82ef3a8d571859ab97bc0ceb206daa37c14b608"
+version = "0.4.0"
+source = "git+https://github.com/stayhydated/koruma#df60e75adfb07a28ad8a3c62ce3bfc9dc1bfd4d9"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -3496,8 +3520,8 @@ dependencies = [
 
 [[package]]
 name = "koruma-derive-core"
-version = "0.3.0"
-source = "git+https://github.com/stayhydated/koruma#f82ef3a8d571859ab97bc0ceb206daa37c14b608"
+version = "0.4.0"
+source = "git+https://github.com/stayhydated/koruma#df60e75adfb07a28ad8a3c62ce3bfc9dc1bfd4d9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3812,7 +3836,7 @@ dependencies = [
 [[package]]
 name = "media"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -4485,7 +4509,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "perf"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "collections",
  "serde",
@@ -4535,6 +4559,12 @@ name = "pico-args"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5be167a7af36ee22fe3115051bc51f6e6c7054c9348e28deb4f49bd6f705a315"
+
+[[package]]
+name = "pin-cell"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1f4c4ebd3c5f82080164b7d9cc8e505cd9536fda8c750b779daceb4b7180a7b"
 
 [[package]]
 name = "pin-project"
@@ -5079,7 +5109,7 @@ dependencies = [
 [[package]]
 name = "refineable"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "derive_refineable",
 ]
@@ -5407,7 +5437,7 @@ dependencies = [
 [[package]]
 name = "scheduler"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "async-task",
  "backtrace",
@@ -6003,7 +6033,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sum_tree"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "arrayvec",
  "log",
@@ -6856,7 +6886,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "util"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "anyhow",
  "async-fs",
@@ -6894,7 +6924,7 @@ dependencies = [
 [[package]]
 name = "util_macros"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "perf",
  "quote",
@@ -8156,7 +8186,7 @@ dependencies = [
 [[package]]
 name = "zlog"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8173,7 +8203,7 @@ checksum = "bd8f3f50b848df28f887acb68e41201b5aea6bc8a8dacc00fb40635ff9a72fea"
 [[package]]
 name = "ztracing"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -8184,7 +8214,7 @@ dependencies = [
 [[package]]
 name = "ztracing_macro"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#f7fe6181cde07b1bf9e5e27ed11badc1ab647fb6"
+source = "git+https://github.com/zed-industries/zed#2b5386b4386254101e8260ba11dfe2812d7742dd"
 
 [[package]]
 name = "zune-core"
