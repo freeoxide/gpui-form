@@ -3,7 +3,7 @@
 `gpui-form` is a form-generation ecosystem written in **Rust**, built on top of `gpui` and `gpui-component`. It focuses on:
 
 1. **Type Safety**: Derive macros generate strongly-typed form state and metadata at compile time.
-1. **Ergonomics**: `#[derive(GpuiForm)]`, `#[derive(SelectItem)]`, and `#[derive(InfiniteSelect)]` minimize boilerplate.
+1. **Ergonomics**: `#[derive(GpuiForm)]` minimize boilerplate.
 1. **Developer Experience**: Inventory-based shape registry enables fast prototyping and codegen.
 
 ## Architecture Documentation Index
@@ -41,21 +41,17 @@
 
 - **`gpui-form-internal-macros`**: Small derive macros used internally by core to reduce boilerplate.
 
-## Development
+## Examples
 
-| Task | Command |
-| --- | --- |
-| Format | `just fmt` |
-| Check | `just check` |
-| Clippy | `just clippy` |
-| Tests | `just test` |
-| Update crate paths | `just update_crate_paths` |
+- `examples/i18n` - localization resources used by the examples.
+- `examples/some-lib` - crate defining shared example types.
+- `examples/some-lib-forms` - storybook-like gpui app showcasing generated forms. Run with `cargo run -p some-lib-forms`.
+- `examples/prototyping` - prototyping generator that emits form scaffolding. Run with `cargo run -p prototyping`.
 
 ## Agent Notes
 
 - Ignore all folders matching `**/__crate_paths/**` (generated files).
-- Prefer `rg` for search and keep edits minimal.
+- When changing public APIs or behavior in a crate, update that crate's `docs/ARCHITECTURE.md`.
 - When adding a component, update:
   - `gpui-form-core` `Components` + `ComponentLayout` implementation.
   - `gpui-form-prototyping-core` `FieldCodeGenerator` mapping.
-  - Snapshot tests under `crates/gpui-form-derive/src/derives/snapshots` if needed.

@@ -4,47 +4,20 @@
 
 # gpui-form
 
-Derive macros and helpers for building `gpui-component` forms from Rust structs, with optional validation and localization.
+A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
 
-This framework gives you:
+## Compatibility
 
-- `#[derive(GpuiForm)]` to generate form state, value holders, and metadata.
-- `#[derive(SelectItem)]` for select dropdowns (optional fluent labels).
-- `#[derive(InfiniteSelect)]` for cascading enum selects.
-- Optional Koruma validation wiring (including fluent error labels).
-- Inventory-based shape registry for prototyping codegen.
+Compatibility of `gpui-form` versions:
 
-## Crates
+| `gpui-form` | `gpui-component` |
+| :------------ | :--------------- |
+| **git** | |
+| `master` | `main` |
+| **crates.io** | |
+| `0.6.x` | `0.6.x` |
+| `0.5.x` | `0.5.x` |
 
-- `gpui-form`: user-facing facade crate.
-- `gpui-form-derive`: proc macros (`GpuiForm`, `SelectItem`, `InfiniteSelect`).
-- `gpui-form-core`: component definitions, registry, and helpers.
-- `gpui-form-component`: runtime helpers (InfiniteSelect).
-- `gpui-form-prototyping-core`: codegen utilities for prototyping.
-- `gpui-form-internal-macros`: internal proc macros used by core.
-
-## Installation
-
-Add the facade crate and enable the features you need:
-
-```toml
-[dependencies]
-# gpui + gpui-component are required by generated code
-
-gpui = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-
-# Derive macros (default)
-gpui-form = { version = "*", features = ["derive"] }
-
-# Optional: runtime components like InfiniteSelect
-# gpui-form = { version = "*", features = ["derive", "component"] }
-
-# Optional: inventory registry for prototyping
-# gpui-form = { version = "*", features = ["derive", "inventory"] }
-```
-
-Note: `component` and `inventory` are only effective when `derive` is enabled.
 
 ## Quick start
 
@@ -76,40 +49,18 @@ pub struct UserProfile {
 }
 ```
 
-## Supported components
+## Currently Supported components
 
-- Input
-- Number Input
-- Checkbox
-- Switch
-- Select
-- Date Picker
-- Infinite Select (via `gpui-form-component`)
+- [Checkbox](https://longbridge.github.io/gpui-component/docs/components/checkbox)
+- [Date Picker](https://longbridge.github.io/gpui-component/docs/components/date-picker)
+- [Select](https://longbridge.github.io/gpui-component/docs/components/select)
+- [Input](https://longbridge.github.io/gpui-component/docs/components/input)
+- [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
+- [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
 
-## Infinite Select
+## Custom components
 
-Use `#[derive(InfiniteSelect)]` to build cascading selects from nested enums:
-
-```rs
-use gpui_form::InfiniteSelect;
-
-#[derive(Clone, Debug, Default, InfiniteSelect)]
-pub enum Country {
-    #[default]
-    USA(USAState),
-    Canada(CanadaProvince),
-    UK,
-}
-
-#[derive(Clone, Debug, Default, InfiniteSelect)]
-pub enum USAState {
-    #[default]
-    California,
-    Texas,
-}
-```
-
-Then use `#[gpui_form(component(infinite_select))]` on the field.
+- [Infinite Select](<>)
 
 ## Validation (Koruma)
 
@@ -125,16 +76,7 @@ See `examples/prototyping` for a working generator.
 
 ## Examples
 
-- `examples/some-lib-forms` - gpui app showcasing generated forms.
-- `examples/prototyping` - codegen from inventory.
-
-## Compatibility
-
-Compatibility of `gpui-form` versions:
-
-| `gpui-form` | `gpui-component` |
-| :------------ | :--------------- |
-| **git** | |
-| `master` | `main` |
-| **crates.io** | |
-| `0.5.x` | `0.5.x` |
+- `examples/i18n` - localization resources used by the examples.
+- `examples/some-lib` - crate defining shared example types.
+- `examples/some-lib-forms` - storybook-like gpui app showcasing generated forms. Run with `cargo run -p some-lib-forms`.
+- `examples/prototyping` - prototyping generator that emits form scaffolding. Run with `cargo run -p prototyping`.
