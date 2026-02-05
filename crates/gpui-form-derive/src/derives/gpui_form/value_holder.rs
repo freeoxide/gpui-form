@@ -179,14 +179,6 @@ pub fn generate_value_holder(
         .map(|f| f.field_name.to_string())
         .collect();
 
-    let has_any_koruma = fields.iter().any(|f| {
-        !f.skip
-            && (!f.validation.field_validators.is_empty()
-                || !f.validation.element_validators.is_empty()
-                || f.validation.is_nested
-                || f.validation.is_newtype)
-    });
-
     let has_any_required = fields.iter().any(|f| f.needs_required_validation());
 
     let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
@@ -247,7 +239,9 @@ pub fn generate_value_holder(
     }
 
     let needs_koruma_for_required = has_any_required && enable_koruma;
-    let needs_koruma_derive = (enable_koruma && has_any_koruma) || needs_koruma_for_required;
+    // If koruma is enabled on the form, always derive Koruma so validate() is available,
+    // even when there are no inferred validators.
+    let needs_koruma_derive = enable_koruma || needs_koruma_for_required;
 
     // Check if any field has a custom default expression
     let has_custom_defaults = fields.iter().any(|f| !f.skip && f.default_expr.is_some());
