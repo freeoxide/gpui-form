@@ -1,175 +1,225 @@
-## BritishColumbiaCity
+## CfgAttrExample
 
-british_columbia_city_this = British Columbia City
-british_columbia_city-Burnaby = Burnaby
-british_columbia_city-Richmond = Richmond
-british_columbia_city-Surrey = Surrey
-british_columbia_city-Vancouver = Vancouver
-british_columbia_city-Victoria = Victoria
-
-## CaliforniaCity
-
-california_city_this = California City
-california_city-LosAngeles = Los Angeles
-california_city-Sacramento = Sacramento
-california_city-SanDiego = San Diego
-california_city-SanFrancisco = San Francisco
-california_city-SanJose = San Jose
-
-## CanadaProvince
-
-canada_province_this = Canada Province
-canada_province-BritishColumbia = British Columbia { $f0 }
-canada_province-Ontario = Ontario { $f0 }
-canada_province-Quebec = Quebec { $f0 }
-
-## CanadaProvinceDescription
-
-canada_province_description_this = Canada Province Description
-canada_province_description-BritishColumbia = British Columbia
-canada_province_description-Ontario = Ontario
-canada_province_description-Quebec = Quebec
-
-## CanadaProvinceLabel
-
-canada_province_label_this = Canada Province Label
-canada_province_label-BritishColumbia = British Columbia
-canada_province_label-Ontario = Ontario
-canada_province_label-Quebec = Quebec
-
-## Country
-
-country_this = Country
-country-Canada = Canada { $province }
-country-USA = Usa { $f0 }
-
-## CountryDescription
-
-country_description_this = Country Description
-country_description-Canada = Canada
-country_description-USA = Usa
-
-## CountryLabel
-
-country_label_this = Country Label
-country_label-Canada = Canada
-country_label-USA = Usa
+cfg_attr_example_this = 配置属性示例
 
 ## Empty
 
-empty_this = Empty
+empty_this = 空
+
+## Item
+
+item_this = 项目
 
 ## LocationForm
 
-location_form_this = Location Form
-
-## LocationFormDescription
-
-location_form_description_this = Location Form Description
-location_form_description-location = Location
-location_form_description-name = Name
-
-## LocationFormLabel
-
-location_form_label_this = Location Form Label
-location_form_label-location = Location
-location_form_label-name = Name
-
-## NewYorkCity
-
-new_york_city_this = New York City
-new_york_city-Albany = Albany
-new_york_city-Buffalo = Buffalo
-new_york_city-NewYorkCity = New York City
-new_york_city-Rochester = Rochester
-new_york_city-Syracuse = Syracuse
-
-## OntarioCity
-
-ontario_city_this = Ontario City
-ontario_city-Hamilton = Hamilton
-ontario_city-London = London
-ontario_city-Mississauga = Mississauga
-ontario_city-Ottawa = Ottawa
-ontario_city-Toronto = Toronto
-
-## QuebecCity
-
-quebec_city_this = Quebec City
-quebec_city-Gatineau = Gatineau
-quebec_city-Laval = Laval
-quebec_city-Longueuil = Longueuil
-quebec_city-Montreal = Montreal
-quebec_city-QuebecCity = Quebec City
-
-## TexasCity
-
-texas_city_this = Texas City
-texas_city-Austin = Austin
-texas_city-Dallas = Dallas
-texas_city-FortWorth = Fort Worth
-texas_city-Houston = Houston
-texas_city-SanAntonio = San Antonio
-
-## USAState
-
-usa_state_this = Usa State
-usa_state-California = California { $f0 }
-usa_state-NewYork = New York { $f0 }
-usa_state-Texas = Texas { $f0 }
-
-## USAStateDescription
-
-usa_state_description_this = Usa State Description
-usa_state_description-California = California
-usa_state_description-NewYork = New York
-usa_state_description-Texas = Texas
-
-## USAStateLabel
-
-usa_state_label_this = Usa State Label
-usa_state_label-California = California
-usa_state_label-NewYork = New York
-usa_state_label-Texas = Texas
+location_form_this = 位置表单
 
 ## User
 
-user_this = User
+user_this = 用户
 
-## UserDescription
+## AccountType
 
-user_description_this = User Description
-user_description-age = Age
-user_description-balance = Balance
-user_description-birth_date = Birth Date
-user_description-country = Country
-user_description-email = Email
-user_description-enable_notifications = Enable Notifications
-user_description-preferred = Preferred
-user_description-subscribe_newsletter = Subscribe Newsletter
-user_description-username = Username
+account_type-Enterprise = 企业版
+account_type-Free = 免费
+account_type-Premium = 高级版
 
-## UserLabel
+## BritishColumbiaCity
 
-user_label_this = User Label
-user_label-age = Age
-user_label-balance = Balance
-user_label-birth_date = Birth Date
-user_label-country = Country
-user_label-email = Email
-user_label-enable_notifications = Enable Notifications
-user_label-preferred = Preferred
-user_label-subscribe_newsletter = Subscribe Newsletter
-user_label-username = Username
+british_columbia_city_this = 英属哥伦比亚城市
+british_columbia_city-Burnaby = 本那比
+british_columbia_city-Richmond = 列治文
+british_columbia_city-Surrey = 萨里
+british_columbia_city-Vancouver = 温哥华
+british_columbia_city-Victoria = 维多利亚
+
+## CaliforniaCity
+
+california_city_this = 加州城市
+california_city-LosAngeles = 洛杉矶
+california_city-Sacramento = 萨克拉门托
+california_city-SanDiego = 圣地亚哥
+california_city-SanFrancisco = 旧金山
+california_city-SanJose = 圣何塞
+
+## CanadaProvince
+
+canada_province_this = 加拿大省份
+canada_province-BritishColumbia = 英属哥伦比亚 { $f0 }
+canada_province-Ontario = 安大略 { $f0 }
+canada_province-Quebec = 魁北克 { $f0 }
+
+## CanadaProvinceDescriptionVariants
+
+canada_province_description_variants_this = 加拿大省份描述
+canada_province_description_variants-BritishColumbia = 英属哥伦比亚
+canada_province_description_variants-Ontario = 安大略
+canada_province_description_variants-Quebec = 魁北克
+
+## CanadaProvinceLabelVariants
+
+canada_province_label_variants_this = 加拿大省份标签
+canada_province_label_variants-BritishColumbia = 英属哥伦比亚
+canada_province_label_variants-Ontario = 安大略
+canada_province_label_variants-Quebec = 魁北克
+
+## CfgAttrExampleDescriptionVariants
+
+cfg_attr_example_description_variants_this = 配置属性示例描述
+cfg_attr_example_description_variants-account_type = 账户类型
+cfg_attr_example_description_variants-active = 是否激活
+cfg_attr_example_description_variants-age = 年龄
+cfg_attr_example_description_variants-balance = 余额
+cfg_attr_example_description_variants-created_at = 创建时间
+cfg_attr_example_description_variants-email = 电子邮件
+cfg_attr_example_description_variants-enabled = 已启用
+cfg_attr_example_description_variants-username = 用户名
+
+## CfgAttrExampleLabelVariants
+
+cfg_attr_example_label_variants_this = 配置属性示例标签
+cfg_attr_example_label_variants-account_type = 账户类型
+cfg_attr_example_label_variants-active = 是否激活
+cfg_attr_example_label_variants-age = 年龄
+cfg_attr_example_label_variants-balance = 余额
+cfg_attr_example_label_variants-created_at = 创建时间
+cfg_attr_example_label_variants-email = 电子邮件
+cfg_attr_example_label_variants-enabled = 已启用
+cfg_attr_example_label_variants-username = 用户名
+
+## Country
+
+country_this = 国家
+country-Canada = 加拿大 { $province }
+country-USA = 美国 { $f0 }
+
+## CountryDescriptionVariants
+
+country_description_variants_this = 国家描述
+country_description_variants-Canada = 加拿大
+country_description_variants-USA = 美国
+
+## CountryLabelVariants
+
+country_label_variants_this = 国家标签
+country_label_variants-Canada = 加拿大
+country_label_variants-USA = 美国
 
 ## EnumCountry
 
-enum_country-China = China
-enum_country-France = France
-enum_country-UnitedStates = United States
+enum_country-China = 中国
+enum_country-France = 法国
+enum_country-UnitedStates = 美国
+
+## ItemDescriptionVariants
+
+item_description_variants_this = 项目描述
+item_description_variants-index = 索引
+
+## ItemLabelVariants
+
+item_label_variants_this = 项目标签
+item_label_variants-index = 索引
+
+## LocationFormDescriptionVariants
+
+location_form_description_variants_this = 位置表单描述
+location_form_description_variants-location = 位置
+location_form_description_variants-name = 名称
+
+## LocationFormLabelVariants
+
+location_form_label_variants_this = 位置表单标签
+location_form_label_variants-location = 位置
+location_form_label_variants-name = 名称
+
+## NewYorkCity
+
+new_york_city_this = 纽约州城市
+new_york_city-Albany = 奥尔巴尼
+new_york_city-Buffalo = 布法罗
+new_york_city-NewYorkCity = 纽约市
+new_york_city-Rochester = 罗切斯特
+new_york_city-Syracuse = 锡拉丘兹
+
+## OntarioCity
+
+ontario_city_this = 安大略城市
+ontario_city-Hamilton = 汉密尔顿
+ontario_city-London = 伦敦
+ontario_city-Mississauga = 密西沙加
+ontario_city-Ottawa = 渥太华
+ontario_city-Toronto = 多伦多
 
 ## PreferedLanguage
 
-prefered_language-Chinese = Chinese
-prefered_language-English = English
-prefered_language-French = French
+prefered_language-Chinese = 中文
+prefered_language-English = 英语
+prefered_language-French = 法语
+
+## QuebecCity
+
+quebec_city_this = 魁北克城市
+quebec_city-Gatineau = 加蒂诺
+quebec_city-Laval = 拉瓦勒
+quebec_city-Longueuil = 朗格伊
+quebec_city-Montreal = 蒙特利尔
+quebec_city-QuebecCity = 魁北克市
+
+## TexasCity
+
+texas_city_this = 德州城市
+texas_city-Austin = 奥斯汀
+texas_city-Dallas = 达拉斯
+texas_city-FortWorth = 沃斯堡
+texas_city-Houston = 休斯顿
+texas_city-SanAntonio = 圣安东尼奥
+
+## USAState
+
+usa_state_this = 美国州
+usa_state-California = 加利福尼亚 { $f0 }
+usa_state-NewYork = 纽约 { $f0 }
+usa_state-Texas = 德克萨斯 { $f0 }
+
+## USAStateDescriptionVariants
+
+usa_state_description_variants_this = 美国州描述
+usa_state_description_variants-California = 加利福尼亚
+usa_state_description_variants-NewYork = 纽约
+usa_state_description_variants-Texas = 德克萨斯
+
+## USAStateLabelVariants
+
+usa_state_label_variants_this = 美国州标签
+usa_state_label_variants-California = 加利福尼亚
+usa_state_label_variants-NewYork = 纽约
+usa_state_label_variants-Texas = 德克萨斯
+
+## UserDescriptionVariants
+
+user_description_variants_this = 用户描述
+user_description_variants-age = 年龄
+user_description_variants-balance = 余额
+user_description_variants-birth_date = 出生日期
+user_description_variants-country = 国家
+user_description_variants-debt = 债务
+user_description_variants-email = 电子邮件
+user_description_variants-enable_notifications = 启用通知
+user_description_variants-preferred = 首选
+user_description_variants-subscribe_newsletter = 订阅简报
+user_description_variants-username = 用户名
+
+## UserLabelVariants
+
+user_label_variants_this = 用户标签
+user_label_variants-age = 年龄
+user_label_variants-balance = 余额
+user_label_variants-birth_date = 出生日期
+user_label_variants-country = 国家
+user_label_variants-debt = 债务
+user_label_variants-email = 电子邮件
+user_label_variants-enable_notifications = 启用通知
+user_label_variants-preferred = 首选
+user_label_variants-subscribe_newsletter = 订阅简报
+user_label_variants-username = 用户名
