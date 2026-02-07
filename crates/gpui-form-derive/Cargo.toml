@@ -25,7 +25,6 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { features = [ "full" ], workspace = true }
 syn-cfg-attr = { workspace = true }
-unwrapped-core = { workspace = true }
 
 [lints]
 workspace = true

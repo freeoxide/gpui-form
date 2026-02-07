@@ -56,7 +56,11 @@ fn needs_into_conversion(field: &FieldOptionality) -> bool {
     field.into_expr.is_some() || field.override_type.is_some()
 }
 
-fn try_from_field_tokens(field: &FieldOptionality, source: TokenStream) -> TokenStream {
+fn try_from_field_tokens(
+    field: &FieldOptionality,
+    source: TokenStream,
+    error_type: &syn::Ident,
+) -> TokenStream {
     let field_name = &field.field_name;
     let access = quote! { #source.#field_name };
     if field.was_optional {
@@ -76,7 +80,7 @@ fn try_from_field_tokens(field: &FieldOptionality, source: TokenStream) -> Token
             let converted = apply_into_conversion(field, quote! { value });
             quote! {
                 #field_name: {
-                    let value = #access.ok_or(::gpui_form::unwrapped::UnwrappedError{
+                    let value = #access.ok_or(#error_type{
                         field_name: #field_name_str
                     })?;
                     #converted
@@ -84,7 +88,7 @@ fn try_from_field_tokens(field: &FieldOptionality, source: TokenStream) -> Token
             }
         } else {
             quote! {
-                #field_name: #access.ok_or(::gpui_form::unwrapped::UnwrappedError{
+                #field_name: #access.ok_or(#error_type{
                     field_name: #field_name_str
                 })?
             }
@@ -94,6 +98,27 @@ fn try_from_field_tokens(field: &FieldOptionality, source: TokenStream) -> Token
         quote! {
             #field_name: #converted
         }
+    }
+}
+
+fn generate_conversion_error_type(error_name: &syn::Ident) -> TokenStream {
+    quote! {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        pub struct #error_name {
+            pub field_name: &'static str,
+        }
+
+        impl ::core::fmt::Display for #error_name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                write!(
+                    f,
+                    "Failed to unwrap an Option for field '{}', found None",
+                    self.field_name
+                )
+            }
+        }
+
+        impl ::core::error::Error for #error_name {}
     }
 }
 
@@ -266,6 +291,8 @@ pub fn generate_value_holder(
 
     let original_ident = &original_input.ident;
     let wrapped_ident = format_ident!("{}FormValueHolder", original_ident);
+    let conversion_error_ident = format_ident!("{}ConversionError", wrapped_ident);
+    let conversion_error_type = generate_conversion_error_type(&conversion_error_ident);
     let (impl_generics, ty_generics, where_clause) = original_input.generics.split_for_impl();
 
     let field_definitions: Vec<TokenStream> = fields
@@ -401,7 +428,7 @@ pub fn generate_value_holder(
     let try_from_fields: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
-        .map(|f| try_from_field_tokens(f, quote! { from }))
+        .map(|f| try_from_field_tokens(f, quote! { from }, &conversion_error_ident))
         .collect();
 
     let mut from_where_clause = where_clause.cloned();
@@ -435,28 +462,23 @@ pub fn generate_value_holder(
                     let field_name = &f.field_name;
                     quote! { #field_name }
                 } else {
-                    try_from_field_tokens(f, quote! { self })
+                    try_from_field_tokens(f, quote! { self }, &conversion_error_ident)
                 }
             })
             .collect();
 
         quote! {
+            #conversion_error_type
             #derive_output
             pub struct #wrapped_ident #ty_generics #where_clause {
                 #(#field_definitions),*
-            }
-
-            impl #impl_generics ::gpui_form::unwrapped::Wrapped
-                for #original_ident #ty_generics #where_clause
-            {
-                type Wrapped = #wrapped_ident #ty_generics;
             }
 
             impl #impl_generics #wrapped_ident #ty_generics #where_clause {
                 pub fn into_original(
                     self,
                     #(#skipped_params),*
-                ) -> Result<#original_ident #ty_generics, ::gpui_form::unwrapped::UnwrappedError> {
+                ) -> Result<#original_ident #ty_generics, #conversion_error_ident> {
                     Ok(#original_ident {
                         #(#into_original_fields),*
                     })
@@ -465,6 +487,7 @@ pub fn generate_value_holder(
         }
     } else {
         quote! {
+            #conversion_error_type
             #derive_output
             pub struct #wrapped_ident #ty_generics #where_clause {
                 #(#field_definitions),*
@@ -490,16 +513,10 @@ pub fn generate_value_holder(
                 }
             }
 
-            impl #impl_generics ::gpui_form::unwrapped::Wrapped
-                for #original_ident #ty_generics #where_clause
-            {
-                type Wrapped = #wrapped_ident #ty_generics;
-            }
-
             impl #impl_generics #wrapped_ident #ty_generics #where_clause {
                 pub fn try_from(
                     from: #wrapped_ident #ty_generics
-                ) -> Result<#original_ident #ty_generics, ::gpui_form::unwrapped::UnwrappedError> {
+                ) -> Result<#original_ident #ty_generics, #conversion_error_ident> {
                     Ok(#original_ident {
                         #(#try_from_fields),*
                     })

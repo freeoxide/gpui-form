@@ -2734,7 +2734,6 @@ dependencies = [
  "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
- "unwrapped",
 ]
 
 [[package]]
@@ -2777,7 +2776,6 @@ dependencies = [
  "quote",
  "syn 2.0.114",
  "syn-cfg-attr",
- "unwrapped-core",
 ]
 
 [[package]]
@@ -6711,40 +6709,6 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
-
-[[package]]
-name = "unwrapped"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5db93f9d105c03ed894144e097e564fe5bc72fb1f45b525d77a48462a91d8536"
-dependencies = [
- "bon",
- "unwrapped-derive",
-]
-
-[[package]]
-name = "unwrapped-core"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52afbb19ffeeb5f8013e1c47f0434f7a529c4df018b67a607396d1b80b4a2edb"
-dependencies = [
- "bon",
- "darling",
- "ident_case",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
-name = "unwrapped-derive"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a317c246433368df24c5b2a8cf790515b2e7ddf3ac252e932a674c4fdf4c386"
-dependencies = [
- "syn 2.0.114",
- "unwrapped-core",
-]
 
 [[package]]
 name = "url"
