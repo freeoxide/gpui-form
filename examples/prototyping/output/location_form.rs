@@ -62,19 +62,11 @@ impl LocationFormForm {
         &mut self,
         this: &Entity<
             SelectState<
-                Vec<
-                    gpui_form_component::infinite_select::InfiniteSelectItem<
-                        Country,
-                    >,
-                >,
+                Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
             >,
         >,
         event: &SelectEvent<
-            Vec<
-                gpui_form_component::infinite_select::InfiniteSelectItem<
-                    Country,
-                >,
-            >,
+            Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -104,19 +96,11 @@ impl LocationFormForm {
         &mut self,
         this: &Entity<
             SelectState<
-                Vec<
-                    gpui_form_component::infinite_select::InfiniteSelectItem<
-                        Country,
-                    >,
-                >,
+                Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
             >,
         >,
         event: &SelectEvent<
-            Vec<
-                gpui_form_component::infinite_select::InfiniteSelectItem<
-                    Country,
-                >,
-            >,
+            Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -173,12 +157,8 @@ impl LocationFormForm {
         let location_master_select = cx
             .new(|cx| {
                 let items: Vec<
-                    gpui_form_component::infinite_select::InfiniteSelectItem<
-                        Country,
-                    >,
-                > = gpui_form_component::infinite_select::to_select_items::<
-                    Country,
-                >();
+                    gpui_form_component::infinite_select::InfiniteSelectItem<Country>,
+                > = gpui_form_component::infinite_select::to_select_items::<Country>();
                 gpui_component::select::SelectState::new(
                     items,
                     master_selected_index_location,
