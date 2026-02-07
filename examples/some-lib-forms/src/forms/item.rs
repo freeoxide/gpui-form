@@ -14,7 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use gpui_form::gpui_form_component::infinite_select::InfiniteSelect;
+use gpui_form_component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";

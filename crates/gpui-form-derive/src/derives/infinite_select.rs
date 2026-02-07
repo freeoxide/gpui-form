@@ -255,7 +255,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
                     #pattern => {
-                        <#inner_ty as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::variants()
+                        <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants()
                             .into_iter()
                             .map(|v| v.variant_name())
                             .collect()
@@ -329,7 +329,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let constructor = v.constructor(quote! { child.clone() });
                 quote! {
                     #pattern => {
-                        let children = <#inner_ty as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::variants();
+                        let children = <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants();
                         children.get(index).map(|child| #constructor)
                     }
                 }
@@ -354,7 +354,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                         if path.is_empty() {
                             return None;
                         }
-                        let children = <#inner_ty as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::variants();
+                        let children = <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants();
                         let child = children.get(path[0])?.clone();
                         if path.len() == 1 {
                             // Last element in path - just set the child
@@ -380,7 +380,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             } else {
                 let inner_ty = v.inner_type.as_ref().unwrap();
                 quote! {
-                    #pattern => <#inner_ty as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::depth(),
+                    #pattern => <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::depth(),
                 }
             }
         })
@@ -447,7 +447,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             .filter(|v| !v.is_unit)
             .map(|v| {
                 let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! { <#inner_ty as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::depth() }
+                quote! { <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::depth() }
             })
             .collect();
         quote! {
@@ -456,7 +456,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl gpui_form::gpui_form_component::infinite_select::InfiniteSelect for #enum_ident {
+        impl gpui_form_component::infinite_select::InfiniteSelect for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*

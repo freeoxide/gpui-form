@@ -2731,7 +2731,6 @@ name = "gpui-form"
 version = "0.5.1"
 dependencies = [
  "bon",
- "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
 ]
@@ -5773,6 +5772,7 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
+ "gpui-form-component",
  "koruma",
  "koruma-collection",
  "rust-embed",
@@ -5790,7 +5790,6 @@ dependencies = [
  "es-fluent-manager-embedded",
  "gpui",
  "gpui-component",
- "gpui-form",
  "gpui-form-component",
  "gpui-storybook",
  "rust-embed",

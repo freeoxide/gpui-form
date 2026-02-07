@@ -12,7 +12,7 @@ use gpui_component::{
     select::{SearchableVec, Select, SelectEvent, SelectState},
     switch::Switch, v_flex,
 };
-use gpui_form::gpui_form_component::infinite_select::InfiniteSelect;
+use gpui_form_component::infinite_select::InfiniteSelect;
 use es_fluent::{ThisFtl as _, ToFluentString as _};
 use rust_decimal::Decimal;
 const CONTEXT: &str = "CfgAttrExampleForm";
