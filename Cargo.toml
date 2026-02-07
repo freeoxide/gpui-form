@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = ["examples/some-lib-forms"]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -32,9 +32,9 @@ crate-paths = "0.2"
 darling = "0.23"
 derive_more = "2.1"
 dotenv = "0.15"
-es-fluent = "0.9"
-es-fluent-lang = "0.9"
-es-fluent-manager-embedded = "0.9"
+es-fluent = "0.11"
+es-fluent-lang = "0.11"
+es-fluent-manager-embedded = "0.11"
 fluent-bundle = "0.16"
 futures = "0.3"
 getset = "0.1"
