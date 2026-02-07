@@ -32,3 +32,6 @@ validation = [  ]
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = [ "bon", "gpui", "gpui-component", "rust-embed" ]

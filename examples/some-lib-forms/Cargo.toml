@@ -26,3 +26,6 @@ es-fluent = { features = [ "build" ], workspace = true }
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = [ "rust-embed" ]
