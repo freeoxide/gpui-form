@@ -462,17 +462,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "automod"
-version = "1.0.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8b5778837666541195063243828c5b6139221b47dc4ec3ba81738e532469ab1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
 name = "av-scenechange"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1149,15 +1138,6 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "convert_case"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
-dependencies = [
- "unicode-segmentation",
-]
 
 [[package]]
 name = "convert_case"
@@ -2751,10 +2731,8 @@ name = "gpui-form"
 version = "0.5.1"
 dependencies = [
  "bon",
- "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
- "unwrapped",
 ]
 
 [[package]]
@@ -2763,7 +2741,6 @@ version = "0.5.1"
 dependencies = [
  "gpui",
  "gpui-component",
- "strum 0.27.2",
 ]
 
 [[package]]
@@ -2776,25 +2753,19 @@ dependencies = [
  "gpui-form-internal-macros",
  "heck 0.5.0",
  "inventory",
- "paste",
  "proc-macro2",
  "quote",
  "strum 0.27.2",
  "syn 2.0.114",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "gpui-form-derive"
 version = "0.5.1"
 dependencies = [
- "anyhow",
  "darling",
- "derive_more 2.1.1",
  "es-fluent",
- "getset",
  "gpui-form-core",
- "heck 0.5.0",
  "insta",
  "itertools 0.14.0",
  "koruma-derive-core",
@@ -2802,19 +2773,14 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "rust_decimal",
- "strum 0.27.2",
  "syn 2.0.114",
  "syn-cfg-attr",
- "thiserror 2.0.18",
- "unwrapped-core",
 ]
 
 [[package]]
 name = "gpui-form-internal-macros"
 version = "0.5.1"
 dependencies = [
- "proc-macro2",
  "quote",
  "syn 2.0.114",
 ]
@@ -2825,8 +2791,6 @@ version = "0.5.1"
 dependencies = [
  "gpui-form-core",
  "heck 0.5.0",
- "inventory",
- "prettyplease",
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -3472,27 +3436,6 @@ checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc",
  "libloading",
-]
-
-[[package]]
-name = "kinded"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce4bdbb2f423660b19f0e9f7115182214732d8dd5f840cd0a3aee3e22562f34c"
-dependencies = [
- "kinded_macros",
-]
-
-[[package]]
-name = "kinded_macros"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a13b4ddc5dcb32f45dac3d6f606da2a52fdb9964a18427e63cd5ef6c0d13288d"
-dependencies = [
- "convert_case 0.6.0",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
 ]
 
 [[package]]
@@ -4210,30 +4153,6 @@ checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
 dependencies = [
  "hermit-abi",
  "libc",
-]
-
-[[package]]
-name = "nutype"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70587a780088c67dad31bf722b875c5616096b4d8c0ded8b7de03294ffb9bbb5"
-dependencies = [
- "nutype_macros",
-]
-
-[[package]]
-name = "nutype_macros"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "148934b975faeddd8f0679d7cf11280b50c4c5495d6fe72bdaf07c932874b404"
-dependencies = [
- "cfg-if",
- "kinded",
- "proc-macro2",
- "quote",
- "rustc_version",
- "syn 2.0.114",
- "urlencoding",
 ]
 
 [[package]]
@@ -5853,38 +5772,30 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
- "gpui-storybook",
- "inventory",
+ "gpui-form-component",
  "koruma",
  "koruma-collection",
- "nutype",
  "rust-embed",
  "rust_decimal",
  "strum 0.27.2",
- "unic-langid",
 ]
 
 [[package]]
 name = "some-lib-forms"
 version = "0.1.0"
 dependencies = [
- "automod",
  "chrono",
  "es-fluent",
  "es-fluent-lang",
  "es-fluent-manager-embedded",
  "gpui",
  "gpui-component",
- "gpui-form",
  "gpui-form-component",
  "gpui-storybook",
- "inventory",
- "paste",
  "rust-embed",
  "rust_decimal",
  "some-lib",
  "strum 0.27.2",
- "unic-langid",
 ]
 
 [[package]]
@@ -6799,40 +6710,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
-name = "unwrapped"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5db93f9d105c03ed894144e097e564fe5bc72fb1f45b525d77a48462a91d8536"
-dependencies = [
- "bon",
- "unwrapped-derive",
-]
-
-[[package]]
-name = "unwrapped-core"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52afbb19ffeeb5f8013e1c47f0434f7a529c4df018b67a607396d1b80b4a2edb"
-dependencies = [
- "bon",
- "darling",
- "ident_case",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
-name = "unwrapped-derive"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a317c246433368df24c5b2a8cf790515b2e7ddf3ac252e932a674c4fdf4c386"
-dependencies = [
- "syn 2.0.114",
- "unwrapped-core",
-]
-
-[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6844,12 +6721,6 @@ dependencies = [
  "serde",
  "serde_derive",
 ]
-
-[[package]]
-name = "urlencoding"
-version = "2.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "usvg"

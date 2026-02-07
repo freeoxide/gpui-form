@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["examples/some-lib-forms"]
+default-members = [ "examples/some-lib-forms" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -24,7 +24,6 @@ version = "0.5.1"
 
 [workspace.dependencies]
 anyhow = "1.0"
-automod = "1.0"
 bon = "3.8"
 chrono = "0.4"
 crabtime = "1.1"
@@ -77,8 +76,6 @@ tokio = "1.49"
 tracing-subscriber = "0.3"
 unic-langid = "0.9"
 unicode-segmentation = "1.12"
-unwrapped = "0.3"
-unwrapped-core = "0.3"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "deny" }

@@ -14,7 +14,6 @@ readme = "README.md"
 [dependencies]
 gpui = { workspace = true }
 gpui-component = { workspace = true }
-strum = { features = [ "derive" ], workspace = true }
 
 [lints]
 workspace = true
