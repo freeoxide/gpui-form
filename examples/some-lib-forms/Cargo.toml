@@ -9,14 +9,14 @@ publish = false
 [dependencies]
 automod = { workspace = true }
 chrono = { workspace = true }
-es-fluent = { features = ["derive"], workspace = true }
+es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-lang = { workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
-gpui-form = { features = ["derive"], workspace = true }
+gpui-form = { features = [ "derive" ], workspace = true }
 gpui-form-component = { workspace = true }
-gpui-storybook = { features = ["macros"], workspace = true }
+gpui-storybook = { features = [ "macros" ], workspace = true }
 inventory = { workspace = true }
 paste = { workspace = true }
 rust-embed = { workspace = true }
@@ -26,7 +26,7 @@ strum = { workspace = true }
 unic-langid = { workspace = true }
 
 [build-dependencies]
-es-fluent = { features = ["build"], workspace = true }
+es-fluent = { features = [ "build" ], workspace = true }
 
 [lints]
 workspace = true
