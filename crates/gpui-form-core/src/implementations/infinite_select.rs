@@ -31,7 +31,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
         };
 
         let master_state_type = quote! {
-            #SelectState<#vec_type<gpui_form::component::infinite_select::InfiniteSelectItem<#r#type>>>
+            #SelectState<#vec_type<gpui_form::gpui_form_component::infinite_select::InfiniteSelectItem<#r#type>>>
         };
 
         let child_selects_field_name = quote::format_ident!("{}_child_selects", name);
@@ -43,7 +43,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             /// The dynamic list of child selects for nested variants
             pub #child_selects_field_name: Vec<#Entity<#master_state_type>>,
             /// The selection path tracking all levels of the hierarchy
-            pub #path_field_name: gpui_form::component::infinite_select::InfiniteSelectPath,
+            pub #path_field_name: gpui_form::gpui_form_component::infinite_select::InfiniteSelectPath,
         };
 
         // Generate initialization methods
@@ -52,7 +52,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             quote! {
                 Some(
                     #IndexPath::new(
-                        <#r#type as gpui_form::component::infinite_select::InfiniteSelect>::variants()
+                        <#r#type as gpui_form::gpui_form_component::infinite_select::InfiniteSelect>::variants()
                             .iter()
                             .position(|x| x.variant_name() == #path.variant_name())
                             .unwrap()
@@ -70,8 +70,8 @@ impl super::ComponentLayout for InfiniteSelectComponent {
         let field_base_declaration = quote! {
             /// Initialize the master select for the infinite select enum outer variants
             pub fn #master_field_name(window: &mut #Window, cx: &mut #Context<'_, #master_state_type>) -> #master_state_type {
-                let items: Vec<gpui_form::component::infinite_select::InfiniteSelectItem<#r#type>> =
-                    gpui_form::component::infinite_select::to_select_items::<#r#type>();
+                let items: Vec<gpui_form::gpui_form_component::infinite_select::InfiniteSelectItem<#r#type>> =
+                    gpui_form::gpui_form_component::infinite_select::to_select_items::<#r#type>();
 
                 #SelectState::new(items.into(), #index, window, cx)
             }
@@ -79,7 +79,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             /// Get the child variant names for a given parent value.
             /// Returns the names of variants available at the next level.
             pub fn #path_field_name(parent: &#r#type) -> Vec<&'static str> {
-                use gpui_form::component::infinite_select::InfiniteSelect as _;
+                use gpui_form::gpui_form_component::infinite_select::InfiniteSelect as _;
                 parent.child_variant_names()
             }
 
@@ -94,7 +94,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             ) -> Vec<#Entity<#master_state_type>>
             where V: 'static
             {
-                use gpui_form::component::infinite_select::{InfiniteSelect, InfiniteSelectItem};
+                use gpui_form::gpui_form_component::infinite_select::{InfiniteSelect, InfiniteSelectItem};
                 use #SelectState;
                 use #IndexPath;
                 use #AppContext;

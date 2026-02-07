@@ -14,7 +14,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use gpui_form::component::infinite_select::InfiniteSelect;
+use gpui_form::gpui_form_component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::cfg_attr_example::*;
 const CONTEXT: &str = "CfgAttrExampleForm";

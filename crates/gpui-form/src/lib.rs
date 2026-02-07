@@ -7,6 +7,6 @@ pub use bon;
 pub use unwrapped;
 
 #[cfg(all(feature = "component", feature = "derive"))]
-pub use gpui_form_component as component;
+pub use gpui_form_component;
 
 pub mod numeric;
