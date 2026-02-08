@@ -7,7 +7,7 @@
 ## Key modules
 
 - `src/lib.rs`: proc-macro entry points.
-- `src/derives/gpui_form.rs`: `GpuiForm` macro expansion.
+- `src/derives/gpui_form/mod.rs`: `GpuiForm` macro expansion entry module.
 - `src/derives/select_item.rs`: `SelectItem` derive for gpui-component selects.
 - `src/derives/infinite_select.rs`: `InfiniteSelect` derive for cascading enums.
 
