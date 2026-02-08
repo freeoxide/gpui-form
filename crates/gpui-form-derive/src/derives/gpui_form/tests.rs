@@ -264,6 +264,37 @@ mod tests {
     }
 
     #[test]
+    fn test_koruma_enabled_without_validators_derives_validate() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma(fluent))]
+            struct OptionalOnlyForm {
+                note: Option<String>,
+                kind: Option<u8>,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let expanded_str = compact_tokens(&expanded.to_string());
+
+        assert!(
+            expanded_str.contains("::koruma::Koruma"),
+            "Koruma derive should be emitted when gpui_form(koruma) is enabled, even without validators"
+        );
+        assert!(
+            expanded_str.contains("::koruma::KorumaAllFluent"),
+            "KorumaAllFluent derive should be emitted when gpui_form(koruma(fluent)) is enabled"
+        );
+    }
+
+    #[test]
     fn test_type_override_and_conversions() {
         let tokens = quote! {
             #[derive(GpuiForm)]

@@ -1,3 +1,29 @@
+## CfgAttrExample
+
+cfg_attr_example_this = Cfg Attr Example
+
+## Empty
+
+empty_this = Empty
+
+## Item
+
+item_this = Item
+
+## LocationForm
+
+location_form_this = Location Form
+
+## User
+
+user_this = User
+
+## AccountType
+
+account_type-Enterprise = Enterprise
+account_type-Free = Free
+account_type-Premium = Premium
+
 ## BritishColumbiaCity
 
 british_columbia_city_this = British Columbia City
@@ -23,19 +49,43 @@ canada_province-BritishColumbia = British Columbia { $f0 }
 canada_province-Ontario = Ontario { $f0 }
 canada_province-Quebec = Quebec { $f0 }
 
-## CanadaProvinceDescription
+## CanadaProvinceDescriptionVariants
 
-canada_province_description_this = Canada Province Description
-canada_province_description-BritishColumbia = British Columbia
-canada_province_description-Ontario = Ontario
-canada_province_description-Quebec = Quebec
+canada_province_description_variants_this = Canada Province Description
+canada_province_description_variants-BritishColumbia = British Columbia
+canada_province_description_variants-Ontario = Ontario
+canada_province_description_variants-Quebec = Quebec
 
-## CanadaProvinceLabel
+## CanadaProvinceLabelVariants
 
-canada_province_label_this = Canada Province Label
-canada_province_label-BritishColumbia = British Columbia
-canada_province_label-Ontario = Ontario
-canada_province_label-Quebec = Quebec
+canada_province_label_variants_this = Canada Province Label
+canada_province_label_variants-BritishColumbia = British Columbia
+canada_province_label_variants-Ontario = Ontario
+canada_province_label_variants-Quebec = Quebec
+
+## CfgAttrExampleDescriptionVariants
+
+cfg_attr_example_description_variants_this = Cfg Attr Example Description
+cfg_attr_example_description_variants-account_type = Account Type
+cfg_attr_example_description_variants-active = Active
+cfg_attr_example_description_variants-age = Age
+cfg_attr_example_description_variants-balance = Balance
+cfg_attr_example_description_variants-created_at = Created At
+cfg_attr_example_description_variants-email = Email
+cfg_attr_example_description_variants-enabled = Enabled
+cfg_attr_example_description_variants-username = Username
+
+## CfgAttrExampleLabelVariants
+
+cfg_attr_example_label_variants_this = Cfg Attr Example Label
+cfg_attr_example_label_variants-account_type = Account Type
+cfg_attr_example_label_variants-active = Active
+cfg_attr_example_label_variants-age = Age
+cfg_attr_example_label_variants-balance = Balance
+cfg_attr_example_label_variants-created_at = Created At
+cfg_attr_example_label_variants-email = Email
+cfg_attr_example_label_variants-enabled = Enabled
+cfg_attr_example_label_variants-username = Username
 
 ## Country
 
@@ -43,37 +93,45 @@ country_this = Country
 country-Canada = Canada { $province }
 country-USA = Usa { $f0 }
 
-## CountryDescription
+## CountryDescriptionVariants
 
-country_description_this = Country Description
-country_description-Canada = Canada
-country_description-USA = Usa
+country_description_variants_this = Country Description
+country_description_variants-Canada = Canada
+country_description_variants-USA = Usa
 
-## CountryLabel
+## CountryLabelVariants
 
-country_label_this = Country Label
-country_label-Canada = Canada
-country_label-USA = Usa
+country_label_variants_this = Country Label
+country_label_variants-Canada = Canada
+country_label_variants-USA = Usa
 
-## Empty
+## EnumCountry
 
-empty_this = Empty
+enum_country-China = China
+enum_country-France = France
+enum_country-UnitedStates = United States
 
-## LocationForm
+## ItemDescriptionVariants
 
-location_form_this = Location Form
+item_description_variants_this = Item Description
+item_description_variants-index = Index
 
-## LocationFormDescription
+## ItemLabelVariants
 
-location_form_description_this = Location Form Description
-location_form_description-location = Location
-location_form_description-name = Name
+item_label_variants_this = Item Label
+item_label_variants-index = Index
 
-## LocationFormLabel
+## LocationFormDescriptionVariants
 
-location_form_label_this = Location Form Label
-location_form_label-location = Location
-location_form_label-name = Name
+location_form_description_variants_this = Location Form Description
+location_form_description_variants-location = Location
+location_form_description_variants-name = Name
+
+## LocationFormLabelVariants
+
+location_form_label_variants_this = Location Form Label
+location_form_label_variants-location = Location
+location_form_label_variants-name = Name
 
 ## NewYorkCity
 
@@ -92,6 +150,12 @@ ontario_city-London = London
 ontario_city-Mississauga = Mississauga
 ontario_city-Ottawa = Ottawa
 ontario_city-Toronto = Toronto
+
+## PreferedLanguage
+
+prefered_language-Chinese = Chinese
+prefered_language-English = English
+prefered_language-French = French
 
 ## QuebecCity
 
@@ -118,108 +182,44 @@ usa_state-California = California { $f0 }
 usa_state-NewYork = New York { $f0 }
 usa_state-Texas = Texas { $f0 }
 
-## USAStateDescription
+## USAStateDescriptionVariants
 
-usa_state_description_this = Usa State Description
-usa_state_description-California = California
-usa_state_description-NewYork = New York
-usa_state_description-Texas = Texas
+usa_state_description_variants_this = Usa State Description
+usa_state_description_variants-California = California
+usa_state_description_variants-NewYork = New York
+usa_state_description_variants-Texas = Texas
 
-## USAStateLabel
+## USAStateLabelVariants
 
-usa_state_label_this = Usa State Label
-usa_state_label-California = California
-usa_state_label-NewYork = New York
-usa_state_label-Texas = Texas
+usa_state_label_variants_this = Usa State Label
+usa_state_label_variants-California = California
+usa_state_label_variants-NewYork = New York
+usa_state_label_variants-Texas = Texas
 
-## User
+## UserDescriptionVariants
 
-user_this = User
+user_description_variants_this = User Description
+user_description_variants-age = Age
+user_description_variants-balance = Balance
+user_description_variants-birth_date = Birth Date
+user_description_variants-country = Country
+user_description_variants-debt = Debt
+user_description_variants-email = Email
+user_description_variants-enable_notifications = Enable Notifications
+user_description_variants-preferred = Preferred
+user_description_variants-subscribe_newsletter = Subscribe Newsletter
+user_description_variants-username = Username
 
-## UserDescription
+## UserLabelVariants
 
-user_description_this = User Description
-user_description-age = Age
-user_description-balance = Balance
-user_description-birth_date = Birth Date
-user_description-country = Country
-user_description-debt = Debt
-user_description-email = Email
-user_description-enable_notifications = Enable Notifications
-user_description-preferred = Preferred
-user_description-subscribe_newsletter = Subscribe Newsletter
-user_description-username = Username
-
-## UserLabel
-
-user_label_this = User Label
-user_label-age = Age
-user_label-balance = Balance
-user_label-birth_date = Birth Date
-user_label-country = Country
-user_label-debt = Debt
-user_label-email = Email
-user_label-enable_notifications = Enable Notifications
-user_label-preferred = Preferred
-user_label-subscribe_newsletter = Subscribe Newsletter
-user_label-username = Username
-
-## EnumCountry
-
-enum_country-China = China
-enum_country-France = France
-enum_country-UnitedStates = United States
-
-## PreferedLanguage
-
-prefered_language-Chinese = Chinese
-prefered_language-English = English
-prefered_language-French = French
-
-## CfgAttrExample
-
-cfg_attr_example_this = Cfg Attr Example
-
-## CfgAttrExampleDescription
-
-cfg_attr_example_description_this = Cfg Attr Example Description
-cfg_attr_example_description-account_type = Account Type
-cfg_attr_example_description-active = Active
-cfg_attr_example_description-age = Age
-cfg_attr_example_description-balance = Balance
-cfg_attr_example_description-created_at = Created At
-cfg_attr_example_description-email = Email
-cfg_attr_example_description-enabled = Enabled
-cfg_attr_example_description-username = Username
-
-## CfgAttrExampleLabel
-
-cfg_attr_example_label_this = Cfg Attr Example Label
-cfg_attr_example_label-account_type = Account Type
-cfg_attr_example_label-active = Active
-cfg_attr_example_label-age = Age
-cfg_attr_example_label-balance = Balance
-cfg_attr_example_label-created_at = Created At
-cfg_attr_example_label-email = Email
-cfg_attr_example_label-enabled = Enabled
-cfg_attr_example_label-username = Username
-
-## Item
-
-item_this = Item
-
-## ItemDescription
-
-item_description_this = Item Description
-item_description-index = Index
-
-## ItemLabel
-
-item_label_this = Item Label
-item_label-index = Index
-
-## AccountType
-
-account_type-Enterprise = Enterprise
-account_type-Free = Free
-account_type-Premium = Premium
+user_label_variants_this = User Label
+user_label_variants-age = Age
+user_label_variants-balance = Balance
+user_label_variants-birth_date = Birth Date
+user_label_variants-country = Country
+user_label_variants-debt = Debt
+user_label_variants-email = Email
+user_label_variants-enable_notifications = Enable Notifications
+user_label_variants-preferred = Preferred
+user_label_variants-subscribe_newsletter = Subscribe Newsletter
+user_label_variants-username = Username
