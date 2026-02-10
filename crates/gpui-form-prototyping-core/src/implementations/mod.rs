@@ -1,4 +1,5 @@
 pub mod checkbox;
+pub mod custom;
 pub mod date_picker;
 pub mod infinite_select;
 pub mod input;
@@ -17,6 +18,7 @@ pub enum FieldGenerator {
     Switch(switch::SwitchCodeGenerator),
     Select(select::SelectCodeGenerator),
     InfiniteSelect(infinite_select::InfiniteSelectCodeGenerator),
+    Custom(custom::CustomCodeGenerator),
     DatePicker(date_picker::DatePickerCodeGenerator),
 }
 
@@ -29,6 +31,7 @@ impl FieldGenerator {
             FieldGenerator::Switch(generator) => generator,
             FieldGenerator::Select(generator) => generator,
             FieldGenerator::InfiniteSelect(generator) => generator,
+            FieldGenerator::Custom(generator) => generator,
             FieldGenerator::DatePicker(generator) => generator,
         }
     }

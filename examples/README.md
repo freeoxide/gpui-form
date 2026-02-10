@@ -6,6 +6,10 @@ i18n resources
 
 our crate types
 
+## some-lib-custom-components
+
+shared custom component shapes/states used by example crates (external type case)
+
 ## some-lib-forms
 
 crate to hold the gpui forms, also has a main.rs defining a storybook-like gpui app, showcasing the forms

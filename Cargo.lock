@@ -2731,6 +2731,7 @@ name = "gpui-form"
 version = "0.5.1"
 dependencies = [
  "bon",
+ "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
 ]
@@ -5777,7 +5778,17 @@ dependencies = [
  "koruma-collection",
  "rust-embed",
  "rust_decimal",
+ "some-lib-custom-components",
  "strum 0.27.2",
+]
+
+[[package]]
+name = "some-lib-custom-components"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "gpui-component",
+ "gpui-form",
 ]
 
 [[package]]

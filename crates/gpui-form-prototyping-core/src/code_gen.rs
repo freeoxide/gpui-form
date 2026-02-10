@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::implementations::{
-    ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator,
+    ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator, custom::CustomCodeGenerator,
     date_picker::DatePickerCodeGenerator, infinite_select::InfiniteSelectCodeGenerator,
     input::InputCodeGenerator, number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
     switch::SwitchCodeGenerator,
@@ -20,6 +20,7 @@ fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
         ComponentsBehaviour::InfiniteSelect(_) => {
             FieldGenerator::InfiniteSelect(InfiniteSelectCodeGenerator)
         },
+        ComponentsBehaviour::Custom => FieldGenerator::Custom(CustomCodeGenerator),
         ComponentsBehaviour::DatePicker => FieldGenerator::DatePicker(DatePickerCodeGenerator),
     }
 }

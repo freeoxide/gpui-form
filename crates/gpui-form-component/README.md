@@ -2,8 +2,10 @@
 
 Runtime helpers for gpui-form components.
 
-Currently this crate focuses on InfiniteSelect support for cascading selects over
-nested enums.
+This crate provides:
+
+- InfiniteSelect support for cascading selects over nested enums.
+- Custom component shape helpers used by `#[derive(GpuiForm)]`.
 
 ## InfiniteSelect
 
@@ -30,3 +32,20 @@ The generated form code uses:
 - `build_from_path` to reconstruct values from a selection path.
 
 This crate is re-exported by `gpui-form` when `component` and `derive` are enabled.
+
+## Custom component shapes
+
+Use `custom_component_shape!` to define a shape consumed by:
+`#[gpui_form(component(custom(shape = ...)))]`.
+
+```rs
+gpui_form_component::custom_component_shape!(
+    pub EmailInputShape,
+    state = gpui_component::input::InputState,
+    new = gpui_component::input::InputState::new,
+);
+```
+
+You can also derive directly on a state type with
+`#[derive(gpui_form::CustomComponentState)]` and use
+`#[gpui_form(component(custom(state = ...)))]`.

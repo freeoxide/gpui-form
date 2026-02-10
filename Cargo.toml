@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = ["examples/some-lib-forms"]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -8,6 +8,7 @@ members = [
   "crates/gpui-form-internal-macros",
   "crates/gpui-form-prototyping-core",
   "examples/some-lib",
+  "examples/some-lib-custom-components",
   "examples/some-lib-forms",
   "examples/prototyping",
 ]

@@ -32,3 +32,7 @@ When adding a component:
 1. Add a new `FieldGenerator` variant and map it in `code_gen.rs`.
 1. Implement `FieldCodeGenerator` for the new component under `implementations/`.
 1. Ensure `ComponentsBehaviour` is handled consistently.
+
+Current behavior for `ComponentsBehaviour::Custom` is a deliberate no-op:
+custom user-defined components are skipped by prototyping codegen unless a
+project adds its own generator hooks.

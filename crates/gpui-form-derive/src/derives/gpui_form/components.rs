@@ -48,6 +48,9 @@ pub fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
                 )
             }
         },
+        Components::Custom(_) => {
+            quote! { ::gpui_form::core::components::ComponentsBehaviour::Custom }
+        },
         Components::DatePicker => {
             quote! { ::gpui_form::core::components::ComponentsBehaviour::DatePicker }
         },
@@ -148,6 +151,17 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let options_with_default = options.clone().with_field_default(field_default);
             let component = InfiniteSelectComponent(FieldInformation::new(
                 options_with_default,
+                field_name.clone(),
+                extract_type_ident(field_type),
+            ));
+            component.field_tokens(
+                &mut field_structure_tokens,
+                &mut field_base_declarations_tokens,
+            );
+        },
+        Components::Custom(options) => {
+            let component = CustomComponent(FieldInformation::new(
+                options.clone(),
                 field_name.clone(),
                 extract_type_ident(field_type),
             ));

@@ -14,7 +14,7 @@
 
 ## Data flow
 
-1. `gpui-form-derive` parses `#[gpui_form(component(...))]` into `Components`.
+1. `gpui-form-derive` parses `#[gpui_form(component(...))]` (including `custom(shape = ...)`) into `Components`.
 1. `ComponentLayout` implementations build the form field structs and component constructor functions.
 1. `ComponentsBehaviour` becomes runtime metadata in `FieldVariant` and is stored in `GpuiFormShape`.
 1. `GpuiFormShape` is optionally registered with `inventory` for downstream prototyping codegen.
@@ -27,6 +27,11 @@ To add a new component:
 1. Implement `ComponentLayout` in `implementations/`.
 1. Extend `ComponentsBehaviour` and any behavior helpers (e.g., `focusable`, `subscribable`).
 1. Update the prototyping generator in `gpui-form-prototyping-core`.
+
+Custom user-defined components are represented by `Components::Custom(CustomOptions)`.
+`CustomOptions` carries:
+- `shape`/`state`: path to a type implementing `gpui_form_component::custom::CustomComponentShape`
+- `wraps_in_option`: whether the form value holder wraps that field in `Option<T>`
 
 ## Notes
 
