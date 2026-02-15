@@ -14,4 +14,4 @@ gpui-form = { workspace = true }
 workspace = true
 
 [package.metadata.cargo-machete]
-ignored = ["gpui", "gpui-component"]
+ignored = [ "gpui", "gpui-component" ]

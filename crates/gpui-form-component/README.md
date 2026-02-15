@@ -31,7 +31,8 @@ The generated form code uses:
 - `InfiniteSelectPath` to track selection depth.
 - `build_from_path` to reconstruct values from a selection path.
 
-This crate is re-exported by `gpui-form` when `component` and `derive` are enabled.
+Generated code references this crate directly. Add `gpui-form-component` as a
+dependency when using runtime component helpers.
 
 ## Custom component shapes
 

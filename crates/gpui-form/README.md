@@ -2,23 +2,16 @@
 
 User-facing facade crate for gpui-form.
 
-This crate re-exports:
-
-- `GpuiForm`, `SelectItem`, and `InfiniteSelect` derive macros (behind `derive`).
-- `CustomComponentState` derive macro for custom component state types.
-- Core metadata types from `gpui-form-core` (always).
-- `CustomComponentShape` and `custom_component_shape!` from `gpui-form-component`.
-
 ## Install
 
 ```toml
 [dependencies]
-# gpui + gpui-component are required by generated code
-
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 
 gpui-form = { version = "*", features = ["derive"] }
+
+# gpui-form-component = { version = "*" }
 
 # Optional inventory registry for prototyping
 # gpui-form = { version = "*", features = ["derive", "inventory"] }

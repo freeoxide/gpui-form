@@ -3,7 +3,7 @@ use gpui_component::input::InputState;
 use gpui_form::{CustomComponentState, GpuiForm};
 
 /// Custom component used by the `Vec<String>` example.
-#[derive(Clone, Debug, CustomComponentState)]
+#[derive(Clone, CustomComponentState, Debug)]
 #[gpui_form_custom(new = Self::new)]
 pub struct TagsInputComponent {
     pub inputs: Vec<Entity<InputState>>,

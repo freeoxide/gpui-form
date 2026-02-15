@@ -1,37 +1,60 @@
 use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
+use quote::quote;
+
+use crate::implementations::ComponentIdentities as _;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
-/// Custom component support in prototyping is intentionally a no-op.
-///
-/// The prototyping generator cannot infer how to render or subscribe to
-/// user-defined component state without additional user-provided hooks.
+/// Custom component support in prototyping initializes generated form fields
+/// but does not infer subscriptions or actual widget rendering.
 pub struct CustomCodeGenerator;
 
 impl FieldCodeGenerator for CustomCodeGenerator {
     fn generate_cx_new_call(
         &self,
-        _field: &FieldVariant,
-        _component: &GpuiFormShape,
+        field: &FieldVariant,
+        component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        None
+        let form_components_struct_ident = component.struct_form_components_ident();
+        let var_name_ident = field.field_ident_with_behaviour();
+        let fn_name_ident = var_name_ident.clone();
+
+        Some(quote! {
+            let #var_name_ident =
+                cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
+        })
     }
 
     fn generate_field_initializers(
         &self,
-        _field: &FieldVariant,
+        field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        None
+        let field_var_name_ident = field.field_ident_with_behaviour();
+        Some(quote! { #field_var_name_ident, })
     }
 
     fn generate_render_child(
         &self,
-        _field: &FieldVariant,
-        _component: &GpuiFormShape,
+        field: &FieldVariant,
+        component: &GpuiFormShape,
     ) -> TokenStream {
-        TokenStream::new()
+        let label_tokens = super::generate_label_tokens(field, component);
+        let description_fn_tokens = super::generate_description_fn_tokens(field, component);
+        let field_name = field.field_name;
+
+        quote! {
+            .child(
+                field()
+                    .label(#label_tokens)
+                    #description_fn_tokens
+                    .child(div().child(format!(
+                        "Custom component `{}` is initialized; add manual render/subscriptions.",
+                        #field_name
+                    )))
+            )
+        }
     }
 
     fn generate_focusable_cycle(
@@ -48,5 +71,69 @@ impl FieldCodeGenerator for CustomCodeGenerator {
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CustomCodeGenerator;
+    use crate::implementations::FieldCodeGenerator as _;
+    use gpui_form_core::{
+        components::ComponentsBehaviour,
+        registry::{FieldVariant, GpuiFormShape},
+    };
+
+    const CUSTOM_FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+        "tags",
+        "Vec<String>",
+        false,
+        ComponentsBehaviour::Custom,
+    )];
+    const CUSTOM_SHAPE: GpuiFormShape =
+        GpuiFormShape::new("Demo", &CUSTOM_FIELDS, "src/demo.rs", false);
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn custom_generator_initializes_state_entity() {
+        let generator = CustomCodeGenerator;
+        let tokens = generator
+            .generate_cx_new_call(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE)
+            .expect("custom fields should generate cx.new initialization");
+        let compact = compact(&tokens.to_string());
+
+        assert!(
+            compact
+                .contains("lettags_custom=cx.new(|cx|DemoFormComponents::tags_custom(window,cx));"),
+            "cx initialization should call generated FormComponents constructor for custom field"
+        );
+    }
+
+    #[test]
+    fn custom_generator_initializes_form_fields_struct() {
+        let generator = CustomCodeGenerator;
+        let tokens = generator
+            .generate_field_initializers(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE)
+            .expect("custom fields should be included in FormFields initializer");
+        let compact = compact(&tokens.to_string());
+
+        assert!(
+            compact.contains("tags_custom,"),
+            "field initializer should include custom state entity"
+        );
+    }
+
+    #[test]
+    fn custom_generator_emits_placeholder_render_child() {
+        let generator = CustomCodeGenerator;
+        let tokens = generator.generate_render_child(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE);
+        let rendered = tokens.to_string();
+
+        assert!(
+            rendered.contains("Custom component"),
+            "render output should explain custom fields need manual widget wiring"
+        );
     }
 }

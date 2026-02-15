@@ -33,6 +33,7 @@ When adding a component:
 1. Implement `FieldCodeGenerator` for the new component under `implementations/`.
 1. Ensure `ComponentsBehaviour` is handled consistently.
 
-Current behavior for `ComponentsBehaviour::Custom` is a deliberate no-op:
-custom user-defined components are skipped by prototyping codegen unless a
-project adds its own generator hooks.
+Current behavior for `ComponentsBehaviour::Custom`:
+custom fields are initialized into generated `FormFields`, and a placeholder
+render row is emitted. Prototyping does not infer subscriptions or concrete
+widget rendering for custom state types; projects add those hooks manually.
