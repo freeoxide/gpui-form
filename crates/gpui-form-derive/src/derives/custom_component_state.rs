@@ -1,50 +1,21 @@
+use darling::FromAttributes;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Expr, Path, parse_macro_input};
+use syn::{DeriveInput, Path, parse_macro_input};
 
-fn parse_new_path(attrs: &[syn::Attribute]) -> syn::Result<Path> {
-    let mut new_path: Option<Path> = None;
-
-    for attr in attrs {
-        if !attr.path().is_ident("gpui_form_custom") {
-            continue;
-        }
-
-        attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("new") {
-                let value = meta.value()?;
-                let expr: Expr = value.parse()?;
-                let path = match expr {
-                    Expr::Path(expr_path) => expr_path.path,
-                    Expr::Group(group) => match *group.expr {
-                        Expr::Path(expr_path) => expr_path.path,
-                        _ => {
-                            return Err(meta.error(
-                                "expected path expression for `new`, e.g. `new = Self::new`",
-                            ));
-                        },
-                    },
-                    _ => {
-                        return Err(meta
-                            .error("expected path expression for `new`, e.g. `new = Self::new`"));
-                    },
-                };
-
-                if new_path.is_some() {
-                    return Err(meta.error("duplicate `new` option"));
-                }
-                new_path = Some(path);
-                Ok(())
-            } else {
-                Err(meta.error("unsupported option, expected `new = <path>`"))
-            }
-        })?;
-    }
-
-    Ok(new_path.unwrap_or_else(|| syn::parse_quote!(Self::new)))
+#[derive(Debug, Default, FromAttributes)]
+#[darling(attributes(gpui_form_custom))]
+struct CustomComponentStateMeta {
+    #[darling(default)]
+    new: Option<Path>,
 }
 
-fn expand(input: DeriveInput) -> syn::Result<TokenStream> {
+fn parse_new_path(attrs: &[syn::Attribute]) -> darling::Result<Path> {
+    let meta = CustomComponentStateMeta::from_attributes(attrs)?;
+    Ok(meta.new.unwrap_or_else(|| syn::parse_quote!(Self::new)))
+}
+
+fn expand(input: DeriveInput) -> darling::Result<TokenStream> {
     let ident = &input.ident;
     let new_path = parse_new_path(&input.attrs)?;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -67,7 +38,7 @@ pub fn from(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match expand(input) {
         Ok(tokens) => tokens.into(),
-        Err(err) => err.to_compile_error().into(),
+        Err(err) => err.write_errors().into(),
     }
 }
 

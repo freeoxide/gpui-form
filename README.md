@@ -10,13 +10,13 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 
 Compatibility of `gpui-form` versions:
 
-| `gpui-form`   | `gpui-component` |
+| `gpui-form` | `gpui-component` |
 | :------------ | :--------------- |
-| **git**       |                  |
-| `master`      | `main`           |
-| **crates.io** |                  |
-| `0.6.x`       | `0.6.x`          |
-| `0.5.x`       | `0.5.x`          |
+| **git** | |
+| `master` | `main` |
+| **crates.io** | |
+| `0.6.x` | `0.6.x` |
+| `0.5.x` | `0.5.x` |
 
 ## Quick start
 
@@ -59,7 +59,7 @@ pub struct UserProfile {
 
 ## gpui-form components
 
-- [Infinite Select]()
+- [Infinite Select](<>)
 
 ## Using custom components
 

@@ -126,22 +126,42 @@ pub struct CustomOptions {
     pub wraps_in_option: bool,
 }
 
-fn parse_path_expr(expr: &syn::Expr) -> darling::Result<syn::Path> {
-    match expr {
-        syn::Expr::Path(expr_path) => Ok(expr_path.path.clone()),
-        syn::Expr::Group(group) => parse_path_expr(&group.expr),
-        _ => Err(DarlingError::unexpected_expr_type(expr)),
-    }
+#[derive(Debug, Default, FromMeta)]
+struct CustomOptionsMeta {
+    #[darling(default)]
+    shape: Option<syn::Path>,
+    #[darling(default)]
+    state: Option<syn::Path>,
+    #[darling(default = "default_custom_wraps_in_option")]
+    wraps_in_option: bool,
 }
 
-fn parse_bool_expr(expr: &syn::Expr) -> darling::Result<bool> {
-    match expr {
-        syn::Expr::Lit(expr_lit) => match &expr_lit.lit {
-            syn::Lit::Bool(v) => Ok(v.value),
-            lit => Err(DarlingError::unexpected_lit_type(lit)),
-        },
-        syn::Expr::Group(group) => parse_bool_expr(&group.expr),
-        _ => Err(DarlingError::unexpected_expr_type(expr)),
+impl CustomOptions {
+    fn from_meta(meta: CustomOptionsMeta) -> darling::Result<Self> {
+        let CustomOptionsMeta {
+            shape,
+            state,
+            wraps_in_option,
+        } = meta;
+
+        let shape = match (shape, state) {
+            (Some(shape), None) | (None, Some(shape)) => shape,
+            (Some(_), Some(_)) => {
+                return Err(DarlingError::custom(
+                    "custom component may specify only one of `shape` or `state`",
+                ));
+            },
+            (None, None) => {
+                return Err(DarlingError::custom(
+                    "custom component requires `shape = ...` or `state = ...`",
+                ));
+            },
+        };
+
+        Ok(Self {
+            shape,
+            wraps_in_option,
+        })
     }
 }
 
@@ -153,42 +173,8 @@ impl FromMeta for CustomOptions {
     }
 
     fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
-        let mut shape: Option<syn::Path> = None;
-        let mut wraps_in_option = default_custom_wraps_in_option();
-
-        for item in items {
-            match item {
-                darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv))
-                    if nv.path.is_ident("shape") || nv.path.is_ident("state") =>
-                {
-                    if shape.is_some() {
-                        return Err(DarlingError::custom(
-                            "custom component may specify only one of `shape` or `state`",
-                        ));
-                    }
-                    shape = Some(parse_path_expr(&nv.value)?);
-                },
-                darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv))
-                    if nv.path.is_ident("wraps_in_option") =>
-                {
-                    wraps_in_option = parse_bool_expr(&nv.value)?;
-                },
-                _ => {
-                    return Err(DarlingError::custom(
-                        "custom component supports only `shape`, `state`, and `wraps_in_option`",
-                    ));
-                },
-            }
-        }
-
-        let shape = shape.ok_or_else(|| {
-            DarlingError::custom("custom component requires `shape = ...` or `state = ...`")
-        })?;
-
-        Ok(Self {
-            shape,
-            wraps_in_option,
-        })
+        let meta = CustomOptionsMeta::from_list(items)?;
+        Self::from_meta(meta)
     }
 }
 
