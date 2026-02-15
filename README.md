@@ -10,13 +10,13 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 
 Compatibility of `gpui-form` versions:
 
-| `gpui-form` | `gpui-component` |
+| `gpui-form`   | `gpui-component` |
 | :------------ | :--------------- |
-| **git** | |
-| `master` | `main` |
-| **crates.io** | |
-| `0.6.x` | `0.6.x` |
-| `0.5.x` | `0.5.x` |
+| **git**       |                  |
+| `master`      | `main`           |
+| **crates.io** |                  |
+| `0.6.x`       | `0.6.x`          |
+| `0.5.x`       | `0.5.x`          |
 
 ## Quick start
 
@@ -40,7 +40,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select))]
     pub country: Country,
 
     #[gpui_form(component(checkbox))]
@@ -57,9 +57,12 @@ pub struct UserProfile {
 - [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
 - [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
 
-## Custom components
+## gpui-form components
 
-- [Infinite Select](<>)
+- [Infinite Select]()
+
+## Using custom components
+
 - User-defined components via `component(custom(shape = ...))` and
   `gpui_form::custom_component_shape!`.
 - Or derive directly on state types with `#[derive(gpui_form::CustomComponentState)]`
