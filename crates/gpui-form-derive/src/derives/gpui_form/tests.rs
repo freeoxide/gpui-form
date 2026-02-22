@@ -366,7 +366,7 @@ mod tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape)))]
+                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape, component = crate::ui::BioInput)))]
                 bio: String,
             }
         };
@@ -399,6 +399,11 @@ mod tests {
         assert!(
             compact.contains("ComponentsBehaviour::Custom"),
             "FieldVariant should carry Custom behaviour metadata"
+        );
+
+        assert!(
+            compact.contains("with_custom_component("),
+            "FieldVariant should carry the custom component path: {compact}"
         );
     }
 

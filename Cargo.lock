@@ -5806,6 +5806,7 @@ dependencies = [
  "rust-embed",
  "rust_decimal",
  "some-lib",
+ "some-lib-custom-components",
  "strum 0.27.2",
 ]
 

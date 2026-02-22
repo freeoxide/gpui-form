@@ -121,6 +121,9 @@ fn default_custom_wraps_in_option() -> bool {
 pub struct CustomOptions {
     /// Path to a type implementing `gpui_form_component::custom::CustomComponentShape`.
     pub shape: syn::Path,
+    /// UI component type path (e.g. `TagsInput`).
+    /// When provided, the prototyping code generator emits `Component::new(&entity)`.
+    pub component: Option<syn::Path>,
     /// Whether the value holder should store this field as `Option<T>`.
     /// Defaults to `true`.
     pub wraps_in_option: bool,
@@ -132,6 +135,8 @@ struct CustomOptionsMeta {
     shape: Option<syn::Path>,
     #[darling(default)]
     state: Option<syn::Path>,
+    #[darling(default)]
+    component: Option<syn::Path>,
     #[darling(default = "default_custom_wraps_in_option")]
     wraps_in_option: bool,
 }
@@ -141,6 +146,7 @@ impl CustomOptions {
         let CustomOptionsMeta {
             shape,
             state,
+            component,
             wraps_in_option,
         } = meta;
 
@@ -160,6 +166,7 @@ impl CustomOptions {
 
         Ok(Self {
             shape,
+            component,
             wraps_in_option,
         })
     }

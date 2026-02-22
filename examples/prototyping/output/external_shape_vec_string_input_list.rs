@@ -79,14 +79,9 @@ impl Render for ExternalShapeVecStringInputListForm {
                                     .child(div().child(description.clone()))
                             }
                         })
-                        .child({
-                            let _custom_entity = &self.fields.tags_custom;
-                            div().child(format!(
-                                "Custom component `{}` – wire rendering via self.fields.{}",
-                                "tags",
-                                stringify!(tags_custom)
-                            ))
-                        }),
+                        .child(some_lib_custom_components::ExternalTagsInput::new(
+                            &self.fields.tags_custom,
+                        )),
                 ),
             )
             .child(Divider::horizontal())

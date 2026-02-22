@@ -43,21 +43,32 @@ impl FieldCodeGenerator for CustomCodeGenerator {
         let label_tokens = super::generate_label_tokens(field, component);
         let description_fn_tokens = super::generate_description_fn_tokens(field, component);
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
-        let field_name = field.field_name;
+
+        // When the component type is known, emit Component::new(&entity) like other components.
+        // The component type is in scope via `use {module}::*;` in the generated file.
+        let child_tokens = if let Some(component_str) = field.custom_component {
+            let component_path: syn::Path =
+                syn::parse_str(component_str).expect("custom_component should be a valid path");
+            quote! {
+                #component_path::new(&self.fields.#field_in_struct_name_ident)
+            }
+        } else {
+            let field_name = field.field_name;
+            quote! {
+                div().child(format!(
+                    "Custom component `{}` – wire rendering via self.fields.{}",
+                    #field_name,
+                    stringify!(#field_in_struct_name_ident)
+                ))
+            }
+        };
 
         quote! {
             .child(
                 field()
                     .label(#label_tokens)
                     #description_fn_tokens
-                    .child({
-                        let _custom_entity = &self.fields.#field_in_struct_name_ident;
-                        div().child(format!(
-                            "Custom component `{}` – wire rendering via self.fields.{}",
-                            #field_name,
-                            stringify!(#field_in_struct_name_ident)
-                        ))
-                    })
+                    .child(#child_tokens)
             )
         }
     }
@@ -131,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_generator_emits_placeholder_render_child() {
+    fn custom_generator_emits_placeholder_when_no_shape() {
         let generator = CustomCodeGenerator;
         let tokens = generator.generate_render_child(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE);
         let compact = compact(&tokens.to_string());
@@ -143,6 +154,26 @@ mod tests {
         assert!(
             tokens.to_string().contains("Custom component"),
             "render output should explain custom fields need manual widget wiring"
+        );
+    }
+
+    #[test]
+    fn custom_generator_emits_component_call_when_component_known() {
+        const FIELDS_WITH_COMPONENT: [FieldVariant; 1] =
+            [
+                FieldVariant::new("tags", "Vec<String>", false, ComponentsBehaviour::Custom)
+                    .with_custom_component("TagsInput"),
+            ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS_WITH_COMPONENT, "src/demo.rs", false);
+
+        let generator = CustomCodeGenerator;
+        let tokens = generator.generate_render_child(&FIELDS_WITH_COMPONENT[0], &SHAPE);
+        let compact = compact(&tokens.to_string());
+
+        assert!(
+            compact.contains("TagsInput::new(&self.fields.tags_custom)"),
+            "render should emit Component::new(&entity): got {compact}"
         );
     }
 }
