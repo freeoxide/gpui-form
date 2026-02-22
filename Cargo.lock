@@ -4722,7 +4722,6 @@ dependencies = [
  "heck 0.5.0",
  "inventory",
  "prettyplease",
- "proc-macro2",
  "quote",
  "some-lib",
  "syn 2.0.114",
@@ -5788,7 +5787,6 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "gpui-component",
- "gpui-form",
 ]
 
 [[package]]
