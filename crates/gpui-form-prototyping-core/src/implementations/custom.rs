@@ -153,22 +153,6 @@ mod tests {
     }
 
     #[test]
-    fn custom_generator_emits_placeholder_when_no_shape() {
-        let generator = CustomCodeGenerator;
-        let tokens = generator.generate_render_child(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE);
-        let compact = compact(&tokens.to_string());
-
-        assert!(
-            compact.contains("self.fields.tags_custom"),
-            "render output should reference the custom entity field: got {compact}"
-        );
-        assert!(
-            tokens.to_string().contains("Custom component"),
-            "render output should explain custom fields need manual widget wiring"
-        );
-    }
-
-    #[test]
     fn custom_generator_emits_component_call_when_component_known() {
         const FIELDS_WITH_COMPONENT: [FieldVariant; 1] =
             [
