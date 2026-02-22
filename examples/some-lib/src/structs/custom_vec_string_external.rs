@@ -4,7 +4,6 @@ use gpui_form::GpuiForm;
 gpui_form::custom_component_shape!(
     pub ExternalTagInputsComponent,
     state = some_lib_custom_components::ExternalTagInputsState,
-    component = some_lib_custom_components::ExternalTagsInput,
     new = some_lib_custom_components::ExternalTagInputsState::new,
 );
 

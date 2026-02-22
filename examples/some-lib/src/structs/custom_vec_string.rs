@@ -5,7 +5,7 @@ use gpui_form::{CustomComponentState, GpuiForm};
 
 /// State for the tags input custom component.
 #[derive(Clone, CustomComponentState, Debug)]
-#[gpui_form_custom(new = Self::new, component = TagsInput)]
+#[gpui_form_custom(new = Self::new)]
 pub struct TagsInputState {
     pub inputs: Vec<Entity<InputState>>,
 }

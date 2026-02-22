@@ -8,40 +8,27 @@ use syn::{DeriveInput, Path, parse_macro_input};
 struct CustomComponentStateMeta {
     #[darling(default)]
     new: Option<Path>,
-    #[darling(default)]
-    component: Option<Path>,
 }
 
-fn parse_meta(attrs: &[syn::Attribute]) -> darling::Result<(Path, Path)> {
+fn parse_new_path(attrs: &[syn::Attribute]) -> darling::Result<Path> {
     let meta = CustomComponentStateMeta::from_attributes(attrs)?;
-    let new_path = meta.new.unwrap_or_else(|| syn::parse_quote!(Self::new));
-    let component = meta.component.ok_or_else(|| {
-        darling::Error::custom(
-            "CustomComponentState requires `#[gpui_form_custom(component = YourUiComponent)]`",
-        )
-    })?;
-    Ok((new_path, component))
+    Ok(meta.new.unwrap_or_else(|| syn::parse_quote!(Self::new)))
 }
 
 fn expand(input: DeriveInput) -> darling::Result<TokenStream> {
     let ident = &input.ident;
-    let (new_path, component_path) = parse_meta(&input.attrs)?;
+    let new_path = parse_new_path(&input.attrs)?;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     Ok(quote! {
         impl #impl_generics gpui_form_component::custom::CustomComponentShape for #ident #ty_generics #where_clause {
             type State = Self;
-            type Component = #component_path;
 
             fn new(
                 window: &mut ::gpui::Window,
                 cx: &mut ::gpui::Context<'_, Self::State>,
             ) -> Self::State {
                 #new_path(window, cx)
-            }
-
-            fn component(state: &::gpui::Entity<Self::State>) -> Self::Component {
-                <#component_path>::new(state)
             }
         }
     })
@@ -69,7 +56,6 @@ mod tests {
     fn test_custom_component_state_default_new_path() {
         let input: DeriveInput = syn::parse2(quote! {
             #[derive(CustomComponentState)]
-            #[gpui_form_custom(component = TagsInput)]
             struct TagsState;
         })
         .unwrap();
@@ -85,17 +71,13 @@ mod tests {
             compact.contains("Self::new(window,cx)"),
             "should default to Self::new constructor"
         );
-        assert!(
-            compact.contains("typeComponent=TagsInput"),
-            "should set Component associated type"
-        );
     }
 
     #[test]
     fn test_custom_component_state_explicit_new_path() {
         let input: DeriveInput = syn::parse2(quote! {
             #[derive(CustomComponentState)]
-            #[gpui_form_custom(new = crate::state::build, component = crate::ui::TagsInput)]
+            #[gpui_form_custom(new = crate::state::build)]
             struct TagsState;
         })
         .unwrap();
@@ -106,25 +88,6 @@ mod tests {
         assert!(
             compact.contains("crate::state::build(window,cx)"),
             "should use explicit new path from attribute"
-        );
-        assert!(
-            compact.contains("typeComponent=crate::ui::TagsInput"),
-            "should use explicit component type from attribute"
-        );
-    }
-
-    #[test]
-    fn test_custom_component_state_missing_component_errors() {
-        let input: DeriveInput = syn::parse2(quote! {
-            #[derive(CustomComponentState)]
-            struct TagsState;
-        })
-        .unwrap();
-
-        let result = expand(input);
-        assert!(
-            result.is_err(),
-            "should error when component is not specified"
         );
     }
 }

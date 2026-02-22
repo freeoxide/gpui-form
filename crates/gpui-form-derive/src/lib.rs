@@ -24,9 +24,8 @@ pub fn derive_select_item_for_ftl_enum(input: TokenStream) -> TokenStream {
 
 /// Derive macro for custom component state types used by `component(custom(...))`.
 ///
-/// Requires `#[gpui_form_custom(component = YourUiComponent)]` to specify the UI
-/// component type. Override the constructor with `new = path::to::constructor`
-/// (defaults to `Self::new`).
+/// By default it calls `Self::new(window, cx)`. Override the constructor with:
+/// `#[gpui_form_custom(new = path::to::constructor)]`.
 #[proc_macro_derive(CustomComponentState, attributes(gpui_form_custom))]
 #[proc_macro_error]
 pub fn derive_custom_component_state(input: TokenStream) -> TokenStream {
