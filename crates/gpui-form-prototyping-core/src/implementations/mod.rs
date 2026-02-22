@@ -11,6 +11,8 @@ use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
 
+use crate::imports::ImportItem;
+
 pub enum FieldGenerator {
     Input(input::InputCodeGenerator),
     NumberInput(number_input::NumberInputCodeGenerator),
@@ -50,6 +52,16 @@ impl GeneratedSubscription {
 }
 
 pub trait FieldCodeGenerator {
+    /// Declare the `use` imports this component type requires in the generated file.
+    ///
+    /// The default returns an empty vec (no extra imports). Component generators
+    /// override this to return exactly the items they reference in generated code.
+    /// Framework-level imports (gpui core, v_form, etc.) are handled separately as
+    /// a base set and do not need to be declared here.
+    fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
+        vec![]
+    }
+
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,

@@ -139,10 +139,6 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         source_module_path,
     } = identities;
 
-    let target_types_import = quote! {
-      use #source_module_path::*;
-    };
-
     // Handle empty structs (no components)
     let is_empty = data.components.is_empty();
 
@@ -215,26 +211,11 @@ fn layout(data: &GpuiFormShape) -> syn::File {
         )
     };
 
+    let collected_imports = adapter.required_imports().to_token_stream();
+
     let import_tokens = quote! {
-      #target_types_import
-      use gpui::{
-          App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-          ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
-      };
-      use gpui_component::{
-          ActiveTheme as _, IndexPath,
-          checkbox::Checkbox,
-          date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-          divider::Divider,
-          form::{field, v_form},
-          input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
-          select::{SearchableVec, Select, SelectEvent, SelectState},
-          switch::Switch,
-          v_flex,
-      };
-      use gpui_form_component::infinite_select::InfiniteSelect;
-      use es_fluent::{ThisFtl as _, ToFluentString as _};
-      use rust_decimal::Decimal;
+      use #source_module_path::*;
+      #collected_imports
     };
 
     let layout_tokens = quote! {

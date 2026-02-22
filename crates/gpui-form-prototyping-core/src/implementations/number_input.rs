@@ -3,12 +3,25 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::implementations::ComponentIdentities as _;
+use crate::imports::ImportItem;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct NumberInputCodeGenerator;
 
+const IMPORTS: &[ImportItem] = &[
+    ImportItem::path("gpui_component::input::InputEvent"),
+    ImportItem::path("gpui_component::input::InputState"),
+    ImportItem::path("gpui_component::input::NumberInput"),
+    ImportItem::path("gpui_component::input::NumberInputEvent"),
+    ImportItem::path("gpui_component::input::StepAction"),
+];
+
 impl FieldCodeGenerator for NumberInputCodeGenerator {
+    fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
+        IMPORTS.to_vec()
+    }
+
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,

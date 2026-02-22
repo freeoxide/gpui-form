@@ -3,6 +3,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::implementations::ComponentIdentities as _;
+use crate::imports::ImportItem;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
@@ -11,6 +12,16 @@ use super::{FieldCodeGenerator, GeneratedSubscription};
 pub struct CustomCodeGenerator;
 
 impl FieldCodeGenerator for CustomCodeGenerator {
+    fn generate_imports(&self, field: &FieldVariant) -> Vec<ImportItem> {
+        // Only emit an import when the path is qualified (contains `::`).
+        // A bare name like `TagsInput` is already brought in scope by the
+        // `use source_module::*;` glob and needs no separate import.
+        match field.custom_component {
+            Some(path) if path.contains("::") => vec![ImportItem::path(path)],
+            _ => vec![],
+        }
+    }
+
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,
