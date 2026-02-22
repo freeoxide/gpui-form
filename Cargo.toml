@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["examples/some-lib-forms"]
+default-members = [ "examples/some-lib-forms" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -56,7 +56,6 @@ prettyplease = "0.2"
 proc-macro-error2 = "2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
-rust-embed = "8.11"
 rust_decimal = "1.40"
 serde = "1.0"
 serde_json = "1.0"

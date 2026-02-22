@@ -7,7 +7,6 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-bon = { workspace = true }
 chrono = { workspace = true }
 derive_more = { features = [ "full" ], workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
@@ -18,7 +17,6 @@ gpui-form = { features = [ "derive" ], workspace = true }
 gpui-form-component = { workspace = true }
 koruma = { features = [ "fluent" ], workspace = true }
 koruma-collection = { features = [ "email", "fluent" ], workspace = true }
-rust-embed = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib-custom-components = { path = "../some-lib-custom-components" }
 strum = { workspace = true }
@@ -33,4 +31,4 @@ ui = [  ]
 validation = [  ]
 
 [package.metadata.cargo-machete]
-ignored = [ "bon", "gpui", "gpui-component", "rust-embed" ]
+ignored = [ "gpui", "gpui-component" ]

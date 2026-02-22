@@ -5770,7 +5770,6 @@ name = "some-lib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon",
  "chrono",
  "derive_more 2.1.1",
  "es-fluent",
@@ -5781,7 +5780,6 @@ dependencies = [
  "gpui-form-component",
  "koruma",
  "koruma-collection",
- "rust-embed",
  "rust_decimal",
  "some-lib-custom-components",
  "strum 0.27.2",
@@ -5807,7 +5805,6 @@ dependencies = [
  "gpui-component",
  "gpui-form-component",
  "gpui-storybook",
- "rust-embed",
  "rust_decimal",
  "some-lib",
  "some-lib-custom-components",

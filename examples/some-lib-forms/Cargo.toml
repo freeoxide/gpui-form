@@ -15,14 +15,10 @@ gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-form-component = { workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
-rust-embed = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }
-strum = { workspace = true }
 some-lib-custom-components = { path = "../some-lib-custom-components" }
+strum = { workspace = true }
 
 [build-dependencies]
 es-fluent = { features = [ "build" ], workspace = true }
-
-[package.metadata.cargo-machete]
-ignored = [ "rust-embed" ]

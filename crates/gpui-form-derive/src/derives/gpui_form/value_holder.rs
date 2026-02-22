@@ -288,6 +288,11 @@ pub fn generate_value_holder(
     }
 
     let derive_output = quote! { #[derive(#(#derives),*)] };
+    let builder_attr = if has_skipped_fields {
+        quote! { #[builder(crate = ::gpui_form::bon)] }
+    } else {
+        quote! {}
+    };
 
     let original_ident = &original_input.ident;
     let wrapped_ident = format_ident!("{}FormValueHolder", original_ident);
@@ -470,6 +475,7 @@ pub fn generate_value_holder(
         quote! {
             #conversion_error_type
             #derive_output
+            #builder_attr
             pub struct #wrapped_ident #ty_generics #where_clause {
                 #(#field_definitions),*
             }
