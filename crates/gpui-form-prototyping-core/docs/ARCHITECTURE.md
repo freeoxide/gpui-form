@@ -30,6 +30,7 @@
 ## Import design
 
 Imports are declared close to where they are used:
+
 - Framework items live in `code_gen::FRAMEWORK_IMPORTS`.
 - Component-specific items live in each generator's `generate_imports` implementation.
 - `ImportSet` deduplicates and groups items into compact `use parent::{a, b as c};` statements.

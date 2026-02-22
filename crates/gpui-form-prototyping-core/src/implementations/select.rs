@@ -21,10 +21,10 @@ const IMPORTS_BASE: &[ImportItem] = &[
 impl FieldCodeGenerator for SelectCodeGenerator {
     fn generate_imports(&self, field: &FieldVariant) -> Vec<ImportItem> {
         let mut items = IMPORTS_BASE.to_vec();
-        if let ComponentsBehaviour::Select(opts) = &field.behaviour {
-            if opts.searchable {
-                items.push(ImportItem::path("gpui_component::select::SearchableVec"));
-            }
+        if let ComponentsBehaviour::Select(opts) = &field.behaviour
+            && opts.searchable
+        {
+            items.push(ImportItem::path("gpui_component::select::SearchableVec"));
         }
         items
     }
