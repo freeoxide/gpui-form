@@ -9,17 +9,28 @@ use std::collections::BTreeMap;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
+/// The alias applied to an imported item.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Alias {
+    /// Wildcard discard: `use X as _` (used for trait imports that only need
+    /// to be in scope).
+    Anonymous,
+    /// Named rename: `use X as Foo`.
+    Rename(&'static str),
+}
+
 /// A single item to be imported into a generated file.
 ///
-/// Both `path` and `alias` are `&'static str` because all built-in paths are
-/// string literals and custom-component paths are stored as `&'static str` in
+/// Both `path` and the inner value of [`Alias::Rename`] are `&'static str`
+/// because all built-in paths are string literals and custom-component paths
+/// are stored as `&'static str` in
 /// [`FieldVariant::custom_component`](gpui_form_core::registry::FieldVariant::custom_component).
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportItem {
     /// Full path to the imported item, e.g. `"gpui_component::checkbox::Checkbox"`.
     pub path: &'static str,
-    /// Optional rename alias, e.g. `Some("_")` for `use X as _`.
-    pub alias: Option<&'static str>,
+    /// Optional alias applied to the import.
+    pub alias: Option<Alias>,
 }
 
 impl ImportItem {
@@ -28,8 +39,8 @@ impl ImportItem {
         Self { path, alias: None }
     }
 
-    /// An import with a rename alias (e.g. `"_"` for trait imports).
-    pub const fn aliased(path: &'static str, alias: &'static str) -> Self {
+    /// An import with an alias (e.g. [`Alias::Anonymous`] for trait imports).
+    pub const fn aliased(path: &'static str, alias: Alias) -> Self {
         Self {
             path,
             alias: Some(alias),
@@ -66,15 +77,14 @@ impl ImportSet {
     /// sorted, and emitted as a single `use` per group.
     pub fn to_token_stream(&self) -> TokenStream {
         // Group: parent_path → Vec<(name, alias)> — BTreeMap keeps groups sorted.
-        let mut grouped: BTreeMap<String, Vec<(&'static str, Option<&'static str>)>> =
-            BTreeMap::new();
+        let mut grouped: BTreeMap<String, Vec<(&'static str, Option<&Alias>)>> = BTreeMap::new();
 
         for item in &self.0 {
             let (parent, name) = item.path.rsplit_once("::").unwrap_or(("", item.path));
             grouped
                 .entry(parent.to_string())
                 .or_default()
-                .push((name, item.alias));
+                .push((name, item.alias.as_ref()));
         }
 
         let mut tokens = TokenStream::new();
@@ -91,8 +101,8 @@ impl ImportSet {
                 .map(|(name, alias)| {
                     let name_ident = format_ident!("{}", name);
                     match alias {
-                        Some("_") => quote! { #name_ident as _ },
-                        Some(a) => {
+                        Some(Alias::Anonymous) => quote! { #name_ident as _ },
+                        Some(Alias::Rename(a)) => {
                             let alias_ident = format_ident!("{}", a);
                             quote! { #name_ident as #alias_ident }
                         },

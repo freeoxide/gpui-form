@@ -5,7 +5,7 @@ use quote::{format_ident, quote};
 use std::path::Path;
 
 use crate::implementations::ComponentIdentities as _;
-use crate::imports::{ImportItem, ImportSet};
+use crate::imports::{Alias, ImportItem, ImportSet};
 
 use super::implementations::{
     ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator, custom::CustomCodeGenerator,
@@ -28,22 +28,22 @@ const FRAMEWORK_IMPORTS: &[ImportItem] = &[
     ImportItem::path("gpui::Focusable"),
     ImportItem::path("gpui::IntoElement"),
     ImportItem::path("gpui::InteractiveElement"),
-    ImportItem::aliased("gpui::ParentElement", "_"),
+    ImportItem::aliased("gpui::ParentElement", Alias::Anonymous),
     ImportItem::path("gpui::Render"),
     ImportItem::path("gpui::Styled"),
     ImportItem::path("gpui::Subscription"),
     ImportItem::path("gpui::Window"),
     ImportItem::path("gpui::div"),
-    ImportItem::aliased("gpui::prelude::FluentBuilder", "_"),
+    ImportItem::aliased("gpui::prelude::FluentBuilder", Alias::Anonymous),
     // gpui_component layout / form helpers
-    ImportItem::aliased("gpui_component::ActiveTheme", "_"),
+    ImportItem::aliased("gpui_component::ActiveTheme", Alias::Anonymous),
     ImportItem::path("gpui_component::divider::Divider"),
     ImportItem::path("gpui_component::form::field"),
     ImportItem::path("gpui_component::form::v_form"),
     ImportItem::path("gpui_component::v_flex"),
     // i18n / fluent
-    ImportItem::aliased("es_fluent::ThisFtl", "_"),
-    ImportItem::aliased("es_fluent::ToFluentString", "_"),
+    ImportItem::aliased("es_fluent::ThisFtl", Alias::Anonymous),
+    ImportItem::aliased("es_fluent::ToFluentString", Alias::Anonymous),
 ];
 
 fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
