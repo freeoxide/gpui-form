@@ -307,10 +307,19 @@ pub fn expand_gpui_form(
                 });
 
                 let custom_component_tokens = if let Components::Custom(opts) = component_def {
-                    opts.component.as_ref().map(|comp| {
+                    let shape = &opts.shape;
+                    if let Some(comp) = opts.component.as_ref() {
+                        // Explicitly specified on the field attribute — use it directly.
                         let comp_str = comp.to_token_stream().to_string();
-                        quote! { .with_custom_component(#comp_str) }
-                    })
+                        Some(quote! { .with_custom_component(#comp_str) })
+                    } else {
+                        // Fall back to whatever the shape declares as COMPONENT_PATH.
+                        Some(quote! {
+                            .with_custom_component_opt(
+                                <#shape as ::gpui_form_component::custom::CustomComponentShape>::COMPONENT_PATH
+                            )
+                        })
+                    }
                 } else {
                     None
                 };

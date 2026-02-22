@@ -88,6 +88,16 @@ impl FieldVariant {
         self
     }
 
+    /// Attach an optional custom UI component path to this field metadata.
+    ///
+    /// Used when the component path may come from the shape's
+    /// `CustomComponentShape::COMPONENT_PATH` constant rather than an explicit
+    /// field attribute value.
+    pub const fn with_custom_component_opt(mut self, component: Option<&'static str>) -> Self {
+        self.custom_component = component;
+        self
+    }
+
     pub fn full_type(&self) -> syn::Type {
         let mut ty = syn::parse_str(self.field_type).unwrap();
         if self.optional {

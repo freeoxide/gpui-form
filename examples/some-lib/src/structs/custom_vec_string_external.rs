@@ -5,6 +5,7 @@ gpui_form::custom_component_shape!(
     pub ExternalTagInputsComponent,
     state = some_lib_custom_components::ExternalTagInputsState,
     new = some_lib_custom_components::ExternalTagInputsState::new,
+    component = some_lib_custom_components::ExternalTagsInput,
 );
 
 /// Demonstrates the external-type case:
@@ -15,7 +16,6 @@ gpui_form::custom_component_shape!(
 pub struct ExternalShapeVecStringInputList {
     #[gpui_form(component(custom(
         shape = ExternalTagInputsComponent,
-        component = some_lib_custom_components::ExternalTagsInput,
         wraps_in_option = false
     )))]
     pub tags: Vec<String>,

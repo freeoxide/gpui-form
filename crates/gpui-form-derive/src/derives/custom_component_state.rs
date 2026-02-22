@@ -8,17 +8,30 @@ use syn::{DeriveInput, Path, parse_macro_input};
 struct CustomComponentStateMeta {
     #[darling(default)]
     new: Option<Path>,
+    /// Optional UI component type path.
+    /// When set, `CustomComponentShape::COMPONENT_PATH` is populated so that
+    /// field annotations do not need to repeat `component = …`.
+    #[darling(default)]
+    component: Option<Path>,
 }
 
-fn parse_new_path(attrs: &[syn::Attribute]) -> darling::Result<Path> {
-    let meta = CustomComponentStateMeta::from_attributes(attrs)?;
-    Ok(meta.new.unwrap_or_else(|| syn::parse_quote!(Self::new)))
+fn parse_meta(attrs: &[syn::Attribute]) -> darling::Result<CustomComponentStateMeta> {
+    CustomComponentStateMeta::from_attributes(attrs)
 }
 
 fn expand(input: DeriveInput) -> darling::Result<TokenStream> {
     let ident = &input.ident;
-    let new_path = parse_new_path(&input.attrs)?;
+    let meta = parse_meta(&input.attrs)?;
+    let new_path = meta.new.unwrap_or_else(|| syn::parse_quote!(Self::new));
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let component_path_const = if let Some(comp) = meta.component {
+        quote! {
+            const COMPONENT_PATH: Option<&'static str> = Some(stringify!(#comp));
+        }
+    } else {
+        quote! {}
+    };
 
     Ok(quote! {
         impl #impl_generics gpui_form_component::custom::CustomComponentShape for #ident #ty_generics #where_clause {
@@ -30,6 +43,8 @@ fn expand(input: DeriveInput) -> darling::Result<TokenStream> {
             ) -> Self::State {
                 #new_path(window, cx)
             }
+
+            #component_path_const
         }
     })
 }
@@ -88,6 +103,32 @@ mod tests {
         assert!(
             compact.contains("crate::state::build(window,cx)"),
             "should use explicit new path from attribute"
+        );
+        assert!(
+            !compact.contains("COMPONENT_PATH"),
+            "should not emit COMPONENT_PATH when component is not specified"
+        );
+    }
+
+    #[test]
+    fn test_custom_component_state_with_component_path() {
+        let input: DeriveInput = syn::parse2(quote! {
+            #[derive(CustomComponentState)]
+            #[gpui_form_custom(new = Self::new, component = crate::ui::TagsInput)]
+            struct TagsState;
+        })
+        .unwrap();
+
+        let expanded = expand(input).unwrap();
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("COMPONENT_PATH"),
+            "should emit COMPONENT_PATH const when component is specified"
+        );
+        assert!(
+            compact.contains("crate::ui::TagsInput"),
+            "should embed the component path as a string"
         );
     }
 }

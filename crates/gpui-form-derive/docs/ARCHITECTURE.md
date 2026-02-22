@@ -41,6 +41,7 @@
 - Implements `gpui_form_component::custom::CustomComponentShape` directly for a state type.
 - Defaults constructor call to `Self::new(window, cx)`.
 - Supports override via `#[gpui_form_custom(new = ...)]`.
+- Supports `#[gpui_form_custom(component = ...)]` to set `COMPONENT_PATH` on the shape, so that field annotations don't need to repeat `component = …`.
 
 ## Extension points
 

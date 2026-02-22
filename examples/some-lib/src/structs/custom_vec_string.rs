@@ -5,7 +5,7 @@ use gpui_form::{CustomComponentState, GpuiForm};
 
 /// State for the tags input custom component.
 #[derive(Clone, CustomComponentState, Debug)]
-#[gpui_form_custom(new = Self::new)]
+#[gpui_form_custom(new = Self::new, component = TagsInput)]
 pub struct TagsInputState {
     pub inputs: Vec<Entity<InputState>>,
 }
@@ -50,6 +50,6 @@ impl gpui::RenderOnce for TagsInput {
 #[fluent_this(origin, members)]
 #[fluent_variants(keys = ["description", "label"])]
 pub struct VecStringInputList {
-    #[gpui_form(component(custom(shape = TagsInputState, component = TagsInput, wraps_in_option = false)))]
+    #[gpui_form(component(custom(shape = TagsInputState, wraps_in_option = false)))]
     pub tags: Vec<String>,
 }
