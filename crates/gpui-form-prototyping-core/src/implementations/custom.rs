@@ -42,6 +42,7 @@ impl FieldCodeGenerator for CustomCodeGenerator {
     ) -> TokenStream {
         let label_tokens = super::generate_label_tokens(field, component);
         let description_fn_tokens = super::generate_description_fn_tokens(field, component);
+        let field_in_struct_name_ident = field.field_ident_with_behaviour();
         let field_name = field.field_name;
 
         quote! {
@@ -49,10 +50,14 @@ impl FieldCodeGenerator for CustomCodeGenerator {
                 field()
                     .label(#label_tokens)
                     #description_fn_tokens
-                    .child(div().child(format!(
-                        "Custom component `{}` is initialized; add manual render/subscriptions.",
-                        #field_name
-                    )))
+                    .child({
+                        let _custom_entity = &self.fields.#field_in_struct_name_ident;
+                        div().child(format!(
+                            "Custom component `{}` – wire rendering via self.fields.{}",
+                            #field_name,
+                            stringify!(#field_in_struct_name_ident)
+                        ))
+                    })
             )
         }
     }
@@ -129,10 +134,14 @@ mod tests {
     fn custom_generator_emits_placeholder_render_child() {
         let generator = CustomCodeGenerator;
         let tokens = generator.generate_render_child(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE);
-        let rendered = tokens.to_string();
+        let compact = compact(&tokens.to_string());
 
         assert!(
-            rendered.contains("Custom component"),
+            compact.contains("self.fields.tags_custom"),
+            "render output should reference the custom entity field: got {compact}"
+        );
+        assert!(
+            tokens.to_string().contains("Custom component"),
             "render output should explain custom fields need manual widget wiring"
         );
     }

@@ -1,3 +1,4 @@
+use es_fluent::{EsFluentThis, EsFluentVariants};
 use gpui::{AppContext as _, Context, Entity, Window};
 use gpui_component::input::InputState;
 use gpui_form::{CustomComponentState, GpuiForm};
@@ -20,7 +21,9 @@ impl TagsInputComponent {
     }
 }
 
-#[derive(Clone, Debug, Default, GpuiForm)]
+#[derive(Clone, Debug, Default, GpuiForm, EsFluentThis, EsFluentVariants)]
+#[fluent_this(origin, members)]
+#[fluent_variants(keys = ["description", "label"])]
 pub struct VecStringInputList {
     #[gpui_form(component(custom(shape = TagsInputComponent, wraps_in_option = false)))]
     pub tags: Vec<String>,

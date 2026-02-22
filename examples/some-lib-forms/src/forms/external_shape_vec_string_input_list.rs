@@ -1,107 +1,61 @@
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement as _, Render, Styled, Subscription, Window, div,
+    ParentElement as _, Render, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
+    ActiveTheme as _, IndexPath,
+    checkbox::Checkbox,
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
     form::{field, v_form},
-    input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    select::{SearchableVec, Select, SelectEvent, SelectState},
+    switch::Switch,
     v_flex,
 };
+use gpui_form_component::infinite_select::InfiniteSelect;
+use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string_external::*;
-
 const CONTEXT: &str = "ExternalShapeVecStringInputListForm";
-
 #[gpui_storybook::story_init]
-pub fn init(_cx: &mut App) {}
-
+pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct ExternalShapeVecStringInputListForm {
     current_data: ExternalShapeVecStringInputListFormValueHolder,
     fields: ExternalShapeVecStringInputListFormFields,
     focus_handle: FocusHandle,
-    _subscriptions: Vec<Subscription>,
 }
-
 impl Focusable for ExternalShapeVecStringInputListForm {
-    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+    fn focus_handle(&self, cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
-
 impl gpui_storybook::Story for ExternalShapeVecStringInputListForm {
     fn title() -> String {
-        "External Declarative Custom Shape".to_string()
+        ExternalShapeVecStringInputList::this_ftl()
     }
-
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
     }
 }
-
 impl ExternalShapeVecStringInputListForm {
-    fn on_tags_input_event(
-        &mut self,
-        _state: &Entity<InputState>,
-        event: &InputEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            InputEvent::Change => {
-                self.current_data.tags = self
-                    .fields
-                    .tags_custom
-                    .read(cx)
-                    .inputs
-                    .iter()
-                    .filter_map(|input| {
-                        let value = input.read(cx).value();
-                        if value.is_empty() {
-                            None
-                        } else {
-                            Some(value.to_string())
-                        }
-                    })
-                    .collect();
-            },
-            _ => {},
-        }
-    }
-
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = ExternalShapeVecStringInputListFormValueHolder::default();
         let tags_custom =
             cx.new(|cx| ExternalShapeVecStringInputListFormComponents::tags_custom(window, cx));
-        let tag_inputs = tags_custom.read(cx).inputs.clone();
-
-        let mut _subscriptions = Vec::new();
-        for input in &tag_inputs {
-            _subscriptions.push(cx.subscribe_in(input, window, Self::on_tags_input_event));
-        }
-
-        for (input, value) in tag_inputs.iter().zip(current_data.tags.iter()) {
-            input.update(cx, |state, cx| {
-                state.set_value(value.to_string(), window, cx);
-            });
-        }
-
         Self {
             current_data,
             fields: ExternalShapeVecStringInputListFormFields { tags_custom },
             focus_handle: cx.focus_handle(),
-            _subscriptions,
         }
     }
 }
-
 impl Render for ExternalShapeVecStringInputListForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let tag_inputs = self.fields.tags_custom.read(cx).inputs.clone();
-
         v_flex()
             .key_context(CONTEXT)
-            .id("external-shape-vec-string-input-list-form")
+            .id("external_shape_vec_string_input_list-form")
             .size_full()
             .p_4()
             .justify_start()
@@ -110,15 +64,29 @@ impl Render for ExternalShapeVecStringInputListForm {
             .child(
                 v_form().child(
                     field()
-                        .label("External Tags")
+                        .label(
+                            ExternalShapeVecStringInputListLabelVariants::Tags.to_fluent_string(),
+                        )
                         .description_fn({
+                            let description =
+                                ExternalShapeVecStringInputListDescriptionVariants::Tags
+                                    .to_fluent_string();
                             move |_, _| {
-                                div().flex().flex_col().gap_1().child(
-                                    div().child("custom_component_shape! defined in another crate"),
-                                )
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(div().child(description.clone()))
                             }
                         })
-                        .children(tag_inputs.iter().map(Input::new)),
+                        .child({
+                            let _custom_entity = &self.fields.tags_custom;
+                            div().child(format!(
+                                "Custom component `{}` – wire rendering via self.fields.{}",
+                                "tags",
+                                stringify!(tags_custom)
+                            ))
+                        }),
                 ),
             )
             .child(Divider::horizontal())
