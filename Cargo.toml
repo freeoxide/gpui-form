@@ -8,6 +8,7 @@ members = [
   "crates/gpui-form-internal-macros",
   "crates/gpui-form-prototyping-core",
   "examples/some-lib",
+  "examples/some-lib-custom-components",
   "examples/some-lib-forms",
   "examples/prototyping",
 ]

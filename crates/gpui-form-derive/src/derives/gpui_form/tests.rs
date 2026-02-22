@@ -360,4 +360,113 @@ mod tests {
             "Default should be wrapped in Into::into for string literals"
         );
     }
+
+    #[test]
+    fn test_custom_component_generates_shape_based_state_and_constructor() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape, component = crate::ui::BioInput)))]
+                bio: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubbio_custom:gpui::Entity<")
+                && compact.contains(
+                    "<crate::shapes::BioInputShapeasgpui_form_component::custom::CustomComponentShape>::State"
+                ),
+            "Custom component field should use shape state type"
+        );
+
+        assert!(
+            compact.contains(
+                "<crate::shapes::BioInputShapeasgpui_form_component::custom::CustomComponentShape>::new(window,cx)"
+            ),
+            "Custom component constructor should delegate to shape::new"
+        );
+
+        assert!(
+            compact.contains("ComponentsBehaviour::Custom"),
+            "FieldVariant should carry Custom behaviour metadata"
+        );
+
+        assert!(
+            compact.contains("with_custom_component("),
+            "FieldVariant should carry the custom component path: {compact}"
+        );
+    }
+
+    #[test]
+    fn test_custom_component_wraps_in_option_controls_value_holder_field() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(custom(shape = crate::shapes::ToggleShape, wraps_in_option = false)))]
+                enabled: bool,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubenabled:bool"),
+            "wraps_in_option = false should keep value holder field non-optional"
+        );
+        assert!(
+            !compact.contains("pubenabled:Option<bool>"),
+            "wraps_in_option = false should avoid wrapping in Option"
+        );
+    }
+
+    #[test]
+    fn test_custom_component_supports_state_alias() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(custom(state = crate::state::TagsState, wraps_in_option = false)))]
+                tags: Vec<String>,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubtags_custom:gpui::Entity<")
+                && compact.contains(
+                    "<crate::state::TagsStateasgpui_form_component::custom::CustomComponentShape>::State"
+                ),
+            "`state = ...` should map to custom shape path"
+        );
+        assert!(
+            compact.contains("pubtags:Vec<String>"),
+            "wraps_in_option = false should keep field as Vec<String>"
+        );
+    }
 }

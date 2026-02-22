@@ -2,11 +2,19 @@ use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
+use crate::imports::ImportItem;
+
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct CheckboxCodeGenerator;
 
+const IMPORTS: &[ImportItem] = &[ImportItem::path("gpui_component::checkbox::Checkbox")];
+
 impl FieldCodeGenerator for CheckboxCodeGenerator {
+    fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
+        IMPORTS.to_vec()
+    }
+
     fn generate_cx_new_call(
         &self,
         _field: &FieldVariant,

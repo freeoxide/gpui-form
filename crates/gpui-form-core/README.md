@@ -11,6 +11,7 @@ if you are extending components or building custom tooling on top of the form me
 - `ComponentsBehaviour` for runtime behavior metadata.
 - `GpuiFormShape` and `FieldVariant` for inventory-driven introspection.
 - Token generation helpers used by proc macros.
+- `CustomOptions` for user-defined component shapes/states (`component(custom(shape = ...))` / `component(custom(state = ...))`).
 
 ## When to use directly
 

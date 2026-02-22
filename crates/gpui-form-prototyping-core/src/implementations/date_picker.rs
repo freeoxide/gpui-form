@@ -3,10 +3,17 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::implementations::ComponentIdentities as _;
+use crate::imports::ImportItem;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct DatePickerCodeGenerator;
+
+const IMPORTS: &[ImportItem] = &[
+    ImportItem::path("gpui_component::date_picker::DatePicker"),
+    ImportItem::path("gpui_component::date_picker::DatePickerEvent"),
+    ImportItem::path("gpui_component::date_picker::DatePickerState"),
+];
 
 fn parse_date_expr(date_ident: &syn::Ident, field_type: &str) -> TokenStream {
     let type_path = syn::parse_str::<syn::Type>(field_type).expect("valid type path");
@@ -32,6 +39,10 @@ fn value_assign(field: &FieldVariant, field_name_ident: &syn::Ident) -> TokenStr
 }
 
 impl FieldCodeGenerator for DatePickerCodeGenerator {
+    fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
+        IMPORTS.to_vec()
+    }
+
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,

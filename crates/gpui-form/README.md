@@ -2,25 +2,16 @@
 
 User-facing facade crate for gpui-form.
 
-This crate re-exports:
-
-- `GpuiForm`, `SelectItem`, and `InfiniteSelect` derive macros (behind `derive`).
-- Core metadata types from `gpui-form-core` (always).
-- Optional runtime helpers from `gpui-form-component` (behind `component` + `derive`).
-
 ## Install
 
 ```toml
 [dependencies]
-# gpui + gpui-component are required by generated code
-
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 
 gpui-form = { version = "*", features = ["derive"] }
 
-# Optional runtime components like InfiniteSelect
-# gpui-form = { version = "*", features = ["derive", "component"] }
+# gpui-form-component = { version = "*" }
 
 # Optional inventory registry for prototyping
 # gpui-form = { version = "*", features = ["derive", "inventory"] }
@@ -59,5 +50,4 @@ pub struct UserProfile {
 ## Features
 
 - `derive` (default): proc macros for forms and select helpers.
-- `component`: re-exports runtime helpers (InfiniteSelect) when `derive` is also enabled.
 - `inventory`: enables shape registry for prototyping when `derive` is enabled.

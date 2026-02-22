@@ -1,20 +1,20 @@
 use some_lib::structs::cfg_attr_example::*;
+use es_fluent::{ThisFtl as _, ToFluentString as _};
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
-    prelude::FluentBuilder as _,
 };
-use gpui_component::{
-    ActiveTheme as _, IndexPath, checkbox::Checkbox,
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider, form::{field, v_form},
-    input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
-    select::{SearchableVec, Select, SelectEvent, SelectState},
-    switch::Switch, v_flex,
+use gpui::prelude::FluentBuilder as _;
+use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::checkbox::Checkbox;
+use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
+use gpui_component::divider::Divider;
+use gpui_component::form::{field, v_form};
+use gpui_component::input::{
+    Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
-use gpui_form_component::infinite_select::InfiniteSelect;
-use es_fluent::{ThisFtl as _, ToFluentString as _};
-use rust_decimal::Decimal;
+use gpui_component::select::{Select, SelectEvent, SelectState};
+use gpui_component::switch::Switch;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

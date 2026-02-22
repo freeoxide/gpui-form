@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream;
 
 pub mod checkbox;
+pub mod custom;
 pub mod date_picker;
 pub mod infinite_select;
 pub mod input;

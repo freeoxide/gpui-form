@@ -53,6 +53,9 @@ pub struct FieldVariant {
     pub validations: &'static [&'static str],
     /// Default value expression as a string, if one was specified.
     pub default_expr: Option<&'static str>,
+    /// For custom components: the UI component type path (e.g. "TagsInput").
+    /// Used by the prototyping code generator to emit `Component::new(&entity)`.
+    pub custom_component: Option<&'static str>,
 }
 
 impl FieldVariant {
@@ -69,12 +72,29 @@ impl FieldVariant {
             behaviour,
             validations: &[],
             default_expr: None,
+            custom_component: None,
         }
     }
 
     /// Attach a default value expression to this field metadata.
     pub const fn with_default(mut self, default_expr: &'static str) -> Self {
         self.default_expr = Some(default_expr);
+        self
+    }
+
+    /// Attach a custom UI component path to this field metadata.
+    pub const fn with_custom_component(mut self, component: &'static str) -> Self {
+        self.custom_component = Some(component);
+        self
+    }
+
+    /// Attach an optional custom UI component path to this field metadata.
+    ///
+    /// Used when the component path may come from the shape's
+    /// `CustomComponentShape::COMPONENT_PATH` constant rather than an explicit
+    /// field attribute value.
+    pub const fn with_custom_component_opt(mut self, component: Option<&'static str>) -> Self {
+        self.custom_component = component;
         self
     }
 

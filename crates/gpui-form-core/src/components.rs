@@ -1,4 +1,4 @@
-use darling::FromMeta;
+use darling::{Error as DarlingError, FromMeta};
 use gpui_form_internal_macros::{ComponentDefinitions, ComponentOption};
 use heck::ToPascalCase as _;
 use quote::quote;
@@ -113,6 +113,78 @@ pub struct SwitchOptions;
 #[derive(Clone, ComponentOption, Debug, FromMeta)]
 pub struct DatePickerOptions;
 
+fn default_custom_wraps_in_option() -> bool {
+    true
+}
+
+#[derive(Clone, ComponentOption, Debug)]
+pub struct CustomOptions {
+    /// Path to a type implementing `gpui_form_component::custom::CustomComponentShape`.
+    pub shape: syn::Path,
+    /// UI component type path (e.g. `TagsInput`).
+    /// When provided, the prototyping code generator emits `Component::new(&entity)`.
+    pub component: Option<syn::Path>,
+    /// Whether the value holder should store this field as `Option<T>`.
+    /// Defaults to `true`.
+    pub wraps_in_option: bool,
+}
+
+#[derive(Debug, Default, FromMeta)]
+struct CustomOptionsMeta {
+    #[darling(default)]
+    shape: Option<syn::Path>,
+    #[darling(default)]
+    state: Option<syn::Path>,
+    #[darling(default)]
+    component: Option<syn::Path>,
+    #[darling(default = "default_custom_wraps_in_option")]
+    wraps_in_option: bool,
+}
+
+impl CustomOptions {
+    fn from_meta(meta: CustomOptionsMeta) -> darling::Result<Self> {
+        let CustomOptionsMeta {
+            shape,
+            state,
+            component,
+            wraps_in_option,
+        } = meta;
+
+        let shape = match (shape, state) {
+            (Some(shape), None) | (None, Some(shape)) => shape,
+            (Some(_), Some(_)) => {
+                return Err(DarlingError::custom(
+                    "custom component may specify only one of `shape` or `state`",
+                ));
+            },
+            (None, None) => {
+                return Err(DarlingError::custom(
+                    "custom component requires `shape = ...` or `state = ...`",
+                ));
+            },
+        };
+
+        Ok(Self {
+            shape,
+            component,
+            wraps_in_option,
+        })
+    }
+}
+
+impl FromMeta for CustomOptions {
+    fn from_word() -> darling::Result<Self> {
+        Err(DarlingError::custom(
+            "custom component requires `shape = ...` or `state = ...`",
+        ))
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let meta = CustomOptionsMeta::from_list(items)?;
+        Self::from_meta(meta)
+    }
+}
+
 /// Options for InfiniteSelect - a cascading select for infinite select enums.
 ///
 /// InfiniteSelect generates multiple select fields that cascade:
@@ -179,6 +251,7 @@ pub enum Components {
     Switch,
     Select(SelectOptions),
     InfiniteSelect(InfiniteSelectOptions),
+    Custom(CustomOptions),
     DatePicker,
 }
 
@@ -196,6 +269,7 @@ impl Components {
             | Components::Switch
             | Components::Select(_)
             | Components::InfiniteSelect(_) => false,
+            Components::Custom(options) => options.wraps_in_option,
             // Date picker already handles Option internally
             Components::DatePicker => false,
         }
@@ -211,6 +285,7 @@ pub enum ComponentsBehaviour {
     Switch,
     Select(BehaviourSelectOptions),
     InfiniteSelect(BehaviourInfiniteSelectOptions),
+    Custom,
     DatePicker,
 }
 

@@ -13,6 +13,7 @@ use crate::derives::gpui_form::components::{
 use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
+use gpui_form_core::components::Components;
 
 pub fn expand_gpui_form(
     derive_input: DeriveInput,
@@ -305,6 +306,24 @@ pub fn expand_gpui_form(
                     quote! { .with_default(#expr_str) }
                 });
 
+                let custom_component_tokens = if let Components::Custom(opts) = component_def {
+                    let shape = &opts.shape;
+                    if let Some(comp) = opts.component.as_ref() {
+                        // Explicitly specified on the field attribute — use it directly.
+                        let comp_str = comp.to_token_stream().to_string();
+                        Some(quote! { .with_custom_component(#comp_str) })
+                    } else {
+                        // Fall back to whatever the shape declares as COMPONENT_PATH.
+                        Some(quote! {
+                            .with_custom_component_opt(
+                                <#shape as ::gpui_form_component::custom::CustomComponentShape>::COMPONENT_PATH
+                            )
+                        })
+                    }
+                } else {
+                    None
+                };
+
                 Some(quote! {
                     ::gpui_form::core::registry::FieldVariant::new(
                         #field_name_str,
@@ -315,6 +334,7 @@ pub fn expand_gpui_form(
                         #( #validation_literals ),*
                     ])
                     #default_expr_tokens
+                    #custom_component_tokens
                 })
             } else {
                 None

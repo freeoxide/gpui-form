@@ -6,12 +6,29 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::implementations::ComponentIdentities as _;
+use crate::imports::ImportItem;
 
 use super::{FieldCodeGenerator, GeneratedSubscription};
 
 pub struct SelectCodeGenerator;
 
+const IMPORTS_BASE: &[ImportItem] = &[
+    ImportItem::path("gpui_component::select::Select"),
+    ImportItem::path("gpui_component::select::SelectEvent"),
+    ImportItem::path("gpui_component::select::SelectState"),
+];
+
 impl FieldCodeGenerator for SelectCodeGenerator {
+    fn generate_imports(&self, field: &FieldVariant) -> Vec<ImportItem> {
+        let mut items = IMPORTS_BASE.to_vec();
+        if let ComponentsBehaviour::Select(opts) = &field.behaviour
+            && opts.searchable
+        {
+            items.push(ImportItem::path("gpui_component::select::SearchableVec"));
+        }
+        items
+    }
+
     fn generate_cx_new_call(
         &self,
         field: &FieldVariant,

@@ -20,6 +20,7 @@ koruma = { features = [ "fluent" ], workspace = true }
 koruma-collection = { features = [ "email", "fluent" ], workspace = true }
 rust-embed = { workspace = true }
 rust_decimal = { workspace = true }
+some-lib-custom-components = { path = "../some-lib-custom-components" }
 strum = { workspace = true }
 
 [build-dependencies]
@@ -30,9 +31,6 @@ default = [ "fluent", "ui", "validation" ]
 fluent = [  ]
 ui = [  ]
 validation = [  ]
-
-[lints]
-workspace = true
 
 [package.metadata.cargo-machete]
 ignored = [ "bon", "gpui", "gpui-component", "rust-embed" ]

@@ -19,12 +19,10 @@ rust-embed = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }
 strum = { workspace = true }
+some-lib-custom-components = { path = "../some-lib-custom-components" }
 
 [build-dependencies]
 es-fluent = { features = [ "build" ], workspace = true }
-
-[lints]
-workspace = true
 
 [package.metadata.cargo-machete]
 ignored = [ "rust-embed" ]
