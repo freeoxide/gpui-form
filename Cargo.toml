@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["examples/some-lib-forms"]
+default-members = [ "examples/some-lib-forms" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -31,9 +31,9 @@ crabtime = "1.1"
 crate-paths = "0.2"
 darling = "0.23"
 derive_more = "2.1"
-es-fluent = "0.11"
-es-fluent-lang = "0.11"
-es-fluent-manager-embedded = "0.11"
+es-fluent = "0.14"
+es-fluent-lang = "0.14"
+es-fluent-manager-embedded = "0.14"
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
@@ -43,14 +43,14 @@ gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.5.1" }
 gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.5.0" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
-gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook" }
+gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook", rev = "6f4325de5d19d20a2a093bddf274b895a054e77c" }
 heck = "0.5.0"
 insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
-koruma = { git = "https://github.com/stayhydated/koruma" }
-koruma-collection = { git = "https://github.com/stayhydated/koruma" }
-koruma-derive-core = { git = "https://github.com/stayhydated/koruma" }
+koruma = "0.7.0"
+koruma-collection = "0.7.0"
+koruma-derive-core = "0.7.0"
 log = "0.4"
 prettyplease = "0.2"
 proc-macro-error2 = "2.0"

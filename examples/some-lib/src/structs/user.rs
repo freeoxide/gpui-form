@@ -29,7 +29,7 @@ pub enum EnumCountry {
 }
 
 #[derive(Clone, Debug, EsFluentThis, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[gpui_form(koruma(fluent))]
 pub struct User {

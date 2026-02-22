@@ -84,7 +84,7 @@ pub enum BritishColumbiaCity {
 #[derive(
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
 )]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 pub enum USAState {
     California(CaliforniaCity),
@@ -101,7 +101,7 @@ impl Default for USAState {
 #[derive(
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
 )]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
@@ -122,7 +122,7 @@ impl Default for CanadaProvince {
 #[derive(
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentThis, InfiniteSelect, PartialEq,
 )]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 pub enum Country {
     USA(USAState),
@@ -143,7 +143,7 @@ use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
 #[derive(Clone, Debug, Default, EsFluentThis, EsFluentVariants, GpuiForm)]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 pub struct LocationForm {
     /// User's name

@@ -47,7 +47,7 @@ impl gpui::RenderOnce for TagsInput {
 }
 
 #[derive(Clone, Debug, Default, EsFluentThis, EsFluentVariants, GpuiForm)]
-#[fluent_this(origin, members)]
+#[fluent_this(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 pub struct VecStringInputList {
     #[gpui_form(component(custom(shape = TagsInputState, wraps_in_option = false)))]
