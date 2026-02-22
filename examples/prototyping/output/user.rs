@@ -15,7 +15,6 @@ use gpui_component::input::{
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
-use rust_decimal::Decimal;
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

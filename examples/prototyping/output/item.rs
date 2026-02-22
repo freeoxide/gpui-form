@@ -11,7 +11,6 @@ use gpui_component::form::{field, v_form};
 use gpui_component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
-use rust_decimal::Decimal;
 const CONTEXT: &str = "ItemForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}

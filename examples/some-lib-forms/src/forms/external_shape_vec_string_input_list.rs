@@ -7,7 +7,6 @@ use gpui::{
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::{ActiveTheme as _, v_flex};
-use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string_external::*;
 use some_lib_custom_components::ExternalTagsInput;
 const CONTEXT: &str = "ExternalShapeVecStringInputListForm";

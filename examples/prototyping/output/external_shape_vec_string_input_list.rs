@@ -8,7 +8,6 @@ use gpui::prelude::FluentBuilder as _;
 use gpui_component::{ActiveTheme as _, v_flex};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
-use rust_decimal::Decimal;
 use some_lib_custom_components::ExternalTagsInput;
 const CONTEXT: &str = "ExternalShapeVecStringInputListForm";
 #[gpui_storybook::story_init]

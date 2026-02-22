@@ -8,7 +8,6 @@ use gpui::prelude::FluentBuilder as _;
 use gpui_component::{ActiveTheme as _, v_flex};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
-use rust_decimal::Decimal;
 const CONTEXT: &str = "EmptyForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -32,9 +31,7 @@ impl gpui_storybook::Story for EmptyForm {
 }
 impl EmptyForm {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let current_data = EmptyFormValueHolder::default();
         Self {
-            current_data,
             fields: EmptyFormFields,
             focus_handle: cx.focus_handle(),
         }
