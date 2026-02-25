@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = ["examples/some-lib-forms"]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-component",
@@ -25,7 +25,7 @@ version = "0.5.1"
 
 [workspace.dependencies]
 anyhow = "1.0"
-bon = "3.8"
+bon = "3.9"
 chrono = "0.4"
 crabtime = "1.1"
 crate-paths = "0.2"
@@ -35,6 +35,12 @@ es-fluent = "0.14"
 es-fluent-lang = "0.14"
 es-fluent-manager-embedded = "0.14"
 gpui = { git = "https://github.com/zed-industries/zed" }
+gpui_platform = { features = [
+  "font-kit",
+  "x11",
+  "wayland",
+  "runtime_shaders",
+], git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
@@ -48,9 +54,9 @@ heck = "0.5.0"
 insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
-koruma = "0.7.0"
-koruma-collection = "0.7.0"
-koruma-derive-core = "0.7.0"
+koruma = "0.7.1"
+koruma-collection = "0.7.1"
+koruma-derive-core = "0.7.1"
 log = "0.4"
 prettyplease = "0.2"
 proc-macro-error2 = "2.0"
@@ -59,7 +65,7 @@ quote = "1.0"
 rust_decimal = "1.40"
 serde = "1.0"
 serde_json = "1.0"
-strum = "0.27"
+strum = "0.28"
 syn = "2.0"
 syn-cfg-attr = "0.1"
 thiserror = "2.0"
