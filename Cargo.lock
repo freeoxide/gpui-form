@@ -555,7 +555,7 @@ dependencies = [
  "bitflags 2.11.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "collections"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "indexmap",
  "rustc-hash 2.1.1",
@@ -1483,7 +1483,7 @@ dependencies = [
 [[package]]
 name = "derive_refineable"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2709,7 +2709,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.18",
- "windows 0.61.3",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -2735,7 +2735,7 @@ dependencies = [
 [[package]]
 name = "gpui"
 version = "0.2.2"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "async-task",
@@ -2809,7 +2809,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#2a27fcd5e91b2822b45e52e1a410c43ceba5394d"
+source = "git+https://github.com/longbridge/gpui-component#6b688302e0d9ce9c619a7d77f2eaa05c1952d5ce"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2848,7 +2848,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-assets"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#2a27fcd5e91b2822b45e52e1a410c43ceba5394d"
+source = "git+https://github.com/longbridge/gpui-component#6b688302e0d9ce9c619a7d77f2eaa05c1952d5ce"
 dependencies = [
  "anyhow",
  "gpui",
@@ -2858,7 +2858,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#2a27fcd5e91b2822b45e52e1a410c43ceba5394d"
+source = "git+https://github.com/longbridge/gpui-component#6b688302e0d9ce9c619a7d77f2eaa05c1952d5ce"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2981,7 +2981,7 @@ dependencies = [
 [[package]]
 name = "gpui_linux"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "as-raw-xcb-connection",
@@ -3030,7 +3030,7 @@ dependencies = [
 [[package]]
 name = "gpui_macos"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "async-task",
@@ -3072,7 +3072,7 @@ dependencies = [
 [[package]]
 name = "gpui_macros"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3083,7 +3083,7 @@ dependencies = [
 [[package]]
 name = "gpui_platform"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "gpui",
  "gpui_linux",
@@ -3094,7 +3094,7 @@ dependencies = [
 [[package]]
 name = "gpui_wgpu"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -3113,7 +3113,7 @@ dependencies = [
 [[package]]
 name = "gpui_windows"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "collections",
@@ -3347,7 +3347,7 @@ dependencies = [
 [[package]]
 name = "http_client"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -4155,7 +4155,7 @@ dependencies = [
 [[package]]
 name = "media"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -4745,7 +4745,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "perf"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "collections",
  "serde",
@@ -5413,7 +5413,7 @@ dependencies = [
 [[package]]
 name = "refineable"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "derive_refineable",
 ]
@@ -5730,7 +5730,7 @@ dependencies = [
 [[package]]
 name = "scheduler"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "async-task",
  "backtrace",
@@ -6345,7 +6345,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sum_tree"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "arrayvec",
  "log",
@@ -7198,7 +7198,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "util"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "async-fs",
@@ -7236,7 +7236,7 @@ dependencies = [
 [[package]]
 name = "util_macros"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "perf",
  "quote",
@@ -8771,7 +8771,7 @@ dependencies = [
 [[package]]
 name = "zlog"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8788,7 +8788,7 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 [[package]]
 name = "ztracing"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -8799,7 +8799,7 @@ dependencies = [
 [[package]]
 name = "ztracing_macro"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed#13eb0f68327177a859131e375cfadd056321dc69"
+source = "git+https://github.com/zed-industries/zed#3da9adc4e7b5d65a7e07582a164b644a188fefd2"
 
 [[package]]
 name = "zune-core"
