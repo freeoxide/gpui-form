@@ -8,18 +8,18 @@ publish = false
 
 [dependencies]
 chrono = { workspace = true }
-gpui_platform = { workspace = true }
-es-fluent = { features = ["derive"], workspace = true }
+es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-lang = { workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-form-component = { workspace = true }
-gpui-storybook = { features = ["macros"], workspace = true }
+gpui-storybook = { features = [ "macros" ], workspace = true }
+gpui_platform = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }
 some-lib-custom-components = { path = "../some-lib-custom-components" }
 strum = { workspace = true }
 
 [build-dependencies]
-es-fluent = { features = ["build"], workspace = true }
+es-fluent = { features = [ "build" ], workspace = true }
