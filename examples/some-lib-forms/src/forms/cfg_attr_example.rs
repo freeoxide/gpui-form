@@ -522,6 +522,9 @@ impl Render for CfgAttrExampleForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(format!(
+                "into_original: incomplete (requires values for #[gpui_form(skip)] fields)"
+            ))
     }
 }

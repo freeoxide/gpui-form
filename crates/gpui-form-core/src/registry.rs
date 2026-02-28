@@ -12,6 +12,11 @@ pub struct GpuiFormShape {
     pub source_path: &'static str,
     /// Whether the struct has koruma validation enabled at the struct level.
     pub koruma_enabled: bool,
+    /// Whether the original struct contains any `#[gpui_form(skip)]` fields.
+    ///
+    /// When true, generated `FormValueHolder` cannot be converted back into the
+    /// original struct without additional skipped-field values.
+    pub has_skipped_fields: bool,
 }
 
 impl GpuiFormShape {
@@ -26,7 +31,14 @@ impl GpuiFormShape {
             components,
             source_path,
             koruma_enabled,
+            has_skipped_fields: false,
         }
+    }
+
+    /// Marks whether the original struct has any `#[gpui_form(skip)]` fields.
+    pub const fn with_skipped_fields(mut self, has_skipped_fields: bool) -> Self {
+        self.has_skipped_fields = has_skipped_fields;
+        self
     }
 
     pub fn has_validations(&self) -> bool {
@@ -40,6 +52,11 @@ impl GpuiFormShape {
     /// Returns true if the struct has koruma validation enabled at the struct level.
     pub const fn has_koruma(&self) -> bool {
         self.koruma_enabled
+    }
+
+    /// Returns true when at least one source field is marked `#[gpui_form(skip)]`.
+    pub const fn has_skipped_fields(&self) -> bool {
+        self.has_skipped_fields
     }
 }
 

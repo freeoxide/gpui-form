@@ -7,6 +7,7 @@ use gpui::{
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::{ActiveTheme as _, v_flex};
+use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string::*;
 const CONTEXT: &str = "VecStringInputListForm";
 #[gpui_storybook::story_init]
@@ -70,6 +71,10 @@ impl Render for VecStringInputListForm {
                 ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(format!(
+                "into_original: {:?}",
+                VecStringInputListFormValueHolder::try_from(self.current_data.clone())
+            ))
     }
 }

@@ -9,6 +9,7 @@ use gpui_component::{ActiveTheme as _, v_flex};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use some_lib_custom_components::ExternalTagsInput;
+use rust_decimal::Decimal;
 const CONTEXT: &str = "ExternalShapeVecStringInputListForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -85,6 +86,13 @@ impl Render for ExternalShapeVecStringInputListForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(
+                format!(
+                    "into_original: {:?}",
+                    ExternalShapeVecStringInputListFormValueHolder::try_from(self
+                    .current_data.clone())
+                ),
+            )
     }
 }

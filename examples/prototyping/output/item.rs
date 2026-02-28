@@ -11,6 +11,7 @@ use gpui_component::form::{field, v_form};
 use gpui_component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
+use rust_decimal::Decimal;
 const CONTEXT: &str = "ItemForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -180,6 +181,12 @@ impl Render for ItemForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(
+                format!(
+                    "into_original: {:?}", ItemFormValueHolder::try_from(self
+                    .current_data.clone())
+                ),
+            )
     }
 }

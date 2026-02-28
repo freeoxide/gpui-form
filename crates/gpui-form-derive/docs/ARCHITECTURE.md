@@ -22,7 +22,8 @@
    - `FormFields` struct (component state entities)
    - `FormComponents` constructors
 1. Generate a `FormValueHolder` that normalizes optionality and validation.
-1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for prototyping.
+1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for prototyping,
+   including whether the source struct has `#[gpui_form(skip)]` fields.
 1. If Koruma is present, mirror validation metadata and optional fluent error labels.
 
 ### `SelectItem`

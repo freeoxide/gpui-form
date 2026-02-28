@@ -101,6 +101,7 @@ impl<'a> FormShapeAdapter<'a> {
         let context_str = format!("{}Form", data.struct_name);
         let source_module_path = source_path_to_use_path(data.source_path)
             .unwrap_or_else(|| panic!("Failed to parse source_path: {}", data.source_path));
+        let has_skipped_fields = data.has_skipped_fields();
 
         let is_empty = data.components.is_empty();
         let has_koruma = data.has_koruma();
@@ -137,6 +138,21 @@ impl<'a> FormShapeAdapter<'a> {
                     quote! {},
                 )
             } else {
+                let into_original_debug_child = if has_skipped_fields {
+                    quote! {
+                        .child(format!(
+                            "into_original: incomplete (requires values for #[gpui_form(skip)] fields)"
+                        ))
+                    }
+                } else {
+                    quote! {
+                        .child(format!(
+                            "into_original: {:?}",
+                            #form_value_holder_ident::try_from(self.current_data.clone())
+                        ))
+                    }
+                };
+
                 (
                     quote! { current_data: #form_value_holder_ident, },
                     quote! { let current_data = #form_value_holder_ident::default(); },
@@ -146,7 +162,10 @@ impl<'a> FormShapeAdapter<'a> {
                             #field_initializers
                         },
                     },
-                    quote! { .child(format!("{:?}", self.current_data)) },
+                    quote! {
+                        .child(format!("value_holder: {:?}", self.current_data))
+                        #into_original_debug_child
+                    },
                 )
             };
 
@@ -266,7 +285,7 @@ pub struct FormParts {
     pub current_data_init: TokenStream,
     /// `fields: FormFields { #field_initializers }` initializer block.
     pub fields_init: TokenStream,
-    /// `.child(format!("{:?}", self.current_data))` debug row; empty for empty forms.
+    /// Debug rows for value-holder and into-original status; empty for empty forms.
     pub debug_child: TokenStream,
 }
 

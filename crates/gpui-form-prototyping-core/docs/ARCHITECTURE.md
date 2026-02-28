@@ -12,6 +12,8 @@
   - `FormShapeAdapter::generate_file(layout: &impl FormLayout) -> syn::File` — generate using a caller-supplied layout.
   - `FormLayout` trait — implement to control the entire generated file shape.
   - `FormParts` — all token-stream fragments exposed as named `pub` fields for use in custom layouts.
+    Debug fragments include both value-holder state and into-original status, with
+    explicit "incomplete" messaging when skipped fields prevent full reconstruction.
 - `imports.rs`: `ImportItem`, `ImportSet` — per-item import tracking and grouped `use` statement rendering.
 - `implementations/*`: per-component `FieldCodeGenerator` implementations.
 - `implementations/mod.rs`: shared traits and helpers for component identity and label/description generation.

@@ -8,6 +8,8 @@
 
 - `components.rs`: component option types, the `Components` enum, and `ComponentsBehaviour` metadata.
 - `registry.rs`: `GpuiFormShape` and `FieldVariant`, plus `inventory` collection for prototyping.
+  `GpuiFormShape` also carries whether source fields include `#[gpui_form(skip)]`
+  so downstream generators can detect incomplete value-holder roundtrips.
 - `names.rs`: helper for building component field identifiers.
 - `implementations/*`: per-component `ComponentLayout` implementations that emit struct fields and constructor tokens.
 - `implementations/__crate_paths/*`: generated crate path shims (do not edit).
@@ -17,6 +19,7 @@
 1. `gpui-form-derive` parses `#[gpui_form(component(...))]` (including `custom(shape = ...)`) into `Components`.
 1. `ComponentLayout` implementations build the form field structs and component constructor functions.
 1. `ComponentsBehaviour` becomes runtime metadata in `FieldVariant` and is stored in `GpuiFormShape`.
+   Skip metadata (`has_skipped_fields`) is also propagated into `GpuiFormShape`.
 1. `GpuiFormShape` is optionally registered with `inventory` for downstream prototyping codegen.
 
 ## Extension points
