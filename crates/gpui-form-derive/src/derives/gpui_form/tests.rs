@@ -336,6 +336,49 @@ mod tests {
     }
 
     #[test]
+    fn test_present_fields_json_uses_into_converted_debug_values_for_skipped_forms() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
+                birth_date: Option<Timestamp>,
+
+                #[gpui_form(skip)]
+                skip_me: bool,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubfnpresent_fields_json(&self)->String"),
+            "Skipped-field value holders should generate present_fields_json()"
+        );
+        assert!(
+            compact.contains(
+                "letconverted=self.birth_date.clone().map(|value|(|dt|to_model(dt))(value));"
+            ),
+            "present_fields_json() should apply `into` conversion for optional override fields"
+        );
+        assert!(
+            compact.contains("format!(\"{:?}\",converted)"),
+            "present_fields_json() should emit debug-formatted converted values"
+        );
+    }
+
+    #[test]
     fn test_default_uses_into_conversion() {
         let tokens = quote! {
             #[derive(GpuiForm)]

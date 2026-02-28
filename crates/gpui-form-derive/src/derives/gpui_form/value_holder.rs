@@ -436,6 +436,85 @@ pub fn generate_value_holder(
         .map(|f| try_from_field_tokens(f, quote! { from }, &conversion_error_ident))
         .collect();
 
+    let present_fields_json_entries: Vec<TokenStream> = fields
+        .iter()
+        .filter(|f| !f.skip)
+        .map(|f| {
+            let field_name = &f.field_name;
+            let field_name_str = field_name.to_string();
+            if f.was_optional {
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        let converted = self.#field_name.clone().map(|value| #converted);
+                        if converted.is_some() {
+                            entries.push(format!(
+                                "\"{}\":\"{}\"",
+                                #field_name_str,
+                                Self::escape_json_string(&format!("{:?}", converted))
+                            ));
+                        }
+                    }
+                } else {
+                    quote! {
+                        if self.#field_name.is_some() {
+                            entries.push(format!(
+                                "\"{}\":\"{}\"",
+                                #field_name_str,
+                                Self::escape_json_string(&format!("{:?}", &self.#field_name))
+                            ));
+                        }
+                    }
+                }
+            } else if f.wrap_in_option {
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        if let Some(value) = self.#field_name.clone() {
+                            let converted = #converted;
+                            entries.push(format!(
+                                "\"{}\":\"{}\"",
+                                #field_name_str,
+                                Self::escape_json_string(&format!("{:?}", converted))
+                            ));
+                        }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = self.#field_name.as_ref() {
+                            entries.push(format!(
+                                "\"{}\":\"{}\"",
+                                #field_name_str,
+                                Self::escape_json_string(&format!("{:?}", value))
+                            ));
+                        }
+                    }
+                }
+            } else {
+                if needs_into_conversion(f) {
+                    let converted = apply_into_conversion(f, quote! { value });
+                    quote! {
+                        let value = self.#field_name.clone();
+                        let converted = #converted;
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", converted))
+                        ));
+                    }
+                } else {
+                    quote! {
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", &self.#field_name))
+                        ));
+                    }
+                }
+            }
+        })
+        .collect();
+
     let mut from_where_clause = where_clause.cloned();
     let mut new_predicates: Vec<syn::WherePredicate> = Vec::new();
     for f in fields {
@@ -481,6 +560,33 @@ pub fn generate_value_holder(
             }
 
             impl #impl_generics #wrapped_ident #ty_generics #where_clause {
+                pub fn present_fields_json(&self) -> String {
+                    let mut entries: Vec<String> = Vec::new();
+                    #(#present_fields_json_entries)*
+                    format!("{{{}}}", entries.join(","))
+                }
+
+                fn escape_json_string(input: &str) -> String {
+                    let mut escaped = String::new();
+                    for ch in input.chars() {
+                        match ch {
+                            '"' => escaped.push_str("\\\""),
+                            '\\' => escaped.push_str("\\\\"),
+                            '\n' => escaped.push_str("\\n"),
+                            '\r' => escaped.push_str("\\r"),
+                            '\t' => escaped.push_str("\\t"),
+                            '\u{08}' => escaped.push_str("\\b"),
+                            '\u{0C}' => escaped.push_str("\\f"),
+                            c if c.is_control() => {
+                                use ::core::fmt::Write as _;
+                                let _ = write!(&mut escaped, "\\u{:04x}", c as u32);
+                            },
+                            c => escaped.push(c),
+                        }
+                    }
+                    escaped
+                }
+
                 pub fn into_original(
                     self,
                     #(#skipped_params),*

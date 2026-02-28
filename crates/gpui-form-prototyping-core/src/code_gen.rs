@@ -141,7 +141,8 @@ impl<'a> FormShapeAdapter<'a> {
                 let into_original_debug_child = if has_skipped_fields {
                     quote! {
                         .child(format!(
-                            "into_original: incomplete (requires values for #[gpui_form(skip)] fields)"
+                            "into_original: incomplete; present_fields_json: {}",
+                            self.current_data.present_fields_json()
                         ))
                     }
                 } else {
