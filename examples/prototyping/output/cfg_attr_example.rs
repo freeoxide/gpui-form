@@ -15,6 +15,7 @@ use gpui_component::input::{
 };
 use gpui_component::select::{Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
+use rust_decimal::Decimal;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -589,6 +590,12 @@ impl Render for CfgAttrExampleForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(
+                format!(
+                    "into_original: incomplete; present_fields_json: {}", self
+                    .current_data.present_fields_json()
+                ),
+            )
     }
 }

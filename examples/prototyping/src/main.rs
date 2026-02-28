@@ -36,6 +36,7 @@ impl FormLayout for StorybookLayout {
 
         syn::parse2(quote! {
             #imports
+            use rust_decimal::Decimal;
 
             const CONTEXT: &str = #context_str;
 

@@ -11,6 +11,7 @@ use gpui_component::form::{field, v_form};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectState};
 use gpui_form_component::infinite_select::InfiniteSelect;
+use rust_decimal::Decimal;
 const CONTEXT: &str = "LocationFormForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -281,6 +282,12 @@ impl Render for LocationFormForm {
                     }),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(
+                format!(
+                    "into_original: {:?}", LocationFormFormValueHolder::try_from(self
+                    .current_data.clone())
+                ),
+            )
     }
 }

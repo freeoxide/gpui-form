@@ -635,6 +635,10 @@ impl Render for UserForm {
                     ),
             )
             .child(Divider::horizontal())
-            .child(format!("{:?}", self.current_data))
+            .child(format!("value_holder: {:?}", self.current_data))
+            .child(format!(
+                "into_original: incomplete; present_fields_json: {}",
+                self.current_data.present_fields_json()
+            ))
     }
 }

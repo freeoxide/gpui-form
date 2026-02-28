@@ -52,7 +52,7 @@ pub fn expand_gpui_form(
                         &[],
                         file!(),
                         #enable_koruma
-                    )
+                    ).with_skipped_fields(false)
                 }
             }
         } else {
@@ -352,7 +352,7 @@ pub fn expand_gpui_form(
                     ],
                     file!(),
                     #effective_enable_koruma
-                )
+                ).with_skipped_fields(#has_skipped_fields)
             }
         }
     } else {
