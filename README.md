@@ -10,10 +10,10 @@ A struct derive macro for deriving [gpui-component](https://github.com/longbridg
 
 Compatibility of `gpui-form` versions:
 
-| `gpui-form` | `gpui-component` |
-| :------------ | :--------------- |
+| `gpui-form` | `gpui-component` | `gpui` |
+| :--------------- | :--------------- | :--------------------------------------------- |
 | **git** | |
-| `master` | `main` |
+| `master` | `main` | rev `e0881e38f91b87623795208615ca466415d1970e` |
 | **crates.io** | |
 | `0.6.x` | `0.6.x` |
 | `0.5.x` | `0.5.x` |
