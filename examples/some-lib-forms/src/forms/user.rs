@@ -219,8 +219,8 @@ impl UserForm {
     }
     fn on_preferred_select_event(
         &mut self,
-        _this: &Entity<SelectState<Vec<PreferedLanguage>>>,
-        event: &SelectEvent<Vec<PreferedLanguage>>,
+        _this: &Entity<SelectState<Vec<PreferredLanguage>>>,
+        event: &SelectEvent<Vec<PreferredLanguage>>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {

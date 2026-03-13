@@ -22,9 +22,11 @@
    - `FormFields` struct (component state entities)
    - `FormComponents` constructors
 1. Generate a `FormValueHolder` that normalizes optionality and validation.
-   When `#[gpui_form(skip)]` is used, generated value holders also expose
-   `present_fields_json()` to emit JSON for currently present non-skipped values,
-   formatted with debug values after applying `into` conversions toward original types.
+   `From<Original> for FormValueHolder` is always generated, including when
+   `#[gpui_form(skip)]` fields exist, so row/model data can always prefill form state.
+   Reverse conversion remains strict: without skipped fields, `From<FormValueHolder> for Original`
+   and `try_from(...)` are generated; with skipped fields, generated value holders instead expose
+   `into_original(self, skipped_fields...)` plus `present_fields_json()` for non-skipped values.
 1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for prototyping,
    including whether the source struct has `#[gpui_form(skip)]` fields.
 1. If Koruma is present, mirror validation metadata and optional fluent error labels.

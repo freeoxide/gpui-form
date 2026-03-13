@@ -335,12 +335,14 @@ pub fn generate_value_holder(
             } else if f.wrap_in_option {
                 if let Some(default_expr) = &f.default_expr {
                     let default_original = default_expr_for_original(default_expr);
+                    let original_type = &f.original_type;
                     if needs_from_conversion(f) {
                         let converted = apply_from_conversion(f, quote! { value });
                         quote! {
                             #field_name: {
                                 let value = from.#field_name;
-                                if value == (#default_original) {
+                                let default_original: #original_type = #default_original;
+                                if value == default_original {
                                     None
                                 } else {
                                     Some(#converted)
@@ -349,10 +351,14 @@ pub fn generate_value_holder(
                         }
                     } else {
                         quote! {
-                            #field_name: if from.#field_name == (#default_original) {
-                                None
-                            } else {
-                                Some(from.#field_name)
+                            #field_name: {
+                                let value = from.#field_name;
+                                let default_original: #original_type = #default_original;
+                                if value == default_original {
+                                    None
+                                } else {
+                                    Some(value)
+                                }
                             }
                         }
                     }
@@ -528,37 +534,30 @@ pub fn generate_value_holder(
         wc.predicates.extend(new_predicates);
     }
 
-    let mut tokens = if has_skipped_fields {
-        let skipped_params: Vec<TokenStream> = fields
-            .iter()
-            .filter(|f| f.skip)
-            .map(|f| {
+    let skipped_params: Vec<TokenStream> = fields
+        .iter()
+        .filter(|f| f.skip)
+        .map(|f| {
+            let field_name = &f.field_name;
+            let ty = &f.original_type;
+            quote! { #field_name: #ty }
+        })
+        .collect();
+
+    let into_original_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|f| {
+            if f.skip {
                 let field_name = &f.field_name;
-                let ty = &f.original_type;
-                quote! { #field_name: #ty }
-            })
-            .collect();
-
-        let into_original_fields: Vec<TokenStream> = fields
-            .iter()
-            .map(|f| {
-                if f.skip {
-                    let field_name = &f.field_name;
-                    quote! { #field_name }
-                } else {
-                    try_from_field_tokens(f, quote! { self }, &conversion_error_ident)
-                }
-            })
-            .collect();
-
-        quote! {
-            #conversion_error_type
-            #derive_output
-            #builder_attr
-            pub struct #wrapped_ident #ty_generics #where_clause {
-                #(#field_definitions),*
+                quote! { #field_name }
+            } else {
+                try_from_field_tokens(f, quote! { self }, &conversion_error_ident)
             }
+        })
+        .collect();
 
+    let skipped_fields_impl = if has_skipped_fields {
+        quote! {
             impl #impl_generics #wrapped_ident #ty_generics #where_clause {
                 pub fn present_fields_json(&self) -> String {
                     let mut entries: Vec<String> = Vec::new();
@@ -599,22 +598,6 @@ pub fn generate_value_holder(
         }
     } else {
         quote! {
-            #conversion_error_type
-            #derive_output
-            pub struct #wrapped_ident #ty_generics #where_clause {
-                #(#field_definitions),*
-            }
-
-            impl #impl_generics ::core::convert::From<#original_ident #ty_generics>
-                for #wrapped_ident #ty_generics #where_clause
-            {
-                fn from(from: #original_ident #ty_generics) -> Self {
-                    Self {
-                        #(#to_wrapped_fields),*
-                    }
-                }
-            }
-
             impl #impl_generics ::core::convert::From<#wrapped_ident #ty_generics>
                 for #original_ident #ty_generics #from_where_clause
             {
@@ -635,6 +618,27 @@ pub fn generate_value_holder(
                 }
             }
         }
+    };
+
+    let mut tokens = quote! {
+        #conversion_error_type
+        #derive_output
+        #builder_attr
+        pub struct #wrapped_ident #ty_generics #where_clause {
+            #(#field_definitions),*
+        }
+
+        impl #impl_generics ::core::convert::From<#original_ident #ty_generics>
+            for #wrapped_ident #ty_generics #where_clause
+        {
+            fn from(from: #original_ident #ty_generics) -> Self {
+                Self {
+                    #(#to_wrapped_fields),*
+                }
+            }
+        }
+
+        #skipped_fields_impl
     };
 
     if has_custom_defaults {

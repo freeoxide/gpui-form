@@ -13,7 +13,7 @@ use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[select_item(fluent)]
-pub enum PreferedLanguage {
+pub enum PreferredLanguage {
     #[default]
     English,
     French,
@@ -60,16 +60,15 @@ pub struct User {
     pub enable_notifications: bool,
 
     #[gpui_form(component(select))]
-    pub preferred: PreferedLanguage,
+    pub preferred: PreferredLanguage,
 
     #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
     #[gpui_form(
         type = chrono::NaiveDate,
-        // field birth_date uses from = ..., but #[gpui_form(skip)] on skip_me disables generating From<Original> for the form value holder, so from conversions are ignored. Remove skip items or remove this from (rustc)
-        // from = |x| to_form_datetime(x),     // Original -> Form type
-        into = to_model_timestamp,   // Form type -> Original
+        from = to_form_datetime,
+        into = to_model_timestamp,
         component(date_picker)
     )]
     pub birth_date: Option<Timestamp>,

@@ -336,6 +336,58 @@ mod tests {
     }
 
     #[test]
+    fn test_skipped_fields_still_generate_from_original() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    from = |ts| to_form(ts),
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
+                birth_date: Option<Timestamp>,
+
+                #[gpui_form(skip)]
+                skip_me: bool,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            !compact.contains("compile_error!"),
+            "skip + from should no longer emit a compile_error"
+        );
+        assert!(
+            compact.contains("impl::core::convert::From<TestForm>forTestFormFormValueHolder"),
+            "From<Original> for FormValueHolder should be generated even with skipped fields"
+        );
+        assert!(
+            compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_form"),
+            "From<Original> for FormValueHolder should still apply `from` conversion"
+        );
+        assert!(
+            !compact.contains("impl::core::convert::From<TestFormFormValueHolder>forTestForm"),
+            "Reverse From<FormValueHolder> for Original should remain disabled when skipped fields exist"
+        );
+        assert!(
+            compact.contains(
+                "pubfninto_original(self,skip_me:bool)->Result<TestForm,TestFormFormValueHolderConversionError>"
+            ),
+            "Skipped-field forms should keep strict into_original(self, skipped...) conversion"
+        );
+    }
+
+    #[test]
     fn test_present_fields_json_uses_into_converted_debug_values_for_skipped_forms() {
         let tokens = quote! {
             #[derive(GpuiForm)]
@@ -401,6 +453,41 @@ mod tests {
         assert!(
             compact.contains("Into::into(\"test@example.com\")"),
             "Default should be wrapped in Into::into for string literals"
+        );
+    }
+
+    #[test]
+    fn test_skipped_forms_with_string_default_emit_typed_default_comparison() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(input), default = "test@example.com")]
+                email: String,
+
+                #[gpui_form(skip)]
+                skip_me: bool,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("impl::core::convert::From<TestForm>forTestFormFormValueHolder"),
+            "Skipped-field forms should still generate From<Original> for value holder"
+        );
+        assert!(
+            compact.contains(
+                "letdefault_original:String=::core::convert::Into::into(\"test@example.com\")"
+            ),
+            "From<Original> should emit a typed default value to avoid Into inference ambiguity"
         );
     }
 
