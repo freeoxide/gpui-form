@@ -15,6 +15,8 @@
     Debug fragments include both value-holder state and into-original status. When
     skipped fields prevent full reconstruction, the into-original debug row prints
     a partial JSON payload for present fields using debug-formatted original-side values.
+    `FormParts` also exposes `has_koruma` and `has_skipped_fields` flags so layouts can
+    branch submit/reset helper generation based on validation and reconstruction capabilities.
 - `imports.rs`: `ImportItem`, `ImportSet` — per-item import tracking and grouped `use` statement rendering.
 - `implementations/*`: per-component `FieldCodeGenerator` implementations.
 - `implementations/mod.rs`: shared traits and helpers for component identity and label/description generation.

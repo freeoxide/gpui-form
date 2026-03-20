@@ -333,6 +333,52 @@ impl UserForm {
             _subscriptions,
         }
     }
+    fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        *self = Self::new(window, cx);
+        cx.notify();
+    }
+    fn submit_payload(&self) -> Result<UserFormValueHolder, String> {
+        match self.current_data.validate() {
+            Ok(_) => Ok(self.current_data.clone()),
+            Err(error) => Err(format!("{error:?}")),
+        }
+    }
+    fn submit_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+        on_submit: impl Fn(Result<UserFormValueHolder, String>, &mut Window, &mut Context<Self>)
+        + 'static,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!("{}-submit-button", "user-form"))
+            .label(label)
+            .on_click(cx.listener(move |this, _, window, cx| {
+                on_submit(this.submit_payload(), window, cx);
+            }))
+    }
+    fn reset_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!("{}-reset-button", "user-form"))
+            .label(label)
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.reset_form(window, cx);
+            }))
+    }
+    fn action_buttons(
+        &self,
+        cx: &mut Context<Self>,
+        on_submit: impl Fn(Result<UserFormValueHolder, String>, &mut Window, &mut Context<Self>)
+        + 'static,
+    ) -> impl IntoElement {
+        div()
+            .flex()
+            .gap_2()
+            .child(self.submit_button(cx, "Submit", on_submit))
+            .child(self.reset_button(cx, "Reset"))
+    }
 }
 impl Render for UserForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -632,7 +678,13 @@ impl Render for UserForm {
                                 }
                             })
                             .child(DatePicker::new(&self.fields.birth_date_date_picker)),
-                    ),
+                    )
+                    .child(field().label_indent(false).child(self.action_buttons(
+                        cx,
+                        |payload, _, _| {
+                            let _ = payload;
+                        },
+                    ))),
             )
             .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))

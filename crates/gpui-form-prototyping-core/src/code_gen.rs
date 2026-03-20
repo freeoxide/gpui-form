@@ -186,6 +186,7 @@ impl<'a> FormShapeAdapter<'a> {
             form_id_literal,
             is_empty,
             has_koruma,
+            has_skipped_fields,
             imports,
             component_creations,
             field_initializers,
@@ -254,6 +255,8 @@ pub struct FormParts {
     pub is_empty: bool,
     /// True when koruma validation is enabled.
     pub has_koruma: bool,
+    /// True when at least one source field was marked with `#[gpui_form(skip)]`.
+    pub has_skipped_fields: bool,
 
     // ── Raw generated fragments ───────────────────────────────────────────────
     /// Grouped `use` statements (source module glob + framework base + per-component items).

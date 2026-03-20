@@ -15,8 +15,12 @@ impl FormLayout for StorybookLayout {
             struct_name_ident,
             form_ident,
             form_fields_ident,
+            form_value_holder_ident,
             context_str,
             form_id_literal,
+            is_empty,
+            has_koruma,
+            has_skipped_fields,
             imports,
             component_creations,
             event_handlers,
@@ -33,6 +37,111 @@ impl FormLayout for StorybookLayout {
             render_children,
             ..
         } = parts;
+
+        let submit_payload_type = if *is_empty {
+            quote! { () }
+        } else if *has_skipped_fields {
+            if *has_koruma {
+                quote! { Result<#form_value_holder_ident, String> }
+            } else {
+                quote! { #form_value_holder_ident }
+            }
+        } else if *has_koruma {
+            quote! { Result<Option<#struct_name_ident>, String> }
+        } else {
+            quote! { #struct_name_ident }
+        };
+
+        let submit_payload_expr = if *is_empty {
+            quote! { () }
+        } else if *has_skipped_fields {
+            if *has_koruma {
+                quote! {
+                    match self.current_data.validate() {
+                        Ok(_) => Ok(self.current_data.clone()),
+                        Err(error) => Err(format!("{error:?}")),
+                    }
+                }
+            } else {
+                quote! { self.current_data.clone() }
+            }
+        } else if *has_koruma {
+            quote! {
+                match self.current_data.validate() {
+                    Ok(_) => Ok(#form_value_holder_ident::try_from(self.current_data.clone()).ok()),
+                    Err(error) => Err(format!("{error:?}")),
+                }
+            }
+        } else {
+            quote! { self.current_data.clone().into() }
+        };
+
+        let form_action_helpers = if *is_empty {
+            quote! {}
+        } else {
+            quote! {
+                fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+                    *self = Self::new(window, cx);
+                    cx.notify();
+                }
+
+                fn submit_payload(&self) -> #submit_payload_type {
+                    #submit_payload_expr
+                }
+
+                fn submit_button(
+                    &self,
+                    cx: &mut Context<Self>,
+                    label: impl Into<gpui::SharedString>,
+                    on_submit: impl Fn(#submit_payload_type, &mut Window, &mut Context<Self>) + 'static,
+                ) -> gpui_component::button::Button {
+                    gpui_component::button::Button::new(format!("{}-submit-button", #form_id_literal))
+                        .label(label)
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            on_submit(this.submit_payload(), window, cx);
+                        }))
+                }
+
+                fn reset_button(
+                    &self,
+                    cx: &mut Context<Self>,
+                    label: impl Into<gpui::SharedString>,
+                ) -> gpui_component::button::Button {
+                    gpui_component::button::Button::new(format!("{}-reset-button", #form_id_literal))
+                        .label(label)
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.reset_form(window, cx);
+                        }))
+                }
+
+                fn action_buttons(
+                    &self,
+                    cx: &mut Context<Self>,
+                    on_submit: impl Fn(#submit_payload_type, &mut Window, &mut Context<Self>) + 'static,
+                ) -> impl IntoElement {
+                    div()
+                        .flex()
+                        .gap_2()
+                        .child(self.submit_button(cx, "Submit", on_submit))
+                        .child(self.reset_button(cx, "Reset"))
+                }
+            }
+        };
+
+        let action_buttons_child = if *is_empty {
+            quote! {}
+        } else {
+            quote! {
+                .child(
+                    field()
+                        .label_indent(false)
+                        .child(self.action_buttons(cx, |payload, _, _| {
+                            // User-defined submit handler goes here.
+                            let _ = payload;
+                        })),
+                )
+            }
+        };
 
         syn::parse2(quote! {
             #imports
@@ -86,6 +195,8 @@ impl FormLayout for StorybookLayout {
                         #subscriptions_init
                     }
                 }
+
+                #form_action_helpers
             }
 
             impl Render for #form_ident {
@@ -102,6 +213,7 @@ impl FormLayout for StorybookLayout {
                         .child(
                             v_form()
                                 #render_children
+                                #action_buttons_child
                         )
                         .child(Divider::horizontal())
                         #debug_child
