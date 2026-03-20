@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string::*;
 const CONTEXT: &str = "VecStringInputListForm";
@@ -59,6 +59,7 @@ impl VecStringInputListForm {
             "vec_string_input_list-form"
         ))
         .label(label)
+        .disabled(false)
         .on_click(cx.listener(move |this, _, window, cx| {
             on_submit(this.submit_payload(), window, cx);
         }))

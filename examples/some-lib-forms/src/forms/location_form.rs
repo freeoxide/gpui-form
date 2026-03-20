@@ -8,7 +8,7 @@ use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectState};
-use gpui_component::{ActiveTheme as _, IndexPath, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, IndexPath, v_flex};
 use gpui_form_component::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::location::*;
@@ -192,6 +192,7 @@ impl LocationFormForm {
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-submit-button", "location_form-form"))
             .label(label)
+            .disabled(false)
             .on_click(cx.listener(move |this, _, window, cx| {
                 on_submit(this.submit_payload(), window, cx);
             }))

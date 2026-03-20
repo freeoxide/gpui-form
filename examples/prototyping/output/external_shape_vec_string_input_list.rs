@@ -5,7 +5,7 @@ use gpui::{
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui::prelude::FluentBuilder as _;
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use some_lib_custom_components::ExternalTagsInput;
@@ -69,6 +69,7 @@ impl ExternalShapeVecStringInputListForm {
                 format!("{}-submit-button", "external_shape_vec_string_input_list-form"),
             )
             .label(label)
+            .disabled(false)
             .on_click(
                 cx
                     .listener(move |this, _, window, cx| {

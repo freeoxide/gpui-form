@@ -37,6 +37,7 @@ const FRAMEWORK_IMPORTS: &[ImportItem] = &[
     ImportItem::aliased("gpui::prelude::FluentBuilder", Alias::Anonymous),
     // gpui_component layout / form helpers
     ImportItem::aliased("gpui_component::ActiveTheme", Alias::Anonymous),
+    ImportItem::aliased("gpui_component::Disableable", Alias::Anonymous),
     ImportItem::path("gpui_component::divider::Divider"),
     ImportItem::path("gpui_component::form::field"),
     ImportItem::path("gpui_component::form::v_form"),

@@ -76,6 +76,12 @@ impl FormLayout for StorybookLayout {
             quote! { self.current_data.clone().into() }
         };
 
+        let submit_disabled = if *has_koruma {
+            quote! { self.current_data.validate().is_err() }
+        } else {
+            quote! { false }
+        };
+
         let form_action_helpers = if *is_empty {
             quote! {}
         } else {
@@ -97,6 +103,7 @@ impl FormLayout for StorybookLayout {
                 ) -> gpui_component::button::Button {
                     gpui_component::button::Button::new(format!("{}-submit-button", #form_id_literal))
                         .label(label)
+                        .disabled(#submit_disabled)
                         .on_click(cx.listener(move |this, _, window, cx| {
                             on_submit(this.submit_payload(), window, cx);
                         }))

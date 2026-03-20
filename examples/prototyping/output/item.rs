@@ -5,7 +5,7 @@ use gpui::{
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui::prelude::FluentBuilder as _;
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{
@@ -142,6 +142,7 @@ impl ItemForm {
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-submit-button", "item-form"))
             .label(label)
+            .disabled(self.current_data.validate().is_err())
             .on_click(
                 cx
                     .listener(move |this, _, window, cx| {

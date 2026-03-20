@@ -7,7 +7,7 @@ use gpui::{
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction};
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";
@@ -124,6 +124,7 @@ impl ItemForm {
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-submit-button", "item-form"))
             .label(label)
+            .disabled(self.current_data.validate().is_err())
             .on_click(cx.listener(move |this, _, window, cx| {
                 on_submit(this.submit_payload(), window, cx);
             }))

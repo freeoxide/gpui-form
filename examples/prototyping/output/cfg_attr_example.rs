@@ -5,7 +5,7 @@ use gpui::{
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui::prelude::FluentBuilder as _;
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_component::checkbox::Checkbox;
 use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_component::divider::Divider;
@@ -323,6 +323,7 @@ impl CfgAttrExampleForm {
                 format!("{}-submit-button", "cfg_attr_example-form"),
             )
             .label(label)
+            .disabled(self.current_data.validate().is_err())
             .on_click(
                 cx
                     .listener(move |this, _, window, cx| {

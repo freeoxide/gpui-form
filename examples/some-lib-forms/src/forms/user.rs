@@ -13,7 +13,7 @@ use gpui_component::input::{
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::user::*;
 const CONTEXT: &str = "UserForm";
@@ -352,6 +352,7 @@ impl UserForm {
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-submit-button", "user-form"))
             .label(label)
+            .disabled(self.current_data.validate().is_err())
             .on_click(cx.listener(move |this, _, window, cx| {
                 on_submit(this.submit_payload(), window, cx);
             }))
