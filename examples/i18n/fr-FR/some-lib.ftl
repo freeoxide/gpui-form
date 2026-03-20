@@ -18,6 +18,11 @@ location_form_this = Formulaire de localisation
 
 user_this = Utilisateur
 
+## FormAction
+
+form_action-Submit = Envoyer
+form_action-Reset = Réinitialiser
+
 ## AccountType
 
 account_type-Enterprise = Entreprise

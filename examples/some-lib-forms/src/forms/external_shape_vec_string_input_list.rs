@@ -9,6 +9,7 @@ use gpui_component::form::{field, v_form};
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string_external::*;
+use some_lib::structs::form_action::FormAction;
 use some_lib_custom_components::ExternalTagsInput;
 const CONTEXT: &str = "ExternalShapeVecStringInputListForm";
 #[gpui_storybook::story_init]
@@ -88,8 +89,8 @@ impl ExternalShapeVecStringInputListForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, "Submit", on_submit))
-            .child(self.reset_button(cx, "Reset"))
+            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
     }
 }
 impl Render for ExternalShapeVecStringInputListForm {

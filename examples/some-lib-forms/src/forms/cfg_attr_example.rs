@@ -16,6 +16,7 @@ use gpui_component::switch::Switch;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::cfg_attr_example::*;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -323,8 +324,8 @@ impl CfgAttrExampleForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, "Submit", on_submit))
-            .child(self.reset_button(cx, "Reset"))
+            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
     }
 }
 impl Render for CfgAttrExampleForm {

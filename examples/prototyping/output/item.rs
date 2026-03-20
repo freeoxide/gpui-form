@@ -12,6 +12,7 @@ use gpui_component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use rust_decimal::Decimal;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "ItemForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -176,8 +177,10 @@ impl ItemForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, "Submit", on_submit))
-            .child(self.reset_button(cx, "Reset"))
+            .child(
+                self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit),
+            )
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
     }
 }
 impl Render for ItemForm {

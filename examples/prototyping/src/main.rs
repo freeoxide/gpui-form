@@ -129,8 +129,8 @@ impl FormLayout for StorybookLayout {
                     div()
                         .flex()
                         .gap_2()
-                        .child(self.submit_button(cx, "Submit", on_submit))
-                        .child(self.reset_button(cx, "Reset"))
+                        .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
+                        .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
                 }
             }
         };
@@ -150,9 +150,16 @@ impl FormLayout for StorybookLayout {
             }
         };
 
+        let form_action_import = if *is_empty {
+            quote! {}
+        } else {
+            quote! { use some_lib::structs::form_action::FormAction; }
+        };
+
         syn::parse2(quote! {
             #imports
             use rust_decimal::Decimal;
+            #form_action_import
 
             const CONTEXT: &str = #context_str;
 

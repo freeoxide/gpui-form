@@ -16,6 +16,7 @@ use gpui_component::input::{
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
 use rust_decimal::Decimal;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -440,8 +441,10 @@ impl UserForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, "Submit", on_submit))
-            .child(self.reset_button(cx, "Reset"))
+            .child(
+                self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit),
+            )
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
     }
 }
 impl Render for UserForm {

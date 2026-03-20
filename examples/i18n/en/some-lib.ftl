@@ -18,6 +18,11 @@ location_form_this = Location Form
 
 user_this = User
 
+## FormAction
+
+form_action-Submit = Submit
+form_action-Reset = Reset
+
 ## AccountType
 
 account_type-Enterprise = Enterprise
