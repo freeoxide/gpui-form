@@ -7,8 +7,9 @@ use gpui::{
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction};
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
+use some_lib::structs::form_action::FormAction;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";
 #[gpui_storybook::story_init]
@@ -106,6 +107,51 @@ impl ItemForm {
             _subscriptions,
         }
     }
+    fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        *self = Self::new(window, cx);
+        cx.notify();
+    }
+    fn submit_payload(&self) -> Result<Option<Item>, String> {
+        match self.current_data.validate() {
+            Ok(_) => Ok(ItemFormValueHolder::try_from(self.current_data.clone()).ok()),
+            Err(error) => Err(format!("{error:?}")),
+        }
+    }
+    fn submit_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+        on_submit: impl Fn(Result<Option<Item>, String>, &mut Window, &mut Context<Self>) + 'static,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!("{}-submit-button", "item-form"))
+            .label(label)
+            .disabled(self.current_data.validate().is_err())
+            .on_click(cx.listener(move |this, _, window, cx| {
+                on_submit(this.submit_payload(), window, cx);
+            }))
+    }
+    fn reset_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!("{}-reset-button", "item-form"))
+            .label(label)
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.reset_form(window, cx);
+            }))
+    }
+    fn action_buttons(
+        &self,
+        cx: &mut Context<Self>,
+        on_submit: impl Fn(Result<Option<Item>, String>, &mut Window, &mut Context<Self>) + 'static,
+    ) -> impl IntoElement {
+        div()
+            .flex()
+            .gap_2()
+            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+    }
 }
 impl Render for ItemForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -119,44 +165,51 @@ impl Render for ItemForm {
             .gap_3()
             .child(Divider::horizontal())
             .child(
-                v_form().child(
-                    field()
-                        .label(ItemLabelVariants::Index.to_fluent_string())
-                        .description_fn({
-                            let description = ItemDescriptionVariants::Index.to_fluent_string();
-                            let error = {
-                                validation_errors.as_ref().and_then(|e| {
-                                    let errs = e.index().all();
-                                    if errs.is_empty() {
-                                        None
-                                    } else {
-                                        Some(
-                                            errs.iter()
-                                                .map(|v| v.to_fluent_string())
-                                                .collect::<Vec<_>>()
-                                                .join("\n"),
-                                        )
-                                    }
-                                })
-                            };
-                            let error_color = cx.theme().danger;
-                            move |_, _| {
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_1()
-                                    .child(div().child(description.clone()))
-                                    .when(error.is_some(), |this| {
-                                        this.child(
-                                            div()
-                                                .text_color(error_color)
-                                                .child(error.clone().unwrap_or_default()),
-                                        )
+                v_form()
+                    .child(
+                        field()
+                            .label(ItemLabelVariants::Index.to_fluent_string())
+                            .description_fn({
+                                let description = ItemDescriptionVariants::Index.to_fluent_string();
+                                let error = {
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.index().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| v.to_fluent_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
                                     })
-                            }
-                        })
-                        .child(NumberInput::new(&self.fields.index_number_input)),
-                ),
+                                };
+                                let error_color = cx.theme().danger;
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
+                                }
+                            })
+                            .child(NumberInput::new(&self.fields.index_number_input)),
+                    )
+                    .child(field().label_indent(false).child(self.action_buttons(
+                        cx,
+                        |payload, _, _| {
+                            let _ = payload;
+                        },
+                    ))),
             )
             .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))

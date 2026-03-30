@@ -18,6 +18,11 @@ location_form_this = 位置表单
 
 user_this = 用户
 
+## FormAction
+
+form_action-Submit = 提交
+form_action-Reset = 重置
+
 ## AccountType
 
 account_type-Enterprise = 企业版

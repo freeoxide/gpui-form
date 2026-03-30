@@ -6,9 +6,10 @@ use gpui::{
 };
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::custom_vec_string::*;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "VecStringInputListForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -41,6 +42,54 @@ impl VecStringInputListForm {
             focus_handle: cx.focus_handle(),
         }
     }
+    fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        *self = Self::new(window, cx);
+        cx.notify();
+    }
+    fn submit_payload(&self) -> VecStringInputList {
+        self.current_data.clone().into()
+    }
+    fn submit_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+        on_submit: impl Fn(VecStringInputList, &mut Window, &mut Context<Self>) + 'static,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!(
+            "{}-submit-button",
+            "vec_string_input_list-form"
+        ))
+        .label(label)
+        .disabled(false)
+        .on_click(cx.listener(move |this, _, window, cx| {
+            on_submit(this.submit_payload(), window, cx);
+        }))
+    }
+    fn reset_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(format!(
+            "{}-reset-button",
+            "vec_string_input_list-form"
+        ))
+        .label(label)
+        .on_click(cx.listener(|this, _, window, cx| {
+            this.reset_form(window, cx);
+        }))
+    }
+    fn action_buttons(
+        &self,
+        cx: &mut Context<Self>,
+        on_submit: impl Fn(VecStringInputList, &mut Window, &mut Context<Self>) + 'static,
+    ) -> impl IntoElement {
+        div()
+            .flex()
+            .gap_2()
+            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+    }
 }
 impl Render for VecStringInputListForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -53,22 +102,29 @@ impl Render for VecStringInputListForm {
             .gap_3()
             .child(Divider::horizontal())
             .child(
-                v_form().child(
-                    field()
-                        .label(VecStringInputListLabelVariants::Tags.to_fluent_string())
-                        .description_fn({
-                            let description =
-                                VecStringInputListDescriptionVariants::Tags.to_fluent_string();
-                            move |_, _| {
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_1()
-                                    .child(div().child(description.clone()))
-                            }
-                        })
-                        .child(TagsInput::new(&self.fields.tags_custom)),
-                ),
+                v_form()
+                    .child(
+                        field()
+                            .label(VecStringInputListLabelVariants::Tags.to_fluent_string())
+                            .description_fn({
+                                let description =
+                                    VecStringInputListDescriptionVariants::Tags.to_fluent_string();
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                }
+                            })
+                            .child(TagsInput::new(&self.fields.tags_custom)),
+                    )
+                    .child(field().label_indent(false).child(self.action_buttons(
+                        cx,
+                        |payload, _, _| {
+                            let _ = payload;
+                        },
+                    ))),
             )
             .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))

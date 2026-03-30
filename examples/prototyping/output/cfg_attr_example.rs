@@ -5,7 +5,7 @@ use gpui::{
     IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui::prelude::FluentBuilder as _;
-use gpui_component::{ActiveTheme as _, v_flex};
+use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_component::checkbox::Checkbox;
 use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_component::divider::Divider;
@@ -16,6 +16,7 @@ use gpui_component::input::{
 use gpui_component::select::{Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
 use rust_decimal::Decimal;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "CfgAttrExampleForm";
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -298,6 +299,71 @@ impl CfgAttrExampleForm {
             focus_handle: cx.focus_handle(),
             _subscriptions,
         }
+    }
+    fn reset_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        *self = Self::new(window, cx);
+        cx.notify();
+    }
+    fn submit_payload(&self) -> Result<CfgAttrExampleFormValueHolder, String> {
+        match self.current_data.validate() {
+            Ok(_) => Ok(self.current_data.clone()),
+            Err(error) => Err(format!("{error:?}")),
+        }
+    }
+    fn submit_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+        on_submit: impl Fn(
+            Result<CfgAttrExampleFormValueHolder, String>,
+            &mut Window,
+            &mut Context<Self>,
+        ) + 'static,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(
+                format!("{}-submit-button", "cfg_attr_example-form"),
+            )
+            .label(label)
+            .disabled(self.current_data.validate().is_err())
+            .on_click(
+                cx
+                    .listener(move |this, _, window, cx| {
+                        on_submit(this.submit_payload(), window, cx);
+                    }),
+            )
+    }
+    fn reset_button(
+        &self,
+        cx: &mut Context<Self>,
+        label: impl Into<gpui::SharedString>,
+    ) -> gpui_component::button::Button {
+        gpui_component::button::Button::new(
+                format!("{}-reset-button", "cfg_attr_example-form"),
+            )
+            .label(label)
+            .on_click(
+                cx
+                    .listener(|this, _, window, cx| {
+                        this.reset_form(window, cx);
+                    }),
+            )
+    }
+    fn action_buttons(
+        &self,
+        cx: &mut Context<Self>,
+        on_submit: impl Fn(
+            Result<CfgAttrExampleFormValueHolder, String>,
+            &mut Window,
+            &mut Context<Self>,
+        ) + 'static,
+    ) -> impl IntoElement {
+        div()
+            .flex()
+            .gap_2()
+            .child(
+                self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit),
+            )
+            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
     }
 }
 impl Render for CfgAttrExampleForm {
@@ -587,6 +653,19 @@ impl Render for CfgAttrExampleForm {
                                 }
                             })
                             .child(DatePicker::new(&self.fields.created_at_date_picker)),
+                    )
+                    .child(
+                        field()
+                            .label_indent(false)
+                            .child(
+                                self
+                                    .action_buttons(
+                                        cx,
+                                        |payload, _, _| {
+                                            let _ = payload;
+                                        },
+                                    ),
+                            ),
                     ),
             )
             .child(Divider::horizontal())
