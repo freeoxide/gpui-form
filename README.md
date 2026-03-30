@@ -13,9 +13,8 @@ Compatibility of `gpui-form` versions:
 | `gpui-form` | `gpui-component` | `gpui` |
 | :--------------- | :--------------- | :--------------------------------------------- |
 | **git** | |
-| `master` | `main` | rev `e0881e38f91b87623795208615ca466415d1970e` |
+| `master` | `main` | rev `e30720a781ad5e4bee9ab6e5c9f228baffef466c` |
 | **crates.io** | |
-| `0.6.x` | `0.6.x` |
 | `0.5.x` | `0.5.x` |
 
 ## Quick start
@@ -68,7 +67,7 @@ pub struct UserProfile {
 - Or derive directly on state types with `#[derive(gpui_form::CustomComponentState)]`
   and use `component(custom(state = ...))`.
 
-## Validation (Koruma)
+## Validation ([koruma](https://github.com/stayhydated/koruma))
 
 If you annotate fields with Koruma validators, the derive macro mirrors validation
 metadata and can surface fluent error labels. The `FormValueHolder` will wrap
