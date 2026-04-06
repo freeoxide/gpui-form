@@ -22,6 +22,8 @@ jobs:
         with:
           path: .
           all: true
+          ignore: |
+            some-lib
 
   test:
     runs-on: ubuntu-latest
