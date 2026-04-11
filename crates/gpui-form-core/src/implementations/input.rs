@@ -1,7 +1,7 @@
 use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{ToTokens as _, quote};
 
 impl super::ComponentLayout for InputComponent {
     fn field_tokens(
@@ -25,7 +25,7 @@ impl super::ComponentLayout for InputComponent {
         };
 
         // Skip validation for String types since they always parse successfully
-        let type_str = r#type.to_string();
+        let type_str = r#type.to_token_stream().to_string();
         let validation_logic = if type_str == "String" {
             quote! {}
         } else {

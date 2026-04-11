@@ -336,6 +336,41 @@ mod tests {
     }
 
     #[test]
+    fn test_number_input_override_keeps_full_type_path() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = rust_decimal::Decimal,
+                    from = |value| value,
+                    into = |value| value,
+                    component(number_input(as = f64))
+                )]
+                amount: f64,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("FieldVariant::new(\"amount\",\"rust_decimal::Decimal\",false"),
+            "FieldVariant should keep the fully-qualified override type in metadata"
+        );
+        assert!(
+            compact.contains("validate_signed_numeric::<rust_decimal::Decimal>"),
+            "Number input validation should keep the fully-qualified override type"
+        );
+    }
+
+    #[test]
     fn test_skipped_fields_still_generate_from_original() {
         let tokens = quote! {
             #[derive(GpuiForm)]
