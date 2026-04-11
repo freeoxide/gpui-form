@@ -13,11 +13,11 @@ pub trait ComponentDefinition {
 pub struct FieldInformation<T: ComponentOption> {
     pub options: T,
     pub name: String,
-    pub r#type: syn::Ident,
+    pub r#type: syn::Type,
 }
 
 impl<T: ComponentOption> FieldInformation<T> {
-    pub fn new(options: T, name: String, r#type: syn::Ident) -> Self {
+    pub fn new(options: T, name: String, r#type: syn::Type) -> Self {
         Self {
             options,
             name,

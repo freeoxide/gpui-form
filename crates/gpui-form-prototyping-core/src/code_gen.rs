@@ -171,6 +171,22 @@ impl<'a> FormShapeAdapter<'a> {
                 )
             };
 
+        let replace_current_data_fn = if is_empty {
+            quote! {}
+        } else {
+            quote! {
+                pub fn replace_current_data(
+                    &mut self,
+                    current_data: #form_value_holder_ident,
+                    window: &mut Window,
+                    cx: &mut Context<Self>,
+                ) {
+                    *self = Self::new_with_current_data(current_data, window, cx);
+                    cx.notify();
+                }
+            }
+        };
+
         let collected_imports = self.required_imports().to_token_stream();
         let imports = quote! {
             use #source_module_path::*;
@@ -203,6 +219,7 @@ impl<'a> FormShapeAdapter<'a> {
             current_data_init,
             fields_init,
             debug_child,
+            replace_current_data_fn,
         }
     }
 
@@ -292,6 +309,8 @@ pub struct FormParts {
     pub fields_init: TokenStream,
     /// Debug rows for value-holder and into-original status; empty for empty forms.
     pub debug_child: TokenStream,
+    /// `replace_current_data(...)` helper method; empty for empty forms.
+    pub replace_current_data_fn: TokenStream,
 }
 
 // ── FormLayout ────────────────────────────────────────────────────────────────

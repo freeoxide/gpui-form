@@ -1,7 +1,7 @@
 use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{ToTokens as _, quote};
 
 impl super::ComponentLayout for NumberInputComponent {
     fn field_tokens(
@@ -28,8 +28,11 @@ impl super::ComponentLayout for NumberInputComponent {
         let has_as_type = options.r#as.is_some();
 
         // Use the `as` option if provided for validation type detection, otherwise use the field type
-        let validation_type_ident = options.r#as.as_ref().unwrap_or(r#type);
-        let type_str = validation_type_ident.to_string();
+        let type_str = options
+            .r#as
+            .as_ref()
+            .map(|ty| ty.to_string())
+            .unwrap_or_else(|| r#type.to_token_stream().to_string());
         // Treat custom types as signed by default; only explicit `u*` types are unsigned.
         let is_unsigned = type_str.starts_with('u');
 

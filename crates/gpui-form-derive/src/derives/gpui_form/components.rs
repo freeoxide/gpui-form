@@ -5,7 +5,7 @@ use quote::quote;
 
 use crate::derives::gpui_form::structs::ComponentField;
 use crate::derives::gpui_form::structs::ComponentFieldContent;
-use crate::derives::gpui_form::utils::extract_type_ident;
+use crate::derives::gpui_form::utils::extract_option_inner_type;
 
 pub fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
     match component {
@@ -71,6 +71,7 @@ fn extract_default_path(field: &ComponentField) -> Option<syn::Path> {
 pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
     let field_name = field.ident.as_ref().unwrap().to_string();
     let field_type = field.r#type.as_ref().map(|ty| &ty.0).unwrap_or(&field.ty);
+    let field_type = extract_option_inner_type(field_type).1;
 
     let mut field_structure_tokens = proc_macro2::TokenStream::new();
     let mut field_base_declarations_tokens = proc_macro2::TokenStream::new();
@@ -93,7 +94,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = InputComponent(FieldInformation::new(
                 InputOptions,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -104,7 +105,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = NumberInputComponent(FieldInformation::new(
                 options.clone(),
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -115,7 +116,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = CheckboxComponent(FieldInformation::new(
                 CheckboxOptions,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -126,7 +127,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = SwitchComponent(FieldInformation::new(
                 SwitchOptions,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -139,7 +140,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = SelectComponent(FieldInformation::new(
                 options_with_default,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -152,7 +153,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = InfiniteSelectComponent(FieldInformation::new(
                 options_with_default,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -163,7 +164,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = CustomComponent(FieldInformation::new(
                 options.clone(),
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
@@ -174,7 +175,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             let component = DatePickerComponent(FieldInformation::new(
                 DatePickerOptions,
                 field_name.clone(),
-                extract_type_ident(field_type),
+                field_type.clone(),
             ));
             component.field_tokens(
                 &mut field_structure_tokens,
