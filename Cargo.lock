@@ -2979,7 +2979,6 @@ dependencies = [
  "crate-paths",
  "darling",
  "derive_more",
- "gpui-form-internal-macros",
  "heck 0.5.0",
  "inventory",
  "proc-macro2",
@@ -3004,14 +3003,6 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "syn-cfg-attr",
-]
-
-[[package]]
-name = "gpui-form-internal-macros"
-version = "0.5.1"
-dependencies = [
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]

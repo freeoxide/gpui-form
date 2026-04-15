@@ -6,7 +6,7 @@
 
 ## Key modules
 
-- `components.rs`: component option types, the `Components` enum, and `ComponentsBehaviour` metadata.
+- `components.rs`: component option types, the `Components` enum, local `*Component` wrapper structs used for layout dispatch, and `ComponentsBehaviour` metadata.
 - `registry.rs`: `GpuiFormShape` and `FieldVariant`, plus `inventory` collection for prototyping.
   `GpuiFormShape` also carries whether source fields include `#[gpui_form(skip)]`
   so downstream generators can detect incomplete value-holder roundtrips.

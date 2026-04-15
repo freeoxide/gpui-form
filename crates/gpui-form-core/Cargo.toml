@@ -15,7 +15,6 @@ readme = "README.md"
 crate-paths = { workspace = true }
 darling = { workspace = true }
 derive_more = { features = [ "full" ], workspace = true }
-gpui-form-internal-macros = { workspace = true }
 heck = { workspace = true }
 inventory = { workspace = true }
 proc-macro2 = { workspace = true }

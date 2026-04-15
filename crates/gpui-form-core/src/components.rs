@@ -1,5 +1,4 @@
 use darling::{Error as DarlingError, FromMeta};
-use gpui_form_internal_macros::{ComponentDefinitions, ComponentOption};
 use heck::ToPascalCase as _;
 use quote::quote;
 use strum::{Display, EnumDiscriminants, EnumString, IntoStaticStr};
@@ -26,7 +25,25 @@ impl<T: ComponentOption> FieldInformation<T> {
     }
 }
 
-#[derive(Clone, ComponentOption, Debug, Default, Eq, FromMeta, PartialEq)]
+macro_rules! impl_component_option {
+    ($($option:ty),+ $(,)?) => {
+        $(impl ComponentOption for $option {})+
+    };
+}
+
+macro_rules! define_component_definition {
+    ($component:ident, $options:ty, $variant:ident) => {
+        pub struct $component(pub FieldInformation<$options>);
+
+        impl ComponentDefinition for $component {
+            fn component_name() -> &'static str {
+                ComponentsDiscriminants::$variant.into()
+            }
+        }
+    };
+}
+
+#[derive(Clone, Debug, Default, Eq, FromMeta, PartialEq)]
 pub struct BehaviourSelectOptions {
     #[darling(default)]
     pub partial: bool,
@@ -34,7 +51,7 @@ pub struct BehaviourSelectOptions {
     pub searchable: bool,
 }
 
-#[derive(Clone, ComponentOption, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SelectOptions {
     pub behaviour: BehaviourSelectOptions,
     /// Field-level default value as a path expression (e.g., EnumCountry::France)
@@ -74,10 +91,10 @@ impl SelectOptions {
     }
 }
 
-#[derive(Clone, ComponentOption, Debug, Default, FromMeta)]
+#[derive(Clone, Debug, Default, FromMeta)]
 pub struct InputOptions;
 
-#[derive(Clone, ComponentOption, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct NumberInputOptions {
     /// For custom numeric types (like Decimal), specify a standard numeric type
     /// for validation purposes (e.g., f64, i32, u64)
@@ -106,18 +123,18 @@ impl FromMeta for NumberInputOptions {
     }
 }
 
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
+#[derive(Clone, Debug, FromMeta)]
 pub struct CheckboxOptions;
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
+#[derive(Clone, Debug, FromMeta)]
 pub struct SwitchOptions;
-#[derive(Clone, ComponentOption, Debug, FromMeta)]
+#[derive(Clone, Debug, FromMeta)]
 pub struct DatePickerOptions;
 
 fn default_custom_wraps_in_option() -> bool {
     true
 }
 
-#[derive(Clone, ComponentOption, Debug)]
+#[derive(Clone, Debug)]
 pub struct CustomOptions {
     /// Path to a type implementing `gpui_form_component::custom::CustomComponentShape`.
     pub shape: syn::Path,
@@ -189,7 +206,7 @@ impl FromMeta for CustomOptions {
 ///
 /// InfiniteSelect generates multiple select fields that cascade:
 /// when the master select changes, the slave selects update their options.
-#[derive(Clone, ComponentOption, Debug, Default, Eq, FromMeta, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, FromMeta, PartialEq)]
 pub struct BehaviourInfiniteSelectOptions {
     /// Whether each select level should be searchable
     #[darling(default)]
@@ -199,7 +216,7 @@ pub struct BehaviourInfiniteSelectOptions {
     pub max_depth: Option<usize>,
 }
 
-#[derive(Clone, ComponentOption, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct InfiniteSelectOptions {
     pub behaviour: BehaviourInfiniteSelectOptions,
     /// Field-level default value as a path expression (e.g., EnumCountry::France)
@@ -239,7 +256,20 @@ impl InfiniteSelectOptions {
     }
 }
 
-#[derive(Clone, ComponentDefinitions, Debug, EnumDiscriminants, FromMeta)]
+impl_component_option!(
+    BehaviourSelectOptions,
+    SelectOptions,
+    InputOptions,
+    NumberInputOptions,
+    CheckboxOptions,
+    SwitchOptions,
+    DatePickerOptions,
+    CustomOptions,
+    BehaviourInfiniteSelectOptions,
+    InfiniteSelectOptions,
+);
+
+#[derive(Clone, Debug, EnumDiscriminants, FromMeta)]
 #[strum_discriminants(derive(EnumString, Display, IntoStaticStr))]
 #[strum_discriminants(vis(pub))]
 #[strum_discriminants(strum(serialize_all = "snake_case"))]
@@ -254,6 +284,19 @@ pub enum Components {
     Custom(CustomOptions),
     DatePicker,
 }
+
+define_component_definition!(InputComponent, InputOptions, Input);
+define_component_definition!(NumberInputComponent, NumberInputOptions, NumberInput);
+define_component_definition!(CheckboxComponent, CheckboxOptions, Checkbox);
+define_component_definition!(SwitchComponent, SwitchOptions, Switch);
+define_component_definition!(SelectComponent, SelectOptions, Select);
+define_component_definition!(
+    InfiniteSelectComponent,
+    InfiniteSelectOptions,
+    InfiniteSelect
+);
+define_component_definition!(CustomComponent, CustomOptions, Custom);
+define_component_definition!(DatePickerComponent, DatePickerOptions, DatePicker);
 
 impl Components {
     /// Returns whether this component's value should be wrapped in Option in the FormValueHolder.

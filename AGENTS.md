@@ -18,8 +18,6 @@
 | `gpui-form-component` | [Architecture](crates/gpui-form-component/docs/ARCHITECTURE.md) | Runtime helpers (InfiniteSelect). |
 | **Prototyping** | | |
 | `gpui-form-prototyping-core` | [Architecture](crates/gpui-form-prototyping-core/docs/ARCHITECTURE.md) | Codegen from inventory shapes for prototyping. |
-| **Internal** | | |
-| `gpui-form-internal-macros` | [Architecture](crates/gpui-form-internal-macros/docs/ARCHITECTURE.md) | Internal proc macros used by core. |
 
 ## Crate Descriptions
 
@@ -36,10 +34,6 @@
 ### Prototyping
 
 - **`gpui-form-prototyping-core`**: Builds gpui form scaffolding by consuming `GpuiFormShape` inventory data.
-
-### Internal
-
-- **`gpui-form-internal-macros`**: Small derive macros used internally by core to reduce boilerplate.
 
 ## Examples
 

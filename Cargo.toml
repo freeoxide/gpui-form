@@ -5,7 +5,6 @@ members = [
   "crates/gpui-form-component",
   "crates/gpui-form-core",
   "crates/gpui-form-derive",
-  "crates/gpui-form-internal-macros",
   "crates/gpui-form-prototyping-core",
   "examples/some-lib",
   "examples/some-lib-custom-components",
@@ -40,7 +39,6 @@ gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
 gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.1" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
-gpui-form-internal-macros = { path = "crates/gpui-form-internal-macros", version = "0.5.1" }
 gpui-form-internal-paths = { path = "crates/gpui-form-internal-paths", version = "0.5.0" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
 gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook" }
