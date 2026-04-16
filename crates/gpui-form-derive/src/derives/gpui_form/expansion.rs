@@ -7,13 +7,10 @@ use std::collections::HashMap;
 use syn::DeriveInput;
 
 use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
-use crate::derives::gpui_form::components::{
-    generate_component_field, get_components_behaviour_tokens,
-};
+use crate::derives::gpui_form::components::generate_component_field;
 use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
-use gpui_form_core::components::Components;
 
 pub fn expand_gpui_form(
     derive_input: DeriveInput,
@@ -30,7 +27,6 @@ pub fn expand_gpui_form(
     let struct_name = &parsed.ident;
     let components_holder_name = format_ident!("{}FormFields", struct_name);
     let components_base_declarations_name = format_ident!("{}FormComponents", struct_name);
-    let items_errors_struct_name = format_ident!("{}FormItemsErrors", struct_name);
 
     let koruma_options = parsed.koruma.as_ref().map(|k| k.0.clone());
 
@@ -46,8 +42,8 @@ pub fn expand_gpui_form(
         );
         let shape_impl = if options.generate_shape {
             quote! {
-                ::gpui_form::core::registry::inventory::submit! {
-                    ::gpui_form::core::registry::GpuiFormShape::new(
+                ::gpui_form::schema::registry::inventory::submit! {
+                    ::gpui_form::schema::registry::GpuiFormShape::new(
                         stringify!(#struct_name),
                         &[],
                         file!(),
@@ -204,39 +200,6 @@ pub fn expand_gpui_form(
         enable_koruma_fluent,
     );
 
-    let items_error_struct_fields: Vec<TokenStream> = fields_iter
-        .iter()
-        .filter(|field| !field.skip() && field.component.is_some())
-        .map(|field| {
-            let field_name = field.ident.as_ref().unwrap();
-            quote! {
-                pub #field_name: String,
-            }
-        })
-        .collect();
-
-    let items_error_struct_defaults: Vec<TokenStream> = fields_iter
-        .iter()
-        .filter(|field| !field.skip() && field.component.is_some())
-        .map(|field| {
-            let field_name = field.ident.as_ref().unwrap();
-            quote! {
-                #field_name: String::new(),
-            }
-        })
-        .collect();
-
-    let items_error_has_error_checks: Vec<TokenStream> = fields_iter
-        .iter()
-        .filter(|field| !field.skip() && field.component.is_some())
-        .map(|field| {
-            let field_name = field.ident.as_ref().unwrap();
-            quote! {
-                !self.#field_name.is_empty()
-            }
-        })
-        .collect();
-
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
         .filter_map(|field| {
@@ -257,7 +220,7 @@ pub fn expand_gpui_form(
 
                 let is_optional = was_optional;
                 let field_type_str = base_type.to_token_stream().to_string();
-                let behaviour_tokens = get_components_behaviour_tokens(component_def);
+                let behaviour_tokens = component_def.behaviour_tokens(&base_type);
                 let mut validation_rules = koruma_validations
                     .get(&field_name_str)
                     .cloned()
@@ -279,26 +242,10 @@ pub fn expand_gpui_form(
                     quote! { .with_default(#expr_str) }
                 });
 
-                let custom_component_tokens = if let Components::Custom(opts) = component_def {
-                    let shape = &opts.shape;
-                    if let Some(comp) = opts.component.as_ref() {
-                        // Explicitly specified on the field attribute — use it directly.
-                        let comp_str = comp.to_token_stream().to_string();
-                        Some(quote! { .with_custom_component(#comp_str) })
-                    } else {
-                        // Fall back to whatever the shape declares as COMPONENT_PATH.
-                        Some(quote! {
-                            .with_custom_component_opt(
-                                <#shape as ::gpui_form::custom::CustomComponentShape>::COMPONENT_PATH
-                            )
-                        })
-                    }
-                } else {
-                    None
-                };
+                let custom_component_tokens = component_def.custom_component_tokens();
 
                 Some(quote! {
-                    ::gpui_form::core::registry::FieldVariant::new(
+                    ::gpui_form::schema::registry::FieldVariant::new(
                         #field_name_str,
                         #field_type_str,
                         #is_optional,
@@ -317,8 +264,8 @@ pub fn expand_gpui_form(
 
     let shape_impl = if options.generate_shape {
         quote! {
-            ::gpui_form::core::registry::inventory::submit! {
-                ::gpui_form::core::registry::GpuiFormShape::new(
+            ::gpui_form::schema::registry::inventory::submit! {
+                ::gpui_form::schema::registry::GpuiFormShape::new(
                     stringify!(#struct_name),
                     &[
                         #(#field_variant_construction_code),*
@@ -344,29 +291,6 @@ pub fn expand_gpui_form(
 
         impl #components_base_declarations_name {
           #(#field_base_declarations_tokens)*
-        }
-
-        #[derive(Clone, Debug)]
-        pub struct #items_errors_struct_name {
-            #(#items_error_struct_fields)*
-        }
-
-        impl Default for #items_errors_struct_name {
-            fn default() -> Self {
-                Self {
-                    #(#items_error_struct_defaults)*
-                }
-            }
-        }
-
-        impl #items_errors_struct_name {
-            pub fn has_errors(&self) -> bool {
-                #(#items_error_has_error_checks)||*
-            }
-
-            pub fn clear(&mut self) {
-                *self = Self::default();
-            }
         }
     };
 

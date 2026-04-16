@@ -2,26 +2,36 @@
 
 ## Purpose
 
-`gpui-form` is the facade crate. It re-exports derive macros, core types, and
-runtime helper modules from `gpui-form-component`. It also hosts shared numeric
-validation helpers used by generated code.
+`gpui-form` is the facade crate for the workspace. Applications can depend on
+it alone and get:
+
+- pure helper logic from `gpui-form-core`
+- GPUI runtime helpers from `gpui-form-runtime`
+- schema/registry metadata from `gpui-form-schema`
+- proc macros from `gpui-form-derive`
 
 ## Key modules
 
-- `src/lib.rs`: re-exports `gpui-form-core` unconditionally, `gpui-form-derive`
-  behind `derive`, and `gpui-form-component` runtime helpers as
-  `gpui_form::custom` / `gpui_form::infinite_select`, plus
-  `CustomComponentShape` and `custom_component_shape!`.
-- `src/numeric.rs`: input validation helpers for signed/unsigned numeric text entry.
+- `src/lib.rs`
+  - Re-exports the core crate as `gpui_form::core`
+  - Re-exports the runtime crate as `gpui_form::runtime`
+  - Re-exports the schema crate as `gpui_form::schema`
+  - Re-exports derive macros when the `derive` feature is enabled
+  - Preserves root-level compatibility re-exports for `custom`,
+    `infinite_select`, `CustomComponentShape`, `custom_component_shape!`, and
+    `numeric`
 
 ## Data flow
 
 1. The user derives `GpuiForm`/`SelectItem`/`InfiniteSelect` from this crate (requires the `derive` feature).
 1. Optional: users derive `CustomComponentState` for custom component state types.
-1. The derive macros (from `gpui-form-derive`) generate types and wiring that reference core metadata in `gpui-form-core`.
+1. The derive macros (from `gpui-form-derive`) generate types and wiring that reference runtime metadata in `gpui-form-schema`.
 1. Custom components can be declared via `custom_component_shape!` and consumed by `component(custom(shape = ...))`.
-1. Generated code references runtime helpers through the facade re-exports (`gpui_form::custom` / `gpui_form::infinite_select`) rather than requiring callers to depend on `gpui-form-component` directly.
-1. Numeric fields use the helpers in `numeric.rs` for validation in number inputs.
+1. Generated code can target the explicit facade namespaces
+   (`gpui_form::runtime`, `gpui_form::schema`, `gpui_form::core`) while older
+   root-level helper paths remain available.
+1. Numeric fields use helpers from `gpui-form-core`, re-exported as
+   `gpui_form::numeric`.
 
 ## Feature flags
 
@@ -32,10 +42,9 @@ validation helpers used by generated code.
 
 This crate is intentionally thin. Add new behavior in:
 
-- `gpui-form-core` (component definitions and metadata)
+- `gpui-form-core` (pure helper logic)
+- `gpui-form-schema` (component definitions and metadata)
+- `gpui-form-codegen` (derive-time component parsing and token generation)
 - `gpui-form-derive` (macro expansion)
-- `gpui-form-component` (runtime helpers)
-
-## Tests
-
-- Numeric validation tests live in `src/numeric.rs`.
+- `gpui-form-runtime` (stable runtime namespace)
+- `gpui-form-component` (lower-level runtime helper implementations)

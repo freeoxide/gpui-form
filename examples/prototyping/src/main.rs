@@ -1,4 +1,4 @@
-use gpui_form::core::registry::GpuiFormShape;
+use gpui_form::schema::registry::GpuiFormShape;
 use gpui_form_prototyping_core::{FormLayout, FormParts, FormShapeAdapter};
 use heck::ToSnakeCase as _;
 use quote::quote;

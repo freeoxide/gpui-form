@@ -16,5 +16,3 @@ pub trait ComponentLayout {
         field_base_declarations_tokens: &mut TokenStream,
     );
 }
-
-mod __crate_paths;

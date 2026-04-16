@@ -1,14 +1,15 @@
-use gpui_form_core::{
+use gpui_form_schema::{
     components::ComponentsBehaviour,
     registry::{FieldVariant, GpuiFormShape},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::implementations::ComponentIdentities as _;
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription};
+use super::{
+    FieldCodeGenerator, FieldVariantExt as _, GeneratedSubscription, ShapeIdentities as _,
+};
 
 pub struct InfiniteSelectCodeGenerator;
 
@@ -37,7 +38,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         field: &FieldVariant,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let struct_name_ident = field.struct_name_ident();
+        let field_type = field.value_type();
         let field_name_ident = field.field_ident();
 
         let master_var_name = format!("{}_master_select", field.field_name);
@@ -63,7 +64,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
         Some(quote! {
             let #initial_location_ident = &current_data.#field_name_ident;
-            let #master_variants_ident = #struct_name_ident::variants();
+            let #master_variants_ident = #field_type::variants();
             let #initial_variant_name_ident = #initial_location_ident.variant_name();
             let #initial_variant_idx_ident = #master_variants_ident
                 .iter()
@@ -77,8 +78,8 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
             });
 
             let #master_var_name_ident = cx.new(|cx| {
-                let items: Vec<gpui_form::infinite_select::InfiniteSelectItem<#struct_name_ident>> =
-                    gpui_form::infinite_select::to_select_items::<#struct_name_ident>();
+                let items: Vec<gpui_form::infinite_select::InfiniteSelectItem<#field_type>> =
+                    gpui_form::infinite_select::to_select_items::<#field_type>();
                 gpui_component::select::SelectState::new(items, #master_selected_index_ident, window, cx)
             });
         })
@@ -179,7 +180,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         field: &FieldVariant,
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
-        let struct_name_ident = field.struct_name_ident();
+        let field_type = field.value_type();
         let form_components_struct_ident = component.struct_form_components_ident();
 
         let searchable = if let ComponentsBehaviour::InfiniteSelect(config) = &field.behaviour {
@@ -225,8 +226,8 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         let master_handler = quote! {
             fn #master_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#field_type>>>>,
+                event: &SelectEvent<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#field_type>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {
@@ -256,8 +257,8 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         let child_handler = quote! {
             fn #child_event_handler_fn_name_ident(
                 &mut self,
-                this: &Entity<SelectState<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#struct_name_ident>>>>,
-                event: &SelectEvent<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#struct_name_ident>>>,
+                this: &Entity<SelectState<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#field_type>>>>,
+                event: &SelectEvent<#vec_type<gpui_form::infinite_select::InfiniteSelectItem<#field_type>>>,
                 window: &mut Window,
                 cx: &mut Context<Self>,
             ) {

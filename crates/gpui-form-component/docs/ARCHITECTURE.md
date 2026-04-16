@@ -2,7 +2,8 @@
 
 ## Purpose
 
-`gpui-form-component` contains runtime helpers that generated code relies on.
+`gpui-form-component` contains the lower-level runtime helper implementations
+used by `gpui-form-runtime`.
 
 ## Key modules
 
@@ -28,6 +29,8 @@
 1. Generated form code wraps variants in `InfiniteSelectItem` for display.
 1. UI changes mutate an `InfiniteSelectPath`, which can be turned back into a value via `build_from_path`.
 1. For custom components, users define a shape via `custom_component_shape!` or derive `CustomComponentState` on a state type; `GpuiForm` uses that type to generate state entity fields and component constructors.
+1. `gpui-form-runtime` re-exports this crate's modules as the stable public
+   runtime namespace consumed through the facade crate.
 
 ## Extension points
 

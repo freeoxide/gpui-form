@@ -368,6 +368,12 @@ mod tests {
             compact.contains("validate_signed_numeric::<rust_decimal::Decimal>"),
             "Number input validation should keep the fully-qualified override type"
         );
+        assert!(
+            compact.contains(
+                "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"f64\"),kind:::gpui_form::schema::components::NumberInputKind::Float,})"
+            ),
+            "Number input metadata should preserve the validation override and numeric family"
+        );
     }
 
     #[test]
@@ -547,7 +553,7 @@ mod tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubbio_custom:gpui::Entity<")
+            compact.contains("pubbio_custom:::gpui::Entity<")
                 && compact.contains(
                     "<crate::shapes::BioInputShapeas::gpui_form::custom::CustomComponentShape>::State"
                 ),
@@ -623,7 +629,7 @@ mod tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubtags_custom:gpui::Entity<")
+            compact.contains("pubtags_custom:::gpui::Entity<")
                 && compact.contains(
                     "<crate::state::TagsStateas::gpui_form::custom::CustomComponentShape>::State"
                 ),

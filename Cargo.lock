@@ -1335,18 +1335,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crate-paths"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "067556f7880f48f3146b8eaca20bd8dfcccd3dc302860022bc01d6ef8176685f"
-dependencies = [
- "derive_more",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2959,9 +2947,24 @@ name = "gpui-form"
 version = "0.5.1"
 dependencies = [
  "bon",
- "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
+ "gpui-form-runtime",
+ "gpui-form-schema",
+]
+
+[[package]]
+name = "gpui-form-codegen"
+version = "0.5.1"
+dependencies = [
+ "darling",
+ "derive_more",
+ "gpui-form-schema",
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "strum 0.28.0",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -2975,17 +2978,6 @@ dependencies = [
 [[package]]
 name = "gpui-form-core"
 version = "0.5.1"
-dependencies = [
- "crate-paths",
- "darling",
- "derive_more",
- "heck 0.5.0",
- "inventory",
- "proc-macro2",
- "quote",
- "strum 0.28.0",
- "syn 2.0.117",
-]
 
 [[package]]
 name = "gpui-form-derive"
@@ -2993,7 +2985,7 @@ version = "0.5.1"
 dependencies = [
  "darling",
  "es-fluent",
- "gpui-form-core",
+ "gpui-form-codegen",
  "insta",
  "itertools 0.14.0",
  "koruma-derive-core",
@@ -3009,11 +3001,27 @@ dependencies = [
 name = "gpui-form-prototyping-core"
 version = "0.5.1"
 dependencies = [
- "gpui-form-core",
+ "gpui-form-schema",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "gpui-form-runtime"
+version = "0.5.1"
+dependencies = [
+ "gpui-form-component",
+]
+
+[[package]]
+name = "gpui-form-schema"
+version = "0.5.1"
+dependencies = [
+ "heck 0.5.0",
+ "inventory",
+ "strum 0.28.0",
 ]
 
 [[package]]

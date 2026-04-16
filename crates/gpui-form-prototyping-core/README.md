@@ -10,7 +10,7 @@ definitions without hand-writing the gpui widget wiring.
 Enable the `inventory` feature on `gpui-form` and iterate the registered shapes:
 
 ```rs
-use gpui_form::core::registry::{GpuiFormShape, inventory};
+use gpui_form::schema::registry::{GpuiFormShape, inventory};
 use gpui_form_prototyping_core::FormShapeAdapter;
 
 for shape in inventory::iter::<GpuiFormShape>() {

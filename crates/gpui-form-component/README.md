@@ -1,11 +1,14 @@
 # gpui-form-component
 
-Runtime helpers for gpui-form components.
+Lower-level runtime helper implementations for `gpui-form`.
 
 This crate provides:
 
 - InfiniteSelect support for cascading selects over nested enums.
 - Custom component shape helpers used by `#[derive(GpuiForm)]`.
+
+Most users should prefer `gpui-form` or `gpui-form-runtime`; this crate exists
+as the implementation layer that `gpui-form-runtime` re-exports.
 
 ## InfiniteSelect
 
@@ -31,9 +34,10 @@ The generated form code uses:
 - `InfiniteSelectPath` to track selection depth.
 - `build_from_path` to reconstruct values from a selection path.
 
-`gpui-form` re-exports these helpers at `gpui_form::infinite_select`, so most
-consumers only need the facade crate. Add `gpui-form-component` directly when
-you want to use this crate standalone.
+`gpui-form` re-exports these helpers at `gpui_form::infinite_select`, and also
+groups them under `gpui_form::runtime::infinite_select`. Add
+`gpui-form-component` directly only when you want this implementation crate
+standalone.
 
 ## Custom component shapes
 

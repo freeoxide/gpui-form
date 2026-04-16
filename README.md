@@ -66,8 +66,21 @@ pub struct UserProfile {
   `gpui_form::custom_component_shape!`.
 - Or derive directly on state types with `#[derive(gpui_form::CustomComponentState)]`
   and use `component(custom(state = ...))`.
-- Runtime helper modules are re-exported from `gpui_form::{custom, infinite_select}`.
-  A direct `gpui-form-component` dependency is only needed when using that crate standalone.
+- Runtime helper modules are re-exported from `gpui_form::{custom, infinite_select}`
+  and also grouped under `gpui_form::runtime`.
+- Numeric validation helpers are available under `gpui_form::numeric` and
+  `gpui_form::core::numeric`.
+- Direct `gpui-form-runtime` / `gpui-form-component` dependencies are only
+  needed when using those crates standalone.
+
+## Workspace layout
+
+- `gpui-form`: facade crate re-exporting `core`, `runtime`, `schema`, and derives.
+- `gpui-form-core`: pure helper logic such as numeric validation.
+- `gpui-form-runtime`: GPUI-facing runtime helpers for generated code.
+- `gpui-form-schema`: inventory metadata and schema types.
+- `gpui-form-codegen`: internal parse-time/token-generation support for derives.
+- `gpui-form-component`: lower-level runtime helper implementations.
 
 ## Validation ([koruma](https://github.com/stayhydated/koruma))
 

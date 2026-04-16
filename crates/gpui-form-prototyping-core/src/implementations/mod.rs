@@ -7,9 +7,10 @@ pub mod number_input;
 pub mod select;
 pub mod switch;
 
-use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
-use heck::ToSnakeCase as _;
+use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
+use heck::{ToPascalCase as _, ToSnakeCase as _};
 use proc_macro2::TokenStream;
+use quote::quote;
 
 use crate::imports::ImportItem;
 
@@ -27,14 +28,14 @@ pub enum FieldGenerator {
 impl FieldGenerator {
     pub fn as_generator(&self) -> &dyn FieldCodeGenerator {
         match self {
-            FieldGenerator::Input(generator) => generator,
-            FieldGenerator::NumberInput(generator) => generator,
-            FieldGenerator::Checkbox(generator) => generator,
-            FieldGenerator::Switch(generator) => generator,
-            FieldGenerator::Select(generator) => generator,
-            FieldGenerator::InfiniteSelect(generator) => generator,
-            FieldGenerator::Custom(generator) => generator,
-            FieldGenerator::DatePicker(generator) => generator,
+            Self::Input(generator) => generator,
+            Self::NumberInput(generator) => generator,
+            Self::Checkbox(generator) => generator,
+            Self::Switch(generator) => generator,
+            Self::Select(generator) => generator,
+            Self::InfiniteSelect(generator) => generator,
+            Self::Custom(generator) => generator,
+            Self::DatePicker(generator) => generator,
         }
     }
 }
@@ -52,12 +53,6 @@ impl GeneratedSubscription {
 }
 
 pub trait FieldCodeGenerator {
-    /// Declare the `use` imports this component type requires in the generated file.
-    ///
-    /// The default returns an empty vec (no extra imports). Component generators
-    /// override this to return exactly the items they reference in generated code.
-    /// Framework-level imports (gpui core, v_form, etc.) are handled separately as
-    /// a base set and do not need to be declared here.
     fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
         vec![]
     }
@@ -114,51 +109,149 @@ pub trait ComponentShape {
     fn post_subscription_initialization(&self) -> Option<TokenStream>;
 }
 
-pub trait ComponentIdentities {
+pub trait ShapeIdentities {
     fn struct_name(&self) -> &'static str;
+
     fn struct_name_ident(&self) -> syn::Ident {
         syn::parse_str::<syn::Ident>(self.struct_name()).unwrap()
     }
+
     fn struct_form_ident(&self) -> syn::Ident {
         let str_repr = format!("{}Form", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
+
     fn struct_form_components_ident(&self) -> syn::Ident {
         let str_repr = format!("{}FormComponents", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
+
     fn struct_form_fields_ident(&self) -> syn::Ident {
         let str_repr = format!("{}FormFields", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
+
     fn form_id_literal(&self) -> String {
         format!("{}-form", self.struct_name().to_snake_case())
     }
+
     fn ftl_label_ident(&self) -> syn::Ident {
         let str_repr = format!("{}LabelVariants", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
+
     fn ftl_description_ident(&self) -> syn::Ident {
         let str_repr = format!("{}DescriptionVariants", self.struct_name());
         syn::parse_str::<syn::Ident>(&str_repr).unwrap()
     }
 }
 
-impl ComponentIdentities for FieldVariant {
-    fn struct_name(&self) -> &'static str {
-        self.field_type
-    }
-}
-
-impl ComponentIdentities for GpuiFormShape {
+impl ShapeIdentities for GpuiFormShape {
     fn struct_name(&self) -> &'static str {
         self.struct_name
     }
 }
 
-use quote::quote;
+pub trait FieldVariantExt {
+    fn field_ident(&self) -> syn::Ident;
+    fn field_ident_pascal(&self) -> syn::Ident;
+    fn field_ident_with_behaviour(&self) -> syn::Ident;
+    fn value_type(&self) -> syn::Type;
+    fn component_ident(&self) -> TokenStream;
+}
 
-/// Helper function to generate the label tokens for a field.
+impl FieldVariantExt for FieldVariant {
+    fn field_ident(&self) -> syn::Ident {
+        syn::parse_str(self.field_name).unwrap()
+    }
+
+    fn field_ident_pascal(&self) -> syn::Ident {
+        syn::parse_str::<syn::Ident>(&self.field_name_pascal()).unwrap()
+    }
+
+    fn field_ident_with_behaviour(&self) -> syn::Ident {
+        syn::parse_str(&self.field_name_with_behaviour()).unwrap()
+    }
+
+    fn value_type(&self) -> syn::Type {
+        syn::parse_str::<syn::Type>(self.value_type).expect("field value_type should be valid Rust")
+    }
+
+    fn component_ident(&self) -> TokenStream {
+        let ident = syn::parse_str::<syn::Ident>(&self.behaviour.component_name().to_pascal_case())
+            .unwrap();
+        quote! { #ident }
+    }
+}
+
+pub fn generate_entity_creation(field: &FieldVariant, component: &GpuiFormShape) -> TokenStream {
+    let form_components_struct_ident = component.struct_form_components_ident();
+    let var_name_ident = field.field_ident_with_behaviour();
+    let fn_name_ident = var_name_ident.clone();
+
+    quote! {
+        let #var_name_ident =
+            cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
+    }
+}
+
+pub fn generate_entity_field_initializer(field: &FieldVariant) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    quote! { #field_var_name_ident, }
+}
+
+pub fn generate_entity_focus(field: &FieldVariant) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    quote! {
+        self.fields.#field_var_name_ident.focus_handle(cx),
+    }
+}
+
+pub fn generate_text_value_prefill(field: &FieldVariant) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    let field_name_ident = field.field_ident();
+
+    quote! {
+        if let Some(value) = current_data.#field_name_ident.as_ref() {
+            #field_var_name_ident.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
+        }
+    }
+}
+
+pub fn render_standard_field(
+    field: &FieldVariant,
+    component: &GpuiFormShape,
+    child_tokens: TokenStream,
+) -> TokenStream {
+    let description_fn_tokens = generate_description_fn_tokens(field, component);
+    let label_tokens = generate_label_tokens(field, component);
+
+    quote! {
+        .child(
+            field()
+                .label(#label_tokens)
+                #description_fn_tokens
+                .child(#child_tokens)
+        )
+    }
+}
+
+pub fn render_component_entity_field(
+    field: &FieldVariant,
+    component: &GpuiFormShape,
+) -> TokenStream {
+    let component_gpui_type = field.component_ident();
+    let field_in_struct_name_ident = field.field_ident_with_behaviour();
+
+    render_standard_field(
+        field,
+        component,
+        quote! { #component_gpui_type::new(&self.fields.#field_in_struct_name_ident) },
+    )
+}
+
 pub fn generate_label_tokens(
     field: &FieldVariant,
     _component: &GpuiFormShape,
@@ -177,17 +270,15 @@ pub fn generate_label_tokens(
     }
 }
 
-/// Helper function to generate the description_fn tokens for a field.
-/// Includes validation error display if validations are present.
 pub fn generate_description_fn_tokens(
     field: &FieldVariant,
-    _component: &GpuiFormShape,
+    component: &GpuiFormShape,
 ) -> proc_macro2::TokenStream {
     let field_name_ident = field.field_ident();
 
     #[cfg(feature = "fluent")]
     let description_tokens = {
-        let ftl_description_ident = _component.ftl_description_ident();
+        let ftl_description_ident = component.ftl_description_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
         quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
     };
@@ -198,7 +289,7 @@ pub fn generate_description_fn_tokens(
         quote! { #title }
     };
 
-    let field_has_validations = !field.validations.is_empty() && _component.has_koruma();
+    let field_has_validations = !field.validation_rules().is_empty() && component.has_koruma();
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
         let conversion_tokens = quote! { v.to_fluent_string() };

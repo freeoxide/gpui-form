@@ -11,29 +11,39 @@
 | Crate | Link to Architecture Doc | Purpose |
 | --- | --- | --- |
 | **Core** | | |
-| `gpui-form` | [Architecture](crates/gpui-form/docs/ARCHITECTURE.md) | Facade crate; re-exports macros/core/components, numeric helpers. |
-| `gpui-form-core` | [Architecture](crates/gpui-form-core/docs/ARCHITECTURE.md) | Component definitions, registry, codegen helpers. |
+| `gpui-form` | [Architecture](crates/gpui-form/docs/ARCHITECTURE.md) | Facade crate; re-exports macros plus `core` / `runtime` / `schema`. |
+| `gpui-form-core` | [Architecture](crates/gpui-form-core/docs/ARCHITECTURE.md) | Pure helper logic such as numeric validation. |
+| `gpui-form-schema` | [Architecture](crates/gpui-form-schema/docs/ARCHITECTURE.md) | Runtime/schema metadata and inventory registry types. |
 | `gpui-form-derive` | [Architecture](crates/gpui-form-derive/docs/ARCHITECTURE.md) | Proc macros for form derivation and select helpers. |
 | **Components & Runtime** | | |
-| `gpui-form-component` | [Architecture](crates/gpui-form-component/docs/ARCHITECTURE.md) | Runtime helpers (InfiniteSelect). |
+| `gpui-form-runtime` | [Architecture](crates/gpui-form-runtime/docs/ARCHITECTURE.md) | Stable GPUI-facing runtime namespace for generated code. |
+| `gpui-form-component` | [Architecture](crates/gpui-form-component/docs/ARCHITECTURE.md) | Lower-level runtime helper implementations. |
 | **Prototyping** | | |
 | `gpui-form-prototyping-core` | [Architecture](crates/gpui-form-prototyping-core/docs/ARCHITECTURE.md) | Codegen from inventory shapes for prototyping. |
+| **Internal** | | |
+| `gpui-form-codegen` | [Architecture](crates/gpui-form-codegen/docs/ARCHITECTURE.md) | Proc-macro-adjacent parse-time component parsing and token generation. |
 
 ## Crate Descriptions
 
 ### Core Layers
 
 - **`gpui-form`**: User-facing facade. Re-exports derive macros, core metadata, and optional runtime components. Hosts numeric validation helpers.
-- **`gpui-form-core`**: Shared metadata and component definitions used by macros and prototyping.
+- **`gpui-form-core`**: Pure, non-GPUI helpers used by generated code.
+- **`gpui-form-schema`**: Shared metadata and registry definitions used by macros and prototyping.
 - **`gpui-form-derive`**: Proc macros that expand form structs into component fields, value holders, and optional inventory registrations.
 
 ### Components & Runtime
 
-- **`gpui-form-component`**: Runtime helpers for advanced components (currently InfiniteSelect).
+- **`gpui-form-runtime`**: Stable runtime namespace re-exported by the facade as `gpui_form::runtime`.
+- **`gpui-form-component`**: Lower-level runtime helper implementations used by `gpui-form-runtime`.
 
 ### Prototyping
 
 - **`gpui-form-prototyping-core`**: Builds gpui form scaffolding by consuming `GpuiFormShape` inventory data.
+
+### Internal
+
+- **`gpui-form-codegen`**: Parse-time component parsing and token generation used by `gpui-form-derive`.
 
 ## Examples
 
@@ -47,5 +57,6 @@
 - Ignore all folders matching `**/__crate_paths/**` (generated files).
 - When changing public APIs or behavior in a crate, update that crate's `docs/ARCHITECTURE.md`.
 - When adding a component, update:
-  - `gpui-form-core` `Components` + `ComponentLayout` implementation.
+  - `gpui-form-codegen` `Components` + `ComponentLayout` implementation.
+  - `gpui-form-schema` runtime behavior metadata.
   - `gpui-form-prototyping-core` `FieldCodeGenerator` mapping.

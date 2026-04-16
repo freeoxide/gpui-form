@@ -1,4 +1,3 @@
-use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -17,22 +16,18 @@ impl super::ComponentLayout for SelectComponent {
 
         let field_name_ident = crate::component_field_name!(name);
 
-        use __crate_paths::gpui::{Context, Entity, Window};
-        use __crate_paths::gpui_component::IndexPath;
-        use __crate_paths::gpui_component::select::{SearchableVec, SelectState};
-
         let vec_type = if options.behaviour.searchable {
-            quote! { #SearchableVec }
+            quote! { ::gpui_component::select::SearchableVec }
         } else {
             quote! { Vec }
         };
 
         let state_type = quote! {
-          #SelectState<#vec_type<#r#type>>
+          ::gpui_component::select::SelectState<#vec_type<#r#type>>
         };
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: #Entity<#state_type>,
+            pub #field_name_ident: ::gpui::Entity<#state_type>,
         };
 
         let index = if let Some(default_expr) = options.field_default() {
@@ -41,7 +36,7 @@ impl super::ComponentLayout for SelectComponent {
                 {
                     let __gpui_form_default = #default_expr;
                     Some(
-                        #IndexPath::new(
+                        ::gpui_component::IndexPath::new(
                             #r#type::iter()
                                 .position(|x| x == __gpui_form_default)
                                 .unwrap()
@@ -52,7 +47,7 @@ impl super::ComponentLayout for SelectComponent {
         } else if options.use_enum_default() {
             quote! {
               Some(
-                #IndexPath::new(
+                ::gpui_component::IndexPath::new(
                   #r#type::iter()
                     .position(|x| x == #r#type::default())
                     .unwrap()
@@ -65,9 +60,17 @@ impl super::ComponentLayout for SelectComponent {
 
         let field_base_declaration = if !options.behaviour.partial {
             quote! {
-                pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #state_type>) -> #state_type {
+                pub fn #field_name_ident(
+                    window: &mut ::gpui::Window,
+                    cx: &mut ::gpui::Context<'_, #state_type>,
+                ) -> #state_type {
                   use strum::IntoEnumIterator as _;
-                  #SelectState::new(#r#type::iter().collect::<Vec<#r#type>>().into(), #index, window, cx)
+                  ::gpui_component::select::SelectState::new(
+                      #r#type::iter().collect::<Vec<#r#type>>().into(),
+                      #index,
+                      window,
+                      cx,
+                  )
                 }
             }
         } else {

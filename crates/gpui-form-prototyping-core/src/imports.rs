@@ -24,7 +24,7 @@ pub enum Alias {
 /// Both `path` and the inner value of [`Alias::Rename`] are `&'static str`
 /// because all built-in paths are string literals and custom-component paths
 /// are stored as `&'static str` in
-/// [`FieldVariant::custom_component`](gpui_form_core::registry::FieldVariant::custom_component).
+/// [`FieldVariant::custom_component`](gpui_form_schema::registry::FieldVariant::custom_component).
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportItem {
     /// Full path to the imported item, e.g. `"gpui_component::checkbox::Checkbox"`.

@@ -52,7 +52,15 @@ pub struct UserProfile {
 
 ## Runtime Helpers
 
-`gpui-form` re-exports the runtime helper modules as `gpui_form::custom` and
-`gpui_form::infinite_select`, so generated code and most consumers only need the
-facade crate. Add `gpui-form-component` directly only when you want to use that
-crate standalone.
+`gpui-form` exposes the public workspace layout directly:
+
+- `gpui_form::core` for pure helper logic such as numeric validation
+- `gpui_form::runtime` for GPUI-facing runtime helpers
+- `gpui_form::schema` for metadata and inventory registry types
+
+For backward compatibility, the facade also keeps re-exporting
+`gpui_form::custom`, `gpui_form::infinite_select`, and `gpui_form::numeric`.
+
+Most consumers only need the facade crate. Add `gpui-form-runtime` directly
+when you want the runtime crate standalone, or `gpui-form-component` when you
+need the lower-level implementation crate itself.

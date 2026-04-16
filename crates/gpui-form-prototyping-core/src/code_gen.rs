@@ -1,10 +1,10 @@
-use gpui_form_core::components::ComponentsBehaviour;
-use gpui_form_core::registry::GpuiFormShape;
+use gpui_form_schema::components::ComponentsBehaviour;
+use gpui_form_schema::registry::GpuiFormShape;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::path::Path;
 
-use crate::implementations::ComponentIdentities as _;
+use crate::implementations::ShapeIdentities as _;
 use crate::imports::{Alias, ImportItem, ImportSet};
 
 use super::implementations::{
@@ -50,7 +50,9 @@ const FRAMEWORK_IMPORTS: &[ImportItem] = &[
 fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
     match behaviour {
         ComponentsBehaviour::Input => FieldGenerator::Input(InputCodeGenerator),
-        ComponentsBehaviour::NumberInput => FieldGenerator::NumberInput(NumberInputCodeGenerator),
+        ComponentsBehaviour::NumberInput(_) => {
+            FieldGenerator::NumberInput(NumberInputCodeGenerator)
+        },
         ComponentsBehaviour::Checkbox => FieldGenerator::Checkbox(CheckboxCodeGenerator),
         ComponentsBehaviour::Switch => FieldGenerator::Switch(SwitchCodeGenerator),
         ComponentsBehaviour::Select(_) => FieldGenerator::Select(SelectCodeGenerator),

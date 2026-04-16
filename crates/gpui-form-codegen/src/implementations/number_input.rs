@@ -1,4 +1,3 @@
-use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, quote};
@@ -17,11 +16,8 @@ impl super::ComponentLayout for NumberInputComponent {
 
         let field_name_ident = crate::component_field_name!(name);
 
-        use __crate_paths::gpui::{Context, Entity, Window};
-        use __crate_paths::gpui_component::input::InputState;
-
         let field_structure_definition = quote! {
-            pub #field_name_ident: #Entity<#InputState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_component::input::InputState>,
         };
 
         // Determine if we have an `as` attribute for custom types
@@ -54,10 +50,10 @@ impl super::ComponentLayout for NumberInputComponent {
 
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
-                window: &mut #Window,
-                cx: &mut #Context<'_, #InputState>
-            ) -> #InputState {
-                #InputState::new(window, cx)#validation_logic
+                window: &mut ::gpui::Window,
+                cx: &mut ::gpui::Context<'_, ::gpui_component::input::InputState>
+            ) -> ::gpui_component::input::InputState {
+                ::gpui_component::input::InputState::new(window, cx)#validation_logic
             }
         };
 
