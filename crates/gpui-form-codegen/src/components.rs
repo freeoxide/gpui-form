@@ -381,11 +381,8 @@ impl Components {
 
         match self {
             Self::Input => {
-                let component = InputComponent(FieldInformation::new(
-                    InputOptions,
-                    field_name.clone(),
-                    field_type.clone(),
-                ));
+                let component =
+                    InputComponent(FieldInformation::new(InputOptions, field_name, field_type));
                 component.field_tokens(
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
@@ -394,8 +391,8 @@ impl Components {
             Self::NumberInput(options) => {
                 let component = NumberInputComponent(FieldInformation::new(
                     options.clone(),
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
@@ -405,8 +402,8 @@ impl Components {
             Self::Checkbox => {
                 let component = CheckboxComponent(FieldInformation::new(
                     CheckboxOptions,
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
@@ -414,11 +411,8 @@ impl Components {
                 );
             },
             Self::Switch => {
-                let component = SwitchComponent(FieldInformation::new(
-                    SwitchOptions,
-                    field_name.clone(),
-                    field_type.clone(),
-                ));
+                let component =
+                    SwitchComponent(FieldInformation::new(SwitchOptions, field_name, field_type));
                 component.field_tokens(
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
@@ -427,8 +421,8 @@ impl Components {
             Self::Select(options) => {
                 let component = SelectComponent(FieldInformation::new(
                     options.clone().with_field_default(field_default),
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
@@ -438,8 +432,8 @@ impl Components {
             Self::InfiniteSelect(options) => {
                 let component = InfiniteSelectComponent(FieldInformation::new(
                     options.clone().with_field_default(field_default),
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
@@ -449,8 +443,8 @@ impl Components {
             Self::Custom(options) => {
                 let component = CustomComponent(FieldInformation::new(
                     options.clone(),
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
@@ -460,8 +454,8 @@ impl Components {
             Self::DatePicker => {
                 let component = DatePickerComponent(FieldInformation::new(
                     DatePickerOptions,
-                    field_name.clone(),
-                    field_type.clone(),
+                    field_name,
+                    field_type,
                 ));
                 component.field_tokens(
                     &mut field_structure_tokens,
