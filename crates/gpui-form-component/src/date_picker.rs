@@ -2,13 +2,13 @@ use std::{ops::Deref as _, str::FromStr as _};
 
 use chrono::{Datelike as _, NaiveDate};
 use gpui::{
-    App, AppContext, ClickEvent, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
+    App, AppContext as _, ClickEvent, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Render,
     RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
     Subscription, Window, anchored, deferred, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
-    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
+    ActiveTheme as _, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
     button::{Button, ButtonVariants as _},
     calendar::{Calendar, CalendarEvent, CalendarState, Date as CalendarDate},
     h_flex,
@@ -144,10 +144,10 @@ impl DatePickerState {
             return;
         }
 
-        if let Some(focused) = window.focused(cx) {
-            if focused.contains(&self.focus_handle, window) {
-                self.focus_handle.focus(window, cx);
-            }
+        if let Some(focused) = window.focused(cx)
+            && focused.contains(&self.focus_handle, window)
+        {
+            self.focus_handle.focus(window, cx);
         }
     }
 
@@ -399,7 +399,7 @@ fn jiff_date_from_chrono(date: NaiveDate) -> Option<JiffDate> {
 fn active_locale() -> Locale {
     let raw = gpui_component::locale();
     let normalized = raw.deref().replace('_', "-");
-    Locale::from_str(&normalized).unwrap_or_else(|_| locale!("en-US"))
+    Locale::from_str(&normalized).unwrap_or(locale!("en-US"))
 }
 
 fn format_display_date(

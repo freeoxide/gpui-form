@@ -6,7 +6,7 @@
 helpers used by `gpui-form-derive`.
 
 `gpui-form-schema` now stays focused on runtime/schema metadata (`GpuiFormShape`,
-`FieldVariant`, and component behavior descriptors), while this crate handles:
+`FieldVariant`, `ComponentKind`, and component behavior descriptors), while this crate handles:
 
 - parsing `#[gpui_form(component(...))]`
 - generating `FormFields` / `FormComponents` tokens
@@ -27,6 +27,10 @@ helpers used by `gpui-form-derive`.
    `FormComponents` items for each field.
 1. `Components::behaviour_tokens(...)` emits `gpui_form::schema::components::*`
    metadata so inventory/prototyping stay aligned with derive behavior.
+
+Static component identity now comes from `gpui_form_schema::components::ComponentKind`
+instead of a codegen-local discriminant. This keeps snake-case names and shared
+traits like default `wraps_in_option` aligned across codegen and runtime metadata.
 
 For `date_picker`, field state now targets `gpui_form::runtime::date_picker`
 instead of `gpui_component::date_picker` directly so display formatting can be

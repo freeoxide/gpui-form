@@ -1,15 +1,18 @@
 use darling::{Error as DarlingError, FromMeta};
-use gpui_form_schema::components::NumberInputKind;
+use gpui_form_schema::components::{ComponentKind, NumberInputKind};
 use proc_macro2::TokenStream;
 use quote::{ToTokens as _, quote};
-use strum::{Display, EnumDiscriminants, EnumString, IntoStaticStr};
 
 use crate::implementations::ComponentLayout as _;
 
 pub trait ComponentOption {}
 
 pub trait ComponentDefinition {
-    fn component_name() -> &'static str;
+    fn component_kind() -> ComponentKind;
+
+    fn component_name() -> &'static str {
+        Self::component_kind().component_name()
+    }
 }
 
 pub struct FieldInformation<T: ComponentOption> {
@@ -41,12 +44,12 @@ macro_rules! impl_component_option {
 }
 
 macro_rules! define_component_definition {
-    ($component:ident, $options:ty, $variant:ident) => {
+    ($component:ident, $options:ty, $kind:ident) => {
         pub struct $component(pub FieldInformation<$options>);
 
         impl ComponentDefinition for $component {
-            fn component_name() -> &'static str {
-                ComponentsDiscriminants::$variant.into()
+            fn component_kind() -> ComponentKind {
+                ComponentKind::$kind
             }
         }
     };
@@ -270,10 +273,7 @@ impl_component_option!(
     InfiniteSelectOptions,
 );
 
-#[derive(Clone, Debug, EnumDiscriminants, FromMeta)]
-#[strum_discriminants(derive(EnumString, Display, IntoStaticStr))]
-#[strum_discriminants(vis(pub))]
-#[strum_discriminants(strum(serialize_all = "snake_case"))]
+#[derive(Clone, Debug, FromMeta)]
 #[darling(rename_all = "snake_case")]
 pub enum Components {
     Input,
@@ -350,12 +350,23 @@ fn number_input_behaviour_tokens(
 }
 
 impl Components {
+    pub const fn kind(&self) -> ComponentKind {
+        match self {
+            Self::Input => ComponentKind::Input,
+            Self::NumberInput(_) => ComponentKind::NumberInput,
+            Self::Checkbox => ComponentKind::Checkbox,
+            Self::Switch => ComponentKind::Switch,
+            Self::Select(_) => ComponentKind::Select,
+            Self::InfiniteSelect(_) => ComponentKind::InfiniteSelect,
+            Self::Custom(_) => ComponentKind::Custom,
+            Self::DatePicker => ComponentKind::DatePicker,
+        }
+    }
+
     pub fn wraps_in_option(&self) -> bool {
         match self {
-            Self::Input | Self::NumberInput(_) => true,
-            Self::Checkbox | Self::Switch | Self::Select(_) | Self::InfiniteSelect(_) => false,
             Self::Custom(options) => options.wraps_in_option,
-            Self::DatePicker => false,
+            _ => self.kind().default_wraps_in_option(),
         }
     }
 

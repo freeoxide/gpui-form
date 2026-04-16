@@ -1,5 +1,54 @@
 use strum::{Display, EnumString, IntoStaticStr};
 
+#[derive(Clone, Copy, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub enum ComponentKind {
+    Input,
+    NumberInput,
+    Checkbox,
+    Switch,
+    Select,
+    InfiniteSelect,
+    Custom,
+    DatePicker,
+}
+
+impl ComponentKind {
+    pub fn component_name(self) -> &'static str {
+        self.into()
+    }
+
+    pub const fn is_value_only_field(self) -> bool {
+        matches!(self, Self::Checkbox | Self::Switch)
+    }
+
+    pub const fn needs_value_field(self) -> bool {
+        matches!(self, Self::NumberInput)
+    }
+
+    pub const fn subscribable(self) -> bool {
+        matches!(
+            self,
+            Self::Input
+                | Self::NumberInput
+                | Self::Select
+                | Self::InfiniteSelect
+                | Self::DatePicker
+        )
+    }
+
+    pub const fn focusable(self) -> bool {
+        matches!(
+            self,
+            Self::Input | Self::NumberInput | Self::Select | Self::InfiniteSelect
+        )
+    }
+
+    pub const fn default_wraps_in_option(self) -> bool {
+        matches!(self, Self::Input | Self::NumberInput)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SelectBehaviour {
     pub partial: bool,
@@ -48,25 +97,29 @@ pub enum ComponentsBehaviour {
 }
 
 impl ComponentsBehaviour {
-    pub fn component_name(&self) -> &'static str {
+    pub const fn kind(&self) -> ComponentKind {
         match self {
-            Self::Input => "input",
-            Self::NumberInput(_) => "number_input",
-            Self::Checkbox => "checkbox",
-            Self::Switch => "switch",
-            Self::Select(_) => "select",
-            Self::InfiniteSelect(_) => "infinite_select",
-            Self::Custom => "custom",
-            Self::DatePicker => "date_picker",
+            Self::Input => ComponentKind::Input,
+            Self::NumberInput(_) => ComponentKind::NumberInput,
+            Self::Checkbox => ComponentKind::Checkbox,
+            Self::Switch => ComponentKind::Switch,
+            Self::Select(_) => ComponentKind::Select,
+            Self::InfiniteSelect(_) => ComponentKind::InfiniteSelect,
+            Self::Custom => ComponentKind::Custom,
+            Self::DatePicker => ComponentKind::DatePicker,
         }
     }
 
+    pub fn component_name(&self) -> &'static str {
+        self.kind().component_name()
+    }
+
     pub fn is_value_only_field(&self) -> bool {
-        matches!(self, Self::Checkbox | Self::Switch)
+        self.kind().is_value_only_field()
     }
 
     pub fn needs_value_field(&self) -> bool {
-        matches!(self, Self::NumberInput(_))
+        self.kind().needs_value_field()
     }
 
     pub fn partial(&self) -> bool {
@@ -77,20 +130,10 @@ impl ComponentsBehaviour {
     }
 
     pub fn subscribable(&self) -> bool {
-        matches!(
-            self,
-            Self::Input
-                | Self::NumberInput(_)
-                | Self::Select(_)
-                | Self::InfiniteSelect(_)
-                | Self::DatePicker
-        )
+        self.kind().subscribable()
     }
 
     pub fn focusable(&self) -> bool {
-        matches!(
-            self,
-            Self::Input | Self::NumberInput(_) | Self::Select(_) | Self::InfiniteSelect(_)
-        )
+        self.kind().focusable()
     }
 }
