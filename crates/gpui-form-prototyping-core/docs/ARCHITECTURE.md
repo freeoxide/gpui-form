@@ -30,14 +30,14 @@ generation.
 ## Data flow
 
 1. A consumer (see `examples/prototyping`) iterates over `inventory::iter::<GpuiFormShape>()`.
-1. `FormShapeAdapter::new(shape).generate_file()` is the single entry point — it returns a ready-to-format `syn::File` or a `PrototypingError`.
+1. `FormShapeAdapter::new(shape).generate_file(&layout)` is the high-level entry point — it returns a ready-to-format `syn::File` or a `PrototypingError`.
    Internally it:
    - Derives all identifiers from `GpuiFormShape` (no external `LayoutIdentities` needed).
    - Converts `shape.source_path` to a glob `use` path via `source_path_to_use_path`.
    - Validates shape metadata before token generation so malformed identifiers / types / paths are reported as errors instead of panics.
    - Resolves each field once into a typed `ResolvedField`, then caches per-field imports, render fragments, subscriptions, and initialization tokens in a single analysis pass.
    - Builds the minimal deduplicated import set from those cached field parts plus prototyping-core's own shared fragments.
-   - Assembles and `quote!`-generates the full form scaffold token stream.
+   - Produces `FormParts` and hands them to the caller-supplied `FormLayout`, which assembles the final `syn::File`.
 1. The consumer formats with `prettyplease::unparse` and writes to disk.
 
 Field type handling is based on parsing `FieldVariant::value_type` as a full
@@ -76,6 +76,9 @@ When adding a component:
 1. Ensure `ComponentsBehaviour` payloads are handled consistently.
 
 Current behavior for `ComponentsBehaviour::Custom`:
-custom fields are initialized into generated `FormFields`, and a placeholder
-render row is emitted. Prototyping does not infer subscriptions or concrete
-widget rendering for custom state types; projects add those hooks manually.
+custom fields are initialized into generated `FormFields`. When
+`FieldVariant::custom_component` is present, prototyping emits
+`Component::new(&entity)` and imports the component type when needed; when that
+metadata is absent, it falls back to a placeholder render row. Prototyping
+still does not infer subscriptions for custom state types; projects add those
+hooks manually.

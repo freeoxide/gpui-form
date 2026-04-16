@@ -10,7 +10,7 @@ Shared example domain types and source structs that derive `GpuiForm`.
 
 ## some-lib-custom-components
 
-External custom component shapes and state types used by the examples.
+External custom component state types and UI widgets used by the examples.
 
 ## some-lib-forms
 

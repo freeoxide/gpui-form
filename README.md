@@ -110,6 +110,7 @@ See `examples/prototyping` for a working generator.
 
 - `examples/i18n` - localization resources used by the examples.
 - `examples/some-lib` - crate defining shared example types.
-- `examples/some-lib-custom-components` - external custom component shapes/states used by examples.
+- `examples/some-lib-custom-components` - external custom component state
+  types and UI widgets used by the examples.
 - `examples/some-lib-forms` - storybook-like gpui app showcasing generated forms. Run with `cargo run -p some-lib-forms`.
 - `examples/prototyping` - prototyping generator that emits form scaffolding. Run with `cargo run -p prototyping`.

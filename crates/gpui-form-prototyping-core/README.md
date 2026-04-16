@@ -21,9 +21,9 @@ for shape in inventory::iter::<GpuiFormShape>() {
 }
 ```
 
-Use `generate_file(&impl FormLayout)` when you want the crate to assemble a full
-`syn::File`. See `examples/prototyping` for a complete generator that writes
-formatted files.
+Use `generate_file(&impl FormLayout)` when you want the crate to run your layout
+over the computed parts and return a full `syn::File`. See
+`examples/prototyping` for a complete generator that writes formatted files.
 
 Both `parts()` and `generate_file(...)` return `Result<_, PrototypingError>` so
 custom tooling gets a structured error instead of a panic when shape metadata is
