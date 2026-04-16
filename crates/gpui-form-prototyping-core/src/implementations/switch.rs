@@ -5,7 +5,7 @@ use quote::quote;
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, FieldVariantExt as _, GeneratedSubscription, render_standard_field,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_standard_field,
 };
 
 pub struct SwitchCodeGenerator;
@@ -19,7 +19,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
@@ -27,7 +27,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
     fn generate_field_initializers(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
@@ -35,7 +35,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
@@ -59,7 +59,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
     fn generate_focusable_cycle(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
@@ -67,7 +67,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
 
     fn generate_subscription(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         None

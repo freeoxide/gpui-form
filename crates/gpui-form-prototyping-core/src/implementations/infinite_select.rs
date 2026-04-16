@@ -8,7 +8,7 @@ use quote::quote;
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, FieldVariantExt as _, GeneratedSubscription, ShapeIdentities as _,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, ShapeIdentities as _,
 };
 
 pub struct InfiniteSelectCodeGenerator;
@@ -35,32 +35,17 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let field_type = field.value_type();
         let field_name_ident = field.field_ident();
-
-        let master_var_name = format!("{}_master_select", field.field_name);
-        let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
-
-        let initial_location_var = format!("initial_{}", field.field_name);
-        let initial_location_ident = syn::parse_str::<syn::Ident>(&initial_location_var).unwrap();
-
-        let master_variants_var = format!("master_variants_{}", field.field_name);
-        let master_variants_ident = syn::parse_str::<syn::Ident>(&master_variants_var).unwrap();
-
-        let initial_variant_name_var = format!("initial_variant_name_{}", field.field_name);
-        let initial_variant_name_ident =
-            syn::parse_str::<syn::Ident>(&initial_variant_name_var).unwrap();
-
-        let initial_variant_idx_var = format!("initial_variant_idx_{}", field.field_name);
-        let initial_variant_idx_ident =
-            syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
-
-        let master_selected_index_var = format!("master_selected_index_{}", field.field_name);
-        let master_selected_index_ident =
-            syn::parse_str::<syn::Ident>(&master_selected_index_var).unwrap();
+        let master_var_name_ident = field.suffixed_ident("master_select");
+        let initial_location_ident = field.prefixed_ident("initial");
+        let master_variants_ident = field.prefixed_ident("master_variants");
+        let initial_variant_name_ident = field.prefixed_ident("initial_variant_name");
+        let initial_variant_idx_ident = field.prefixed_ident("initial_variant_idx");
+        let master_selected_index_ident = field.prefixed_ident("master_selected_index");
 
         Some(quote! {
             let #initial_location_ident = &current_data.#field_name_ident;
@@ -87,19 +72,13 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         // Initialize master select, child selects, and path
-        let master_var_name = format!("{}_master_select", field.field_name);
-        let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
-
-        let child_selects_var_name = format!("{}_child_selects", field.field_name);
-        let child_selects_var_name_ident =
-            syn::parse_str::<syn::Ident>(&child_selects_var_name).unwrap();
-
-        let path_var_name = format!("{}_path", field.field_name);
-        let path_var_name_ident = syn::parse_str::<syn::Ident>(&path_var_name).unwrap();
+        let master_var_name_ident = field.suffixed_ident("master_select");
+        let child_selects_var_name_ident = field.suffixed_ident("child_selects");
+        let path_var_name_ident = field.suffixed_ident("path");
 
         Some(quote! {
             #master_var_name_ident,
@@ -110,17 +89,12 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> TokenStream {
         let field_name_ident = field.field_ident();
-
-        let master_field_name = format!("{}_master_select", field.field_name);
-        let master_field_name_ident = syn::parse_str::<syn::Ident>(&master_field_name).unwrap();
-
-        let child_selects_field_name = format!("{}_child_selects", field.field_name);
-        let child_selects_field_name_ident =
-            syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
+        let master_field_name_ident = field.suffixed_ident("master_select");
+        let child_selects_field_name_ident = field.suffixed_ident("child_selects");
 
         quote! {
             .child({
@@ -164,11 +138,10 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_focusable_cycle(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let master_field_name = format!("{}_master_select", field.field_name);
-        let master_field_name_ident = syn::parse_str::<syn::Ident>(&master_field_name).unwrap();
+        let master_field_name_ident = field.suffixed_ident("master_select");
 
         Some(quote! {
             self.fields.#master_field_name_ident.focus_handle(cx),
@@ -177,28 +150,22 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_subscription(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_type = field.value_type();
         let form_components_struct_ident = component.struct_form_components_ident();
 
-        let searchable = if let ComponentsBehaviour::InfiniteSelect(config) = &field.behaviour {
+        let searchable = if let ComponentsBehaviour::InfiniteSelect(config) = field.behaviour() {
             config.searchable
         } else {
             panic!("Expected InfiniteSelect behaviour")
         };
 
-        let master_var_name = format!("{}_master_select", field.field_name);
-        let master_var_name_ident = syn::parse_str::<syn::Ident>(&master_var_name).unwrap();
-
-        let master_event_handler_fn_name = format!("on_{}_master_select_event", field.field_name);
+        let master_var_name_ident = field.suffixed_ident("master_select");
         let master_event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&master_event_handler_fn_name).unwrap();
-
-        let child_event_handler_fn_name = format!("on_{}_child_select_event", field.field_name);
-        let child_event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&child_event_handler_fn_name).unwrap();
+            field.event_handler_ident("master_select_event");
+        let child_event_handler_fn_name_ident = field.event_handler_ident("child_select_event");
 
         let calls = vec![
             quote! { cx.subscribe_in(&#master_var_name_ident, window, Self::#master_event_handler_fn_name_ident) },
@@ -206,16 +173,9 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
         let field_name_ident = field.field_ident();
 
-        let child_selects_field_name = format!("{}_child_selects", field.field_name);
-        let child_selects_field_name_ident =
-            syn::parse_str::<syn::Ident>(&child_selects_field_name).unwrap();
-
-        let child_helper_fn_name = format!("{}_child_selects", field.field_name);
-        let child_helper_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&child_helper_fn_name).unwrap();
-
-        let path_field_name = format!("{}_path", field.field_name);
-        let path_field_name_ident = syn::parse_str::<syn::Ident>(&path_field_name).unwrap();
+        let child_selects_field_name_ident = field.suffixed_ident("child_selects");
+        let child_helper_fn_name_ident = child_selects_field_name_ident.clone();
+        let path_field_name_ident = field.suffixed_ident("path");
 
         let vec_type = if searchable {
             quote! { SearchableVec }
@@ -304,30 +264,16 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
 
     fn generate_post_subscription_initialization(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         let form_components_struct_ident = component.struct_form_components_ident();
         let field_name_ident = field.field_ident();
-
-        let child_selects_var_name = format!("{}_child_selects", field.field_name);
-        let child_selects_var_name_ident =
-            syn::parse_str::<syn::Ident>(&child_selects_var_name).unwrap();
-
-        let path_var_name = format!("{}_path", field.field_name);
-        let path_var_name_ident = syn::parse_str::<syn::Ident>(&path_var_name).unwrap();
-
-        let child_helper_fn_name = format!("{}_child_selects", field.field_name);
-        let child_helper_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&child_helper_fn_name).unwrap();
-
-        let child_event_handler_fn_name = format!("on_{}_child_select_event", field.field_name);
-        let child_event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&child_event_handler_fn_name).unwrap();
-
-        let initial_variant_idx_var = format!("initial_variant_idx_{}", field.field_name);
-        let initial_variant_idx_ident =
-            syn::parse_str::<syn::Ident>(&initial_variant_idx_var).unwrap();
+        let child_selects_var_name_ident = field.suffixed_ident("child_selects");
+        let path_var_name_ident = field.suffixed_ident("path");
+        let child_helper_fn_name_ident = field.suffixed_ident("child_selects");
+        let child_event_handler_fn_name_ident = field.event_handler_ident("child_select_event");
+        let initial_variant_idx_ident = field.prefixed_ident("initial_variant_idx");
 
         Some(quote! {
             let mut #path_var_name_ident = gpui_form::infinite_select::InfiniteSelectPath::new();

@@ -8,7 +8,7 @@ use quote::quote;
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, FieldVariantExt as _, GeneratedSubscription, generate_entity_creation,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
     generate_entity_field_initializer, generate_entity_focus, render_component_entity_field,
 };
 
@@ -33,10 +33,10 @@ impl FieldCodeGenerator for SelectCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        if field.behaviour.partial() {
+        if field.behaviour().partial() {
             return None;
         }
 
@@ -45,7 +45,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_entity_field_initializer(field))
@@ -53,7 +53,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
         render_component_entity_field(field, component)
@@ -61,7 +61,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
 
     fn generate_focusable_cycle(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_entity_focus(field))
@@ -69,20 +69,17 @@ impl FieldCodeGenerator for SelectCodeGenerator {
 
     fn generate_subscription(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_type = field.value_type();
-        let searchable = if let ComponentsBehaviour::Select(dropdown_config) = &field.behaviour {
+        let searchable = if let ComponentsBehaviour::Select(dropdown_config) = field.behaviour() {
             dropdown_config.searchable
         } else {
             panic!("Expected Select behaviour")
         };
         let field_var_name_ident = field.field_ident_with_behaviour();
-
-        let event_handler_fn_name = format!("on_{}_select_event", field.field_name);
-        let event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&event_handler_fn_name).unwrap();
+        let event_handler_fn_name_ident = field.event_handler_ident("select_event");
 
         let calls = vec![
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
@@ -99,7 +96,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         // Generate handler based on whether field is optional
         // Optional fields: direct assignment (value is already Option<T>)
         // Non-optional fields: unwrap with if let Some pattern
-        let handler = if field.optional {
+        let handler = if field.optional() {
             quote! {
                 fn #event_handler_fn_name_ident(
                     &mut self,
@@ -169,8 +166,9 @@ mod tests {
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let generator = SelectCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
         let generated = generator
-            .generate_subscription(&FIELDS[0], &SHAPE)
+            .generate_subscription(&field, &SHAPE)
             .expect("select fields should generate subscriptions");
         let compact = compact(&generated.handlers[0].to_string());
 

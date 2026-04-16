@@ -1,19 +1,11 @@
-use gpui_form_schema::components::ComponentsBehaviour;
 use gpui_form_schema::registry::GpuiFormShape;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::path::Path;
 
 use crate::error::{PrototypingError, PrototypingResult};
-use crate::implementations::ShapeIdentities as _;
+use crate::implementations::{GeneratedSubscription, ResolvedField, ShapeIdentities as _, field_generator};
 use crate::imports::{Alias, ImportItem, ImportSet};
-
-use super::implementations::{
-    ComponentShape, FieldGenerator, checkbox::CheckboxCodeGenerator, custom::CustomCodeGenerator,
-    date_picker::DatePickerCodeGenerator, infinite_select::InfiniteSelectCodeGenerator,
-    input::InputCodeGenerator, number_input::NumberInputCodeGenerator, select::SelectCodeGenerator,
-    switch::SwitchCodeGenerator,
-};
 
 /// Imports required by prototyping-core's own generated fragments.
 ///
@@ -38,28 +30,21 @@ const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
 
 const SUBSCRIPTION_IMPORTS: &[ImportItem] = &[ImportItem::path("gpui::Subscription")];
 
+struct GeneratedField<'a> {
+    imports: Vec<ImportItem>,
+    cx_new_call: Option<TokenStream>,
+    field_initializer: Option<TokenStream>,
+    render_child: TokenStream,
+    subscription: Option<GeneratedSubscription>,
+    post_subscription_initialization: Option<TokenStream>,
+    _resolved: ResolvedField<'a>,
+}
+
 fn parse_ident(kind: &'static str, value: &str) -> PrototypingResult<syn::Ident> {
     syn::parse_str::<syn::Ident>(value).map_err(|_| PrototypingError::InvalidIdentifier {
         kind,
         value: value.to_string(),
     })
-}
-
-fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
-    match behaviour {
-        ComponentsBehaviour::Input => FieldGenerator::Input(InputCodeGenerator),
-        ComponentsBehaviour::NumberInput(_) => {
-            FieldGenerator::NumberInput(NumberInputCodeGenerator)
-        },
-        ComponentsBehaviour::Checkbox => FieldGenerator::Checkbox(CheckboxCodeGenerator),
-        ComponentsBehaviour::Switch => FieldGenerator::Switch(SwitchCodeGenerator),
-        ComponentsBehaviour::Select(_) => FieldGenerator::Select(SelectCodeGenerator),
-        ComponentsBehaviour::InfiniteSelect(_) => {
-            FieldGenerator::InfiniteSelect(InfiniteSelectCodeGenerator)
-        },
-        ComponentsBehaviour::Custom => FieldGenerator::Custom(CustomCodeGenerator),
-        ComponentsBehaviour::DatePicker => FieldGenerator::DatePicker(DatePickerCodeGenerator),
-    }
 }
 
 pub struct FormShapeAdapter<'a> {
@@ -91,30 +76,40 @@ impl<'a> FormShapeAdapter<'a> {
             }
         })?;
 
-        for field in data.components {
-            parse_ident("field name", field.field_name)?;
-            parse_ident("field pascal ident", &field.field_name_pascal())?;
-            parse_ident("field component ident", &field.field_name_with_behaviour())?;
-            syn::parse_str::<syn::Type>(field.value_type).map_err(|error| {
-                PrototypingError::InvalidType {
-                    field_name: field.field_name.to_string(),
-                    value: field.value_type.to_string(),
-                    error: error.to_string(),
-                }
-            })?;
-
-            if let Some(component_path) = field.custom_component {
-                syn::parse_str::<syn::Path>(component_path).map_err(|error| {
-                    PrototypingError::InvalidPath {
-                        kind: "custom component path",
-                        value: component_path.to_string(),
-                        error: error.to_string(),
-                    }
-                })?;
-            }
-        }
-
         Ok(())
+    }
+
+    fn collect_fields(&self) -> PrototypingResult<Vec<GeneratedField<'a>>> {
+        self.shape_data
+            .components
+            .iter()
+            .map(|field| {
+                parse_ident("field name", field.field_name)?;
+                parse_ident("field pascal ident", &field.field_name_pascal())?;
+                parse_ident("field component ident", &field.field_name_with_behaviour())?;
+
+                let resolved = ResolvedField::new(field)?;
+                let generator = field_generator(resolved.behaviour());
+                let imports = generator.generate_imports(field);
+                let subscription = if field.behaviour.subscribable() {
+                    generator.generate_subscription(&resolved, self.shape_data)
+                } else {
+                    None
+                };
+
+                Ok(GeneratedField {
+                    imports,
+                    cx_new_call: generator.generate_cx_new_call(&resolved, self.shape_data),
+                    field_initializer: generator
+                        .generate_field_initializers(&resolved, self.shape_data),
+                    render_child: generator.generate_render_child(&resolved, self.shape_data),
+                    subscription,
+                    post_subscription_initialization: generator
+                        .generate_post_subscription_initialization(&resolved, self.shape_data),
+                    _resolved: resolved,
+                })
+            })
+            .collect()
     }
 
     /// Collect all imports needed by this form's generated file.
@@ -139,7 +134,7 @@ impl<'a> FormShapeAdapter<'a> {
         }
         for field in self.shape_data.components {
             let generator = field_generator(&field.behaviour);
-            set.extend(generator.as_generator().generate_imports(field));
+            set.extend(generator.generate_imports(field));
         }
         set
     }
@@ -154,6 +149,7 @@ impl<'a> FormShapeAdapter<'a> {
     pub fn parts(&self) -> PrototypingResult<FormParts> {
         self.validate_shape_data()?;
         let data = self.shape_data;
+        let generated_fields = self.collect_fields()?;
 
         let struct_name_ident = parse_ident("struct name", data.struct_name)?;
         let form_value_holder_ident = format_ident!("{}FormValueHolder", struct_name_ident);
@@ -174,12 +170,46 @@ impl<'a> FormShapeAdapter<'a> {
         let is_empty = data.components.is_empty();
         let has_koruma = data.has_koruma();
 
-        let component_creations = self.cx_new_calls().unwrap_or_default();
-        let field_initializers = self.field_initializers().unwrap_or_default();
-        let render_children = self.child_elements();
-        let event_handlers = self.event_handlers().unwrap_or_default();
-        let subscription_calls = self.subscription_calls().unwrap_or_default();
-        let post_subscription_init = self.post_subscription_initialization().unwrap_or_default();
+        let component_creations: TokenStream = generated_fields
+            .iter()
+            .filter_map(|field| field.cx_new_call.clone())
+            .collect();
+        let field_initializers: TokenStream = generated_fields
+            .iter()
+            .filter_map(|field| field.field_initializer.clone())
+            .collect();
+        let render_children: TokenStream = generated_fields
+            .iter()
+            .map(|field| field.render_child.clone())
+            .collect();
+        let subscription_call_items: Vec<TokenStream> = generated_fields
+            .iter()
+            .filter_map(|field| field.subscription.as_ref())
+            .flat_map(|subscription| subscription.calls.iter().cloned())
+            .collect();
+        let event_handler_items: Vec<TokenStream> = generated_fields
+            .iter()
+            .filter_map(|field| field.subscription.as_ref())
+            .flat_map(|subscription| subscription.handlers.iter().cloned())
+            .collect();
+        let subscription_calls = if subscription_call_items.is_empty() {
+            TokenStream::new()
+        } else {
+            quote! {
+                let mut _subscriptions = vec![#(#subscription_call_items),*];
+            }
+        };
+        let event_handlers = if event_handler_items.is_empty() {
+            TokenStream::new()
+        } else {
+            quote! {
+                #(#event_handler_items)*
+            }
+        };
+        let post_subscription_init: TokenStream = generated_fields
+            .iter()
+            .filter_map(|field| field.post_subscription_initialization.clone())
+            .collect();
 
         let validation_binding = if has_koruma {
             quote! { let validation_errors = self.current_data.validate().err(); }
@@ -254,7 +284,19 @@ impl<'a> FormShapeAdapter<'a> {
             }
         };
 
-        let collected_imports = self.required_imports().to_token_stream();
+        let mut collected_imports = ImportSet::default();
+        if !generated_fields.is_empty() {
+            collected_imports.extend_items(FRAGMENT_IMPORTS);
+            #[cfg(feature = "fluent")]
+            collected_imports.extend_items(FLUENT_FRAGMENT_IMPORTS);
+        }
+        if !subscription_call_items.is_empty() {
+            collected_imports.extend_items(SUBSCRIPTION_IMPORTS);
+        }
+        for field in &generated_fields {
+            collected_imports.extend(field.imports.clone());
+        }
+        let collected_imports = collected_imports.to_token_stream();
         let imports = quote! {
             use #source_module_path::*;
             #collected_imports
@@ -429,134 +471,6 @@ fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
     }
 
     syn::parse_str(&path_segments.join("::")).ok()
-}
-
-impl<'a> ComponentShape for FormShapeAdapter<'a> {
-    fn cx_new_calls(&self) -> Option<TokenStream> {
-        let x: proc_macro2::TokenStream = self
-            .shape_data
-            .components
-            .iter()
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_cx_new_call(field, self.shape_data)
-            })
-            .collect();
-
-        if x.is_empty() { None } else { Some(x) }
-    }
-
-    fn field_initializers(&self) -> Option<TokenStream> {
-        let x: proc_macro2::TokenStream = self
-            .shape_data
-            .components
-            .iter()
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_field_initializers(field, self.shape_data)
-            })
-            .collect();
-
-        if x.is_empty() { None } else { Some(x) }
-    }
-
-    fn child_elements(&self) -> TokenStream {
-        self.shape_data
-            .components
-            .iter()
-            .map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_render_child(field, self.shape_data)
-            })
-            .collect()
-    }
-
-    fn focusable_cycle(&self) -> Option<proc_macro2::TokenStream> {
-        let x: proc_macro2::TokenStream = self
-            .shape_data
-            .components
-            .iter()
-            .filter(|field| field.behaviour.focusable())
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_focusable_cycle(field, self.shape_data)
-            })
-            .collect();
-
-        if x.is_empty() { None } else { Some(x) }
-    }
-
-    fn subscription_calls(&self) -> Option<proc_macro2::TokenStream> {
-        let calls: Vec<TokenStream> = self
-            .shape_data
-            .components
-            .iter()
-            .filter(|field| field.behaviour.subscribable())
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_subscription(field, self.shape_data)
-            })
-            .flat_map(|sub| sub.calls)
-            .collect();
-
-        if calls.is_empty() {
-            None
-        } else {
-            Some(quote! {
-                let mut _subscriptions = vec![#(#calls),*];
-            })
-        }
-    }
-
-    fn event_handlers(&self) -> Option<proc_macro2::TokenStream> {
-        let handlers: Vec<TokenStream> = self
-            .shape_data
-            .components
-            .iter()
-            .filter(|field| field.behaviour.subscribable())
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_subscription(field, self.shape_data)
-            })
-            .flat_map(|sub| sub.handlers)
-            .collect();
-
-        if handlers.is_empty() {
-            None
-        } else {
-            Some(quote! {
-                #(#handlers)*
-            })
-        }
-    }
-
-    fn post_subscription_initialization(&self) -> Option<proc_macro2::TokenStream> {
-        let x: proc_macro2::TokenStream = self
-            .shape_data
-            .components
-            .iter()
-            .filter_map(|field| {
-                let generator = field_generator(&field.behaviour);
-                generator
-                    .as_generator()
-                    .generate_post_subscription_initialization(field, self.shape_data)
-            })
-            .collect();
-
-        if x.is_empty() { None } else { Some(x) }
-    }
 }
 
 #[cfg(test)]

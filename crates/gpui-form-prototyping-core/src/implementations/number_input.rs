@@ -6,7 +6,7 @@ use quote::quote;
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, FieldVariantExt as _, GeneratedSubscription, generate_entity_creation,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
     generate_entity_field_initializer, generate_entity_focus, generate_text_value_prefill,
     render_component_entity_field,
 };
@@ -28,7 +28,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_entity_creation(field, component))
@@ -36,7 +36,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_post_subscription_initialization(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_text_value_prefill(field))
@@ -44,7 +44,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_entity_field_initializer(field))
@@ -52,7 +52,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
         render_component_entity_field(field, component)
@@ -60,7 +60,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_focusable_cycle(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         Some(generate_entity_focus(field))
@@ -68,18 +68,14 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
     fn generate_subscription(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
 
-        let on_input_event_handler_fn_name = format!("on_{}_input_event", field.field_name);
-        let on_input_event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&on_input_event_handler_fn_name).unwrap();
-        let on_number_input_event_handler_fn_name =
-            format!("on_{}_number_input_event", field.field_name);
+        let on_input_event_handler_fn_name_ident = field.event_handler_ident("input_event");
         let on_number_input_event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&on_number_input_event_handler_fn_name).unwrap();
+            field.event_handler_ident("number_input_event");
 
         let calls = vec![
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#on_input_event_handler_fn_name_ident) },
@@ -100,19 +96,16 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
-                match event {
-                    InputEvent::Change => {
-                        let text = state.read(_cx).value();
-                        self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
-                    },
-                    _ => {},
+                if let InputEvent::Change = event {
+                    let text = state.read(_cx).value();
+                    self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
                 }
             }
         };
         handlers.push(on_input_event_handler);
 
         // Generate increment/decrement logic - value holder always wraps numeric fields in Option
-        let behaviour = match &field.behaviour {
+        let behaviour = match field.behaviour() {
             ComponentsBehaviour::NumberInput(behaviour) => behaviour,
             _ => panic!("Expected NumberInput behaviour"),
         };

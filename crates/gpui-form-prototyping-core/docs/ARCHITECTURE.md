@@ -23,6 +23,9 @@ generation.
 - `implementations/*`: per-component `FieldCodeGenerator` implementations.
 - `implementations/mod.rs`: shared traits and helpers for type parsing,
   component identity, and label/description generation.
+  `ResolvedField` is the validated, typed view of one `FieldVariant`; component
+  generators operate on that instead of reparsing identifiers and types from
+  raw strings.
 
 ## Data flow
 
@@ -32,7 +35,8 @@ generation.
    - Derives all identifiers from `GpuiFormShape` (no external `LayoutIdentities` needed).
    - Converts `shape.source_path` to a glob `use` path via `source_path_to_use_path`.
    - Validates shape metadata before token generation so malformed identifiers / types / paths are reported as errors instead of panics.
-   - Calls `required_imports()` to build the minimal deduplicated import set for prototyping-core's own generated fragments.
+   - Resolves each field once into a typed `ResolvedField`, then caches per-field imports, render fragments, subscriptions, and initialization tokens in a single analysis pass.
+   - Builds the minimal deduplicated import set from those cached field parts plus prototyping-core's own shared fragments.
    - Assembles and `quote!`-generates the full form scaffold token stream.
 1. The consumer formats with `prettyplease::unparse` and writes to disk.
 

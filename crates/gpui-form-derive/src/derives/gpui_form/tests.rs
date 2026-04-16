@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod gpui_form_tests {
     use super::super::*;
     use koruma_derive_core::ParseFieldResult;
     use quote::quote;
