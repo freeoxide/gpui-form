@@ -34,7 +34,7 @@ fn expand(input: DeriveInput) -> darling::Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl #impl_generics gpui_form_component::custom::CustomComponentShape for #ident #ty_generics #where_clause {
+        impl #impl_generics ::gpui_form::custom::CustomComponentShape for #ident #ty_generics #where_clause {
             type State = Self;
 
             fn new(
@@ -79,7 +79,7 @@ mod tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("implgpui_form_component::custom::CustomComponentShapeforTagsState"),
+            compact.contains("impl::gpui_form::custom::CustomComponentShapeforTagsState"),
             "should implement CustomComponentShape for derived type"
         );
         assert!(

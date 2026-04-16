@@ -11,8 +11,6 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 
 gpui-form = { version = "*", features = ["derive"] }
 
-# gpui-form-component = { version = "*" }
-
 # Optional inventory registry for prototyping
 # gpui-form = { version = "*", features = ["derive", "inventory"] }
 ```
@@ -39,7 +37,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select)), default = Country::France]
     pub country: Country,
 
     #[gpui_form(component(checkbox))]
@@ -51,3 +49,10 @@ pub struct UserProfile {
 
 - `derive` (default): proc macros for forms and select helpers.
 - `inventory`: enables shape registry for prototyping when `derive` is enabled.
+
+## Runtime Helpers
+
+`gpui-form` re-exports the runtime helper modules as `gpui_form::custom` and
+`gpui_form::infinite_select`, so generated code and most consumers only need the
+facade crate. Add `gpui-form-component` directly only when you want to use that
+crate standalone.

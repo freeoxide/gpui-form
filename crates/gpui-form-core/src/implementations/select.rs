@@ -35,16 +35,19 @@ impl super::ComponentLayout for SelectComponent {
             pub #field_name_ident: #Entity<#state_type>,
         };
 
-        let index = if let Some(named_index) = options.named_index() {
-            let path = named_index.clone();
+        let index = if let Some(default_expr) = options.field_default() {
+            let default_expr = default_expr.clone();
             quote! {
-              Some(
-                #IndexPath::new(
-                  #r#type::iter()
-                    .position(|x| x == #path)
-                    .unwrap()
-                )
-              )
+                {
+                    let __gpui_form_default = #default_expr;
+                    Some(
+                        #IndexPath::new(
+                            #r#type::iter()
+                                .position(|x| x == __gpui_form_default)
+                                .unwrap()
+                        )
+                    )
+                }
             }
         } else if options.use_enum_default() {
             quote! {

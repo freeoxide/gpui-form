@@ -34,8 +34,9 @@ To add a new component:
 Custom user-defined components are represented by `Components::Custom(CustomOptions)`.
 `CustomOptions` carries:
 
-- `shape`/`state`: path to a type implementing `gpui_form_component::custom::CustomComponentShape`
+- `shape`/`state`: path to a type implementing `gpui_form::custom::CustomComponentShape`
 - `wraps_in_option`: whether the form value holder wraps that field in `Option<T>`
+- `BehaviourInfiniteSelectOptions::max_depth`: maximum child-select depth emitted by generated infinite-select helpers
 
 ## Notes
 

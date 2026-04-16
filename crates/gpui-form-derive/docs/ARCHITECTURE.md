@@ -18,6 +18,7 @@
 
 1. Parse struct fields and attributes with `darling` (including `cfg_attr` flattening).
 1. Convert `#[gpui_form(component(...))]` into `Components` from `gpui-form-core` (including `component(custom(shape = ...))` and `component(custom(state = ...))`).
+1. Field defaults from `#[gpui_form(default = ...)]` feed both generated value-holder defaults and select / infinite-select initial selection logic.
 1. Use `ComponentLayout` implementations to generate:
    - `FormFields` struct (component state entities)
    - `FormComponents` constructors
@@ -44,7 +45,7 @@
 
 ### `CustomComponentState`
 
-- Implements `gpui_form_component::custom::CustomComponentShape` directly for a state type.
+- Implements `gpui_form::custom::CustomComponentShape` directly for a state type.
 - Defaults constructor call to `Self::new(window, cx)`.
 - Supports override via `#[gpui_form_custom(new = ...)]`.
 - Supports `#[gpui_form_custom(component = ...)]` to set `COMPONENT_PATH` on the shape, so that field annotations don't need to repeat `component = …`.

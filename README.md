@@ -66,6 +66,8 @@ pub struct UserProfile {
   `gpui_form::custom_component_shape!`.
 - Or derive directly on state types with `#[derive(gpui_form::CustomComponentState)]`
   and use `component(custom(state = ...))`.
+- Runtime helper modules are re-exported from `gpui_form::{custom, infinite_select}`.
+  A direct `gpui-form-component` dependency is only needed when using that crate standalone.
 
 ## Validation ([koruma](https://github.com/stayhydated/koruma))
 

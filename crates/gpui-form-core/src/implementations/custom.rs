@@ -21,7 +21,7 @@ impl super::ComponentLayout for CustomComponent {
         use __crate_paths::gpui::{Context, Entity, Window};
 
         let state_type = quote! {
-            <#shape as gpui_form_component::custom::CustomComponentShape>::State
+            <#shape as ::gpui_form::custom::CustomComponentShape>::State
         };
 
         let field_structure_definition = quote! {
@@ -30,7 +30,7 @@ impl super::ComponentLayout for CustomComponent {
 
         let field_base_declaration = quote! {
             pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #state_type>) -> #state_type {
-                <#shape as gpui_form_component::custom::CustomComponentShape>::new(window, cx)
+                <#shape as ::gpui_form::custom::CustomComponentShape>::new(window, cx)
             }
         };
 

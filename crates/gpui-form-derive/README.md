@@ -18,12 +18,8 @@ Field attributes:
 - `#[gpui_form(component(select))]`
 - `#[gpui_form(component(select(searchable)))]`
 - `#[gpui_form(component(select(partial)))]`
-- `#[gpui_form(component(select(index = MyEnum::Variant)))]`
-- `#[gpui_form(component(select(default)))]`
 - `#[gpui_form(component(infinite_select))]`
 - `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
-- `#[gpui_form(component(infinite_select(index = MyEnum::Variant)))]`
-- `#[gpui_form(component(infinite_select(default)))]`
 - `#[gpui_form(component(custom(shape = my::EmailInputShape)))]`
 - `#[gpui_form(component(custom(state = my::EmailInputState)))]`
 - `#[gpui_form(component(custom(shape = my::EmailInputShape, wraps_in_option = false)))]`
@@ -33,9 +29,11 @@ Field attributes:
 
 Notes:
 
-- `select` expects `strum::IntoEnumIterator` and `PartialEq`; `select(default)` also needs `Default`.
-- `infinite_select(max_depth = ...)` is currently stored in metadata but not enforced by generated code.
-- `custom(shape = ...)`/`custom(state = ...)` expects the referenced type to implement `gpui_form_component::custom::CustomComponentShape`.
+- `select` expects `strum::IntoEnumIterator` and `PartialEq`.
+- `#[gpui_form(default = <expr>)]` seeds the generated value holder and also drives the initial selection for `select` and `infinite_select`.
+- When no field default is provided, generated default state falls back to `Default::default()`.
+- `infinite_select(max_depth = ...)` clamps the generated child-select depth.
+- `custom(shape = ...)`/`custom(state = ...)` expects the referenced type to implement `gpui_form::custom::CustomComponentShape`.
 
 Struct attributes:
 
@@ -55,7 +53,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select)), default = Country::France]
     pub country: Country,
 }
 ```
@@ -99,7 +97,7 @@ Variant attributes:
 
 ### `#[derive(CustomComponentState)]`
 
-Implements `gpui_form_component::custom::CustomComponentShape` for a state type.
+Implements `gpui_form::custom::CustomComponentShape` for a state type.
 
 By default, generated code calls `Self::new(window, cx)`.
 You can override constructor path:

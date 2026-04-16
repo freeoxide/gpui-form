@@ -11,16 +11,17 @@ Enable the `inventory` feature on `gpui-form` and iterate the registered shapes:
 
 ```rs
 use gpui_form::core::registry::{GpuiFormShape, inventory};
-use gpui_form_prototyping_core::code_gen::FormShapeAdapter;
-use gpui_form_prototyping_core::implementations::ComponentShape as _;
+use gpui_form_prototyping_core::FormShapeAdapter;
 
 for shape in inventory::iter::<GpuiFormShape>() {
-    let adapter = FormShapeAdapter::new(shape);
-    let _children = adapter.child_elements();
+    let parts = FormShapeAdapter::new(shape).parts();
+    let _imports = parts.imports;
 }
 ```
 
-See `examples/prototyping` for a full generator that writes formatted files.
+Use `generate_file(&impl FormLayout)` when you want the crate to assemble a full
+`syn::File`. See `examples/prototyping` for a complete generator that writes
+formatted files.
 
 If you prefer calling `inventory::iter` directly, add `inventory` to your dependencies.
 

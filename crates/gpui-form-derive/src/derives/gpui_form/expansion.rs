@@ -289,7 +289,7 @@ pub fn expand_gpui_form(
                         // Fall back to whatever the shape declares as COMPONENT_PATH.
                         Some(quote! {
                             .with_custom_component_opt(
-                                <#shape as ::gpui_form_component::custom::CustomComponentShape>::COMPONENT_PATH
+                                <#shape as ::gpui_form::custom::CustomComponentShape>::COMPONENT_PATH
                             )
                         })
                     }

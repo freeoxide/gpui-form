@@ -54,9 +54,10 @@ pub struct BehaviourSelectOptions {
 #[derive(Clone, Debug, Default)]
 pub struct SelectOptions {
     pub behaviour: BehaviourSelectOptions,
-    /// Field-level default value as a path expression (e.g., EnumCountry::France)
+    /// Field-level default value expression (e.g., `EnumCountry::France` or
+    /// `preferred_country()`).
     /// This is set by the derive macro when the field has a `default = ...` attribute
-    field_default: Option<syn::Path>,
+    field_default: Option<syn::Expr>,
 }
 
 impl FromMeta for SelectOptions {
@@ -75,13 +76,13 @@ impl FromMeta for SelectOptions {
 
 impl SelectOptions {
     /// Set the field-level default value
-    pub fn with_field_default(mut self, default: Option<syn::Path>) -> Self {
+    pub fn with_field_default(mut self, default: Option<syn::Expr>) -> Self {
         self.field_default = default;
         self
     }
 
-    /// Get the named index from field default, if specified
-    pub fn named_index(&self) -> Option<&syn::Path> {
+    /// Get the field-level default expression, if specified.
+    pub fn field_default(&self) -> Option<&syn::Expr> {
         self.field_default.as_ref()
     }
 
@@ -136,7 +137,7 @@ fn default_custom_wraps_in_option() -> bool {
 
 #[derive(Clone, Debug)]
 pub struct CustomOptions {
-    /// Path to a type implementing `gpui_form_component::custom::CustomComponentShape`.
+    /// Path to a type implementing `gpui_form::custom::CustomComponentShape`.
     pub shape: syn::Path,
     /// UI component type path (e.g. `TagsInput`).
     /// When provided, the prototyping code generator emits `Component::new(&entity)`.
@@ -219,9 +220,10 @@ pub struct BehaviourInfiniteSelectOptions {
 #[derive(Clone, Debug, Default)]
 pub struct InfiniteSelectOptions {
     pub behaviour: BehaviourInfiniteSelectOptions,
-    /// Field-level default value as a path expression (e.g., EnumCountry::France)
+    /// Field-level default value expression (e.g., `Country::France(...)` or
+    /// `default_country()`).
     /// This is set by the derive macro when the field has a `default = ...` attribute
-    field_default: Option<syn::Path>,
+    field_default: Option<syn::Expr>,
 }
 
 impl FromMeta for InfiniteSelectOptions {
@@ -240,13 +242,13 @@ impl FromMeta for InfiniteSelectOptions {
 
 impl InfiniteSelectOptions {
     /// Set the field-level default value
-    pub fn with_field_default(mut self, default: Option<syn::Path>) -> Self {
+    pub fn with_field_default(mut self, default: Option<syn::Expr>) -> Self {
         self.field_default = default;
         self
     }
 
-    /// Get the named index from field default, if specified
-    pub fn named_index(&self) -> Option<&syn::Path> {
+    /// Get the field-level default expression, if specified.
+    pub fn field_default(&self) -> Option<&syn::Expr> {
         self.field_default.as_ref()
     }
 

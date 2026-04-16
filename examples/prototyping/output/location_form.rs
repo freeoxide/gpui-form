@@ -10,7 +10,7 @@ use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectState};
-use gpui_form_component::infinite_select::InfiniteSelect;
+use gpui_form::infinite_select::InfiniteSelect;
 use rust_decimal::Decimal;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "LocationFormForm";
@@ -59,12 +59,10 @@ impl LocationFormForm {
     fn on_location_master_select_event(
         &mut self,
         this: &Entity<
-            SelectState<
-                Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
-            >,
+            SelectState<Vec<gpui_form::infinite_select::InfiniteSelectItem<Country>>>,
         >,
         event: &SelectEvent<
-            Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
+            Vec<gpui_form::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -93,12 +91,10 @@ impl LocationFormForm {
     fn on_location_child_select_event(
         &mut self,
         this: &Entity<
-            SelectState<
-                Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
-            >,
+            SelectState<Vec<gpui_form::infinite_select::InfiniteSelectItem<Country>>>,
         >,
         event: &SelectEvent<
-            Vec<gpui_form_component::infinite_select::InfiniteSelectItem<Country>>,
+            Vec<gpui_form::infinite_select::InfiniteSelectItem<Country>>,
         >,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -155,8 +151,8 @@ impl LocationFormForm {
         let location_master_select = cx
             .new(|cx| {
                 let items: Vec<
-                    gpui_form_component::infinite_select::InfiniteSelectItem<Country>,
-                > = gpui_form_component::infinite_select::to_select_items::<Country>();
+                    gpui_form::infinite_select::InfiniteSelectItem<Country>,
+                > = gpui_form::infinite_select::to_select_items::<Country>();
                 gpui_component::select::SelectState::new(
                     items,
                     master_selected_index_location,
@@ -178,7 +174,7 @@ impl LocationFormForm {
                     },
                 );
         }
-        let mut location_path = gpui_form_component::infinite_select::InfiniteSelectPath::new();
+        let mut location_path = gpui_form::infinite_select::InfiniteSelectPath::new();
         location_path.set(0, initial_variant_idx_location);
         let location_child_selects = LocationFormFormComponents::location_child_selects(
             &current_data.location,
@@ -197,7 +193,7 @@ impl LocationFormForm {
                 name_input,
                 location_master_select,
                 location_child_selects,
-                location_path: gpui_form_component::infinite_select::InfiniteSelectPath::new(),
+                location_path: gpui_form::infinite_select::InfiniteSelectPath::new(),
             },
             focus_handle: cx.focus_handle(),
             _subscriptions,

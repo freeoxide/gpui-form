@@ -57,15 +57,9 @@ pub fn get_components_behaviour_tokens(component: &Components) -> TokenStream {
     }
 }
 
-/// Extracts a path from a field default expression if it's a path expression
-fn extract_default_path(field: &ComponentField) -> Option<syn::Path> {
-    field.default.as_ref().and_then(|expr| {
-        if let syn::Expr::Path(expr_path) = &expr.0 {
-            Some(expr_path.path.clone())
-        } else {
-            None
-        }
-    })
+/// Extracts the field default expression, if one is present.
+fn extract_default_expr(field: &ComponentField) -> Option<syn::Expr> {
+    field.default.as_ref().map(|expr| expr.0.clone())
 }
 
 pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent {
@@ -135,7 +129,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             );
         },
         Components::Select(options) => {
-            let field_default = extract_default_path(field);
+            let field_default = extract_default_expr(field);
             let options_with_default = options.clone().with_field_default(field_default);
             let component = SelectComponent(FieldInformation::new(
                 options_with_default,
@@ -148,7 +142,7 @@ pub fn generate_component_field(field: &ComponentField) -> ComponentFieldContent
             );
         },
         Components::InfiniteSelect(options) => {
-            let field_default = extract_default_path(field);
+            let field_default = extract_default_expr(field);
             let options_with_default = options.clone().with_field_default(field_default);
             let component = InfiniteSelectComponent(FieldInformation::new(
                 options_with_default,
