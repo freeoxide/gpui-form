@@ -58,23 +58,24 @@ pub struct ResolvedField<'a> {
 
 impl<'a> ResolvedField<'a> {
     pub fn new(field: &'a FieldVariant) -> PrototypingResult<Self> {
-        let value_type =
-            syn::parse_str::<Type>(field.value_type).map_err(|error| PrototypingError::InvalidType {
+        let value_type = syn::parse_str::<Type>(field.value_type).map_err(|error| {
+            PrototypingError::InvalidType {
                 field_name: field.field_name.to_string(),
                 value: field.value_type.to_string(),
                 error: error.to_string(),
-            })?;
+            }
+        })?;
 
         let custom_component_path = match field.custom_component {
-            Some(component_path) => Some(
-                syn::parse_str::<Path>(component_path).map_err(|error| {
+            Some(component_path) => {
+                Some(syn::parse_str::<Path>(component_path).map_err(|error| {
                     PrototypingError::InvalidPath {
                         kind: "custom component path",
                         value: component_path.to_string(),
                         error: error.to_string(),
                     }
-                })?,
-            ),
+                })?)
+            },
             None => None,
         };
 

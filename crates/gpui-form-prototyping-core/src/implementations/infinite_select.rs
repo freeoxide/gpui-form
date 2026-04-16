@@ -7,9 +7,7 @@ use quote::quote;
 
 use crate::imports::ImportItem;
 
-use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, ShapeIdentities as _,
-};
+use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, ShapeIdentities as _};
 
 pub struct InfiniteSelectCodeGenerator;
 
@@ -163,8 +161,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         };
 
         let master_var_name_ident = field.suffixed_ident("master_select");
-        let master_event_handler_fn_name_ident =
-            field.event_handler_ident("master_select_event");
+        let master_event_handler_fn_name_ident = field.event_handler_ident("master_select_event");
         let child_event_handler_fn_name_ident = field.event_handler_ident("child_select_event");
 
         let calls = vec![

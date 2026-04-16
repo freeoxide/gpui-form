@@ -4,7 +4,9 @@ use quote::{format_ident, quote};
 use std::path::Path;
 
 use crate::error::{PrototypingError, PrototypingResult};
-use crate::implementations::{GeneratedSubscription, ResolvedField, ShapeIdentities as _, field_generator};
+use crate::implementations::{
+    GeneratedSubscription, ResolvedField, ShapeIdentities as _, field_generator,
+};
 use crate::imports::{Alias, ImportItem, ImportSet};
 
 /// Imports required by prototyping-core's own generated fragments.

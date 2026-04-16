@@ -4,9 +4,7 @@ use quote::quote;
 
 use crate::imports::ImportItem;
 
-use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_standard_field,
-};
+use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_standard_field};
 
 pub struct CheckboxCodeGenerator;
 
