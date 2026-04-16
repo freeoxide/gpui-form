@@ -29,11 +29,12 @@ pub enum Country {
 }
 ```
 
-The generated form code uses:
+Useful helpers include:
 
 - `InfiniteSelectItem<T>` for select dropdown items.
 - `InfiniteSelectPath` to track selection depth.
-- `build_from_path` to reconstruct values from a selection path.
+- `build_from_path` when you want to reconstruct a value from a stored
+  selection path.
 
 `gpui-form` re-exports these helpers at `gpui_form::infinite_select`, and also
 groups them under `gpui_form::runtime::infinite_select`. Add

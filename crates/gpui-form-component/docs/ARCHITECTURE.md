@@ -34,7 +34,8 @@ used by the facade crate.
 1. Generated form code wraps variants in `InfiniteSelectItem` for display.
 1. Generated and prototyped date-picker forms target `date_picker::DatePicker` instead of `gpui_component` directly.
 1. `date_picker::DatePicker` keeps calendar selection behavior in `gpui_component`, but formats the selected value for display with `jiff` + ICU4X using the active `gpui_component` locale.
-1. UI changes mutate an `InfiniteSelectPath`, which can be turned back into a value via `build_from_path`.
+1. Generated and prototyped infinite-select forms keep the current selected value directly in form state, while `InfiniteSelectPath` tracks the confirmed indices for each depth level.
+1. `build_from_path` remains available as a public helper when consumers want to reconstruct a value from a stored `InfiniteSelectPath`.
 1. For custom components, users define a shape via `custom_component_shape!` or derive `CustomComponentState` on a state type; `GpuiForm` uses that type to generate state entity fields and component constructors.
 1. `gpui-form` re-exports this crate as `gpui_form::runtime` and also keeps
    root-level compatibility re-exports for the main helper modules.

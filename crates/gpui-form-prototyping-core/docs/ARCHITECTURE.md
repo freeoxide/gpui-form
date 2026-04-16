@@ -8,7 +8,7 @@ generation.
 
 ## Key modules
 
-- `code_gen.rs`: adapts `GpuiFormShape` into a `ComponentShape` and orchestrates code generation.
+- `code_gen.rs`: adapts `GpuiFormShape` into validated form fragments and orchestrates code generation.
   Key public API:
   - `FormShapeAdapter::parts() -> Result<FormParts, PrototypingError>` — all pre-computed fragments + identifiers, or a structured metadata error.
   - `FormShapeAdapter::generate_file(layout: &impl FormLayout) -> Result<syn::File, PrototypingError>` — generate using a caller-supplied layout.
@@ -32,7 +32,7 @@ generation.
 1. A consumer (see `examples/prototyping`) iterates over `inventory::iter::<GpuiFormShape>()`.
 1. `FormShapeAdapter::new(shape).generate_file(&layout)` is the high-level entry point — it returns a ready-to-format `syn::File` or a `PrototypingError`.
    Internally it:
-   - Derives all identifiers from `GpuiFormShape` (no external `LayoutIdentities` needed).
+   - Derives all identifiers from `GpuiFormShape`.
    - Converts `shape.source_path` to a glob `use` path via `source_path_to_use_path`.
    - Validates shape metadata before token generation so malformed identifiers / types / paths are reported as errors instead of panics.
    - Resolves each field once into a typed `ResolvedField`, then caches per-field imports, render fragments, subscriptions, and initialization tokens in a single analysis pass.
@@ -70,7 +70,8 @@ Imports are declared close to where they are used:
 
 When adding a component:
 
-1. Add a new `FieldGenerator` variant and map it in `code_gen.rs`.
+1. Add a new generator type under `implementations/`.
+1. Register it in `implementations::field_generator(...)`.
 1. Implement `FieldCodeGenerator` for the new component under `implementations/`.
 1. Override `generate_imports` to declare the exact items your generated code references.
 1. Ensure `ComponentsBehaviour` payloads are handled consistently.
