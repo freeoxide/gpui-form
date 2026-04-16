@@ -21,6 +21,7 @@ Field attributes:
 - `#[gpui_form(component(infinite_select))]`
 - `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
 - `#[gpui_form(component(custom(shape = my::EmailInputShape)))]`
+- `#[gpui_form(component(custom(shape = my::EmailInputShape, component = my::ui::EmailInput)))]`
 - `#[gpui_form(component(custom(state = my::EmailInputState)))]`
 - `#[gpui_form(component(custom(shape = my::EmailInputShape, wraps_in_option = false)))]`
 - `#[gpui_form(component(date_picker))]`
@@ -35,6 +36,8 @@ Notes:
 - When no field default is provided, generated default state falls back to `Default::default()`.
 - `infinite_select(max_depth = ...)` clamps the generated child-select depth.
 - `custom(shape = ...)`/`custom(state = ...)` expects the referenced type to implement `gpui_form::custom::CustomComponentShape`.
+- Optional `component = ...` metadata is carried into schema/prototyping output; a field-level component path overrides the shape's `COMPONENT_PATH`.
+- When skipped fields are present, generated value holders expose `into_original(...)`, `present_fields_json()`, and derive `::gpui_form::bon::Builder`.
 
 Struct attributes:
 
@@ -101,10 +104,13 @@ Variant attributes:
 Implements `gpui_form::custom::CustomComponentShape` for a state type.
 
 By default, generated code calls `Self::new(window, cx)`.
-You can override constructor path:
+You can override constructor path and optionally store a UI component path:
 
 ```rs
 #[derive(CustomComponentState)]
-#[gpui_form_custom(new = crate::state::build)]
+#[gpui_form_custom(
+    new = crate::state::build,
+    component = crate::ui::TagsInput
+)]
 pub struct TagsState;
 ```

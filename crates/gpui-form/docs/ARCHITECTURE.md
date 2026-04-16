@@ -19,7 +19,7 @@ it alone and get:
   - Re-exports derive macros when the `derive` feature is enabled
   - Preserves root-level compatibility re-exports for `custom`,
     `date_picker`, `infinite_select`, `CustomComponentShape`,
-    `custom_component_shape!`, and `numeric`
+    `custom_component_shape!`, `numeric`, and `bon`
 
 ## Data flow
 
@@ -30,6 +30,9 @@ it alone and get:
 1. Generated code can target the explicit facade namespaces
    (`gpui_form::runtime`, `gpui_form::schema`, `gpui_form::core`) while older
    root-level helper paths remain available.
+1. When `#[gpui_form(skip)]` fields are present, generated value holders derive
+   `::gpui_form::bon::Builder`; the facade re-export keeps that generated path
+   stable for users.
 1. Generated and prototyped date-picker forms consume `gpui_form::runtime::date_picker`, which formats displayed dates via `jiff` + ICU4X while preserving `FromStr`-based conversion into user field types.
 1. Numeric fields use helpers from `gpui-form-core`, re-exported as
    `gpui_form::numeric`.

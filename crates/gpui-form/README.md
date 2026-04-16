@@ -59,7 +59,12 @@ pub struct UserProfile {
 - `gpui_form::schema` for metadata and inventory registry types
 
 For backward compatibility, the facade also keeps re-exporting
-`gpui_form::custom`, `gpui_form::infinite_select`, and `gpui_form::numeric`.
+`gpui_form::custom`, `gpui_form::date_picker`, `gpui_form::infinite_select`,
+`gpui_form::numeric`, `gpui_form::CustomComponentShape`, and
+`gpui_form::custom_component_shape!`.
+
+`gpui_form::bon` is also re-exported because generated value holders with
+`#[gpui_form(skip)]` fields derive `::gpui_form::bon::Builder`.
 
 Most consumers only need the facade crate. Add `gpui-form-component` directly
 only when you need the runtime implementation crate itself outside the facade.

@@ -1,7 +1,9 @@
 //! Runtime helpers for gpui-form components.
 //!
-//! This crate currently focuses on the `infinite_select` module, which powers
-//! cascading selects over nested enums derived with `#[derive(InfiniteSelect)]`.
+//! This crate provides:
+//! - `custom` shape contracts/macros for user-defined components
+//! - `date_picker` for the localized runtime picker used by generated forms
+//! - `infinite_select` for cascading selects over nested enums
 
 /// Runtime traits/macros for user-defined custom components.
 pub mod custom;

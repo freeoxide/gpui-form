@@ -5,6 +5,7 @@ Lower-level runtime helper implementations for `gpui-form`.
 This crate provides:
 
 - InfiniteSelect support for cascading selects over nested enums.
+- Localized date-picker runtime helpers used by generated forms.
 - Custom component shape helpers used by `#[derive(GpuiForm)]`.
 
 Most users should prefer `gpui-form`; the facade re-exports this crate as
@@ -39,6 +40,23 @@ groups them under `gpui_form::runtime::infinite_select`. Add
 `gpui-form-component` directly only when you want this implementation crate
 standalone.
 
+## Date picker
+
+Generated `#[gpui_form(component(date_picker))]` fields use the localized
+runtime wrapper from this crate instead of targeting `gpui_component`
+directly.
+
+Key public types and helpers:
+
+- `DatePickerState`
+- `DatePicker`
+- `DatePickerEvent`
+- `DateDisplayStyle`
+- `parse_form_date`
+
+`gpui-form` re-exports these helpers at `gpui_form::runtime::date_picker` and
+also keeps `gpui_form::date_picker` available at the crate root.
+
 ## Custom component shapes
 
 Use `custom_component_shape!` to define a shape consumed by:
@@ -49,9 +67,16 @@ gpui_form::custom_component_shape!(
     pub EmailInputShape,
     state = gpui_component::input::InputState,
     new = gpui_component::input::InputState::new,
+    component = gpui_component::input::Input,
 );
 ```
 
 You can also derive directly on a state type with
 `#[derive(gpui_form::CustomComponentState)]` and use
 `#[gpui_form(component(custom(state = ...)))]`.
+
+Both approaches support optional UI component metadata:
+
+- field-level `component = my::ui::Widget` on `component(custom(...))`
+- `component = ...` inside `custom_component_shape!`
+- `#[gpui_form_custom(component = ...)]` on `#[derive(CustomComponentState)]`
