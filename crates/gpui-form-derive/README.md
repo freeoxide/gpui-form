@@ -31,6 +31,7 @@ Notes:
 
 - `select` expects `strum::IntoEnumIterator` and `PartialEq`.
 - `#[gpui_form(default = <expr>)]` seeds the generated value holder and also drives the initial selection for `select` and `infinite_select`.
+- If a `select` or `infinite_select` default does not match any generated option, the form leaves the initial selection unset instead of panicking.
 - When no field default is provided, generated default state falls back to `Default::default()`.
 - `infinite_select(max_depth = ...)` clamps the generated child-select depth.
 - `custom(shape = ...)`/`custom(state = ...)` expects the referenced type to implement `gpui_form::custom::CustomComponentShape`.
@@ -53,7 +54,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select)), default = Country::France]
+    #[gpui_form(component(select), default = Country::France)]
     pub country: Country,
 }
 ```

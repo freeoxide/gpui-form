@@ -14,7 +14,9 @@ use gpui_form::schema::registry::{GpuiFormShape, inventory};
 use gpui_form_prototyping_core::FormShapeAdapter;
 
 for shape in inventory::iter::<GpuiFormShape>() {
-    let parts = FormShapeAdapter::new(shape).parts();
+    let parts = FormShapeAdapter::new(shape)
+        .parts()
+        .expect("shape metadata should be valid");
     let _imports = parts.imports;
 }
 ```
@@ -22,6 +24,10 @@ for shape in inventory::iter::<GpuiFormShape>() {
 Use `generate_file(&impl FormLayout)` when you want the crate to assemble a full
 `syn::File`. See `examples/prototyping` for a complete generator that writes
 formatted files.
+
+Both `parts()` and `generate_file(...)` return `Result<_, PrototypingError>` so
+custom tooling gets a structured error instead of a panic when shape metadata is
+malformed.
 
 If you prefer calling `inventory::iter` directly, add `inventory` to your dependencies.
 

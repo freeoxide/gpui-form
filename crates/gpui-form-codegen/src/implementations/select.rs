@@ -35,24 +35,16 @@ impl super::ComponentLayout for SelectComponent {
             quote! {
                 {
                     let __gpui_form_default = #default_expr;
-                    Some(
-                        ::gpui_component::IndexPath::new(
-                            #r#type::iter()
-                                .position(|x| x == __gpui_form_default)
-                                .unwrap()
-                        )
-                    )
+                    #r#type::iter()
+                        .position(|x| x == __gpui_form_default)
+                        .map(::gpui_component::IndexPath::new)
                 }
             }
         } else if options.use_enum_default() {
             quote! {
-              Some(
-                ::gpui_component::IndexPath::new(
-                  #r#type::iter()
-                    .position(|x| x == #r#type::default())
-                    .unwrap()
-                )
-              )
+              #r#type::iter()
+                .position(|x| x == #r#type::default())
+                .map(::gpui_component::IndexPath::new)
             }
         } else {
             quote! { None }

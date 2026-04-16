@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::path::Path;
 
+use crate::error::{PrototypingError, PrototypingResult};
 use crate::implementations::ShapeIdentities as _;
 use crate::imports::{Alias, ImportItem, ImportSet};
 
@@ -14,38 +15,35 @@ use super::implementations::{
     switch::SwitchCodeGenerator,
 };
 
-/// Imports every generated file needs regardless of which components it contains.
+/// Imports required by prototyping-core's own generated fragments.
 ///
-/// Component-specific items (e.g. `Input`, `Subscription`, `Checkbox`) are
-/// declared by the individual generators and collected via [`FormShapeAdapter::required_imports`].
-const FRAMEWORK_IMPORTS: &[ImportItem] = &[
-    // gpui core — always hardcoded, never declared by individual generators
-    ImportItem::path("gpui::App"),
-    ImportItem::path("gpui::AppContext"),
-    ImportItem::path("gpui::Context"),
-    ImportItem::path("gpui::Entity"),
-    ImportItem::path("gpui::FocusHandle"),
-    ImportItem::path("gpui::Focusable"),
-    ImportItem::path("gpui::IntoElement"),
+/// Layout-specific imports such as `Render`, `Focusable`, `v_form`, or
+/// `Divider` belong in the caller's [`FormLayout`] implementation rather than
+/// in the shared form-shape adapter output.
+const FRAGMENT_IMPORTS: &[ImportItem] = &[
     ImportItem::path("gpui::InteractiveElement"),
     ImportItem::aliased("gpui::ParentElement", Alias::Anonymous),
-    ImportItem::path("gpui::Render"),
     ImportItem::path("gpui::Styled"),
-    ImportItem::path("gpui::Subscription"),
-    ImportItem::path("gpui::Window"),
     ImportItem::path("gpui::div"),
     ImportItem::aliased("gpui::prelude::FluentBuilder", Alias::Anonymous),
-    // gpui_component layout / form helpers
     ImportItem::aliased("gpui_component::ActiveTheme", Alias::Anonymous),
-    ImportItem::aliased("gpui_component::Disableable", Alias::Anonymous),
-    ImportItem::path("gpui_component::divider::Divider"),
     ImportItem::path("gpui_component::form::field"),
-    ImportItem::path("gpui_component::form::v_form"),
-    ImportItem::path("gpui_component::v_flex"),
-    // i18n / fluent
-    ImportItem::aliased("es_fluent::ThisFtl", Alias::Anonymous),
-    ImportItem::aliased("es_fluent::ToFluentString", Alias::Anonymous),
 ];
+
+#[cfg(feature = "fluent")]
+const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
+    "es_fluent::ToFluentString",
+    Alias::Anonymous,
+)];
+
+const SUBSCRIPTION_IMPORTS: &[ImportItem] = &[ImportItem::path("gpui::Subscription")];
+
+fn parse_ident(kind: &'static str, value: &str) -> PrototypingResult<syn::Ident> {
+    syn::parse_str::<syn::Ident>(value).map_err(|_| PrototypingError::InvalidIdentifier {
+        kind,
+        value: value.to_string(),
+    })
+}
 
 fn field_generator(behaviour: &ComponentsBehaviour) -> FieldGenerator {
     match behaviour {
@@ -73,14 +71,72 @@ impl<'a> FormShapeAdapter<'a> {
         Self { shape_data }
     }
 
+    fn validate_shape_data(&self) -> PrototypingResult<()> {
+        let data = self.shape_data;
+
+        parse_ident("struct name", data.struct_name)?;
+        parse_ident("generated form ident", &format!("{}Form", data.struct_name))?;
+        parse_ident(
+            "generated form fields ident",
+            &format!("{}FormFields", data.struct_name),
+        )?;
+        parse_ident(
+            "generated form value holder ident",
+            &format!("{}FormValueHolder", data.struct_name),
+        )?;
+
+        source_path_to_use_path(data.source_path).ok_or_else(|| {
+            PrototypingError::InvalidSourcePath {
+                source_path: data.source_path.to_string(),
+            }
+        })?;
+
+        for field in data.components {
+            parse_ident("field name", field.field_name)?;
+            parse_ident("field pascal ident", &field.field_name_pascal())?;
+            parse_ident("field component ident", &field.field_name_with_behaviour())?;
+            syn::parse_str::<syn::Type>(field.value_type).map_err(|error| {
+                PrototypingError::InvalidType {
+                    field_name: field.field_name.to_string(),
+                    value: field.value_type.to_string(),
+                    error: error.to_string(),
+                }
+            })?;
+
+            if let Some(component_path) = field.custom_component {
+                syn::parse_str::<syn::Path>(component_path).map_err(|error| {
+                    PrototypingError::InvalidPath {
+                        kind: "custom component path",
+                        value: component_path.to_string(),
+                        error: error.to_string(),
+                    }
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Collect all imports needed by this form's generated file.
     ///
-    /// Starts with the universal [`FRAMEWORK_IMPORTS`] base, then asks each
-    /// field's generator for its own requirements. The result can be rendered
-    /// as grouped `use` statements via [`ImportSet::to_token_stream`].
+    /// Starts with imports needed by prototyping-core's own generated fragments,
+    /// then asks each field's generator for its own requirements. The result can
+    /// be rendered as grouped `use` statements via [`ImportSet::to_token_stream`].
     pub fn required_imports(&self) -> ImportSet {
         let mut set = ImportSet::default();
-        set.extend_items(FRAMEWORK_IMPORTS);
+        if !self.shape_data.components.is_empty() {
+            set.extend_items(FRAGMENT_IMPORTS);
+            #[cfg(feature = "fluent")]
+            set.extend_items(FLUENT_FRAGMENT_IMPORTS);
+        }
+        if self
+            .shape_data
+            .components
+            .iter()
+            .any(|field| field.behaviour.subscribable())
+        {
+            set.extend_items(SUBSCRIPTION_IMPORTS);
+        }
         for field in self.shape_data.components {
             let generator = field_generator(&field.behaviour);
             set.extend(generator.as_generator().generate_imports(field));
@@ -93,17 +149,26 @@ impl<'a> FormShapeAdapter<'a> {
     /// Prefer this when you want to assemble a fully custom `quote!{}` template.
     /// All conditional / derived fragments (e.g. `subscriptions_field`,
     /// `current_data_field`) are pre-evaluated so you only need to splice them in.
-    pub fn parts(&self) -> FormParts {
+    /// Returns a [`PrototypingError`] when the input shape metadata cannot be
+    /// converted into valid Rust identifiers, types, or paths.
+    pub fn parts(&self) -> PrototypingResult<FormParts> {
+        self.validate_shape_data()?;
         let data = self.shape_data;
 
-        let struct_name_ident = data.struct_name_ident();
+        let struct_name_ident = parse_ident("struct name", data.struct_name)?;
         let form_value_holder_ident = format_ident!("{}FormValueHolder", struct_name_ident);
-        let form_ident = data.struct_form_ident();
-        let form_fields_ident = data.struct_form_fields_ident();
+        let form_ident = parse_ident("generated form ident", &format!("{}Form", data.struct_name))?;
+        let form_fields_ident = parse_ident(
+            "generated form fields ident",
+            &format!("{}FormFields", data.struct_name),
+        )?;
         let form_id_literal = data.form_id_literal();
         let context_str = format!("{}Form", data.struct_name);
-        let source_module_path = source_path_to_use_path(data.source_path)
-            .unwrap_or_else(|| panic!("Failed to parse source_path: {}", data.source_path));
+        let source_module_path = source_path_to_use_path(data.source_path).ok_or_else(|| {
+            PrototypingError::InvalidSourcePath {
+                source_path: data.source_path.to_string(),
+            }
+        })?;
         let has_skipped_fields = data.has_skipped_fields();
 
         let is_empty = data.components.is_empty();
@@ -195,7 +260,7 @@ impl<'a> FormShapeAdapter<'a> {
             #collected_imports
         };
 
-        FormParts {
+        Ok(FormParts {
             struct_name_ident,
             form_ident,
             form_fields_ident,
@@ -222,10 +287,12 @@ impl<'a> FormShapeAdapter<'a> {
             fields_init,
             debug_child,
             replace_current_data_fn,
-        }
+        })
     }
 
     /// Generate a `syn::File` from a [`FormLayout`] implementation.
+    ///
+    /// Returns a [`PrototypingError`] when the shape metadata is malformed.
     ///
     /// ```rust,ignore
     /// struct MyLayout;
@@ -239,10 +306,11 @@ impl<'a> FormShapeAdapter<'a> {
     ///         }).unwrap()
     ///     }
     /// }
-    /// FormShapeAdapter::new(shape).generate_file(&MyLayout);
+    /// FormShapeAdapter::new(shape).generate_file(&MyLayout)?;
     /// ```
-    pub fn generate_file(&self, layout: &impl FormLayout) -> syn::File {
-        layout.generate_file(&self.parts())
+    pub fn generate_file(&self, layout: &impl FormLayout) -> PrototypingResult<syn::File> {
+        let parts = self.parts()?;
+        Ok(layout.generate_file(&parts))
     }
 }
 
@@ -488,5 +556,90 @@ impl<'a> ComponentShape for FormShapeAdapter<'a> {
             .collect();
 
         if x.is_empty() { None } else { Some(x) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FormShapeAdapter;
+    use crate::error::PrototypingError;
+    use gpui_form_schema::{
+        components::ComponentsBehaviour,
+        registry::{FieldVariant, GpuiFormShape},
+    };
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn parts_return_error_for_invalid_source_path() {
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &[], "demo.rs", false);
+
+        let error = match FormShapeAdapter::new(&SHAPE).parts() {
+            Ok(_) => panic!("invalid source paths should return an error"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error,
+            PrototypingError::InvalidSourcePath {
+                source_path: "demo.rs".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn parts_return_error_for_invalid_field_type_metadata() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "country",
+            "Vec<",
+            false,
+            ComponentsBehaviour::Select(gpui_form_schema::components::SelectBehaviour {
+                partial: false,
+                searchable: false,
+            }),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let error = match FormShapeAdapter::new(&SHAPE).parts() {
+            Ok(_) => panic!("invalid field types should return an error"),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(
+                error,
+                PrototypingError::InvalidType {
+                    ref field_name,
+                    ref value,
+                    ..
+                } if field_name == "country" && value == "Vec<"
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
+    fn required_imports_only_include_subscription_when_needed() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enabled",
+            "bool",
+            false,
+            ComponentsBehaviour::Checkbox,
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid checkbox shapes should generate parts");
+        let compact = compact(&parts.imports.to_string());
+
+        assert!(
+            !compact.contains("usegpui::Subscription;"),
+            "subscription import should be omitted when no generated subscriptions exist: {compact}"
+        );
     }
 }

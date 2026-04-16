@@ -10,8 +10,8 @@ generation.
 
 - `code_gen.rs`: adapts `GpuiFormShape` into a `ComponentShape` and orchestrates code generation.
   Key public API:
-  - `FormShapeAdapter::parts() -> FormParts` — all pre-computed fragments + identifiers.
-  - `FormShapeAdapter::generate_file(layout: &impl FormLayout) -> syn::File` — generate using a caller-supplied layout.
+  - `FormShapeAdapter::parts() -> Result<FormParts, PrototypingError>` — all pre-computed fragments + identifiers, or a structured metadata error.
+  - `FormShapeAdapter::generate_file(layout: &impl FormLayout) -> Result<syn::File, PrototypingError>` — generate using a caller-supplied layout.
   - `FormLayout` trait — implement to control the entire generated file shape.
   - `FormParts` — all token-stream fragments exposed as named `pub` fields for use in custom layouts.
     Debug fragments include both value-holder state and into-original status. When
@@ -27,11 +27,12 @@ generation.
 ## Data flow
 
 1. A consumer (see `examples/prototyping`) iterates over `inventory::iter::<GpuiFormShape>()`.
-1. `FormShapeAdapter::new(shape).generate_file()` is the single entry point — it returns a ready-to-format `syn::File`.
+1. `FormShapeAdapter::new(shape).generate_file()` is the single entry point — it returns a ready-to-format `syn::File` or a `PrototypingError`.
    Internally it:
    - Derives all identifiers from `GpuiFormShape` (no external `LayoutIdentities` needed).
    - Converts `shape.source_path` to a glob `use` path via `source_path_to_use_path`.
-   - Calls `required_imports()` to build the minimal deduplicated import set.
+   - Validates shape metadata before token generation so malformed identifiers / types / paths are reported as errors instead of panics.
+   - Calls `required_imports()` to build the minimal deduplicated import set for prototyping-core's own generated fragments.
    - Assembles and `quote!`-generates the full form scaffold token stream.
 1. The consumer formats with `prettyplease::unparse` and writes to disk.
 
@@ -44,10 +45,11 @@ in emitted code.
 
 Imports are declared close to where they are used:
 
-- Framework items live in `code_gen::FRAMEWORK_IMPORTS`.
+- Fragment-level items live in `code_gen::FRAGMENT_IMPORTS`.
 - Component-specific items live in each generator's `generate_imports` implementation.
 - `ImportSet` deduplicates and groups items into compact `use parent::{a, b as c};` statements.
-- `gpui::Subscription` is only emitted by generators that produce subscription calls.
+- Layout-specific imports remain the caller's responsibility inside `FormLayout`.
+- `gpui::Subscription` is only emitted when generated fragments actually produce subscription calls.
 
 ## Feature flags
 

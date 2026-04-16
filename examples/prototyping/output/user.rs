@@ -1,21 +1,24 @@
 use some_lib::structs::user::*;
-use es_fluent::{ThisFtl as _, ToFluentString as _};
-use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement as _, Render, Styled, Subscription, Window, div,
-};
+use es_fluent::ToFluentString as _;
+use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
 use gpui::prelude::FluentBuilder as _;
-use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
+use gpui_component::ActiveTheme as _;
 use gpui_component::checkbox::Checkbox;
 use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use gpui_component::divider::Divider;
-use gpui_component::form::{field, v_form};
+use gpui_component::form::field;
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
-use rust_decimal::Decimal;
+use es_fluent::ThisFtl as _;
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
+};
+use gpui_component::Disableable as _;
+use gpui_component::divider::Divider;
+use gpui_component::form::v_form;
+use gpui_component::v_flex;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "UserForm";
 #[gpui_storybook::story_init]
@@ -162,12 +165,9 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .unwrap_or_default()
-                            .saturating_sub(1u8.into());
-                        self.current_data.balance = Some(new_value.into());
+                        let new_value = self.current_data.balance.unwrap_or_default()
+                            - 1.0;
+                        self.current_data.balance = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
@@ -176,12 +176,9 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .balance
-                            .unwrap_or_default()
-                            .saturating_add(1u8.into());
-                        self.current_data.balance = Some(new_value.into());
+                        let new_value = self.current_data.balance.unwrap_or_default()
+                            + 1.0;
+                        self.current_data.balance = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
@@ -219,12 +216,8 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .debt
-                            .unwrap_or_default()
-                            .saturating_sub(1u8.into());
-                        self.current_data.debt = Some(new_value.into());
+                        let new_value = self.current_data.debt.unwrap_or_default() - 1.0;
+                        self.current_data.debt = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {
@@ -233,12 +226,8 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .debt
-                            .unwrap_or_default()
-                            .saturating_add(1u8.into());
-                        self.current_data.debt = Some(new_value.into());
+                        let new_value = self.current_data.debt.unwrap_or_default() + 1.0;
+                        self.current_data.debt = Some(new_value);
                         this.update(
                             cx,
                             |input, cx| {

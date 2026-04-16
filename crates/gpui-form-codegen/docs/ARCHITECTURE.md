@@ -28,6 +28,10 @@ helpers used by `gpui-form-derive`.
 1. `Components::behaviour_tokens(...)` emits `gpui_form::schema::components::*`
    metadata so inventory/prototyping stay aligned with derive behavior.
 
+For `select` and `infinite_select`, field defaults are emitted as optional
+initial indices. If a default expression does not match any generated option,
+the generated code leaves the initial selection unset instead of panicking.
+
 ## Notes
 
 - This crate is intentionally proc-macro-adjacent: it depends on `syn`,

@@ -36,3 +36,4 @@ inventory = [  ]
 [dev-dependencies]
 insta = { workspace = true }
 prettyplease = { workspace = true }
+trybuild = "1.0"

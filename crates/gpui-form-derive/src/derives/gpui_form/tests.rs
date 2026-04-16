@@ -669,6 +669,11 @@ mod tests {
             compact.contains(".position(|x|x==__gpui_form_default)"),
             "Select component initialization should compare against the bound default expression"
         );
+        assert!(
+            compact.contains(".map(::gpui_component::IndexPath::new)")
+                && !compact.contains(".position(|x|x==__gpui_form_default).unwrap()"),
+            "Select component initialization should skip invalid defaults instead of panicking"
+        );
     }
 
     #[test]
@@ -698,6 +703,13 @@ mod tests {
         assert!(
             compact.contains(".position(|x|x.variant_name()==__gpui_form_default.variant_name())"),
             "InfiniteSelect initialization should derive the master selection from the bound default expression"
+        );
+        assert!(
+            compact.contains(".map(::gpui_component::IndexPath::new)")
+                && !compact.contains(
+                    ".position(|x|x.variant_name()==__gpui_form_default.variant_name()).unwrap()"
+                ),
+            "InfiniteSelect initialization should skip invalid defaults instead of panicking"
         );
         assert!(
             compact.contains("letmax_depth=::core::cmp::max(1usize,::core::cmp::min(")

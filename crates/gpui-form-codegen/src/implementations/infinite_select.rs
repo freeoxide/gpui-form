@@ -49,14 +49,10 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             quote! {
                 {
                     let __gpui_form_default = #default_expr;
-                    Some(
-                        ::gpui_component::IndexPath::new(
-                            <#r#type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
-                                .iter()
-                                .position(|x| x.variant_name() == __gpui_form_default.variant_name())
-                                .unwrap()
-                        )
-                    )
+                    <#r#type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                        .iter()
+                        .position(|x| x.variant_name() == __gpui_form_default.variant_name())
+                        .map(::gpui_component::IndexPath::new)
                 }
             }
         } else if options.use_enum_default() {

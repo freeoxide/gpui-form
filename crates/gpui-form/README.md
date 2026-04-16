@@ -37,7 +37,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select)), default = Country::France]
+    #[gpui_form(component(select), default = Country::France)]
     pub country: Country,
 
     #[gpui_form(component(checkbox))]

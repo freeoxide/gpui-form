@@ -21,7 +21,7 @@ into gpui-form components and metadata.
 1. Convert `#[gpui_form(component(...))]` into parse-time `Components` from
    `gpui-form-codegen` (including `component(custom(shape = ...))` and
    `component(custom(state = ...))`).
-1. Field defaults from `#[gpui_form(default = ...)]` feed both generated value-holder defaults and select / infinite-select initial selection logic.
+1. Field defaults from `#[gpui_form(default = ...)]` feed both generated value-holder defaults and select / infinite-select initial selection logic. When a select-like default does not resolve to a generated option, the generated form leaves the initial selection unset instead of panicking.
 1. Use `ComponentLayout` implementations to generate:
    - `FormFields` struct (component state entities)
    - `FormComponents` constructors
