@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod gpui_form_tests {
     use super::super::*;
     use koruma_derive_core::ParseFieldResult;
     use quote::quote;
@@ -368,6 +368,12 @@ mod tests {
             compact.contains("validate_signed_numeric::<rust_decimal::Decimal>"),
             "Number input validation should keep the fully-qualified override type"
         );
+        assert!(
+            compact.contains(
+                "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"f64\"),kind:::gpui_form::schema::components::NumberInputKind::Float,})"
+            ),
+            "Number input metadata should preserve the validation override and numeric family"
+        );
     }
 
     #[test]
@@ -547,16 +553,16 @@ mod tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubbio_custom:gpui::Entity<")
+            compact.contains("pubbio_custom:::gpui::Entity<")
                 && compact.contains(
-                    "<crate::shapes::BioInputShapeasgpui_form_component::custom::CustomComponentShape>::State"
+                    "<crate::shapes::BioInputShapeas::gpui_form::custom::CustomComponentShape>::State"
                 ),
             "Custom component field should use shape state type"
         );
 
         assert!(
             compact.contains(
-                "<crate::shapes::BioInputShapeasgpui_form_component::custom::CustomComponentShape>::new(window,cx)"
+                "<crate::shapes::BioInputShapeas::gpui_form::custom::CustomComponentShape>::new(window,cx)"
             ),
             "Custom component constructor should delegate to shape::new"
         );
@@ -623,15 +629,92 @@ mod tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubtags_custom:gpui::Entity<")
+            compact.contains("pubtags_custom:::gpui::Entity<")
                 && compact.contains(
-                    "<crate::state::TagsStateasgpui_form_component::custom::CustomComponentShape>::State"
+                    "<crate::state::TagsStateas::gpui_form::custom::CustomComponentShape>::State"
                 ),
             "`state = ...` should map to custom shape path"
         );
         assert!(
             compact.contains("pubtags:Vec<String>"),
             "wraps_in_option = false should keep field as Vec<String>"
+        );
+    }
+
+    #[test]
+    fn test_select_default_expression_initializes_component_selection() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(select), default = crate::defaults::country())]
+                country: Country,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("let__gpui_form_default=crate::defaults::country()"),
+            "Select component initialization should bind the full default expression once"
+        );
+        assert!(
+            compact.contains(".position(|x|x==__gpui_form_default)"),
+            "Select component initialization should compare against the bound default expression"
+        );
+        assert!(
+            compact.contains(".map(::gpui_component::IndexPath::new)")
+                && !compact.contains(".position(|x|x==__gpui_form_default).unwrap()"),
+            "Select component initialization should skip invalid defaults instead of panicking"
+        );
+    }
+
+    #[test]
+    fn test_infinite_select_default_expression_and_max_depth_are_honored() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(component(infinite_select(max_depth = 2)), default = crate::defaults::country())]
+                location: Country,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("let__gpui_form_default=crate::defaults::country()"),
+            "InfiniteSelect initialization should bind the full default expression once"
+        );
+        assert!(
+            compact.contains(".position(|x|x.variant_name()==__gpui_form_default.variant_name())"),
+            "InfiniteSelect initialization should derive the master selection from the bound default expression"
+        );
+        assert!(
+            compact.contains(".map(::gpui_component::IndexPath::new)")
+                && !compact.contains(
+                    ".position(|x|x.variant_name()==__gpui_form_default.variant_name()).unwrap()"
+                ),
+            "InfiniteSelect initialization should skip invalid defaults instead of panicking"
+        );
+        assert!(
+            compact.contains("letmax_depth=::core::cmp::max(1usize,::core::cmp::min(")
+                && compact.contains("::depth(),2"),
+            "InfiniteSelect child generation should clamp depth using max_depth"
         );
     }
 }

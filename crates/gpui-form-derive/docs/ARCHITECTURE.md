@@ -2,7 +2,8 @@
 
 ## Purpose
 
-`gpui-form-derive` provides the procedural macros that turn user-defined types into gpui-form components and metadata.
+`gpui-form-derive` provides the procedural macros that turn user-defined types
+into gpui-form components and metadata.
 
 ## Key modules
 
@@ -17,7 +18,11 @@
 ### `GpuiForm`
 
 1. Parse struct fields and attributes with `darling` (including `cfg_attr` flattening).
-1. Convert `#[gpui_form(component(...))]` into `Components` from `gpui-form-core` (including `component(custom(shape = ...))` and `component(custom(state = ...))`).
+1. Convert `#[gpui_form(component(...))]` into parse-time `Components` from
+   `gpui-form-codegen` (including `component(custom(shape = ...))` and
+   `component(custom(state = ...))`, plus optional custom `component = ...`
+   metadata for prototyping output).
+1. Field defaults from `#[gpui_form(default = ...)]` feed both generated value-holder defaults and select / infinite-select initial selection logic. When a select-like default does not resolve to a generated option, the generated form leaves the initial selection unset instead of panicking.
 1. Use `ComponentLayout` implementations to generate:
    - `FormFields` struct (component state entities)
    - `FormComponents` constructors
@@ -26,9 +31,12 @@
    `#[gpui_form(skip)]` fields exist, so row/model data can always prefill form state.
    Reverse conversion remains strict: without skipped fields, `From<FormValueHolder> for Original`
    and `try_from(...)` are generated; with skipped fields, generated value holders instead expose
-   `into_original(self, skipped_fields...)` plus `present_fields_json()` for non-skipped values.
-1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for prototyping,
-   including whether the source struct has `#[gpui_form(skip)]` fields.
+   `into_original(self, skipped_fields...)`, `present_fields_json()` for non-skipped values,
+   and `::gpui_form::bon::Builder` support for incremental reconstruction.
+1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for
+   prototyping, including the full field value type path, richer behavior
+   payloads (such as number-input numeric family), and whether the source struct
+   has `#[gpui_form(skip)]` fields.
 1. If Koruma is present, mirror validation metadata and optional fluent error labels.
 
 ### `SelectItem`
@@ -44,16 +52,19 @@
 
 ### `CustomComponentState`
 
-- Implements `gpui_form_component::custom::CustomComponentShape` directly for a state type.
+- Implements `gpui_form::custom::CustomComponentShape` directly for a state
+  type.
 - Defaults constructor call to `Self::new(window, cx)`.
 - Supports override via `#[gpui_form_custom(new = ...)]`.
 - Supports `#[gpui_form_custom(component = ...)]` to set `COMPONENT_PATH` on the shape, so that field annotations don't need to repeat `component = …`.
 
 ## Extension points
 
-- New components require updates in `gpui-form-core` and `gpui-form-prototyping-core`.
+- New components require updates in `gpui-form-codegen`,
+  `gpui-form-schema`, `gpui-form-component` when runtime
+  support is needed, and `gpui-form-prototyping-core`.
 - Keep generated metadata (`GpuiFormShape`) aligned with new behaviors.
 
 ## Tests
 
-- Snapshot tests live under `src/derives/snapshots` and use `insta` + `prettyplease`.
+- Targeted expansion tests live in `src/derives/gpui_form/tests.rs`.

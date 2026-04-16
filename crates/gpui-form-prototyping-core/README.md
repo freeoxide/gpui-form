@@ -10,17 +10,24 @@ definitions without hand-writing the gpui widget wiring.
 Enable the `inventory` feature on `gpui-form` and iterate the registered shapes:
 
 ```rs
-use gpui_form::core::registry::{GpuiFormShape, inventory};
-use gpui_form_prototyping_core::code_gen::FormShapeAdapter;
-use gpui_form_prototyping_core::implementations::ComponentShape as _;
+use gpui_form::schema::registry::{GpuiFormShape, inventory};
+use gpui_form_prototyping_core::FormShapeAdapter;
 
 for shape in inventory::iter::<GpuiFormShape>() {
-    let adapter = FormShapeAdapter::new(shape);
-    let _children = adapter.child_elements();
+    let parts = FormShapeAdapter::new(shape)
+        .parts()
+        .expect("shape metadata should be valid");
+    let _imports = parts.imports;
 }
 ```
 
-See `examples/prototyping` for a full generator that writes formatted files.
+Use `generate_file(&impl FormLayout)` when you want the crate to run your layout
+over the computed parts and return a full `syn::File`. See
+`examples/prototyping` for a complete generator that writes formatted files.
+
+Both `parts()` and `generate_file(...)` return `Result<_, PrototypingError>` so
+custom tooling gets a structured error instead of a panic when shape metadata is
+malformed.
 
 If you prefer calling `inventory::iter` directly, add `inventory` to your dependencies.
 

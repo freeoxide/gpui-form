@@ -1,11 +1,13 @@
-use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
+use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::implementations::ComponentIdentities as _;
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription};
+use super::{
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
+    generate_entity_field_initializer, render_standard_field,
+};
 
 /// Custom component support in prototyping initializes generated form fields
 /// but does not infer subscriptions or actual widget rendering.
@@ -24,47 +26,35 @@ impl FieldCodeGenerator for CustomCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let form_components_struct_ident = component.struct_form_components_ident();
-        let var_name_ident = field.field_ident_with_behaviour();
-        let fn_name_ident = var_name_ident.clone();
-
-        Some(quote! {
-            let #var_name_ident =
-                cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
-        })
+        Some(generate_entity_creation(field, component))
     }
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-        Some(quote! { #field_var_name_ident, })
+        Some(generate_entity_field_initializer(field))
     }
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let label_tokens = super::generate_label_tokens(field, component);
-        let description_fn_tokens = super::generate_description_fn_tokens(field, component);
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
         // When the component type is known, emit Component::new(&entity) like other components.
         // The component type is in scope via `use {module}::*;` in the generated file.
-        let child_tokens = if let Some(component_str) = field.custom_component {
-            let component_path: syn::Path =
-                syn::parse_str(component_str).expect("custom_component should be a valid path");
+        let child_tokens = if let Some(component_path) = field.custom_component_path() {
             quote! {
                 #component_path::new(&self.fields.#field_in_struct_name_ident)
             }
         } else {
-            let field_name = field.field_name;
+            let field_name = field.field_name();
             quote! {
                 div().child(format!(
                     "Custom component `{}` – wire rendering via self.fields.{}",
@@ -74,19 +64,12 @@ impl FieldCodeGenerator for CustomCodeGenerator {
             }
         };
 
-        quote! {
-            .child(
-                field()
-                    .label(#label_tokens)
-                    #description_fn_tokens
-                    .child(#child_tokens)
-            )
-        }
+        render_standard_field(field, component, child_tokens)
     }
 
     fn generate_focusable_cycle(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
         None
@@ -94,7 +77,7 @@ impl FieldCodeGenerator for CustomCodeGenerator {
 
     fn generate_subscription(
         &self,
-        _field: &FieldVariant,
+        _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         None
@@ -105,7 +88,7 @@ impl FieldCodeGenerator for CustomCodeGenerator {
 mod tests {
     use super::CustomCodeGenerator;
     use crate::implementations::FieldCodeGenerator as _;
-    use gpui_form_core::{
+    use gpui_form_schema::{
         components::ComponentsBehaviour,
         registry::{FieldVariant, GpuiFormShape},
     };
@@ -126,8 +109,9 @@ mod tests {
     #[test]
     fn custom_generator_initializes_state_entity() {
         let generator = CustomCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&CUSTOM_FIELDS[0]).unwrap();
         let tokens = generator
-            .generate_cx_new_call(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE)
+            .generate_cx_new_call(&field, &CUSTOM_SHAPE)
             .expect("custom fields should generate cx.new initialization");
         let compact = compact(&tokens.to_string());
 
@@ -141,8 +125,9 @@ mod tests {
     #[test]
     fn custom_generator_initializes_form_fields_struct() {
         let generator = CustomCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&CUSTOM_FIELDS[0]).unwrap();
         let tokens = generator
-            .generate_field_initializers(&CUSTOM_FIELDS[0], &CUSTOM_SHAPE)
+            .generate_field_initializers(&field, &CUSTOM_SHAPE)
             .expect("custom fields should be included in FormFields initializer");
         let compact = compact(&tokens.to_string());
 
@@ -163,7 +148,8 @@ mod tests {
             GpuiFormShape::new("Demo", &FIELDS_WITH_COMPONENT, "src/demo.rs", false);
 
         let generator = CustomCodeGenerator;
-        let tokens = generator.generate_render_child(&FIELDS_WITH_COMPONENT[0], &SHAPE);
+        let field = crate::implementations::ResolvedField::new(&FIELDS_WITH_COMPONENT[0]).unwrap();
+        let tokens = generator.generate_render_child(&field, &SHAPE);
         let compact = compact(&tokens.to_string());
 
         assert!(

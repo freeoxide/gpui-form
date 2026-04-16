@@ -1,4 +1,3 @@
-use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -18,19 +17,20 @@ impl super::ComponentLayout for CustomComponent {
         let field_name_ident = crate::component_field_name!(name);
         let shape = &options.shape;
 
-        use __crate_paths::gpui::{Context, Entity, Window};
-
         let state_type = quote! {
-            <#shape as gpui_form_component::custom::CustomComponentShape>::State
+            <#shape as ::gpui_form::custom::CustomComponentShape>::State
         };
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: #Entity<#state_type>,
+            pub #field_name_ident: ::gpui::Entity<#state_type>,
         };
 
         let field_base_declaration = quote! {
-            pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #state_type>) -> #state_type {
-                <#shape as gpui_form_component::custom::CustomComponentShape>::new(window, cx)
+            pub fn #field_name_ident(
+                window: &mut ::gpui::Window,
+                cx: &mut ::gpui::Context<'_, #state_type>,
+            ) -> #state_type {
+                <#shape as ::gpui_form::custom::CustomComponentShape>::new(window, cx)
             }
         };
 

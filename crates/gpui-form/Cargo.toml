@@ -22,6 +22,7 @@ bon = { workspace = true }
 gpui-form-component = { workspace = true }
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
+gpui-form-schema = { workspace = true }
 
 [lints]
 workspace = true

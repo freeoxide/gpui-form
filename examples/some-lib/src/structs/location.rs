@@ -158,9 +158,7 @@ pub struct LocationForm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_form_component::infinite_select::{
-        InfiniteSelect, InfiniteSelectPath, build_from_path,
-    };
+    use gpui_form::infinite_select::{InfiniteSelect, InfiniteSelectPath, build_from_path};
 
     #[test]
     fn test_depth_calculation() {

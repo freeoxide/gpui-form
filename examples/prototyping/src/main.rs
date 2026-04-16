@@ -1,4 +1,4 @@
-use gpui_form::core::registry::GpuiFormShape;
+use gpui_form::schema::registry::GpuiFormShape;
 use gpui_form_prototyping_core::{FormLayout, FormParts, FormShapeAdapter};
 use heck::ToSnakeCase as _;
 use quote::quote;
@@ -158,7 +158,12 @@ impl FormLayout for StorybookLayout {
 
         syn::parse2(quote! {
             #imports
-            use rust_decimal::Decimal;
+            use es_fluent::ThisFtl as _;
+            use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
+            use gpui_component::Disableable as _;
+            use gpui_component::divider::Divider;
+            use gpui_component::form::v_form;
+            use gpui_component::v_flex;
             #form_action_import
 
             const CONTEXT: &str = #context_str;
@@ -248,7 +253,14 @@ fn main() {
     for shape in inventory::iter::<GpuiFormShape>() {
         println!("Shape: {:?}", shape);
 
-        let syn_file = FormShapeAdapter::new(shape).generate_file(&StorybookLayout);
+        let syn_file = FormShapeAdapter::new(shape)
+            .generate_file(&StorybookLayout)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Failed to generate prototyping scaffold for {}: {err}",
+                    shape.struct_name
+                )
+            });
         let file_stem = shape.struct_name.to_snake_case();
         let file_path = output_dir.join(format!("{file_stem}.rs"));
 

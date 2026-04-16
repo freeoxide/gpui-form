@@ -75,6 +75,24 @@ impl VariantInfo {
     }
 }
 
+fn map_variant_arms<FLeaf, FInner>(
+    variants: &[VariantInfo],
+    mut leaf: FLeaf,
+    mut inner: FInner,
+) -> Vec<proc_macro2::TokenStream>
+where
+    FLeaf: FnMut(&VariantInfo) -> proc_macro2::TokenStream,
+    FInner: FnMut(&VariantInfo, &Type) -> proc_macro2::TokenStream,
+{
+    variants
+        .iter()
+        .map(|variant| match variant.inner_type.as_ref() {
+            Some(inner_type) => inner(variant, inner_type),
+            None => leaf(variant),
+        })
+        .collect()
+}
+
 pub fn from(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
 
@@ -234,229 +252,219 @@ pub fn from(input: TokenStream) -> TokenStream {
         .collect();
 
     // Generate has_inner() match arms
-    let has_inner_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
+    let has_inner_arms = map_variant_arms(
+        &variants,
+        |v| {
             let pattern = v.ignore_pattern();
-            let has = !v.is_unit;
-            quote! { #pattern => #has, }
-        })
-        .collect();
+            quote! { #pattern => false, }
+        },
+        |v, _| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => true, }
+        },
+    );
 
     // Generate child_variant_names() match arms for heterogeneous enums
     // This returns the variant names of the INNER TYPE, not the inner value's children
-    let child_variant_names_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
+    let child_variant_names_arms = map_variant_arms(
+        &variants,
+        |v| {
             let pattern = v.ignore_pattern();
-            if v.is_unit {
-                quote! { #pattern => vec![], }
-            } else {
-                let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! {
-                    #pattern => {
-                        <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants()
-                            .into_iter()
-                            .map(|v| v.variant_name())
-                            .collect()
-                    }
+            quote! { #pattern => vec![], }
+        },
+        |v, inner_ty| {
+            let pattern = v.ignore_pattern();
+            quote! {
+                #pattern => {
+                    <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                        .into_iter()
+                        .map(|v| v.variant_name())
+                        .collect()
                 }
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate inner_child_variant_names() match arms - gets the children of the inner VALUE
-    let inner_child_variant_names_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
+    let inner_child_variant_names_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let ignore_pattern = v.ignore_pattern();
+            quote! { #ignore_pattern => vec![], }
+        },
+        |v, _| {
             let pattern = v.binding_pattern();
-            if v.is_unit {
-                let ignore_pattern = v.ignore_pattern();
-                quote! { #ignore_pattern => vec![], }
-            } else {
-                quote! {
-                    #pattern => inner.child_variant_names(),
-                }
+            quote! {
+                #pattern => inner.child_variant_names(),
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate inner_set_child_by_index() match arms - sets child on the inner VALUE
-    let inner_set_child_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.binding_pattern();
-                let constructor = v.constructor(quote! { new_inner });
-                quote! {
-                    #pattern => {
-                        inner.set_child_by_index(index).map(|new_inner| #constructor)
-                    }
+    let inner_set_child_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            let constructor = v.constructor(quote! { new_inner });
+            quote! {
+                #pattern => {
+                    inner.set_child_by_index(index).map(|new_inner| #constructor)
                 }
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate inner_has_inner() match arms - checks if the inner VALUE has children
-    let inner_has_inner_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => false, }
-            } else {
-                let pattern = v.binding_pattern();
-                quote! {
-                    #pattern => inner.has_inner(),
-                }
+    let inner_has_inner_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => false, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            quote! {
+                #pattern => inner.has_inner(),
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate set_child_by_index() match arms
-    let set_child_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.ignore_pattern();
-                let inner_ty = v.inner_type.as_ref().unwrap();
-                let constructor = v.constructor(quote! { child.clone() });
-                quote! {
-                    #pattern => {
-                        let children = <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants();
-                        children.get(index).map(|child| #constructor)
-                    }
+    let set_child_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, inner_ty| {
+            let pattern = v.ignore_pattern();
+            let constructor = v.constructor(quote! { child.clone() });
+            quote! {
+                #pattern => {
+                    let children = <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    children.get(index).map(|child| #constructor)
                 }
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate set_child_by_path() match arms - recursive path setting
-    let set_child_by_path_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.ignore_pattern();
-                let inner_ty = v.inner_type.as_ref().unwrap();
-                let constructor_child = v.constructor(quote! { child });
-                let constructor_updated = v.constructor(quote! { updated_child });
-                quote! {
-                    #pattern => {
-                        if path.is_empty() {
-                            return None;
-                        }
-                        let children = <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::variants();
-                        let child = children.get(path[0])?.clone();
-                        if path.len() == 1 {
-                            // Last element in path - just set the child
-                            Some(#constructor_child)
-                        } else {
-                            // More path elements - recursively set on the child
-                            let updated_child = child.set_child_by_path(&path[1..])?;
-                            Some(#constructor_updated)
-                        }
+    let set_child_by_path_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, inner_ty| {
+            let pattern = v.ignore_pattern();
+            let constructor_child = v.constructor(quote! { child });
+            let constructor_updated = v.constructor(quote! { updated_child });
+            quote! {
+                #pattern => {
+                    if path.is_empty() {
+                        return None;
+                    }
+                    let children = <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let child = children.get(path[0])?.clone();
+                    if path.len() == 1 {
+                        Some(#constructor_child)
+                    } else {
+                        let updated_child = child.set_child_by_path(&path[1..])?;
+                        Some(#constructor_updated)
                     }
                 }
             }
-        })
-        .collect();
+        },
+    );
 
     // Generate child_depth() match arms
-    let child_depth_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
+    let child_depth_arms = map_variant_arms(
+        &variants,
+        |v| {
             let pattern = v.ignore_pattern();
-            if v.is_unit {
-                quote! { #pattern => 0, }
-            } else {
-                let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! {
-                    #pattern => <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::depth(),
-                }
+            quote! { #pattern => 0, }
+        },
+        |v, inner_ty| {
+            let pattern = v.ignore_pattern();
+            quote! {
+                #pattern => <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::depth(),
             }
-        })
-        .collect();
+        },
+    );
 
-    let inner_child_label_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.binding_pattern();
-                quote! { #pattern => inner.child_label_at_depth(depth), }
-            }
-        })
-        .collect();
+    let inner_child_label_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            quote! { #pattern => inner.child_label_at_depth(depth), }
+        },
+    );
 
-    let inner_child_description_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.binding_pattern();
-                quote! { #pattern => inner.child_description_at_depth(depth), }
-            }
-        })
-        .collect();
+    let inner_child_description_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            quote! { #pattern => inner.child_description_at_depth(depth), }
+        },
+    );
 
-    let child_label_immediate_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.binding_pattern();
-                quote! { #pattern => Some(inner.type_label()), }
-            }
-        })
-        .collect();
+    let child_label_immediate_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            quote! { #pattern => Some(inner.type_label()), }
+        },
+    );
 
-    let child_description_immediate_arms: Vec<_> = variants
-        .iter()
-        .map(|v| {
-            if v.is_unit {
-                let pattern = v.ignore_pattern();
-                quote! { #pattern => None, }
-            } else {
-                let pattern = v.binding_pattern();
-                quote! { #pattern => Some(inner.type_description()), }
-            }
-        })
-        .collect();
+    let child_description_immediate_arms = map_variant_arms(
+        &variants,
+        |v| {
+            let pattern = v.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |v, _| {
+            let pattern = v.binding_pattern();
+            quote! { #pattern => Some(inner.type_description()), }
+        },
+    );
 
     // For depth calculation, we need to find the max depth among all variants
     let depth_calculation = if all_unit {
         quote! { 1 }
     } else {
-        let depth_checks: Vec<_> = variants
-            .iter()
-            .filter(|v| !v.is_unit)
-            .map(|v| {
-                let inner_ty = v.inner_type.as_ref().unwrap();
-                quote! { <#inner_ty as gpui_form_component::infinite_select::InfiniteSelect>::depth() }
-            })
-            .collect();
+        let depth_checks = map_variant_arms(
+            &variants,
+            |_| quote! {},
+            |_, inner_ty| {
+                quote! { <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::depth() }
+            },
+        )
+        .into_iter()
+        .filter(|tokens| !tokens.is_empty())
+        .collect::<Vec<_>>();
         quote! {
             1 + [#(#depth_checks),*].into_iter().max().unwrap_or(0)
         }
     };
 
     let expanded = quote! {
-        impl gpui_form_component::infinite_select::InfiniteSelect for #enum_ident {
+        impl ::gpui_form::infinite_select::InfiniteSelect for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*

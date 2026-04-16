@@ -1,5 +1,5 @@
 use darling::{Error as DarlingError, FromField, FromMeta};
-use gpui_form_core::components::Components;
+use gpui_form_codegen::components::Components;
 use koruma_derive_core::ValidationInfo;
 use proc_macro2::TokenStream;
 use syn::{Expr, Ident, Lit, Type, TypePath};

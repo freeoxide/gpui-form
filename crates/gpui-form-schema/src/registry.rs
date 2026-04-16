@@ -63,7 +63,11 @@ impl GpuiFormShape {
 #[derive(Debug)]
 pub struct FieldVariant {
     pub field_name: &'static str,
-    pub field_type: &'static str,
+    /// Rust type path for the field's value type.
+    ///
+    /// This is a full Rust type string (for example `Country` or
+    /// `some_lib::country::Country`), not just a bare identifier.
+    pub value_type: &'static str,
     pub optional: bool,
     pub behaviour: ComponentsBehaviour,
     /// List of validation rule identifiers applied to this field (for diagnostics/rendering).
@@ -78,13 +82,13 @@ pub struct FieldVariant {
 impl FieldVariant {
     pub const fn new(
         field_name: &'static str,
-        field_type: &'static str,
+        value_type: &'static str,
         optional: bool,
         behaviour: ComponentsBehaviour,
     ) -> Self {
         Self {
             field_name,
-            field_type,
+            value_type,
             optional,
             behaviour,
             validations: &[],
@@ -115,35 +119,16 @@ impl FieldVariant {
         self
     }
 
-    pub fn full_type(&self) -> syn::Type {
-        let mut ty = syn::parse_str(self.field_type).unwrap();
-        if self.optional {
-            ty = syn::Type::Path(syn::TypePath {
-                qself: None,
-                path: syn::parse_str("Option").unwrap(),
-            });
-        }
-        ty
+    pub fn behaviour_suffix(&self) -> &'static str {
+        self.behaviour.component_name()
     }
 
-    pub fn behaviour_suffix(&self) -> String {
-        self.behaviour.to_string()
-    }
-
-    pub fn field_ident(&self) -> syn::Ident {
-        syn::parse_str(self.field_name).unwrap()
-    }
-
-    pub fn field_ident_pascal(&self) -> syn::Ident {
-        syn::parse_str::<syn::Ident>(&self.field_name.to_pascal_case()).unwrap()
+    pub fn field_name_pascal(&self) -> String {
+        self.field_name.to_pascal_case()
     }
 
     pub fn field_name_with_behaviour(&self) -> String {
         format!("{}_{}", self.field_name, self.behaviour_suffix())
-    }
-
-    pub fn field_ident_with_behaviour(&self) -> syn::Ident {
-        syn::parse_str(&self.field_name_with_behaviour()).unwrap()
     }
 
     pub fn kebab_id(&self) -> String {
@@ -153,21 +138,6 @@ impl FieldVariant {
     /// Returns the validation rule identifiers attached to this field.
     pub fn validation_rules(&self) -> &'static [&'static str] {
         self.validations
-    }
-
-    /// Returns parsed validation rule idents as syn::Path values.
-    pub fn validation_paths(&self) -> Vec<syn::Path> {
-        self.validations
-            .iter()
-            .filter_map(|v| syn::parse_str::<syn::Path>(v).ok())
-            .collect()
-    }
-
-    /// Returns the first validation rule as a syn::Path, if any.
-    pub fn first_validation_path(&self) -> Option<syn::Path> {
-        self.validations
-            .iter()
-            .find_map(|v| syn::parse_str::<syn::Path>(v).ok())
     }
 
     /// Attach validation rule identifiers to this field metadata.

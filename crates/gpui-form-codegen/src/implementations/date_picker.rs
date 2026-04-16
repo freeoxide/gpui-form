@@ -1,4 +1,3 @@
-use super::__crate_paths;
 use crate::components::*;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -17,16 +16,16 @@ impl super::ComponentLayout for DatePickerComponent {
 
         let field_name_ident = crate::component_field_name!(name);
 
-        use __crate_paths::gpui::{Context, Entity, Window};
-        use __crate_paths::gpui_component::date_picker::DatePickerState;
-
         let field_structure_definition = quote! {
-            pub #field_name_ident: #Entity<#DatePickerState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_form::runtime::date_picker::DatePickerState>,
         };
 
         let field_base_declaration = quote! {
-            pub fn #field_name_ident(window: &mut #Window, cx: &mut #Context<'_, #DatePickerState>) -> #DatePickerState {
-                #DatePickerState::new(window, cx)
+            pub fn #field_name_ident(
+                window: &mut ::gpui::Window,
+                cx: &mut ::gpui::Context<'_, ::gpui_form::runtime::date_picker::DatePickerState>,
+            ) -> ::gpui_form::runtime::date_picker::DatePickerState {
+                ::gpui_form::runtime::date_picker::DatePickerState::new(window, cx)
             }
         };
 

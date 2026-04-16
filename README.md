@@ -4,18 +4,21 @@
 
 # gpui-form
 
-A struct derive macro for deriving [gpui-component](https://github.com/longbridge/gpui-component)... components on fields.
+A type-safe form-generation ecosystem for `gpui` and
+[`gpui-component`](https://github.com/longbridge/gpui-component), centered on
+`#[derive(GpuiForm)]`.
 
 ## Compatibility
 
-Compatibility of `gpui-form` versions:
+The current workspace version is `0.5.1`.
 
-| `gpui-form` | `gpui-component` | `gpui` |
-| :--------------- | :--------------- | :--------------------------------------------- |
-| **git** | |
-| `master` | `main` | rev `15d8660748b508b3525d3403e5d172f1a557bfa5` |
-| **crates.io** | |
-| `0.5.x` | `0.5.x` |
+Current `main` uses:
+
+- `gpui` pinned to revision `15d8660748b508b3525d3403e5d172f1a557bfa5`
+- `gpui-component` from its GitHub default branch
+
+If you need crates.io-aligned compatibility guarantees, prefer the matching
+release/tag instead of the moving `main` branch.
 
 ## Quick start
 
@@ -47,18 +50,17 @@ pub struct UserProfile {
 }
 ```
 
-## Currently Supported components
+## Supported components
 
-- [Checkbox](https://longbridge.github.io/gpui-component/docs/components/checkbox)
-- [Date Picker](https://longbridge.github.io/gpui-component/docs/components/date-picker)
-- [Select](https://longbridge.github.io/gpui-component/docs/components/select)
-- [Input](https://longbridge.github.io/gpui-component/docs/components/input)
-- [Number Input](https://longbridge.github.io/gpui-component/docs/components/number-input)
-- [Switch](https://longbridge.github.io/gpui-component/docs/components/switch)
-
-## gpui-form components
-
-- [Infinite Select](<>)
+- Input
+- Number Input, including `number_input(as = ...)` validation overrides
+- Checkbox
+- Switch
+- Select, including `searchable` and `partial`
+- Infinite Select, including `searchable` and `max_depth`
+- Date Picker via `gpui_form::runtime::date_picker`
+- Custom components via `component(custom(shape = ...))` or
+  `component(custom(state = ...))`
 
 ## Using custom components
 
@@ -66,6 +68,31 @@ pub struct UserProfile {
   `gpui_form::custom_component_shape!`.
 - Or derive directly on state types with `#[derive(gpui_form::CustomComponentState)]`
   and use `component(custom(state = ...))`.
+- Optional `component = ...` metadata can be attached either on the field or on
+  the custom state/shape so prototyping output can emit the concrete widget
+  type.
+- Runtime helper modules are re-exported from
+  `gpui_form::{custom, date_picker, infinite_select}` and also grouped under
+  `gpui_form::runtime`.
+- Numeric validation helpers are available under `gpui_form::numeric` and
+  `gpui_form::core::numeric`.
+- Generated value holders with `#[gpui_form(skip)]` fields derive
+  `::gpui_form::bon::Builder`; the facade re-exports `bon` so generated code
+  has a stable path.
+- Direct `gpui-form-component` dependencies are only needed when using the
+  runtime implementation crate standalone.
+
+## Workspace layout
+
+- `gpui-form`: facade crate re-exporting `core`, `runtime`, `schema`, and derives.
+- `gpui-form-core`: pure helper logic such as numeric validation.
+- `gpui-form-schema`: inventory metadata and schema types.
+- `gpui-form-derive`: proc macros for forms and select helpers.
+- `gpui-form-codegen`: internal parse-time/token-generation support for derives.
+- `gpui-form-component`: GPUI-facing runtime helpers, re-exported by the facade
+  as `gpui_form::runtime`.
+- `gpui-form-prototyping-core`: consumer-facing prototyping/codegen helpers that
+  consume `GpuiFormShape` inventory data.
 
 ## Validation ([koruma](https://github.com/stayhydated/koruma))
 
@@ -83,6 +110,7 @@ See `examples/prototyping` for a working generator.
 
 - `examples/i18n` - localization resources used by the examples.
 - `examples/some-lib` - crate defining shared example types.
-- `examples/some-lib-custom-components` - external custom component shapes/states used by examples.
+- `examples/some-lib-custom-components` - external custom component state
+  types and UI widgets used by the examples.
 - `examples/some-lib-forms` - storybook-like gpui app showcasing generated forms. Run with `cargo run -p some-lib-forms`.
 - `examples/prototyping` - prototyping generator that emits form scaffolding. Run with `cargo run -p prototyping`.

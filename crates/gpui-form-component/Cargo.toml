@@ -12,8 +12,13 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
+chrono = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
+icu_calendar = { workspace = true }
+icu_datetime = { workspace = true }
+icu_locale_core = { workspace = true }
+jiff = { workspace = true }
 
 [lints]
 workspace = true

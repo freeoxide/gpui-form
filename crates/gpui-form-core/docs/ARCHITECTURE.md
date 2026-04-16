@@ -2,42 +2,25 @@
 
 ## Purpose
 
-`gpui-form-core` hosts the shared data model and codegen helpers used by the derive macros and the prototyping generator. It is not a proc-macro crate, but it builds token streams for use by proc macros.
+`gpui-form-core` hosts pure helper logic that generated forms can depend on
+without pulling in GPUI runtime types.
 
 ## Key modules
 
-- `components.rs`: component option types, the `Components` enum, and `ComponentsBehaviour` metadata.
-- `registry.rs`: `GpuiFormShape` and `FieldVariant`, plus `inventory` collection for prototyping.
-  `GpuiFormShape` also carries whether source fields include `#[gpui_form(skip)]`
-  so downstream generators can detect incomplete value-holder roundtrips.
-- `names.rs`: helper for building component field identifiers.
-- `implementations/*`: per-component `ComponentLayout` implementations that emit struct fields and constructor tokens.
-- `implementations/__crate_paths/*`: generated crate path shims (do not edit).
+- `src/numeric.rs`: text-input validation helpers for signed and unsigned
+  numeric entry.
 
 ## Data flow
 
-1. `gpui-form-derive` parses `#[gpui_form(component(...))]` (including `custom(shape = ...)`) into `Components`.
-1. `ComponentLayout` implementations build the form field structs and component constructor functions.
-1. `ComponentsBehaviour` becomes runtime metadata in `FieldVariant` and is stored in `GpuiFormShape`.
-   Skip metadata (`has_skipped_fields`) is also propagated into `GpuiFormShape`.
-1. `GpuiFormShape` is optionally registered with `inventory` for downstream prototyping codegen.
-
-## Extension points
-
-To add a new component:
-
-1. Add a new option type and `Components` enum variant in `components.rs`.
-1. Implement `ComponentLayout` in `implementations/`.
-1. Extend `ComponentsBehaviour` and any behavior helpers (e.g., `focusable`, `subscribable`).
-1. Update the prototyping generator in `gpui-form-prototyping-core`.
-
-Custom user-defined components are represented by `Components::Custom(CustomOptions)`.
-`CustomOptions` carries:
-
-- `shape`/`state`: path to a type implementing `gpui_form_component::custom::CustomComponentShape`
-- `wraps_in_option`: whether the form value holder wraps that field in `Option<T>`
+1. `gpui-form-codegen` emits number-input validation calls against
+   `gpui_form::numeric::*`.
+1. The facade crate re-exports `gpui-form-core::numeric` at
+   `gpui_form::numeric` and the crate itself as `gpui_form::core`.
+1. Generated number-input code uses these helpers while editing form values.
 
 ## Notes
 
-- This crate depends on `syn`, `quote`, and `proc_macro2` for token construction.
-- Keep the `__crate_paths` folder generated (see `just update_crate_paths`).
+- This crate intentionally stays UI-neutral and does not depend on `gpui`.
+- Runtime traits/helpers live in `gpui-form-component`, re-exported by
+  `gpui-form` as `gpui_form::runtime`.
+- Static metadata lives in `gpui-form-schema`.

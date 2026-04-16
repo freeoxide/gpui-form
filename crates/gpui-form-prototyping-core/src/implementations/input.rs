@@ -1,11 +1,14 @@
-use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
+use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::implementations::ComponentIdentities as _;
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription};
+use super::{
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
+    generate_entity_field_initializer, generate_entity_focus, generate_text_value_prefill,
+    render_component_entity_field,
+};
 
 pub struct InputCodeGenerator;
 
@@ -22,91 +25,51 @@ impl FieldCodeGenerator for InputCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let form_components_struct_ident = component.struct_form_components_ident();
-        let var_name_ident = field.field_ident_with_behaviour();
-        let fn_name_ident = var_name_ident.clone();
-
-        Some(quote! {
-            let #var_name_ident =
-                cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
-        })
+        Some(generate_entity_creation(field, component))
     }
 
     fn generate_post_subscription_initialization(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-        let field_name_ident = field.field_ident();
-
-        Some(quote! {
-            if let Some(value) = current_data.#field_name_ident.as_ref() {
-                #field_var_name_ident.update(cx, |state, cx| {
-                    state.set_value(value.to_string(), window, cx);
-                });
-            }
-        })
+        Some(generate_text_value_prefill(field))
     }
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-
-        Some(quote! { #field_var_name_ident, })
+        Some(generate_entity_field_initializer(field))
     }
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let component_gpui_type = field.behaviour.as_component_ident();
-
-        let field_in_struct_name_ident = field.field_ident_with_behaviour();
-
-        let description_fn_tokens = super::generate_description_fn_tokens(field, component);
-        let label_tokens = super::generate_label_tokens(field, component);
-
-        // Show description always, and error below it when present (hidden when empty)
-        quote! {
-            .child(
-                field()
-                    .label(#label_tokens)
-                    #description_fn_tokens
-                    .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
-            )
-        }
+        render_component_entity_field(field, component)
     }
 
     fn generate_focusable_cycle(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-        let x = quote! {
-          self.fields.#field_var_name_ident.focus_handle(cx),
-        };
-        Some(x)
+        Some(generate_entity_focus(field))
     }
 
     fn generate_subscription(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
-
-        let event_handler_fn_name = format!("on_{}_input_event", field.field_name);
-        let event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&event_handler_fn_name).unwrap();
+        let event_handler_fn_name_ident = field.event_handler_ident("input_event");
 
         let calls = vec![
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
@@ -122,16 +85,13 @@ impl FieldCodeGenerator for InputCodeGenerator {
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
-                match event {
-                    InputEvent::Change => {
-                        let text = state.read(_cx).value();
-                        self.current_data.#field_name_ident = if text.is_empty() {
-                            None
-                        } else {
-                            Some(text.to_string())
-                        };
-                    },
-                    _ => {},
+                if let InputEvent::Change = event {
+                    let text = state.read(_cx).value();
+                    self.current_data.#field_name_ident = if text.is_empty() {
+                        None
+                    } else {
+                        Some(text.to_string())
+                    };
                 }
             }
         };

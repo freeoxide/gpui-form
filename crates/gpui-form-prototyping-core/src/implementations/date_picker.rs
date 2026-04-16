@@ -1,39 +1,33 @@
-use gpui_form_core::registry::{FieldVariant, GpuiFormShape};
+use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::implementations::ComponentIdentities as _;
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription};
+use super::{
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
+    generate_entity_field_initializer, generate_entity_focus, render_component_entity_field,
+};
 
 pub struct DatePickerCodeGenerator;
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_component::date_picker::DatePicker"),
-    ImportItem::path("gpui_component::date_picker::DatePickerEvent"),
-    ImportItem::path("gpui_component::date_picker::DatePickerState"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePicker"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePickerEvent"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePickerState"),
 ];
 
-fn parse_date_expr(date_ident: &syn::Ident, field_type: &str) -> TokenStream {
-    let type_path = syn::parse_str::<syn::Type>(field_type).expect("valid type path");
-
-    quote! {
-        <#type_path as std::str::FromStr>::from_str(&#date_ident.to_string())
-    }
-}
-
-fn value_assign(field: &FieldVariant, field_name_ident: &syn::Ident) -> TokenStream {
-    let date_ident = syn::parse_str::<syn::Ident>("date").expect("date ident");
-    let parse_expr = parse_date_expr(&date_ident, field.field_type);
-
-    if field.optional {
+fn value_assign(field: &ResolvedField<'_>, field_name_ident: &syn::Ident) -> TokenStream {
+    if field.optional() {
         quote! {
-            self.current_data.#field_name_ident = (#parse_expr).ok();
+            self.current_data.#field_name_ident =
+                date.and_then(::gpui_form::runtime::date_picker::parse_form_date);
         }
     } else {
         quote! {
-            self.current_data.#field_name_ident = (#parse_expr).unwrap_or_default();
+            self.current_data.#field_name_ident = date
+                .and_then(::gpui_form::runtime::date_picker::parse_form_date)
+                .unwrap_or_default();
         }
     }
 }
@@ -45,74 +39,43 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
 
     fn generate_cx_new_call(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let form_components_struct_ident = component.struct_form_components_ident();
-        let var_name_ident = field.field_ident_with_behaviour();
-        let fn_name_ident = var_name_ident.clone();
-
-        Some(quote! {
-            let #var_name_ident =
-                cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
-        })
+        Some(generate_entity_creation(field, component))
     }
 
     fn generate_field_initializers(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-
-        Some(quote! { #field_var_name_ident, })
+        Some(generate_entity_field_initializer(field))
     }
 
     fn generate_render_child(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        let component_gpui_type = field.behaviour.as_component_ident();
-
-        let field_in_struct_name_ident = field.field_ident_with_behaviour();
-
-        let description_fn_tokens = super::generate_description_fn_tokens(field, component);
-        let label_tokens = super::generate_label_tokens(field, component);
-
-        // Show description always, and error below it when present (hidden when empty)
-        quote! {
-            .child(
-                field()
-                    .label(#label_tokens)
-                    #description_fn_tokens
-                    .child(#component_gpui_type::new(&self.fields.#field_in_struct_name_ident))
-            )
-        }
+        render_component_entity_field(field, component)
     }
 
     fn generate_focusable_cycle(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        let field_var_name_ident = field.field_ident_with_behaviour();
-        let x = quote! {
-          self.fields.#field_var_name_ident.focus_handle(cx),
-        };
-        Some(x)
+        Some(generate_entity_focus(field))
     }
 
     fn generate_subscription(
         &self,
-        field: &FieldVariant,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
-
-        let event_handler_fn_name = format!("on_{}_date_picker_event", field.field_name);
-        let event_handler_fn_name_ident =
-            syn::parse_str::<syn::Ident>(&event_handler_fn_name).unwrap();
+        let event_handler_fn_name_ident = field.event_handler_ident("date_picker_event");
 
         let calls = vec![
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
@@ -120,7 +83,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
 
         let field_name_ident = field.field_ident();
 
-        let value_assign = value_assign(field, &field_name_ident);
+        let value_assign = value_assign(field, field_name_ident);
 
         let handler = quote! {
             fn #event_handler_fn_name_ident(

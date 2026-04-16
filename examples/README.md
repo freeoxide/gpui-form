@@ -1,18 +1,20 @@
+# Examples
+
 ## i18n
 
-i18n resources
+Localization resources shared by the example crates.
 
 ## some-lib
 
-our crate types
+Shared example domain types and source structs that derive `GpuiForm`.
 
 ## some-lib-custom-components
 
-shared custom component shapes/states used by example crates (external type case)
+External custom component state types and UI widgets used by the examples.
 
 ## some-lib-forms
 
-crate to hold the gpui forms, also has a main.rs defining a storybook-like gpui app, showcasing the forms
+Storybook-like GPUI app showcasing generated forms.
 
 ### Running it
 
@@ -22,8 +24,8 @@ cargo run -p some-lib-forms
 
 ## prototyping
 
-our own prototyping tool for generating the forms, defining items that we would otherwise have to write ourselves.
-Then styling's pretty much what's left to do.
+Prototype generator that reads `GpuiFormShape` inventory data and emits form
+scaffolding.
 
 ### Running it
 

@@ -11,8 +11,6 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 
 gpui-form = { version = "*", features = ["derive"] }
 
-# gpui-form-component = { version = "*" }
-
 # Optional inventory registry for prototyping
 # gpui-form = { version = "*", features = ["derive", "inventory"] }
 ```
@@ -39,7 +37,7 @@ pub struct UserProfile {
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(select(default)))]
+    #[gpui_form(component(select), default = Country::France)]
     pub country: Country,
 
     #[gpui_form(component(checkbox))]
@@ -51,3 +49,22 @@ pub struct UserProfile {
 
 - `derive` (default): proc macros for forms and select helpers.
 - `inventory`: enables shape registry for prototyping when `derive` is enabled.
+
+## Runtime Helpers
+
+`gpui-form` exposes the public workspace layout directly:
+
+- `gpui_form::core` for pure helper logic such as numeric validation
+- `gpui_form::runtime` for GPUI-facing runtime helpers
+- `gpui_form::schema` for metadata and inventory registry types
+
+For backward compatibility, the facade also keeps re-exporting
+`gpui_form::custom`, `gpui_form::date_picker`, `gpui_form::infinite_select`,
+`gpui_form::numeric`, `gpui_form::CustomComponentShape`, and
+`gpui_form::custom_component_shape!`.
+
+`gpui_form::bon` is also re-exported because generated value holders with
+`#[gpui_form(skip)]` fields derive `::gpui_form::bon::Builder`.
+
+Most consumers only need the facade crate. Add `gpui-form-component` directly
+only when you need the runtime implementation crate itself outside the facade.

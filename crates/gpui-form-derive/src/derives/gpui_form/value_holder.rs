@@ -7,8 +7,25 @@ use crate::derives::gpui_form::koruma::validator_attr_to_tokens;
 use crate::derives::gpui_form::structs::{ComponentField, FieldOptionality};
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FieldStorage {
+    OriginallyOptional,
+    WrappedOption,
+    Plain,
+}
+
+fn field_storage(field: &FieldOptionality) -> FieldStorage {
+    if field.was_optional {
+        FieldStorage::OriginallyOptional
+    } else if field.wrap_in_option {
+        FieldStorage::WrappedOption
+    } else {
+        FieldStorage::Plain
+    }
+}
+
 fn should_wrap(field: &FieldOptionality) -> bool {
-    !field.skip && (field.was_optional || field.wrap_in_option)
+    !field.skip && !matches!(field_storage(field), FieldStorage::Plain)
 }
 
 fn form_base_type(field: &FieldOptionality) -> Type {
@@ -186,6 +203,208 @@ fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) 
     }
 }
 
+fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
+    let field_name = &field.field_name;
+
+    match field_storage(field) {
+        FieldStorage::OriginallyOptional => {
+            if needs_from_conversion(field) {
+                let converted = apply_from_conversion(field, quote! { value });
+                quote! {
+                    #field_name: from.#field_name.map(|value| #converted)
+                }
+            } else {
+                quote! {
+                    #field_name: from.#field_name
+                }
+            }
+        },
+        FieldStorage::WrappedOption => {
+            if let Some(default_expr) = &field.default_expr {
+                let default_original = default_expr_for_original(default_expr);
+                let original_type = &field.original_type;
+                if needs_from_conversion(field) {
+                    let converted = apply_from_conversion(field, quote! { value });
+                    quote! {
+                        #field_name: {
+                            let value = from.#field_name;
+                            let default_original: #original_type = #default_original;
+                            if value == default_original {
+                                None
+                            } else {
+                                Some(#converted)
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        #field_name: {
+                            let value = from.#field_name;
+                            let default_original: #original_type = #default_original;
+                            if value == default_original {
+                                None
+                            } else {
+                                Some(value)
+                            }
+                        }
+                    }
+                }
+            } else if needs_from_conversion(field) {
+                let converted = apply_from_conversion(field, quote! { value });
+                quote! {
+                    #field_name: {
+                        let value = from.#field_name;
+                        Some(#converted)
+                    }
+                }
+            } else {
+                quote! {
+                    #field_name: Some(from.#field_name)
+                }
+            }
+        },
+        FieldStorage::Plain => {
+            let converted = apply_from_conversion(field, quote! { from.#field_name });
+            quote! {
+                #field_name: #converted
+            }
+        },
+    }
+}
+
+fn generate_from_wrapped_field(field: &FieldOptionality) -> TokenStream {
+    let field_name = &field.field_name;
+
+    match field_storage(field) {
+        FieldStorage::OriginallyOptional => {
+            if needs_into_conversion(field) {
+                let converted = apply_into_conversion(field, quote! { value });
+                quote! {
+                    #field_name: from.#field_name.map(|value| #converted)
+                }
+            } else {
+                quote! {
+                    #field_name: from.#field_name
+                }
+            }
+        },
+        FieldStorage::WrappedOption => {
+            if let Some(default_expr) = &field.default_expr {
+                let default_original = default_expr_for_original(default_expr);
+                if needs_into_conversion(field) {
+                    let converted = apply_into_conversion(field, quote! { value });
+                    quote! {
+                        #field_name: from.#field_name
+                            .map(|value| #converted)
+                            .unwrap_or(#default_original)
+                    }
+                } else {
+                    quote! {
+                        #field_name: from.#field_name.unwrap_or(#default_original)
+                    }
+                }
+            } else if needs_into_conversion(field) {
+                let converted = apply_into_conversion(field, quote! { value });
+                quote! {
+                    #field_name: from.#field_name
+                        .map(|value| #converted)
+                        .unwrap_or_default()
+                }
+            } else {
+                quote! {
+                    #field_name: from.#field_name.unwrap_or_default()
+                }
+            }
+        },
+        FieldStorage::Plain => {
+            let converted = apply_into_conversion(field, quote! { from.#field_name });
+            quote! {
+                #field_name: #converted
+            }
+        },
+    }
+}
+
+fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
+    let field_name = &field.field_name;
+    let field_name_str = field_name.to_string();
+
+    match field_storage(field) {
+        FieldStorage::OriginallyOptional => {
+            if needs_into_conversion(field) {
+                let converted = apply_into_conversion(field, quote! { value });
+                quote! {
+                    let converted = self.#field_name.clone().map(|value| #converted);
+                    if converted.is_some() {
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", converted))
+                        ));
+                    }
+                }
+            } else {
+                quote! {
+                    if self.#field_name.is_some() {
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", &self.#field_name))
+                        ));
+                    }
+                }
+            }
+        },
+        FieldStorage::WrappedOption => {
+            if needs_into_conversion(field) {
+                let converted = apply_into_conversion(field, quote! { value });
+                quote! {
+                    if let Some(value) = self.#field_name.clone() {
+                        let converted = #converted;
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", converted))
+                        ));
+                    }
+                }
+            } else {
+                quote! {
+                    if let Some(value) = self.#field_name.as_ref() {
+                        entries.push(format!(
+                            "\"{}\":\"{}\"",
+                            #field_name_str,
+                            Self::escape_json_string(&format!("{:?}", value))
+                        ));
+                    }
+                }
+            }
+        },
+        FieldStorage::Plain => {
+            if needs_into_conversion(field) {
+                let converted = apply_into_conversion(field, quote! { value });
+                quote! {
+                    let value = self.#field_name.clone();
+                    let converted = #converted;
+                    entries.push(format!(
+                        "\"{}\":\"{}\"",
+                        #field_name_str,
+                        Self::escape_json_string(&format!("{:?}", converted))
+                    ));
+                }
+            } else {
+                quote! {
+                    entries.push(format!(
+                        "\"{}\":\"{}\"",
+                        #field_name_str,
+                        Self::escape_json_string(&format!("{:?}", &self.#field_name))
+                    ));
+                }
+            }
+        },
+    }
+}
+
 pub fn parse_field_default(field: &ComponentField) -> Option<syn::Expr> {
     field.default.as_ref().map(|expr| expr.0.clone())
 }
@@ -319,121 +538,13 @@ pub fn generate_value_holder(
     let to_wrapped_fields: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
-        .map(|f| {
-            let field_name = &f.field_name;
-            if f.was_optional {
-                if needs_from_conversion(f) {
-                    let converted = apply_from_conversion(f, quote! { value });
-                    quote! {
-                        #field_name: from.#field_name.map(|value| #converted)
-                    }
-                } else {
-                    quote! {
-                        #field_name: from.#field_name
-                    }
-                }
-            } else if f.wrap_in_option {
-                if let Some(default_expr) = &f.default_expr {
-                    let default_original = default_expr_for_original(default_expr);
-                    let original_type = &f.original_type;
-                    if needs_from_conversion(f) {
-                        let converted = apply_from_conversion(f, quote! { value });
-                        quote! {
-                            #field_name: {
-                                let value = from.#field_name;
-                                let default_original: #original_type = #default_original;
-                                if value == default_original {
-                                    None
-                                } else {
-                                    Some(#converted)
-                                }
-                            }
-                        }
-                    } else {
-                        quote! {
-                            #field_name: {
-                                let value = from.#field_name;
-                                let default_original: #original_type = #default_original;
-                                if value == default_original {
-                                    None
-                                } else {
-                                    Some(value)
-                                }
-                            }
-                        }
-                    }
-                } else if needs_from_conversion(f) {
-                    let converted = apply_from_conversion(f, quote! { value });
-                    quote! {
-                        #field_name: {
-                            let value = from.#field_name;
-                            Some(#converted)
-                        }
-                    }
-                } else {
-                    quote! {
-                        #field_name: Some(from.#field_name)
-                    }
-                }
-            } else {
-                let converted = apply_from_conversion(f, quote! { from.#field_name });
-                quote! {
-                    #field_name: #converted
-                }
-            }
-        })
+        .map(generate_to_wrapped_field)
         .collect();
 
     let from_wrapped_fields: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
-        .map(|f| {
-            let field_name = &f.field_name;
-            if f.was_optional {
-                if needs_into_conversion(f) {
-                    let converted = apply_into_conversion(f, quote! { value });
-                    quote! {
-                        #field_name: from.#field_name.map(|value| #converted)
-                    }
-                } else {
-                    quote! {
-                        #field_name: from.#field_name
-                    }
-                }
-            } else if f.wrap_in_option {
-                if let Some(default_expr) = &f.default_expr {
-                    let default_original = default_expr_for_original(default_expr);
-                    if needs_into_conversion(f) {
-                        let converted = apply_into_conversion(f, quote! { value });
-                        quote! {
-                            #field_name: from.#field_name
-                                .map(|value| #converted)
-                                .unwrap_or(#default_original)
-                        }
-                    } else {
-                        quote! {
-                            #field_name: from.#field_name.unwrap_or(#default_original)
-                        }
-                    }
-                } else if needs_into_conversion(f) {
-                    let converted = apply_into_conversion(f, quote! { value });
-                    quote! {
-                        #field_name: from.#field_name
-                            .map(|value| #converted)
-                            .unwrap_or_default()
-                    }
-                } else {
-                    quote! {
-                        #field_name: from.#field_name.unwrap_or_default()
-                    }
-                }
-            } else {
-                let converted = apply_into_conversion(f, quote! { from.#field_name });
-                quote! {
-                    #field_name: #converted
-                }
-            }
-        })
+        .map(generate_from_wrapped_field)
         .collect();
 
     let try_from_fields: Vec<TokenStream> = fields
@@ -445,80 +556,7 @@ pub fn generate_value_holder(
     let present_fields_json_entries: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
-        .map(|f| {
-            let field_name = &f.field_name;
-            let field_name_str = field_name.to_string();
-            if f.was_optional {
-                if needs_into_conversion(f) {
-                    let converted = apply_into_conversion(f, quote! { value });
-                    quote! {
-                        let converted = self.#field_name.clone().map(|value| #converted);
-                        if converted.is_some() {
-                            entries.push(format!(
-                                "\"{}\":\"{}\"",
-                                #field_name_str,
-                                Self::escape_json_string(&format!("{:?}", converted))
-                            ));
-                        }
-                    }
-                } else {
-                    quote! {
-                        if self.#field_name.is_some() {
-                            entries.push(format!(
-                                "\"{}\":\"{}\"",
-                                #field_name_str,
-                                Self::escape_json_string(&format!("{:?}", &self.#field_name))
-                            ));
-                        }
-                    }
-                }
-            } else if f.wrap_in_option {
-                if needs_into_conversion(f) {
-                    let converted = apply_into_conversion(f, quote! { value });
-                    quote! {
-                        if let Some(value) = self.#field_name.clone() {
-                            let converted = #converted;
-                            entries.push(format!(
-                                "\"{}\":\"{}\"",
-                                #field_name_str,
-                                Self::escape_json_string(&format!("{:?}", converted))
-                            ));
-                        }
-                    }
-                } else {
-                    quote! {
-                        if let Some(value) = self.#field_name.as_ref() {
-                            entries.push(format!(
-                                "\"{}\":\"{}\"",
-                                #field_name_str,
-                                Self::escape_json_string(&format!("{:?}", value))
-                            ));
-                        }
-                    }
-                }
-            } else {
-                if needs_into_conversion(f) {
-                    let converted = apply_into_conversion(f, quote! { value });
-                    quote! {
-                        let value = self.#field_name.clone();
-                        let converted = #converted;
-                        entries.push(format!(
-                            "\"{}\":\"{}\"",
-                            #field_name_str,
-                            Self::escape_json_string(&format!("{:?}", converted))
-                        ));
-                    }
-                } else {
-                    quote! {
-                        entries.push(format!(
-                            "\"{}\":\"{}\"",
-                            #field_name_str,
-                            Self::escape_json_string(&format!("{:?}", &self.#field_name))
-                        ));
-                    }
-                }
-            }
-        })
+        .map(generate_present_fields_json_entry)
         .collect();
 
     let mut from_where_clause = where_clause.cloned();
