@@ -6,5 +6,8 @@
 /// Runtime traits/macros for user-defined custom components.
 pub mod custom;
 
+/// Runtime helpers for the localized date picker component.
+pub mod date_picker;
+
 /// Runtime helpers for the InfiniteSelect component.
 pub mod infinite_select;

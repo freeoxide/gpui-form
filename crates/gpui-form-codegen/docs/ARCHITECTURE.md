@@ -28,6 +28,10 @@ helpers used by `gpui-form-derive`.
 1. `Components::behaviour_tokens(...)` emits `gpui_form::schema::components::*`
    metadata so inventory/prototyping stay aligned with derive behavior.
 
+For `date_picker`, field state now targets `gpui_form::runtime::date_picker`
+instead of `gpui_component::date_picker` directly so display formatting can be
+centralized in the runtime layer.
+
 For `select` and `infinite_select`, field defaults are emitted as optional
 initial indices. If a default expression does not match any generated option,
 the generated code leaves the initial selection unset instead of panicking.

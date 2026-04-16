@@ -4,13 +4,13 @@ use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
 use gpui::prelude::FluentBuilder as _;
 use gpui_component::ActiveTheme as _;
 use gpui_component::checkbox::Checkbox;
-use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_component::form::field;
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
+use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use es_fluent::ThisFtl as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
@@ -276,10 +276,8 @@ impl UserForm {
     ) {
         match event {
             DatePickerEvent::Change(date) => {
-                self.current_data.birth_date = (<chrono::NaiveDate as std::str::FromStr>::from_str(
-                    &date.to_string(),
-                ))
-                    .ok();
+                self.current_data.birth_date = date
+                    .and_then(::gpui_form::runtime::date_picker::parse_form_date);
             }
         }
     }

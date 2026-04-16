@@ -17,15 +17,15 @@ impl super::ComponentLayout for DatePickerComponent {
         let field_name_ident = crate::component_field_name!(name);
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: ::gpui::Entity<::gpui_component::date_picker::DatePickerState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_form::runtime::date_picker::DatePickerState>,
         };
 
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
                 window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<'_, ::gpui_component::date_picker::DatePickerState>,
-            ) -> ::gpui_component::date_picker::DatePickerState {
-                ::gpui_component::date_picker::DatePickerState::new(window, cx)
+                cx: &mut ::gpui::Context<'_, ::gpui_form::runtime::date_picker::DatePickerState>,
+            ) -> ::gpui_form::runtime::date_picker::DatePickerState {
+                ::gpui_form::runtime::date_picker::DatePickerState::new(window, cx)
             }
         };
 

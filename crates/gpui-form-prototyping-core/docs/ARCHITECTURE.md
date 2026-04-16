@@ -41,6 +41,13 @@ Rust type path. The generator no longer assumes field metadata is a bare
 identifier, so qualified paths like `some_lib::country::Country` remain intact
 in emitted code.
 
+Built-in date-picker scaffolds import `gpui_form::runtime::date_picker::*`
+instead of `gpui_component::date_picker::*`. The generated handlers consume
+`Option<jiff::civil::Date>` events and use
+`gpui_form::runtime::date_picker::parse_form_date` so concrete target types are
+inferred from the assignment site instead of being spelled out in the emitted
+form code.
+
 ## Import design
 
 Imports are declared close to where they are used:

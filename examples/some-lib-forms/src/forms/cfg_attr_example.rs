@@ -5,7 +5,6 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::checkbox::Checkbox;
-use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{
@@ -14,6 +13,7 @@ use gpui_component::input::{
 use gpui_component::select::{Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
+use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use rust_decimal::Decimal;
 use some_lib::structs::cfg_attr_example::*;
 use some_lib::structs::form_action::FormAction;
@@ -202,7 +202,7 @@ impl CfgAttrExampleForm {
         match event {
             DatePickerEvent::Change(date) => {
                 self.current_data.created_at =
-                    (<chrono::NaiveDate as std::str::FromStr>::from_str(&date.to_string())).ok();
+                    date.and_then(gpui_form::runtime::date_picker::parse_form_date);
             },
         }
     }

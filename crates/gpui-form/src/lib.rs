@@ -7,6 +7,7 @@ pub use gpui_form_runtime as runtime;
 pub use gpui_form_runtime::custom;
 pub use gpui_form_runtime::custom::CustomComponentShape;
 pub use gpui_form_runtime::custom_component_shape;
+pub use gpui_form_runtime::date_picker;
 pub use gpui_form_runtime::infinite_select;
 pub use gpui_form_schema as schema;
 

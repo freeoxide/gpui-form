@@ -12,29 +12,22 @@ use super::{
 pub struct DatePickerCodeGenerator;
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_component::date_picker::DatePicker"),
-    ImportItem::path("gpui_component::date_picker::DatePickerEvent"),
-    ImportItem::path("gpui_component::date_picker::DatePickerState"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePicker"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePickerEvent"),
+    ImportItem::path("gpui_form::runtime::date_picker::DatePickerState"),
 ];
 
-fn parse_date_expr(date_ident: &syn::Ident, field_type: &syn::Type) -> TokenStream {
-    quote! {
-        <#field_type as std::str::FromStr>::from_str(&#date_ident.to_string())
-    }
-}
-
 fn value_assign(field: &FieldVariant, field_name_ident: &syn::Ident) -> TokenStream {
-    let date_ident = syn::parse_str::<syn::Ident>("date").expect("date ident");
-    let field_type = field.value_type();
-    let parse_expr = parse_date_expr(&date_ident, &field_type);
-
     if field.optional {
         quote! {
-            self.current_data.#field_name_ident = (#parse_expr).ok();
+            self.current_data.#field_name_ident =
+                date.and_then(::gpui_form::runtime::date_picker::parse_form_date);
         }
     } else {
         quote! {
-            self.current_data.#field_name_ident = (#parse_expr).unwrap_or_default();
+            self.current_data.#field_name_ident = date
+                .and_then(::gpui_form::runtime::date_picker::parse_form_date)
+                .unwrap_or_default();
         }
     }
 }

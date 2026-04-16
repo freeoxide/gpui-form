@@ -54,9 +54,13 @@ gpui_platform = { features = [
   "runtime_shaders",
 ], git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
 heck = "0.5.0"
+icu_calendar = "2.2.0"
+icu_datetime = "2.2.0"
+icu_locale_core = "2.2.0"
 insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
+jiff = "0.2.23"
 koruma = "0.7.1"
 koruma-collection = "0.7.1"
 koruma-derive-core = "0.7.1"
