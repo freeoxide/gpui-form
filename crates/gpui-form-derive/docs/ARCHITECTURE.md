@@ -59,7 +59,7 @@ into gpui-form components and metadata.
 ## Extension points
 
 - New components require updates in `gpui-form-codegen`,
-  `gpui-form-schema`, `gpui-form-runtime`/`gpui-form-component` when runtime
+  `gpui-form-schema`, `gpui-form-component` when runtime
   support is needed, and `gpui-form-prototyping-core`.
 - Keep generated metadata (`GpuiFormShape`) aligned with new behaviors.
 

@@ -7,8 +7,8 @@ This crate provides:
 - InfiniteSelect support for cascading selects over nested enums.
 - Custom component shape helpers used by `#[derive(GpuiForm)]`.
 
-Most users should prefer `gpui-form` or `gpui-form-runtime`; this crate exists
-as the implementation layer that `gpui-form-runtime` re-exports.
+Most users should prefer `gpui-form`; the facade re-exports this crate as
+`gpui_form::runtime`.
 
 ## InfiniteSelect
 

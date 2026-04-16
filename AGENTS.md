@@ -16,8 +16,7 @@
 | `gpui-form-schema` | [Architecture](crates/gpui-form-schema/docs/ARCHITECTURE.md) | Runtime/schema metadata and inventory registry types. |
 | `gpui-form-derive` | [Architecture](crates/gpui-form-derive/docs/ARCHITECTURE.md) | Proc macros for form derivation and select helpers. |
 | **Components & Runtime** | | |
-| `gpui-form-runtime` | [Architecture](crates/gpui-form-runtime/docs/ARCHITECTURE.md) | Stable GPUI-facing runtime namespace for generated code. |
-| `gpui-form-component` | [Architecture](crates/gpui-form-component/docs/ARCHITECTURE.md) | Lower-level runtime helper implementations. |
+| `gpui-form-component` | [Architecture](crates/gpui-form-component/docs/ARCHITECTURE.md) | GPUI-facing runtime helpers, re-exported by the facade as `gpui_form::runtime`. |
 | **Prototyping** | | |
 | `gpui-form-prototyping-core` | [Architecture](crates/gpui-form-prototyping-core/docs/ARCHITECTURE.md) | Codegen from inventory shapes for prototyping. |
 | **Internal** | | |
@@ -34,8 +33,7 @@
 
 ### Components & Runtime
 
-- **`gpui-form-runtime`**: Stable runtime namespace re-exported by the facade as `gpui_form::runtime`.
-- **`gpui-form-component`**: Lower-level runtime helper implementations used by `gpui-form-runtime`.
+- **`gpui-form-component`**: GPUI-facing runtime helper implementations, re-exported by the facade as `gpui_form::runtime`.
 
 ### Prototyping
 

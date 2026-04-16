@@ -6,7 +6,7 @@
 it alone and get:
 
 - pure helper logic from `gpui-form-core`
-- GPUI runtime helpers from `gpui-form-runtime`
+- GPUI runtime helpers from `gpui-form-component`
 - schema/registry metadata from `gpui-form-schema`
 - proc macros from `gpui-form-derive`
 
@@ -14,7 +14,7 @@ it alone and get:
 
 - `src/lib.rs`
   - Re-exports the core crate as `gpui_form::core`
-  - Re-exports the runtime crate as `gpui_form::runtime`
+  - Re-exports `gpui-form-component` as `gpui_form::runtime`
   - Re-exports the schema crate as `gpui_form::schema`
   - Re-exports derive macros when the `derive` feature is enabled
   - Preserves root-level compatibility re-exports for `custom`,
@@ -47,5 +47,4 @@ This crate is intentionally thin. Add new behavior in:
 - `gpui-form-schema` (component definitions and metadata)
 - `gpui-form-codegen` (derive-time component parsing and token generation)
 - `gpui-form-derive` (macro expansion)
-- `gpui-form-runtime` (stable runtime namespace)
-- `gpui-form-component` (lower-level runtime helper implementations)
+- `gpui-form-component` (runtime helper implementations, also exposed as `gpui_form::runtime`)

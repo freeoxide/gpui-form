@@ -2968,9 +2968,9 @@ name = "gpui-form"
 version = "0.5.1"
 dependencies = [
  "bon",
+ "gpui-form-component",
  "gpui-form-core",
  "gpui-form-derive",
- "gpui-form-runtime",
  "gpui-form-schema",
 ]
 
@@ -3033,13 +3033,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "gpui-form-runtime"
-version = "0.5.1"
-dependencies = [
- "gpui-form-component",
 ]
 
 [[package]]

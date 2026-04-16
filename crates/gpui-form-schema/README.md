@@ -22,4 +22,5 @@ the form metadata.
 
 - Parse-time component parsing and token generation live in `gpui-form-codegen`.
 - Pure helper logic lives in `gpui-form-core`.
-- Runtime traits/helpers live in `gpui-form-runtime`.
+- Runtime traits/helpers live in `gpui-form-component`, re-exported by
+  `gpui-form` as `gpui_form::runtime`.

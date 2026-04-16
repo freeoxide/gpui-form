@@ -12,4 +12,4 @@ Proc-macro-adjacent parsing and token-generation support for `gpui-form-derive`.
 
 - This is primarily an internal workspace crate.
 - Public consumers should usually depend on `gpui-form`, `gpui-form-core`,
-  `gpui-form-runtime`, or `gpui-form-schema` instead.
+  `gpui-form-component`, or `gpui-form-schema` instead.

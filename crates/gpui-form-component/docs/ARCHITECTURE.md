@@ -2,8 +2,8 @@
 
 ## Purpose
 
-`gpui-form-component` contains the lower-level runtime helper implementations
-used by `gpui-form-runtime`.
+`gpui-form-component` contains the GPUI-facing runtime helper implementations
+used by the facade crate.
 
 ## Key modules
 
@@ -36,8 +36,8 @@ used by `gpui-form-runtime`.
 1. `date_picker::DatePicker` keeps calendar selection behavior in `gpui_component`, but formats the selected value for display with `jiff` + ICU4X using the active `gpui_component` locale.
 1. UI changes mutate an `InfiniteSelectPath`, which can be turned back into a value via `build_from_path`.
 1. For custom components, users define a shape via `custom_component_shape!` or derive `CustomComponentState` on a state type; `GpuiForm` uses that type to generate state entity fields and component constructors.
-1. `gpui-form-runtime` re-exports this crate's modules as the stable public
-   runtime namespace consumed through the facade crate.
+1. `gpui-form` re-exports this crate as `gpui_form::runtime` and also keeps
+   root-level compatibility re-exports for the main helper modules.
 
 ## Extension points
 

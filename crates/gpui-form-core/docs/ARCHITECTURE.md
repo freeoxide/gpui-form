@@ -21,5 +21,6 @@ without pulling in GPUI runtime types.
 ## Notes
 
 - This crate intentionally stays UI-neutral and does not depend on `gpui`.
-- Runtime traits/helpers live in `gpui-form-runtime`.
+- Runtime traits/helpers live in `gpui-form-component`, re-exported by
+  `gpui-form` as `gpui_form::runtime`.
 - Static metadata lives in `gpui-form-schema`.

@@ -8,6 +8,7 @@ Pure, non-GPUI helpers for the `gpui-form` ecosystem.
 
 ## Notes
 
-- Runtime helpers for generated forms live in `gpui-form-runtime`.
+- Runtime helpers for generated forms live in `gpui-form-component`,
+  re-exported by `gpui-form` as `gpui_form::runtime`.
 - Static metadata and inventory registry types live in `gpui-form-schema`.
 - Proc-macro-adjacent parsing/token generation lives in `gpui-form-codegen`.

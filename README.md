@@ -70,17 +70,17 @@ pub struct UserProfile {
   and also grouped under `gpui_form::runtime`.
 - Numeric validation helpers are available under `gpui_form::numeric` and
   `gpui_form::core::numeric`.
-- Direct `gpui-form-runtime` / `gpui-form-component` dependencies are only
-  needed when using those crates standalone.
+- Direct `gpui-form-component` dependencies are only needed when using the
+  runtime implementation crate standalone.
 
 ## Workspace layout
 
 - `gpui-form`: facade crate re-exporting `core`, `runtime`, `schema`, and derives.
 - `gpui-form-core`: pure helper logic such as numeric validation.
-- `gpui-form-runtime`: GPUI-facing runtime helpers for generated code.
 - `gpui-form-schema`: inventory metadata and schema types.
 - `gpui-form-codegen`: internal parse-time/token-generation support for derives.
-- `gpui-form-component`: lower-level runtime helper implementations.
+- `gpui-form-component`: GPUI-facing runtime helpers, re-exported by the facade
+  as `gpui_form::runtime`.
 
 ## Validation ([koruma](https://github.com/stayhydated/koruma))
 

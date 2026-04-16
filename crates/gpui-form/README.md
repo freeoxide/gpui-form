@@ -61,6 +61,5 @@ pub struct UserProfile {
 For backward compatibility, the facade also keeps re-exporting
 `gpui_form::custom`, `gpui_form::infinite_select`, and `gpui_form::numeric`.
 
-Most consumers only need the facade crate. Add `gpui-form-runtime` directly
-when you want the runtime crate standalone, or `gpui-form-component` when you
-need the lower-level implementation crate itself.
+Most consumers only need the facade crate. Add `gpui-form-component` directly
+only when you need the runtime implementation crate itself outside the facade.
