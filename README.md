@@ -19,24 +19,19 @@ Most application code should start with [`gpui-form`](crates/gpui-form/README.md
 
 ## Compatibility
 
-The current workspace version is `0.5.1`.
-
-Current `main` is developed against:
-
-- `gpui` at revision `15d8660748b508b3525d3403e5d172f1a557bfa5`
-- `gpui-component` from its GitHub default branch
-
-If you need crates.io-style compatibility guarantees, prefer a release tag over
-the moving `main` branch.
+| `gpui-form` | `gpui-component` | `gpui` |
+| :---------- | :--------------- | :----- |
+| **crates.io** | | |
+| `0.5.1` | `0.5.1` | `0.2.2` |
+| **git** | | |
+| `branch = "master"` | `branch = "main"` | `rev = "15d8660748b508b3525d3403e5d172f1a557bfa5"` |
 
 ## Installation
-
-For most projects, the facade crate is the only dependency you need:
 
 ```toml
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
 
 gpui-form = { version = "*", features = ["derive"] }
 
