@@ -5,6 +5,12 @@
 //! - `date_picker` for the localized runtime picker used by generated forms
 //! - `infinite_select` for cascading selects over nested enums
 
+#[cfg(feature = "storybook")]
+extern crate self as gpui_form;
+
+#[cfg(feature = "derive")]
+pub use gpui_form_component_derive::InfiniteSelect;
+
 /// Runtime traits/macros for user-defined custom components.
 pub mod custom;
 

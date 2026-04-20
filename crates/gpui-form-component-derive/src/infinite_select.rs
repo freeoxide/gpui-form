@@ -16,61 +16,117 @@ struct VariantArgs {
 #[darling(attributes(tuple_enum), forward_attrs(fluent_kv), supports(enum_any))]
 struct InfiniteSelectArgs {
     ident: Ident,
-
     data: darling::ast::Data<VariantArgs, ()>,
-
     attrs: Vec<syn::Attribute>,
 }
 
-/// Information about a single variant
 struct VariantInfo {
     ident: Ident,
-
     inner_type: Option<Type>,
-
-    /// For struct variants, the name of the field (e.g., `state` in `USA { state: USAState }`)
     field_name: Option<Ident>,
-
     is_unit: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct FluentKvOptions {
+    has_label: bool,
+    has_description: bool,
+    keys_this: bool,
+}
+
+impl FluentKvOptions {
+    fn from_attrs(attrs: &[syn::Attribute]) -> syn::Result<Self> {
+        attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("fluent_kv"))
+            .try_fold(Self::default(), |options, attr| {
+                Ok(options.merged(Self::from_attr(attr)?))
+            })
+    }
+
+    fn from_attr(attr: &syn::Attribute) -> syn::Result<Self> {
+        let mut options = Self::default();
+
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("keys") {
+                let list: syn::ExprArray = meta.value()?.parse()?;
+                options = options.merged(Self::from_keys(list));
+            } else if meta.path.is_ident("keys_this") {
+                options.keys_this = true;
+            }
+
+            Ok(())
+        })?;
+
+        Ok(options)
+    }
+
+    fn from_keys(list: syn::ExprArray) -> Self {
+        let mut options = Self::default();
+
+        for elem in list.elems {
+            if let syn::Expr::Lit(lit) = elem
+                && let syn::Lit::Str(string) = lit.lit
+            {
+                match string.value().as_str() {
+                    "label" => options.has_label = true,
+                    "description" => options.has_description = true,
+                    _ => {},
+                }
+            }
+        }
+
+        options
+    }
+
+    fn merged(self, other: Self) -> Self {
+        Self {
+            has_label: self.has_label || other.has_label,
+            has_description: self.has_description || other.has_description,
+            keys_this: self.keys_this || other.keys_this,
+        }
+    }
+
+    fn uses_type_label(self) -> bool {
+        self.has_label && self.keys_this
+    }
+
+    fn uses_type_description(self) -> bool {
+        self.has_description && self.keys_this
+    }
+}
+
 impl VariantInfo {
-    /// Generate a match pattern that ignores the inner value (for patterns where we don't need the value)
-    /// Returns `Variant(_)` for tuple or `Variant { field: _ }` for struct
     fn ignore_pattern(&self) -> proc_macro2::TokenStream {
-        let vident = &self.ident;
+        let ident = &self.ident;
         if self.is_unit {
-            quote! { Self::#vident }
-        } else if let Some(fname) = &self.field_name {
-            quote! { Self::#vident { #fname: _ } }
+            quote! { Self::#ident }
+        } else if let Some(field_name) = &self.field_name {
+            quote! { Self::#ident { #field_name: _ } }
         } else {
-            quote! { Self::#vident(_) }
+            quote! { Self::#ident(_) }
         }
     }
 
-    /// Generate a match pattern that binds the inner value to `inner`
-    /// Returns `Variant(inner)` for tuple or `Variant { field: inner }` for struct
     fn binding_pattern(&self) -> proc_macro2::TokenStream {
-        let vident = &self.ident;
+        let ident = &self.ident;
         if self.is_unit {
-            quote! { Self::#vident }
-        } else if let Some(fname) = &self.field_name {
-            quote! { Self::#vident { #fname: inner } }
+            quote! { Self::#ident }
+        } else if let Some(field_name) = &self.field_name {
+            quote! { Self::#ident { #field_name: inner } }
         } else {
-            quote! { Self::#vident(inner) }
+            quote! { Self::#ident(inner) }
         }
     }
 
-    /// Generate a constructor expression with a value
-    /// Returns `Variant(value)` for tuple or `Variant { field: value }` for struct
     fn constructor(&self, value: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-        let vident = &self.ident;
+        let ident = &self.ident;
         if self.is_unit {
-            quote! { Self::#vident }
-        } else if let Some(fname) = &self.field_name {
-            quote! { Self::#vident { #fname: #value } }
+            quote! { Self::#ident }
+        } else if let Some(field_name) = &self.field_name {
+            quote! { Self::#ident { #field_name: #value } }
         } else {
-            quote! { Self::#vident(#value) }
+            quote! { Self::#ident(#value) }
         }
     }
 }
@@ -98,72 +154,33 @@ pub fn from(input: TokenStream) -> TokenStream {
 
     let args = match InfiniteSelectArgs::from_derive_input(&input) {
         Ok(args) => args,
-
         Err(err) => return err.write_errors().into(),
     };
 
     let enum_ident = &args.ident;
 
-    // Parse fluent_kv attribute to find keys
-    let mut has_label = false;
+    let fluent_kv = match FluentKvOptions::from_attrs(&args.attrs) {
+        Ok(options) => options,
+        Err(err) => return err.to_compile_error().into(),
+    };
 
-    let mut has_description = false;
-
-    let mut keys_this = false;
-
-    for attr in &args.attrs {
-        if attr.path().is_ident("fluent_kv") {
-            let _ = attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("keys") {
-                    let value = meta.value()?;
-
-                    let list: syn::ExprArray = value.parse()?;
-
-                    for elem in list.elems {
-                        if let syn::Expr::Lit(lit) = elem
-                            && let syn::Lit::Str(s) = lit.lit
-                        {
-                            if s.value() == "label" {
-                                has_label = true;
-                            }
-
-                            if s.value() == "description" {
-                                has_description = true;
-                            }
-                        }
-                    }
-                } else if meta.path.is_ident("keys_this") {
-                    keys_this = true;
-                }
-
-                Ok(())
-            });
-        }
-    }
-
-    let type_label_impl = if has_label && keys_this {
+    let type_label_impl = if fluent_kv.uses_type_label() {
         let label_enum = quote::format_ident!("{}LabelVariants", enum_ident);
 
         quote! {
-
             use es_fluent::ThisFtl as _;
-
             #label_enum::this_ftl().into()
-
         }
     } else {
         quote! { stringify!(#enum_ident).into() }
     };
 
-    let type_description_impl = if has_description && keys_this {
-        let desc_enum = quote::format_ident!("{}DescriptionVariants", enum_ident);
+    let type_description_impl = if fluent_kv.uses_type_description() {
+        let description_enum = quote::format_ident!("{}DescriptionVariants", enum_ident);
 
         quote! {
-
             use es_fluent::ThisFtl as _;
-
-            #desc_enum::this_ftl().into()
-
+            #description_enum::this_ftl().into()
         }
     } else {
         quote! { stringify!(#enum_ident).into() }
@@ -172,40 +189,41 @@ pub fn from(input: TokenStream) -> TokenStream {
     let variants: Result<Vec<VariantInfo>, syn::Error> = match &args.data {
         darling::ast::Data::Enum(variants) => variants
             .iter()
-            .filter(|v| !v.skip)
-            .map(|v| {
-                let (inner_type, field_name) = match &v.fields.style {
+            .filter(|variant| !variant.skip)
+            .map(|variant| {
+                let (inner_type, field_name) = match &variant.fields.style {
                     darling::ast::Style::Tuple => {
-                        if v.fields.fields.len() == 1 {
-                            (Some(v.fields.fields[0].ty.clone()), None)
-                        } else if v.fields.fields.is_empty() {
+                        if variant.fields.fields.len() == 1 {
+                            (Some(variant.fields.fields[0].ty.clone()), None)
+                        } else if variant.fields.fields.is_empty() {
                             (None, None)
                         } else {
                             return Err(syn::Error::new_spanned(
-                                &v.ident,
+                                &variant.ident,
                                 format!(
                                     "InfiniteSelect only supports single-element tuple variants for tree construction, got {} elements in variant `{}`",
-                                    v.fields.fields.len(),
-                                    v.ident
+                                    variant.fields.fields.len(),
+                                    variant.ident
                                 ),
                             ));
                         }
                     }
                     darling::ast::Style::Unit => (None, None),
                     darling::ast::Style::Struct => {
-                        if v.fields.fields.len() == 1 {
-                            let field = &v.fields.fields[0];
-                            let fname = field.ident.clone().expect("Struct field must have a name");
-                            (Some(field.ty.clone()), Some(fname))
-                        } else if v.fields.fields.is_empty() {
+                        if variant.fields.fields.len() == 1 {
+                            let field = &variant.fields.fields[0];
+                            let field_name =
+                                field.ident.clone().expect("struct field must have a name");
+                            (Some(field.ty.clone()), Some(field_name))
+                        } else if variant.fields.fields.is_empty() {
                             (None, None)
                         } else {
                             return Err(syn::Error::new_spanned(
-                                &v.ident,
+                                &variant.ident,
                                 format!(
                                     "InfiniteSelect only supports single-field struct variants for tree construction, got {} fields in variant `{}`",
-                                    v.fields.fields.len(),
-                                    v.ident
+                                    variant.fields.fields.len(),
+                                    variant.ident
                                 ),
                             ));
                         }
@@ -214,7 +232,7 @@ pub fn from(input: TokenStream) -> TokenStream {
 
                 let is_unit = inner_type.is_none();
                 Ok(VariantInfo {
-                    ident: v.ident.clone(),
+                    ident: variant.ident.clone(),
                     inner_type,
                     field_name,
                     is_unit,
@@ -225,91 +243,81 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let variants = match variants {
-        Ok(v) => v,
-        Err(e) => return e.to_compile_error().into(),
+        Ok(variants) => variants,
+        Err(err) => return err.to_compile_error().into(),
     };
 
-    // Check if all variants are unit variants
-    let all_unit = variants.iter().all(|v| v.is_unit);
+    let all_unit = variants.iter().all(|variant| variant.is_unit);
 
-    // Generate variants() items - for tuple/struct variants, use Default::default() for inner
     let variant_items: Vec<_> = variants
         .iter()
-        .map(|v| {
-            let constructor = v.constructor(quote! { Default::default() });
+        .map(|variant| {
+            let constructor = variant.constructor(quote! { Default::default() });
             quote! { #constructor, }
         })
         .collect();
 
-    // Generate variant_name() match arms
     let variant_name_arms: Vec<_> = variants
         .iter()
-        .map(|v| {
-            let pattern = v.ignore_pattern();
-            let name = v.ident.to_string();
+        .map(|variant| {
+            let pattern = variant.ignore_pattern();
+            let name = variant.ident.to_string();
             quote! { #pattern => #name, }
         })
         .collect();
 
-    // Generate has_inner() match arms
     let has_inner_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => false, }
         },
-        |v, _| {
-            let pattern = v.ignore_pattern();
+        |variant, _| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => true, }
         },
     );
 
-    // Generate child_variant_names() match arms for heterogeneous enums
-    // This returns the variant names of the INNER TYPE, not the inner value's children
     let child_variant_names_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => vec![], }
         },
-        |v, inner_ty| {
-            let pattern = v.ignore_pattern();
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
-                        .map(|v| v.variant_name())
+                        .map(|variant| variant.variant_name())
                         .collect()
                 }
             }
         },
     );
 
-    // Generate inner_child_variant_names() match arms - gets the children of the inner VALUE
     let inner_child_variant_names_arms = map_variant_arms(
         &variants,
-        |v| {
-            let ignore_pattern = v.ignore_pattern();
-            quote! { #ignore_pattern => vec![], }
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => vec![], }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
-            quote! {
-                #pattern => inner.child_variant_names(),
-            }
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            quote! { #pattern => inner.child_variant_names(), }
         },
     );
 
-    // Generate inner_set_child_by_index() match arms - sets child on the inner VALUE
     let inner_set_child_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
-            let constructor = v.constructor(quote! { new_inner });
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            let constructor = variant.constructor(quote! { new_inner });
             quote! {
                 #pattern => {
                     inner.set_child_by_index(index).map(|new_inner| #constructor)
@@ -318,57 +326,52 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
     );
 
-    // Generate inner_has_inner() match arms - checks if the inner VALUE has children
     let inner_has_inner_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => false, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
-            quote! {
-                #pattern => inner.has_inner(),
-            }
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            quote! { #pattern => inner.has_inner(), }
         },
     );
 
-    // Generate set_child_by_index() match arms
     let set_child_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, inner_ty| {
-            let pattern = v.ignore_pattern();
-            let constructor = v.constructor(quote! { child.clone() });
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            let constructor = variant.constructor(quote! { child.clone() });
             quote! {
                 #pattern => {
-                    let children = <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
                     children.get(index).map(|child| #constructor)
                 }
             }
         },
     );
 
-    // Generate set_child_by_path() match arms - recursive path setting
     let set_child_by_path_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, inner_ty| {
-            let pattern = v.ignore_pattern();
-            let constructor_child = v.constructor(quote! { child });
-            let constructor_updated = v.constructor(quote! { updated_child });
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            let constructor_child = variant.constructor(quote! { child });
+            let constructor_updated = variant.constructor(quote! { updated_child });
             quote! {
                 #pattern => {
                     if path.is_empty() {
                         return None;
                     }
-                    let children = <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
                     let child = children.get(path[0])?.clone();
                     if path.len() == 1 {
                         Some(#constructor_child)
@@ -381,83 +384,80 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
     );
 
-    // Generate child_depth() match arms
     let child_depth_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => 0, }
         },
-        |v, inner_ty| {
-            let pattern = v.ignore_pattern();
-            quote! {
-                #pattern => <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::depth(),
-            }
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::depth(), }
         },
     );
 
     let inner_child_label_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
+        |variant, _| {
+            let pattern = variant.binding_pattern();
             quote! { #pattern => inner.child_label_at_depth(depth), }
         },
     );
 
     let inner_child_description_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
+        |variant, _| {
+            let pattern = variant.binding_pattern();
             quote! { #pattern => inner.child_description_at_depth(depth), }
         },
     );
 
     let child_label_immediate_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
+        |variant, _| {
+            let pattern = variant.binding_pattern();
             quote! { #pattern => Some(inner.type_label()), }
         },
     );
 
     let child_description_immediate_arms = map_variant_arms(
         &variants,
-        |v| {
-            let pattern = v.ignore_pattern();
+        |variant| {
+            let pattern = variant.ignore_pattern();
             quote! { #pattern => None, }
         },
-        |v, _| {
-            let pattern = v.binding_pattern();
+        |variant, _| {
+            let pattern = variant.binding_pattern();
             quote! { #pattern => Some(inner.type_description()), }
         },
     );
 
-    // For depth calculation, we need to find the max depth among all variants
     let depth_calculation = if all_unit {
         quote! { 1 }
     } else {
         let depth_checks = map_variant_arms(
             &variants,
             |_| quote! {},
-            |_, inner_ty| {
-                quote! { <#inner_ty as ::gpui_form::infinite_select::InfiniteSelect>::depth() }
+            |_, inner_type| {
+                quote! { <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::depth() }
             },
         )
         .into_iter()
         .filter(|tokens| !tokens.is_empty())
         .collect::<Vec<_>>();
+
         quote! {
             1 + [#(#depth_checks),*].into_iter().max().unwrap_or(0)
         }
@@ -571,5 +571,37 @@ pub fn from(input: TokenStream) -> TokenStream {
         }
     };
 
-    expanded.into()
+    TokenStream::from(expanded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FluentKvOptions;
+
+    #[test]
+    fn fluent_kv_options_merge_across_attributes() {
+        let attrs = vec![
+            syn::parse_quote!(#[doc = "ignored"]),
+            syn::parse_quote!(#[fluent_kv(keys = ["label"])]),
+            syn::parse_quote!(#[fluent_kv(keys = ["description"], keys_this)]),
+        ];
+
+        let options = FluentKvOptions::from_attrs(&attrs).expect("fluent_kv attrs should parse");
+
+        assert_eq!(
+            options,
+            FluentKvOptions {
+                has_label: true,
+                has_description: true,
+                keys_this: true,
+            }
+        );
+    }
+
+    #[test]
+    fn fluent_kv_options_report_invalid_keys_syntax() {
+        let attrs = vec![syn::parse_quote!(#[fluent_kv(keys = "label")])];
+
+        assert!(FluentKvOptions::from_attrs(&attrs).is_err());
+    }
 }

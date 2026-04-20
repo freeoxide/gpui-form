@@ -1,5 +1,5 @@
 use gpui::{
-    App, AppContext as _, Context, Entity, IntoElement, ParentElement as _, Render, RenderOnce,
+    App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div, px,
 };
 use gpui_component::{
@@ -8,34 +8,15 @@ use gpui_component::{
     select::{Select, SelectEvent, SelectState},
 };
 
+use crate::InfiniteSelect;
 use crate::infinite_select::{
-    InfiniteSelect, InfiniteSelectItem, InfiniteSelectPath, build_from_path, to_select_items,
+    InfiniteSelect as _, InfiniteSelectItem, InfiniteSelectPath, build_from_path, to_select_items,
 };
 
 type DeploymentSelectState = SelectState<Vec<InfiniteSelectItem<DeploymentTarget>>>;
 
-#[derive(gpui_storybook::ComponentStory, IntoElement)]
-#[storybook(
-    title = "Infinite Select",
-    description = "Cascading select demo backed by the runtime infinite-select trait and helper types.",
-    section = "Runtime Components",
-    example = InfiniteSelectStory::example(),
-)]
-struct InfiniteSelectStory;
-
-impl InfiniteSelectStory {
-    fn example() -> Self {
-        Self
-    }
-}
-
-impl RenderOnce for InfiniteSelectStory {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        InfiniteSelectStoryView::view(window, cx)
-    }
-}
-
-struct InfiniteSelectStoryView {
+#[gpui_storybook::story("Runtime Components")]
+pub struct InfiniteSelectStory {
     selection: DeploymentTarget,
     path: InfiniteSelectPath,
     master_select: Entity<DeploymentSelectState>,
@@ -44,11 +25,27 @@ struct InfiniteSelectStoryView {
     _child_subscriptions: Vec<Subscription>,
 }
 
-impl InfiniteSelectStoryView {
-    fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx))
+impl gpui_storybook::Story for InfiniteSelectStory {
+    fn title() -> String {
+        "Infinite Select".into()
     }
 
+    fn description() -> String {
+        "Cascading select demo backed by the runtime infinite-select trait and helper types.".into()
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+        cx.new(|cx| Self::new(window, cx))
+    }
+}
+
+impl Focusable for InfiniteSelectStory {
+    fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
+        self.master_select.read(cx).focus_handle(cx)
+    }
+}
+
+impl InfiniteSelectStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let selection = DeploymentTarget::default();
         let master_select = cx.new(|cx| {
@@ -81,32 +78,27 @@ impl InfiniteSelectStoryView {
         let mut selects = Vec::new();
 
         for level in start_level..(DeploymentTarget::depth() - 1) {
-            let (child_names, has_more) = if level == 0 {
-                (
-                    current_value.child_variant_names(),
-                    current_value.has_inner(),
-                )
+            let child_count = if level == 0 {
+                current_value.child_variant_names().len()
             } else {
-                (
-                    current_value.inner_child_variant_names(),
-                    current_value.inner_has_inner(),
-                )
+                current_value.inner_child_variant_names().len()
             };
 
-            if !has_more || child_names.is_empty() {
+            if child_count == 0 {
                 break;
             }
 
-            let items: Vec<InfiniteSelectItem<DeploymentTarget>> = child_names
-                .iter()
-                .enumerate()
-                .filter_map(|(index, name)| {
+            let items: Vec<InfiniteSelectItem<DeploymentTarget>> = (0..child_count)
+                .filter_map(|index| {
                     let variant = if level == 0 {
                         current_value.set_child_by_index(index)
                     } else {
                         current_value.inner_set_child_by_index(index)
                     };
-                    variant.map(|value| InfiniteSelectItem::new(value, (*name).to_string()))
+                    variant.map(|value| {
+                        let title = value.story_option_title(level);
+                        InfiniteSelectItem::new(value, title)
+                    })
                 })
                 .collect();
 
@@ -204,23 +196,23 @@ impl InfiniteSelectStoryView {
 
     fn child_label(&self, depth: usize) -> SharedString {
         self.selection
-            .child_label_at_depth(depth)
+            .story_child_label_at_depth(depth)
             .unwrap_or_else(|| format!("Level {}", depth + 2).into())
     }
 
     fn child_description(&self, depth: usize) -> SharedString {
         self.selection
-            .child_description_at_depth(depth)
+            .story_child_description_at_depth(depth)
             .unwrap_or_else(|| "Choose the next nested option.".into())
     }
 }
 
-impl Render for InfiniteSelectStoryView {
+impl Render for InfiniteSelectStory {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         let form = self.child_selects.iter().enumerate().fold(
             v_form().child(story_field(
-                self.selection.type_label(),
-                self.selection.type_description(),
+                self.selection.story_type_label(),
+                self.selection.story_type_description(),
                 Select::new(&self.master_select),
             )),
             |form, (depth, child)| {
@@ -254,7 +246,7 @@ impl Render for InfiniteSelectStoryView {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, InfiniteSelect)]
 enum DeploymentTarget {
     Web(WebRegion),
     Desktop(DesktopPlatform),
@@ -269,6 +261,64 @@ impl DeploymentTarget {
             Self::Docs => "Docs".to_string(),
         }
     }
+
+    fn story_option_title(&self, depth: usize) -> SharedString {
+        match (depth, self) {
+            (0, Self::Web(WebRegion::UsEast(_))) => "US East".into(),
+            (0, Self::Web(WebRegion::Europe(_))) => "Europe".into(),
+            (0, Self::Desktop(DesktopPlatform::MacOs)) => "macOS".into(),
+            (0, Self::Desktop(DesktopPlatform::Linux)) => "Linux".into(),
+            (0, Self::Desktop(DesktopPlatform::Windows)) => "Windows".into(),
+            (1, Self::Web(WebRegion::UsEast(zone) | WebRegion::Europe(zone))) => zone.name().into(),
+            _ => self.variant_name().into(),
+        }
+    }
+
+    fn story_type_label(&self) -> SharedString {
+        "Target".into()
+    }
+
+    fn story_type_description(&self) -> SharedString {
+        "Choose the surface that the generated form should target.".into()
+    }
+
+    fn story_child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
+        match depth {
+            0 => match self {
+                Self::Web(_) => Some("Region".into()),
+                Self::Desktop(_) => Some("Platform".into()),
+                Self::Docs => None,
+            },
+            1 => self.story_inner_child_label_at_depth(depth - 1),
+            _ => None,
+        }
+    }
+
+    fn story_child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
+        match depth {
+            0 => match self {
+                Self::Web(_) => Some("Pick a deployment region for the web surface.".into()),
+                Self::Desktop(_) => Some("Pick the desktop platform to generate for.".into()),
+                Self::Docs => None,
+            },
+            1 => self.story_inner_child_description_at_depth(depth - 1),
+            _ => None,
+        }
+    }
+
+    fn story_inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
+        match (self, depth) {
+            (Self::Web(_), 0) => Some("Availability zone".into()),
+            _ => None,
+        }
+    }
+
+    fn story_inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
+        match (self, depth) {
+            (Self::Web(_), 0) => Some("Select the fallback zone within the chosen region.".into()),
+            _ => None,
+        }
+    }
 }
 
 impl Default for DeploymentTarget {
@@ -277,147 +327,7 @@ impl Default for DeploymentTarget {
     }
 }
 
-impl InfiniteSelect for DeploymentTarget {
-    fn variants() -> Vec<Self> {
-        vec![
-            Self::Web(WebRegion::default()),
-            Self::Desktop(DesktopPlatform::default()),
-            Self::Docs,
-        ]
-    }
-
-    fn variant_name(&self) -> &'static str {
-        match self {
-            Self::Web(_) => "Web",
-            Self::Desktop(_) => "Desktop",
-            Self::Docs => "Docs",
-        }
-    }
-
-    fn has_inner(&self) -> bool {
-        !matches!(self, Self::Docs)
-    }
-
-    fn child_variant_names(&self) -> Vec<&'static str> {
-        match self {
-            Self::Web(_) => vec!["US East", "Europe"],
-            Self::Desktop(_) => vec!["macOS", "Linux", "Windows"],
-            Self::Docs => Vec::new(),
-        }
-    }
-
-    fn set_child_by_index(&self, index: usize) -> Option<Self> {
-        match self {
-            Self::Web(_) => match index {
-                0 => Some(Self::Web(WebRegion::UsEast(AvailabilityZone::default()))),
-                1 => Some(Self::Web(WebRegion::Europe(AvailabilityZone::default()))),
-                _ => None,
-            },
-            Self::Desktop(_) => match index {
-                0 => Some(Self::Desktop(DesktopPlatform::MacOs)),
-                1 => Some(Self::Desktop(DesktopPlatform::Linux)),
-                2 => Some(Self::Desktop(DesktopPlatform::Windows)),
-                _ => None,
-            },
-            Self::Docs => None,
-        }
-    }
-
-    fn set_child_by_path(&self, path: &[usize]) -> Option<Self> {
-        let (first, rest) = path.split_first()?;
-        let mut updated = self.set_child_by_index(*first)?;
-
-        if let Some(next) = rest.first() {
-            updated = updated.inner_set_child_by_index(*next)?;
-        }
-
-        if rest.len() > 1 {
-            return None;
-        }
-
-        Some(updated)
-    }
-
-    fn child_depth(&self) -> usize {
-        match self {
-            Self::Web(_) => 2,
-            Self::Desktop(_) => 1,
-            Self::Docs => 0,
-        }
-    }
-
-    fn depth() -> usize {
-        3
-    }
-
-    fn inner_child_variant_names(&self) -> Vec<&'static str> {
-        match self {
-            Self::Web(_) => vec!["Primary", "Disaster recovery"],
-            Self::Desktop(_) | Self::Docs => Vec::new(),
-        }
-    }
-
-    fn inner_set_child_by_index(&self, index: usize) -> Option<Self> {
-        match self {
-            Self::Web(region) => Some(Self::Web(
-                region.with_zone(AvailabilityZone::from_index(index)?),
-            )),
-            Self::Desktop(_) | Self::Docs => None,
-        }
-    }
-
-    fn inner_has_inner(&self) -> bool {
-        matches!(self, Self::Web(_))
-    }
-
-    fn type_label(&self) -> SharedString {
-        "Target".into()
-    }
-
-    fn type_description(&self) -> SharedString {
-        "Choose the surface that the generated form should target.".into()
-    }
-
-    fn child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match depth {
-            0 => match self {
-                Self::Web(_) => Some("Region".into()),
-                Self::Desktop(_) => Some("Platform".into()),
-                Self::Docs => None,
-            },
-            1 => self.inner_child_label_at_depth(depth - 1),
-            _ => None,
-        }
-    }
-
-    fn child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match depth {
-            0 => match self {
-                Self::Web(_) => Some("Pick a deployment region for the web surface.".into()),
-                Self::Desktop(_) => Some("Pick the desktop platform to generate for.".into()),
-                Self::Docs => None,
-            },
-            1 => self.inner_child_description_at_depth(depth - 1),
-            _ => None,
-        }
-    }
-
-    fn inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match (self, depth) {
-            (Self::Web(_), 0) => Some("Availability zone".into()),
-            _ => None,
-        }
-    }
-
-    fn inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match (self, depth) {
-            (Self::Web(_), 0) => Some("Select the fallback zone within the chosen region.".into()),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, InfiniteSelect)]
 enum WebRegion {
     UsEast(AvailabilityZone),
     Europe(AvailabilityZone),
@@ -438,13 +348,6 @@ impl WebRegion {
             },
         }
     }
-
-    fn with_zone(&self, zone: AvailabilityZone) -> Self {
-        match self {
-            Self::UsEast(_) => Self::UsEast(zone),
-            Self::Europe(_) => Self::Europe(zone),
-        }
-    }
 }
 
 impl Default for WebRegion {
@@ -453,7 +356,7 @@ impl Default for WebRegion {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, InfiniteSelect)]
 enum AvailabilityZone {
     #[default]
     Primary,
@@ -461,14 +364,6 @@ enum AvailabilityZone {
 }
 
 impl AvailabilityZone {
-    fn from_index(index: usize) -> Option<Self> {
-        match index {
-            0 => Some(Self::Primary),
-            1 => Some(Self::DisasterRecovery),
-            _ => None,
-        }
-    }
-
     fn name(&self) -> &'static str {
         match self {
             Self::Primary => "Primary",
@@ -477,7 +372,7 @@ impl AvailabilityZone {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, InfiniteSelect)]
 enum DesktopPlatform {
     #[default]
     MacOs,
