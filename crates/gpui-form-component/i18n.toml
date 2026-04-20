@@ -1,0 +1,2 @@
+assets_dir = "../../examples/i18n"
+fallback_language = "en"

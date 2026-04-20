@@ -11,14 +11,36 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
+[[bin]]
+name = "gpui-form-component"
+path = "src/main.rs"
+required-features = [ "storybook" ]
+
+[features]
+storybook = [
+  "dep:es-fluent",
+  "dep:es-fluent-lang",
+  "dep:gpui_platform",
+  "dep:gpui-storybook",
+  "dep:strum",
+]
+
 [dependencies]
 chrono = { workspace = true }
+es-fluent = { features = [ "derive" ], optional = true, workspace = true }
+es-fluent-lang = { optional = true, workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
+gpui-storybook = { features = [ "macros" ], optional = true, workspace = true }
+gpui_platform = { optional = true, workspace = true }
 icu_calendar = { workspace = true }
 icu_datetime = { workspace = true }
 icu_locale_core = { workspace = true }
 jiff = { workspace = true }
+strum = { optional = true, workspace = true }
+
+[build-dependencies]
+es-fluent = { features = [ "build" ], workspace = true }
 
 [lints]
 workspace = true

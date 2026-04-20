@@ -13,3 +13,6 @@ pub mod date_picker;
 
 /// Runtime helpers for the InfiniteSelect component.
 pub mod infinite_select;
+
+#[cfg(feature = "storybook")]
+mod stories;

@@ -9,7 +9,6 @@ when you want the runtime implementation layer without the facade.
 ## What It Provides
 
 - `infinite_select`: runtime traits and helpers for cascading enum selects
-- `date_picker`: the localized date-picker wrapper used by generated forms
 - `custom`: the runtime contract for user-defined component state
 
 ## Infinite Select
@@ -38,22 +37,35 @@ Useful runtime types:
 - `to_select_items::<T>()`
 - `build_from_path`
 
-## Date Picker
+## Date Picker Ownership
 
-Generated `component(date_picker)` fields target the runtime picker in this
-crate instead of `gpui_component` directly.
+`gpui-form-component` no longer wraps or re-exports a date picker runtime.
+`#[derive(GpuiForm)]` and the prototyping generator now target
+`gpui_component::date_picker` directly for `component(date_picker)` fields.
 
-Key public types:
+Most users should use `gpui-component` directly when they need to work with
+`DatePicker`, `DatePickerState`, `DatePickerEvent`, or `calendar::Date`.
 
-- `DatePickerState`
-- `DatePicker`
-- `DatePickerEvent`
-- `DateDisplayStyle`
-- `parse_form_date`
+## Storybook Stories
 
-The runtime picker emits `Option<jiff::civil::Date>` and handles localized
-display formatting with ICU4X/Jiff while generated code keeps conversion into
-the final field type separate.
+Enable the optional `storybook` feature when you want this crate to register
+runtime component demos with `gpui-storybook` and compile its built-in launcher
+binary.
+
+```toml
+[dependencies]
+gpui-form-component = { version = "*", features = ["storybook"] }
+gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook", features = ["macros"] }
+```
+
+This currently registers an interactive infinite-select flow backed by the
+runtime helper types. Date-picker stories now live with `gpui-component`.
+
+Launch the crate-local gallery with:
+
+```sh
+cargo run -p gpui-form-component --features storybook
+```
 
 ## Custom Components
 
@@ -85,6 +97,8 @@ pub struct TagsState;
 ## Most Users Should Use Instead
 
 - [`gpui-form`](../gpui-form/README.md) for the public facade
+- [`gpui-component`](https://github.com/longbridge/gpui-component) for the
+  upstream date-picker widget and other base components
 - [`gpui-form-schema`](../gpui-form-schema/README.md) for metadata and inventory
 - [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for
   scaffold generation
