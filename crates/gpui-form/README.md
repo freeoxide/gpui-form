@@ -21,8 +21,6 @@ Most application code should start with [`gpui-form`](README.md).
 
 | `gpui-form` | `gpui-component` | `gpui` |
 | :---------- | :--------------- | :----- |
-| **crates.io** | | |
-| `0.5.1` | `0.5.1` | `0.2.2` |
 | **git** | | |
 | `branch = "master"` | `branch = "main"` | `rev = "15d8660748b508b3525d3403e5d172f1a557bfa5"` |
 
