@@ -98,7 +98,9 @@ pub struct UserProfile {
 
 If you annotate fields with Koruma validators, the derive macro mirrors validation
 metadata and can surface fluent error labels. The `FormValueHolder` will wrap
-component fields in `Option<T>` when needed to support required validations.
+component fields in `Option<T>` when needed to support required validations, and
+it preserves both shorthand and builder-chain validator attrs when mirroring
+them into generated holder types.
 
 ## Prototyping
 

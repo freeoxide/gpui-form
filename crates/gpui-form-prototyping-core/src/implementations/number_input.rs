@@ -96,9 +96,12 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
-                if let InputEvent::Change = event {
-                    let text = state.read(_cx).value();
-                    self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
+                match event {
+                    InputEvent::Change => {
+                        let text = state.read(_cx).value();
+                        self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
+                    }
+                    _ => {}
                 }
             }
         };
@@ -172,5 +175,53 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         handlers.push(on_number_input_event_handler);
 
         Some(GeneratedSubscription { calls, handlers })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NumberInputCodeGenerator;
+    use crate::implementations::FieldCodeGenerator as _;
+    use gpui_form_schema::{
+        components::{ComponentsBehaviour, NumberInputBehaviour, NumberInputKind},
+        registry::{FieldVariant, GpuiFormShape},
+    };
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn number_input_generator_emits_match_based_change_handler() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "age",
+            "u32",
+            false,
+            ComponentsBehaviour::NumberInput(NumberInputBehaviour {
+                kind: NumberInputKind::UnsignedInteger,
+                validation_type: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = NumberInputCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&field, &SHAPE)
+            .expect("number input fields should generate subscriptions");
+        let compact = compact(&generated.handlers[0].to_string());
+
+        assert!(
+            compact.contains("matchevent{InputEvent::Change=>"),
+            "number input text-change handlers should keep explicit match arms: {compact}"
+        );
+        assert!(
+            compact.contains("_=>{}"),
+            "number input text-change handlers should include a noop fallback arm: {compact}"
+        );
+        assert!(
+            !compact.contains("ifletInputEvent::Change=event"),
+            "number input text-change handlers should not collapse to if let: {compact}"
+        );
     }
 }

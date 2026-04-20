@@ -42,7 +42,7 @@ pub enum AccountType {
 #[display("{}", value)]
 #[koruma(try_new, newtype)]
 pub struct Age {
-    #[koruma(NonNegativeValidation::<_>)]
+    #[koruma(NonNegativeValidation<_>)]
     pub value: i32,
 }
 
@@ -63,12 +63,12 @@ pub struct Age {
 pub struct CfgAttrExample {
     /// Username field with validation wrapped in cfg_attr
     #[cfg_attr(feature = "ui", gpui_form(component(input)))]
-    #[cfg_attr(feature = "validation", koruma(NonEmptyValidation::<_>, RequiredValidation::<Option<_>>))]
+    #[cfg_attr(feature = "validation", koruma(NonEmptyValidation<_>, RequiredValidation<Option<_>>))]
     pub username: Option<String>,
 
     /// Email field with both ui and validation behind cfg_attr
     #[cfg_attr(feature = "ui", gpui_form(component(input)))]
-    #[cfg_attr(feature = "validation", koruma(EmailValidation::<_>))]
+    #[cfg_attr(feature = "validation", koruma(EmailValidation<_>))]
     pub email: String,
 
     /// Age field with number input component
@@ -78,7 +78,7 @@ pub struct CfgAttrExample {
 
     /// Balance field demonstrating decimal with positive validation
     #[cfg_attr(feature = "ui", gpui_form(component(number_input(as = f64))))]
-    #[cfg_attr(feature = "validation", koruma(PositiveValidation::<_>))]
+    #[cfg_attr(feature = "validation", koruma(PositiveValidation<_>))]
     pub balance: Decimal,
 
     /// Checkbox component

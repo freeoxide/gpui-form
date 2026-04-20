@@ -444,9 +444,9 @@ pub fn generate_value_holder(
                 let mut koruma_items: Vec<TokenStream> = Vec::new();
 
                 if needs_required {
-                    koruma_items.push(
-                        quote! { koruma_collection::general::RequiredValidation::<Option<_>> },
-                    );
+                    koruma_items.push(quote! {
+                        koruma_collection::general::RequiredValidation::<Option<_>>::builder()
+                    });
                 }
 
                 let existing_validations: Vec<TokenStream> = f

@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod gpui_form_tests {
     use super::super::*;
-    use koruma_derive_core::ParseFieldResult;
+    use crate::derives::gpui_form::koruma;
+    use koruma_derive_core::{ParseFieldResult, ValidatorAttr};
     use quote::quote;
     use syn::DeriveInput;
 
@@ -13,7 +14,7 @@ mod gpui_form_tests {
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
             struct Test {
-                #[cfg_attr(feature = "validation", koruma(SomeValidator::<_>))]
+                #[cfg_attr(feature = "validation", koruma(SomeValidator<_>))]
                 field: u32,
             }
         };
@@ -120,11 +121,11 @@ mod gpui_form_tests {
             #[gpui_form(koruma(fluent))]
             struct TestForm {
                 #[gpui_form(component(input))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation::<Option<_>>))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation<Option<_>>))]
                 name: String,
 
                 #[gpui_form(component(number_input))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation::<_>))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation<_>))]
                 age: u32,
             }
         };
@@ -291,6 +292,114 @@ mod gpui_form_tests {
         assert!(
             expanded_str.contains("::koruma::KorumaAllFluent"),
             "KorumaAllFluent derive should be emitted when gpui_form(koruma(fluent)) is enabled"
+        );
+    }
+
+    #[test]
+    fn test_validator_attr_to_tokens_normalizes_builder_chain() {
+        let validator: ValidatorAttr = syn::parse_quote!(
+            koruma_collection::numeric::RangeValidation::<_>::builder()
+                .min(18)
+                .max(167)
+        );
+
+        let tokens = koruma::validator_attr_to_tokens(&validator);
+        let compact = compact_tokens(&tokens.to_string());
+
+        assert_eq!(
+            compact,
+            compact_tokens(
+                "koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167)"
+            )
+        );
+    }
+
+    #[test]
+    fn test_gpui_form_preserves_builder_chain_koruma_validators() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma)]
+            struct TestForm {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167))]
+                age: u32,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains(&compact_tokens(
+                "koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167)"
+            )),
+            "Generated value holder should preserve builder-chain koruma validators: {compact}"
+        );
+    }
+
+    #[test]
+    fn test_gpui_form_reemits_argumentless_koruma_validators_as_builder_chain() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma)]
+            struct TestForm {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::PositiveValidation<_>)]
+                age: u32,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains(&compact_tokens(
+                "koruma_collection::numeric::PositiveValidation::<_>::builder()"
+            )),
+            "Generated value holder should re-emit argumentless koruma validators as builder chains: {compact}"
+        );
+    }
+
+    #[test]
+    fn test_gpui_form_emits_required_validation_as_builder_chain() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma)]
+            struct TestForm {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains(&compact_tokens(
+                "koruma_collection::general::RequiredValidation::<Option<_>>::builder()"
+            )),
+            "Generated value holder should emit synthetic required validation as a builder chain: {compact}"
         );
     }
 

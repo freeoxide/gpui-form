@@ -142,6 +142,16 @@ impl<'a> ResolvedField<'a> {
         self.field.validation_rules()
     }
 
+    pub fn has_validation_rule(&self, rule: &str) -> bool {
+        self.validation_rules().contains(&rule)
+    }
+
+    pub fn uses_optional_inner_validation_errors(&self) -> bool {
+        self.optional()
+            && (self.has_validation_rule("NewtypeValidation")
+                || self.has_validation_rule("NestedValidation"))
+    }
+
     pub fn suffixed_ident(&self, suffix: &str) -> Ident {
         format_ident!("{}_{}", self.field.field_name, suffix)
     }
@@ -361,27 +371,44 @@ pub fn generate_description_fn_tokens(
     };
 
     let field_has_validations = !field.validation_rules().is_empty() && component.has_koruma();
+    let uses_optional_inner_validation_errors = field.uses_optional_inner_validation_errors();
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
         let conversion_tokens = quote! { v.to_fluent_string() };
         #[cfg(not(feature = "fluent"))]
         let conversion_tokens = quote! { v.to_string() };
 
-        quote! {{
-            validation_errors.as_ref().and_then(|e| {
-                let errs = e.#field_name_ident().all();
-                if errs.is_empty() {
-                    None
-                } else {
-                    Some(
+        if uses_optional_inner_validation_errors {
+            quote! {
+                validation_errors
+                    .as_ref()
+                    .and_then(|e| e.#field_name_ident())
+                    .map(|inner_error| inner_error.all())
+                    .filter(|errs| !errs.is_empty())
+                    .map(|errs| {
                         errs.iter()
                             .map(|v| #conversion_tokens)
                             .collect::<Vec<_>>()
+                            .join("\n")
+                    })
+            }
+        } else {
+            quote! {{
+                validation_errors.as_ref().and_then(|e| {
+                    let errs = e.#field_name_ident().all();
+                    if errs.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            errs.iter()
+                                .map(|v| #conversion_tokens)
+                                .collect::<Vec<_>>()
                             .join("\n"),
-                    )
-                }
-            })
-        }}
+                        )
+                    }
+                })
+            }}
+        }
     } else {
         quote! {{ None }}
     };
@@ -422,5 +449,83 @@ pub fn generate_description_fn_tokens(
                 }
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ResolvedField, generate_description_fn_tokens};
+    use gpui_form_schema::{
+        components::ComponentsBehaviour,
+        registry::{FieldVariant, GpuiFormShape},
+    };
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn description_uses_direct_all_for_non_optional_newtype_errors() {
+        const VALIDATIONS: &[&str] = &["NewtypeValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("index", "Age", false, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
+
+        assert!(
+            compact.contains("leterrs=e.index().all();"),
+            "non-optional newtype errors should keep direct .all() access: {compact}"
+        );
+        assert!(
+            !compact.contains("e.index().and_then(|inner_error|"),
+            "non-optional newtype errors should not be treated as optional: {compact}"
+        );
+    }
+
+    #[test]
+    fn description_unwraps_optional_newtype_inner_errors_before_all() {
+        const VALIDATIONS: &[&str] = &["NewtypeValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("age", "Age", true, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
+
+        assert!(
+            compact.contains(
+                "validation_errors.as_ref().and_then(|e|e.age()).map(|inner_error|inner_error.all()).filter(|errs|!errs.is_empty()).map(|errs|{"
+            ),
+            "optional newtype errors should map/filter the inner errors before rendering: {compact}"
+        );
+    }
+
+    #[test]
+    fn description_unwraps_optional_nested_inner_errors_before_all() {
+        const VALIDATIONS: &[&str] = &["NestedValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("address", "Address", true, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
+
+        assert!(
+            compact.contains(
+                "validation_errors.as_ref().and_then(|e|e.address()).map(|inner_error|inner_error.all()).filter(|errs|!errs.is_empty()).map(|errs|{"
+            ),
+            "optional nested errors should map/filter the inner errors before rendering: {compact}"
+        );
     }
 }

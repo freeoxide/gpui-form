@@ -44,6 +44,10 @@ Struct attributes:
 - `#[gpui_form(empty)]` for empty structs
 - `#[gpui_form(koruma)]` or `#[gpui_form(koruma(fluent))]` to enable validation wiring
 
+Koruma-backed value holders preserve both shorthand validators and Rust-native
+builder-chain validators when they mirror field validation attrs into the
+generated holder type.
+
 Example:
 
 ```rs

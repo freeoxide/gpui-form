@@ -472,24 +472,17 @@ impl Render for CfgAttrExampleForm {
                             .description_fn({
                                 let description = CfgAttrExampleDescriptionVariants::Age
                                     .to_fluent_string();
-                                let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.age().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| v.to_fluent_string())
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
-                                };
+                                let error = validation_errors
+                                    .as_ref()
+                                    .and_then(|e| e.age())
+                                    .map(|inner_error| inner_error.all())
+                                    .filter(|errs| !errs.is_empty())
+                                    .map(|errs| {
+                                        errs.iter()
+                                            .map(|v| v.to_fluent_string())
+                                            .collect::<Vec<_>>()
+                                            .join("\n")
+                                    });
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
                                     div()

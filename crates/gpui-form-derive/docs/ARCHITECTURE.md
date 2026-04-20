@@ -37,7 +37,7 @@ into gpui-form components and metadata.
    prototyping, including the full field value type path, richer behavior
    payloads (such as number-input numeric family), and whether the source struct
    has `#[gpui_form(skip)]` fields.
-1. If Koruma is present, mirror validation metadata and optional fluent error labels.
+1. If Koruma is present, mirror validation metadata and optional fluent error labels. Mirrored validators are normalized through Koruma setter calls and re-emitted as builder expressions so both shorthand and Rust-native builder-chain validators survive value-holder generation.
 
 ### `SelectItem`
 
