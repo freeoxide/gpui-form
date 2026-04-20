@@ -1,90 +1,103 @@
 # gpui-form-prototyping-core Architecture
 
+`gpui-form-prototyping-core` turns `GpuiFormShape` inventory metadata into
+scaffolded GPUI form code.
+
+It is intentionally downstream from the derive system: it consumes the metadata
+model produced elsewhere rather than reparsing source structs.
+
 ## Purpose
 
-`gpui-form-prototyping-core` generates gpui form scaffolding from the
-`GpuiFormShape` inventory. It is intended for rapid prototyping and example
-generation.
+This crate exists to:
 
-## Key modules
+1. validate `GpuiFormShape` metadata before generation
+1. compute reusable field fragments and imports
+1. let callers render complete files through a pluggable layout
 
-- `code_gen.rs`: adapts `GpuiFormShape` into validated form fragments and orchestrates code generation.
-  Key public API:
-  - `FormShapeAdapter::parts() -> Result<FormParts, PrototypingError>` — all pre-computed fragments + identifiers, or a structured metadata error.
-  - `FormShapeAdapter::generate_file(layout: &impl FormLayout) -> Result<syn::File, PrototypingError>` — generate using a caller-supplied layout.
-  - `FormLayout` trait — implement to control the entire generated file shape.
-  - `FormParts` — all token-stream fragments exposed as named `pub` fields for use in custom layouts.
-    Debug fragments include both value-holder state and into-original status. When
-    skipped fields prevent full reconstruction, the into-original debug row prints
-    a partial JSON payload for present fields using debug-formatted original-side values.
-    `FormParts` also exposes `has_koruma` and `has_skipped_fields` flags so layouts can
-    branch submit/reset helper generation based on validation and reconstruction capabilities.
-- `imports.rs`: `ImportItem`, `ImportSet` — per-item import tracking and grouped `use` statement rendering.
-- `implementations/*`: per-component `FieldCodeGenerator` implementations.
-- `implementations/mod.rs`: shared traits and helpers for type parsing,
-  component identity, and label/description generation.
-  `ResolvedField` is the validated, typed view of one `FieldVariant`; component
-  generators operate on that instead of reparsing identifiers and types from
-  raw strings. Description rendering also distinguishes optional
-  `NewtypeValidation` / `NestedValidation` fields, because Koruma exposes those
-  inner validation errors as `Option<&InnerError>` and prototyping must unwrap
-  them before calling `.all()`.
+## Module Layout
 
-## Data flow
+- `src/lib.rs`: public exports
+- `src/code_gen.rs`: `FormShapeAdapter`, `FormParts`, and `FormLayout`
+- `src/imports.rs`: import tracking and grouped rendering
+- `src/error.rs`: structured prototyping errors
+- `src/implementations/`: per-component field generators
 
-1. A consumer (see `examples/prototyping`) iterates over `inventory::iter::<GpuiFormShape>()`.
-1. `FormShapeAdapter::new(shape).generate_file(&layout)` is the high-level entry point — it returns a ready-to-format `syn::File` or a `PrototypingError`.
-   Internally it:
-   - Derives all identifiers from `GpuiFormShape`.
-   - Converts `shape.source_path` to a glob `use` path via `source_path_to_use_path`.
-   - Validates shape metadata before token generation so malformed identifiers / types / paths are reported as errors instead of panics.
-   - Resolves each field once into a typed `ResolvedField`, then caches per-field imports, render fragments, subscriptions, and initialization tokens in a single analysis pass.
-   - Builds the minimal deduplicated import set from those cached field parts plus prototyping-core's own shared fragments.
-   - Produces `FormParts` and hands them to the caller-supplied `FormLayout`, which assembles the final `syn::File`.
-1. The consumer formats with `prettyplease::unparse` and writes to disk.
+## Generation Pipeline
 
-Field type handling is based on parsing `FieldVariant::value_type` as a full
-Rust type path. The generator no longer assumes field metadata is a bare
-identifier, so qualified paths like `some_lib::country::Country` remain intact
-in emitted code.
+1. A caller iterates `inventory::iter::<GpuiFormShape>()`.
+1. The caller constructs `FormShapeAdapter::new(shape)`.
+1. The adapter validates and resolves the raw shape into typed field analysis.
+1. Component-specific generators produce cached render fragments, event
+   handlers, imports, subscriptions, and initialization code.
+1. The adapter returns:
+   - `FormParts` for caller-controlled assembly, or
+   - a complete `syn::File` through `generate_file(&impl FormLayout)`
+1. The caller formats and writes the resulting file.
 
-Built-in date-picker scaffolds import `gpui_form::runtime::date_picker::*`
-instead of `gpui_component::date_picker::*`. The generated handlers consume
-`Option<jiff::civil::Date>` events and use
-`gpui_form::runtime::date_picker::parse_form_date` so concrete target types are
-inferred from the assignment site instead of being spelled out in the emitted
-form code. Input-style prototyping handlers intentionally keep explicit
-`match event { ... _ => {} }` structure instead of collapsing to `if let`, so
-the generated examples remain easier to scan and extend manually.
+## `FormParts` Role
 
-## Import design
+`FormParts` is the boundary between metadata analysis and layout rendering.
 
-Imports are declared close to where they are used:
+It contains:
 
-- Fragment-level items live in `code_gen::FRAGMENT_IMPORTS`.
-- Component-specific items live in each generator's `generate_imports` implementation.
-- `ImportSet` deduplicates and groups items into compact `use parent::{a, b as c};` statements.
-- Layout-specific imports remain the caller's responsibility inside `FormLayout`.
-- `gpui::Subscription` is only emitted when generated fragments actually produce subscription calls.
+- stable identifiers
+- deduplicated imports
+- component creation tokens
+- event/subscription/init tokens
+- render fragments
+- debug helpers
+- flags such as `is_empty`, `has_koruma`, and `has_skipped_fields`
 
-## Feature flags
+This allows callers to define different layout styles without reimplementing
+field analysis.
 
-- `fluent`: when enabled, label/description generation uses `es-fluent` keys.
+## Import Strategy
 
-## Extension points
+Imports are tracked close to where they are needed:
 
-When adding a component:
+- fragment-level imports live in the core generation layer
+- component-specific imports live in each field generator
+- `ImportSet` deduplicates and groups them into compact `use` statements
 
-1. Add a new generator type under `implementations/`.
-1. Register it in `implementations::field_generator(...)`.
-1. Implement `FieldCodeGenerator` for the new component under `implementations/`.
-1. Override `generate_imports` to declare the exact items your generated code references.
-1. Ensure `ComponentsBehaviour` payloads are handled consistently.
+This avoids layouts having to rediscover which imports the generated fragments
+need.
 
-Current behavior for `ComponentsBehaviour::Custom`:
-custom fields are initialized into generated `FormFields`. When
-`FieldVariant::custom_component` is present, prototyping emits
-`Component::new(&entity)` and imports the component type when needed; when that
-metadata is absent, it falls back to a placeholder render row. Prototyping
-still does not infer subscriptions for custom state types; projects add those
-hooks manually.
+## Field Resolution
+
+The generator parses `FieldVariant::value_type` as a full Rust type, not just a
+bare identifier. That is important because inventory metadata may carry:
+
+- crate-qualified enum paths
+- nested module paths
+- type overrides emitted by the derive layer
+
+Each field is resolved once into a typed internal representation before any
+component-specific generation runs.
+
+## Current Custom Component Behavior
+
+For `ComponentsBehaviour::Custom`:
+
+- the generator still initializes custom state into generated `FormFields`
+- if `FieldVariant::custom_component` is present, the generator can emit
+  `Component::new(&entity)` and import the component type
+- if that metadata is missing, the generator falls back to a placeholder row
+- custom subscriptions are still project-specific and are not inferred
+
+## Coordination Rules
+
+When adding or changing a component:
+
+1. update the field generator mapping under `src/implementations/`
+1. consume any new `ComponentsBehaviour` payloads
+1. update imports for newly referenced runtime types
+1. verify the example generator under `examples/prototyping`
+
+## When To Update This Document
+
+Update this file when:
+
+- the adapter/layout boundary changes
+- `FormParts` fields change meaning
+- custom component generation behavior changes
+- import handling or field-resolution strategy changes

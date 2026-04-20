@@ -1,20 +1,21 @@
 # gpui-form-component
 
-Lower-level runtime helper implementations for `gpui-form`.
+GPUI-facing runtime helpers for the `gpui-form` ecosystem.
 
-This crate provides:
+Most applications should use [`gpui-form`](../gpui-form/README.md), which
+re-exports this crate as `gpui_form::runtime`. Depend on this crate directly
+when you want the runtime implementation layer without the facade.
 
-- InfiniteSelect support for cascading selects over nested enums.
-- Localized date-picker runtime helpers used by generated forms.
-- Custom component shape helpers used by `#[derive(GpuiForm)]`.
+## What It Provides
 
-Most users should prefer `gpui-form`; the facade re-exports this crate as
-`gpui_form::runtime`.
+- `infinite_select`: runtime traits and helpers for cascading enum selects
+- `date_picker`: the localized date-picker wrapper used by generated forms
+- `custom`: the runtime contract for user-defined component state
 
-## InfiniteSelect
+## Infinite Select
 
-`#[derive(InfiniteSelect)]` is provided by `gpui-form-derive` (re-exported by `gpui-form`).
-This crate provides the runtime trait and helpers.
+`#[derive(InfiniteSelect)]` lives in `gpui-form-derive`; this crate provides the
+runtime trait and helper types that generated code targets.
 
 ```rs
 use gpui_form::InfiniteSelect;
@@ -29,25 +30,20 @@ pub enum Country {
 }
 ```
 
-Useful helpers include:
+Useful runtime types:
 
-- `InfiniteSelectItem<T>` for select dropdown items.
-- `InfiniteSelectPath` to track selection depth.
-- `build_from_path` when you want to reconstruct a value from a stored
-  selection path.
+- `InfiniteSelect`
+- `InfiniteSelectItem<T>`
+- `InfiniteSelectPath`
+- `to_select_items::<T>()`
+- `build_from_path`
 
-`gpui-form` re-exports these helpers at `gpui_form::infinite_select`, and also
-groups them under `gpui_form::runtime::infinite_select`. Add
-`gpui-form-component` directly only when you want this implementation crate
-standalone.
+## Date Picker
 
-## Date picker
+Generated `component(date_picker)` fields target the runtime picker in this
+crate instead of `gpui_component` directly.
 
-Generated `#[gpui_form(component(date_picker))]` fields use the localized
-runtime wrapper from this crate instead of targeting `gpui_component`
-directly.
-
-Key public types and helpers:
+Key public types:
 
 - `DatePickerState`
 - `DatePicker`
@@ -55,13 +51,16 @@ Key public types and helpers:
 - `DateDisplayStyle`
 - `parse_form_date`
 
-`gpui-form` re-exports these helpers at `gpui_form::runtime::date_picker` and
-also keeps `gpui_form::date_picker` available at the crate root.
+The runtime picker emits `Option<jiff::civil::Date>` and handles localized
+display formatting with ICU4X/Jiff while generated code keeps conversion into
+the final field type separate.
 
-## Custom component shapes
+## Custom Components
 
-Use `custom_component_shape!` to define a shape consumed by:
-`#[gpui_form(component(custom(shape = ...)))]`.
+`custom::CustomComponentShape` is the contract used by
+`component(custom(...))`.
+
+You can declare a reusable shape with the helper macro:
 
 ```rs
 gpui_form::custom_component_shape!(
@@ -72,12 +71,20 @@ gpui_form::custom_component_shape!(
 );
 ```
 
-You can also derive directly on a state type with
-`#[derive(gpui_form::CustomComponentState)]` and use
-`#[gpui_form(component(custom(state = ...)))]`.
+Or derive directly on a state type:
 
-Both approaches support optional UI component metadata:
+```rs
+#[derive(gpui_form::CustomComponentState)]
+#[gpui_form_custom(
+    new = crate::state::build,
+    component = crate::ui::TagsInput
+)]
+pub struct TagsState;
+```
 
-- field-level `component = my::ui::Widget` on `component(custom(...))`
-- `component = ...` inside `custom_component_shape!`
-- `#[gpui_form_custom(component = ...)]` on `#[derive(CustomComponentState)]`
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for the public facade
+- [`gpui-form-schema`](../gpui-form-schema/README.md) for metadata and inventory
+- [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for
+  scaffold generation

@@ -1,26 +1,65 @@
 # gpui-form-core Architecture
 
+`gpui-form-core` hosts helper logic that should stay usable without `gpui` or
+`gpui-component`.
+
 ## Purpose
 
-`gpui-form-core` hosts pure helper logic that generated forms can depend on
-without pulling in GPUI runtime types.
+This crate exists so generated form code can share core behavior without
+pulling in runtime UI dependencies.
 
-## Key modules
+At the moment the crate is intentionally narrow:
 
-- `src/numeric.rs`: text-input validation helpers for signed and unsigned
-  numeric entry.
+- numeric text-entry validation for generated `number_input` fields
 
-## Data flow
+## Modules
 
-1. `gpui-form-codegen` emits number-input validation calls against
-   `gpui_form::numeric::*`.
-1. The facade crate re-exports `gpui-form-core::numeric` at
-   `gpui_form::numeric` and the crate itself as `gpui_form::core`.
-1. Generated number-input code uses these helpers while editing form values.
+- `src/lib.rs`: module export surface
+- `src/numeric.rs`: signed and unsigned text-entry validation helpers
 
-## Notes
+## Numeric Validation Semantics
 
-- This crate intentionally stays UI-neutral and does not depend on `gpui`.
-- Runtime traits/helpers live in `gpui-form-component`, re-exported by
-  `gpui-form` as `gpui_form::runtime`.
-- Static metadata lives in `gpui-form-schema`.
+`numeric.rs` validates editable text before parse-time conversion.
+
+The helpers intentionally allow intermediate editing states:
+
+- empty strings
+- `-` for signed numeric entry
+
+They intentionally reject invalid forms early:
+
+- leading zero patterns such as `01` and `00`
+- misplaced or repeated `-`
+- non-digit characters for unsigned entry
+
+An optional `require_parse` flag determines whether the helper only validates
+the text shape or also verifies that the text can parse into `T`.
+
+## Data Flow
+
+1. `gpui-form-codegen` emits `number_input` handlers that call numeric helpers
+   through facade paths such as `gpui_form::numeric::*`.
+1. The facade re-exports this crate as `gpui_form::core` and the module as
+   `gpui_form::numeric`.
+1. Generated number-input code uses the helpers during incremental text edits
+   before committing parsed values into the holder.
+
+## Boundary
+
+This crate should remain:
+
+- UI-neutral
+- independent from GPUI entity types
+- small enough that lower layers can depend on it without dragging in runtime
+  dependencies
+
+If logic needs GPUI state, subscriptions, or component types, it belongs in
+`gpui-form-component` instead.
+
+## When To Update This Document
+
+Update this file when:
+
+- new helper modules are added
+- numeric validation semantics change
+- generated `number_input` code starts depending on new core helpers

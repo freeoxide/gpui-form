@@ -5,8 +5,8 @@ This file is the working guide for contributors and coding agents in the `gpui-f
 Use it to answer three questions quickly:
 
 1. Where does this documentation belong?
-2. Which crates are the default entry points vs integration points vs internals?
-3. What other surfaces must be updated in the same change?
+1. Which crates are the default entry points vs integration points vs internals?
+1. What other surfaces must be updated in the same change?
 
 ## Project summary
 
@@ -15,8 +15,8 @@ Use it to answer three questions quickly:
 Its priorities are:
 
 1. **Type safety**: generate strongly typed form state, metadata, and helper APIs at compile time.
-2. **Ergonomics**: keep `#[derive(GpuiForm)]` and related attributes concise enough for normal application structs.
-3. **Developer experience**: support inventory-driven prototyping, custom components, and layered crates that can be used directly when needed.
+1. **Ergonomics**: keep `#[derive(GpuiForm)]` and related attributes concise enough for normal application structs.
+1. **Developer experience**: support inventory-driven prototyping, custom components, and layered crates that can be used directly when needed.
 
 For most application code, start with `crates/gpui-form`.
 
@@ -65,10 +65,10 @@ Do not put parser internals, token-emission detail, or subsystem design notes in
 When changing a public derive attribute, supported component set, Koruma validation wiring, runtime re-export, custom component contract, prototyping workflow, or other user-visible API shape:
 
 1. Update the root `README.md`.
-2. Update `crates/gpui-form/README.md`.
-3. Update the affected crate `README.md` files.
-4. Update `examples/README.md` and the relevant example crates when showcased behavior changes.
-5. Update the matching crate `docs/ARCHITECTURE.md` when boundaries or behavior change.
+1. Update `crates/gpui-form/README.md`.
+1. Update the affected crate `README.md` files.
+1. Update `examples/README.md` and the relevant example crates when showcased behavior changes.
+1. Update the matching crate `docs/ARCHITECTURE.md` when boundaries or behavior change.
 
 Keep these surfaces aligned in the same change unless there is a documented reason not to.
 

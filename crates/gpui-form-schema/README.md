@@ -1,26 +1,44 @@
 # gpui-form-schema
 
-Schema and registry metadata for the `gpui-form` ecosystem.
+Shared schema and inventory metadata for the `gpui-form` ecosystem.
 
-This crate is typically consumed indirectly via `gpui-form`. You may use it
-directly if you are extending components or building custom tooling on top of
-the form metadata.
+Most applications should use [`gpui-form`](../gpui-form/README.md) instead.
+Use this crate directly when you are building tooling, runtime integrations, or
+prototyping flows around generated form metadata.
 
-## What it provides
+## What It Provides
 
-- `ComponentsBehaviour` for runtime behavior metadata.
-- `GpuiFormShape` and `FieldVariant` for inventory-driven introspection.
-- The schema metadata consumed by the prototyping generator.
+- `components::ComponentKind`
+- `components::ComponentsBehaviour`
+- `components::SelectBehaviour`
+- `components::InfiniteSelectBehaviour`
+- `components::NumberInputBehaviour`
+- `registry::GpuiFormShape`
+- `registry::FieldVariant`
+- `registry::inventory`
 
-## When to use directly
+## Example
 
-- Building your own codegen tooling around `GpuiFormShape`.
-- Inspecting form metadata at build time.
-- Working with runtime behavior metadata outside the facade crate.
+```rs
+use gpui_form_schema::registry::{GpuiFormShape, inventory};
 
-## Notes
+for shape in inventory::iter::<GpuiFormShape>() {
+    println!("form: {}", shape.struct_name);
 
-- Parse-time component parsing and token generation live in `gpui-form-codegen`.
-- Pure helper logic lives in `gpui-form-core`.
-- Runtime traits/helpers live in `gpui-form-component`, re-exported by
-  `gpui-form` as `gpui_form::runtime`.
+    for field in shape.components {
+        println!("  {} -> {}", field.field_name, field.behaviour.component_name());
+    }
+}
+```
+
+## When To Use This Crate Directly
+
+- You are writing a generator that consumes `GpuiFormShape`
+- You need runtime metadata about supported component behavior
+- You want inventory access without depending on the facade crate
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for normal application development
+- [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for
+  scaffold generation over this metadata

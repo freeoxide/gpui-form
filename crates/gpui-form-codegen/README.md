@@ -1,15 +1,26 @@
 # gpui-form-codegen
 
-Proc-macro-adjacent parsing and token-generation support for `gpui-form-derive`.
+Internal code-generation support for `gpui-form-derive`.
 
-## What it provides
+This crate is not the normal entry point for application code. Most users
+should use [`gpui-form`](../gpui-form/README.md), and proc-macro consumers
+should usually use [`gpui-form-derive`](../gpui-form-derive/README.md).
 
-- Parse-time component option parsing for `#[gpui_form(component(...))]`
-- Per-component field layout emitters
-- Runtime metadata token generation aligned with `gpui-form-schema`
+## What It Does
 
-## Notes
+- parses `#[gpui_form(component(...))]` into a typed component model
+- emits per-component field layout tokens for generated forms
+- translates parse-time component options into runtime metadata tokens aligned
+  with `gpui-form-schema`
 
-- This is primarily an internal workspace crate.
-- Public consumers should usually depend on `gpui-form`, `gpui-form-core`,
-  `gpui-form-component`, or `gpui-form-schema` instead.
+## Who This Crate Is For
+
+- maintainers extending the derive system
+- tooling authors experimenting with `gpui-form` token generation internals
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for application development
+- [`gpui-form-derive`](../gpui-form-derive/README.md) for proc-macro entry
+  points
+- [`gpui-form-schema`](../gpui-form-schema/README.md) for runtime metadata
