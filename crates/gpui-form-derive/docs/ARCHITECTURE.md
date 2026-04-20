@@ -1,70 +1,132 @@
 # gpui-form-derive Architecture
 
-## Purpose
+`gpui-form-derive` owns the proc-macro entry points for the workspace.
 
-`gpui-form-derive` provides the procedural macros that turn user-defined types
-into gpui-form components and metadata.
+It parses user structs and enums, delegates parse-time component modeling to
+`gpui-form-codegen`, and emits the generated types and inventory metadata that
+make the rest of the ecosystem work.
 
-## Key modules
+## Entry Points
 
-- `src/lib.rs`: proc-macro entry points.
-- `src/derives/gpui_form/mod.rs`: `GpuiForm` macro expansion entry module.
-- `src/derives/select_item.rs`: `SelectItem` derive for gpui-component selects.
-- `src/derives/infinite_select.rs`: `InfiniteSelect` derive for cascading enums.
-- `src/derives/custom_component_state.rs`: `CustomComponentState` derive for custom component state types.
+`src/lib.rs` defines:
 
-## Data flow
+- `#[derive(GpuiForm)]`
+- `#[derive(SelectItem)]`
+- `#[derive(InfiniteSelect)]`
+- `#[derive(CustomComponentState)]`
 
-### `GpuiForm`
+## Module Layout
 
-1. Parse struct fields and attributes with `darling` (including `cfg_attr` flattening).
-1. Convert `#[gpui_form(component(...))]` into parse-time `Components` from
-   `gpui-form-codegen` (including `component(custom(shape = ...))` and
-   `component(custom(state = ...))`, plus optional custom `component = ...`
-   metadata for prototyping output).
-1. Field defaults from `#[gpui_form(default = ...)]` feed both generated value-holder defaults and select / infinite-select initial selection logic. When a select-like default does not resolve to a generated option, the generated form leaves the initial selection unset instead of panicking.
-1. Use `ComponentLayout` implementations to generate:
-   - `FormFields` struct (component state entities)
-   - `FormComponents` constructors
-1. Generate a `FormValueHolder` that normalizes optionality and validation.
-   `From<Original> for FormValueHolder` is always generated, including when
-   `#[gpui_form(skip)]` fields exist, so row/model data can always prefill form state.
-   Reverse conversion remains strict: without skipped fields, `From<FormValueHolder> for Original`
-   and `try_from(...)` are generated; with skipped fields, generated value holders instead expose
-   `into_original(self, skipped_fields...)`, `present_fields_json()` for non-skipped values,
-   and `::gpui_form::bon::Builder` support for incremental reconstruction.
-1. When `inventory` is enabled, submit a `GpuiFormShape` to the registry for
-   prototyping, including the full field value type path, richer behavior
-   payloads (such as number-input numeric family), and whether the source struct
-   has `#[gpui_form(skip)]` fields.
-1. If Koruma is present, mirror validation metadata and optional fluent error labels.
+- `src/derives/gpui_form/mod.rs`: `GpuiForm` entry module
+- `src/derives/gpui_form/expansion.rs`: top-level `GpuiForm` expansion pipeline
+- `src/derives/gpui_form/components.rs`: delegates component fields into
+  codegen layouts
+- `src/derives/gpui_form/value_holder.rs`: generated holder types, defaults,
+  conversion logic, and skip-field handling
+- `src/derives/gpui_form/koruma.rs`: Koruma metadata mirroring helpers
+- `src/derives/gpui_form/cfg_attr.rs`: `cfg_attr` flattening before parse-time
+  inspection
+- `src/derives/select_item.rs`: `SelectItem` expansion
+- `src/derives/infinite_select.rs`: `InfiniteSelect` expansion
+- `src/derives/custom_component_state.rs`: `CustomComponentState` expansion
+
+## `GpuiForm` Expansion Pipeline
+
+1. Parse the input with `syn`.
+1. Flatten `cfg_attr` wrappers so downstream parsing sees effective attributes.
+1. Parse struct-level and field-level `#[gpui_form(...)]` data with `darling`.
+1. Parse Koruma field metadata through `koruma-derive-core`.
+1. For each component field, delegate parse-time component handling to
+   `gpui-form-codegen`.
+1. Emit:
+   - `FormFields`
+   - `FormComponents`
+   - `FormValueHolder`
+   - conversions between the original type and the holder
+   - optional inventory metadata
+
+## Value Holder Responsibilities
+
+`value_holder.rs` is the densest part of the derive implementation. It owns:
+
+- optionality normalization between model fields and editable form state
+- default-value seeding
+- `type`/`from`/`into` conversions
+- `#[gpui_form(skip)]` reconstruction behavior
+- Koruma mirroring for holder validation
+
+Important behaviors:
+
+- originally optional fields stay optional in the holder
+- input-style fields usually wrap in `Option<T>` to represent empty UI state
+- skipped fields are still prefilled when converting from the original model into
+  the holder
+- reverse conversion becomes explicit `into_original(...)` when skipped fields
+  prevent a fully automatic roundtrip
+
+## Koruma Integration
+
+`GpuiForm` can enable Koruma-aware holder generation even when the source struct
+only contains field-level `#[koruma(...)]` attributes.
+
+The derive layer:
+
+- reads normalized validator metadata from `koruma-derive-core`
+- mirrors validators into the holder type
+- preserves shorthand and builder-chain validator forms
+- injects required-value behavior where holder optionality would otherwise lose
+  source-model required semantics
+
+## Inventory Integration
+
+When the `inventory` feature is enabled:
+
+1. `GpuiForm` emits one `GpuiFormShape` per derived struct.
+1. Each field becomes a `FieldVariant` with behavior metadata from
+   `gpui-form-codegen`.
+1. metadata includes validation rule identifiers, defaults, full value type
+   paths, and skipped-field information for downstream generators.
+
+## Other Derives
 
 ### `SelectItem`
 
-- Implements `gpui_component::select::SelectItem` for enums.
-- Optional `#[select_item(fluent)]` uses `es-fluent` for titles.
+- implements `gpui_component::select::SelectItem`
+- optionally uses `es-fluent` titles through `#[select_item(fluent)]`
 
 ### `InfiniteSelect`
 
-- Generates the `InfiniteSelect` trait implementation for nested enums.
-- Supports unit, tuple, and single-field struct variants.
-- Optionally reads `#[fluent_kv(...)]` to pick localized labels.
+- emits an `InfiniteSelect` impl for nested enums
+- supports unit, tuple, and single-field struct variants
+- drives the runtime cascading-select API in `gpui-form-component`
 
 ### `CustomComponentState`
 
-- Implements `gpui_form::custom::CustomComponentShape` directly for a state
-  type.
-- Defaults constructor call to `Self::new(window, cx)`.
-- Supports override via `#[gpui_form_custom(new = ...)]`.
-- Supports `#[gpui_form_custom(component = ...)]` to set `COMPONENT_PATH` on the shape, so that field annotations don't need to repeat `component = …`.
+- emits a `CustomComponentShape` impl directly for a state type
+- defaults constructor wiring to `Self::new(window, cx)`
+- optionally stores a component path for prototyping output
 
-## Extension points
+## Coordination Rules
 
-- New components require updates in `gpui-form-codegen`,
-  `gpui-form-schema`, `gpui-form-component` when runtime
-  support is needed, and `gpui-form-prototyping-core`.
-- Keep generated metadata (`GpuiFormShape`) aligned with new behaviors.
+When adding a component or attribute:
+
+1. update parse-time option support in `gpui-form-codegen`
+1. update holder behavior in this crate if optionality or conversion changes
+1. update `gpui-form-schema` metadata emission
+1. update `gpui-form-prototyping-core` generator support
+1. update user-facing docs in the facade README and derive README
 
 ## Tests
 
-- Targeted expansion tests live in `src/derives/gpui_form/tests.rs`.
+- targeted `GpuiForm` expansion tests live in
+  `src/derives/gpui_form/tests.rs`
+- compile-fail UI tests live under `tests/ui`
+
+## When To Update This Document
+
+Update this file when:
+
+- the expansion pipeline changes
+- holder conversion behavior changes
+- inventory or Koruma emission rules change
+- macro responsibilities move between modules

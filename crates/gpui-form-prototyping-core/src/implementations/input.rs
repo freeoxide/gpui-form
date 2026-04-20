@@ -85,13 +85,16 @@ impl FieldCodeGenerator for InputCodeGenerator {
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
-                if let InputEvent::Change = event {
-                    let text = state.read(_cx).value();
-                    self.current_data.#field_name_ident = if text.is_empty() {
-                        None
-                    } else {
-                        Some(text.to_string())
-                    };
+                match event {
+                    InputEvent::Change => {
+                        let text = state.read(_cx).value();
+                        self.current_data.#field_name_ident = if text.is_empty() {
+                            None
+                        } else {
+                            Some(text.to_string())
+                        };
+                    }
+                    _ => {}
                 }
             }
         };
@@ -100,5 +103,50 @@ impl FieldCodeGenerator for InputCodeGenerator {
             calls,
             handlers: vec![handler],
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::InputCodeGenerator;
+    use crate::implementations::FieldCodeGenerator as _;
+    use gpui_form_schema::{
+        components::ComponentsBehaviour,
+        registry::{FieldVariant, GpuiFormShape},
+    };
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn input_generator_emits_match_based_change_handler() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "name",
+            "String",
+            false,
+            ComponentsBehaviour::Input,
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = InputCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&field, &SHAPE)
+            .expect("input fields should generate subscriptions");
+        let compact = compact(&generated.handlers[0].to_string());
+
+        assert!(
+            compact.contains("matchevent{InputEvent::Change=>"),
+            "input handlers should keep explicit match arms for prototyping readability: {compact}"
+        );
+        assert!(
+            compact.contains("_=>{}"),
+            "input handlers should include a noop fallback arm: {compact}"
+        );
+        assert!(
+            !compact.contains("ifletInputEvent::Change=event"),
+            "input handlers should not collapse to if let: {compact}"
+        );
     }
 }

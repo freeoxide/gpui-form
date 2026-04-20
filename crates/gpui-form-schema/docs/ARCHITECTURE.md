@@ -1,45 +1,115 @@
 # gpui-form-schema Architecture
 
+`gpui-form-schema` owns the shared metadata model used by macro expansion,
+inventory registration, and downstream prototyping.
+
 ## Purpose
 
-`gpui-form-schema` hosts the shared runtime/schema metadata used by generated code
-and the prototyping generator. It no longer owns derive-time token generation.
+This crate is the runtime-safe metadata boundary between:
 
-## Key modules
+- derive/codegen internals
+- the user-facing facade
+- downstream tooling such as `gpui-form-prototyping-core`
 
-- `components.rs`: runtime component behavior descriptors such as
-  `ComponentKind`, `ComponentsBehaviour`, `SelectBehaviour`, and `NumberInputBehaviour`.
-- `registry.rs`: `GpuiFormShape` and `FieldVariant`, plus `inventory`
-  collection for prototyping.
-  `GpuiFormShape` also carries whether source fields include `#[gpui_form(skip)]`
-  so downstream generators can detect incomplete value-holder roundtrips.
+It should describe component behavior and discovered form shape information, but
+not own proc-macro parsing or token emission.
 
-## Data flow
+## Modules
 
-1. `gpui-form-derive` emits `ComponentsBehaviour` values into generated
+- `src/lib.rs`: exports `components` and `registry`
+- `src/components.rs`: component identity and behavior payload types
+- `src/registry.rs`: `GpuiFormShape`, `FieldVariant`, and `inventory`
+  collection
+
+## Metadata Model
+
+### `ComponentKind`
+
+Static identity for built-in component categories. It centralizes shared traits
+such as:
+
+- snake-case component naming
+- whether a component is subscribable
+- whether a component is focusable
+- whether generated holder fields wrap in `Option<T>` by default
+
+### `ComponentsBehaviour`
+
+Per-field runtime behavior metadata with payloads for:
+
+- select behavior
+- infinite-select behavior
+- number-input behavior
+
+This is the metadata level that downstream consumers use; derive/codegen
+internals should not invent separate parallel runtime models.
+
+### `GpuiFormShape`
+
+Inventory-registered description of one derived form source struct.
+
+Important fields:
+
+- `struct_name`
+- `components`
+- `source_path`
+- `koruma_enabled`
+- `has_skipped_fields`
+
+### `FieldVariant`
+
+Per-field metadata for one generated component entry.
+
+Important fields:
+
+- `field_name`
+- `value_type`
+- `optional`
+- `behaviour`
+- `validations`
+- `default_expr`
+- `custom_component`
+
+## Data Flow
+
+1. `gpui-form-codegen` parses field component syntax and turns it into typed
+   component definitions.
+1. `gpui-form-codegen` emits `ComponentsBehaviour` tokens for each field.
+1. `gpui-form-derive` embeds those behavior tokens into generated
    `FieldVariant` metadata.
-1. `FieldVariant` stores the full Rust value type path (`value_type`) plus
-   behavior payloads needed by downstream generators.
-1. `ComponentsBehaviour` becomes runtime metadata in `FieldVariant` and is stored in `GpuiFormShape`.
-   `ComponentsBehaviour::kind()` projects onto `ComponentKind` so shared static
-   traits like component naming, focusability, subscribability, and default
-   option-wrapping are defined in one place.
-   Skip metadata (`has_skipped_fields`) is also propagated into `GpuiFormShape`.
-1. `GpuiFormShape` is optionally registered with `inventory` for downstream prototyping codegen.
+1. When inventory registration is enabled, `gpui-form-derive` submits a
+   `GpuiFormShape`.
+1. `gpui-form-prototyping-core` reads that metadata and generates scaffolded
+   code.
 
-## Extension points
+## Boundary Rules
 
-To add a new component behavior:
+This crate should own:
 
-1. Extend `ComponentsBehaviour` and any behavior payload structs in `components.rs`.
-1. Update `FieldVariant` consumers in `gpui-form-prototyping-core`.
-1. Update `gpui-form-codegen` so derive-time parsing emits the new metadata.
+- runtime-safe metadata
+- shared component identity
+- inventory registration types
 
-Custom user-defined components are represented at runtime by
-`ComponentsBehaviour::Custom`, while optional UI-component path metadata lives on
-`FieldVariant::custom_component`.
+This crate should not own:
 
-## Notes
+- parsing of `#[gpui_form(...)]` attributes
+- proc-macro error diagnostics
+- direct GPUI runtime implementations
 
-- Parse-time component parsing and token generation now live in
-  `gpui-form-codegen`.
+## Coordination Rules
+
+When adding or changing a component:
+
+1. update `ComponentsBehaviour` and related payload structs here
+1. update `gpui-form-codegen` so the derive layer emits the new metadata
+1. update `gpui-form-prototyping-core` so the generator consumes the new
+   behavior correctly
+1. update `gpui-form-component` if runtime support is required
+
+## When To Update This Document
+
+Update this file when:
+
+- `GpuiFormShape` or `FieldVariant` fields change
+- component behavior payloads change
+- inventory ownership or registration semantics change

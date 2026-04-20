@@ -1,45 +1,120 @@
 # gpui-form-component Architecture
 
+`gpui-form-component` is the GPUI runtime layer for the workspace.
+
+It owns the runtime contracts and helper types that generated forms reference
+once macro expansion is complete.
+
 ## Purpose
 
-`gpui-form-component` contains the GPUI-facing runtime helper implementations
-used by the facade crate.
+This crate exists for behavior that cannot live purely in proc-macro output or
+schema metadata:
 
-## Key modules
+- localized date-picker runtime state
+- cascading select runtime helpers for nested enums
+- the runtime contract for custom component state
 
-- `src/infinite_select.rs`: trait definitions and helpers for cascading selects.
-- `src/custom.rs`: `CustomComponentShape` contract and `custom_component_shape!` helper macro.
-- `src/date_picker.rs`: localized single-date picker wrapper used by generated forms.
-- `src/lib.rs`: module export surface.
+## Modules
 
-## Key types
+- `src/lib.rs`: public module surface
+- `src/custom.rs`: `CustomComponentShape` and `custom_component_shape!`
+- `src/infinite_select.rs`: `InfiniteSelect`, `InfiniteSelectItem`,
+  `InfiniteSelectPath`, and path reconstruction helpers
+- `src/date_picker.rs`: runtime state and element wrapper for localized date
+  editing
 
-- `InfiniteSelect`: trait implemented by derived enums to expose nested selection behavior.
-- `InfiniteSelectItem`: wrapper implementing `SelectItem` for select dropdowns.
-- `InfiniteSelectPath`: a compact selection path through nested enums.
-- `build_from_path`: constructs a nested enum from a selection path.
-- `DatePickerState`: GPUI entity state for the runtime date picker.
-- `DatePicker`: localized wrapper around `gpui_component::calendar::Calendar`.
-- `DatePickerEvent`: emits `Option<jiff::civil::Date>` so generated code no longer depends on `chrono` display strings.
-- `parse_form_date`: shared helper for parsing picker selections into arbitrary form field types via `FromStr`.
-- `CustomComponentShape`: shape contract used by `#[gpui_form(component(custom(...)))]`.
-  - Has a default `COMPONENT_PATH: Option<&'static str> = None` associated const.
-  - `custom_component_shape!` accepts an optional `component = …` arm that sets `COMPONENT_PATH`.
-  - `#[derive(CustomComponentState)]` accepts `#[gpui_form_custom(component = …)]` for the same purpose.
-  - A `component = …` on the field attribute always takes precedence over the shape constant.
+## Subsystem Boundaries
 
-## Data flow
+### `custom`
 
-1. `#[derive(InfiniteSelect)]` (from `gpui-form-derive`) implements the trait for nested enums.
-1. Generated form code wraps variants in `InfiniteSelectItem` for display.
-1. Generated and prototyped date-picker forms target `date_picker::DatePicker` instead of `gpui_component` directly.
-1. `date_picker::DatePicker` keeps calendar selection behavior in `gpui_component`, but formats the selected value for display with `jiff` + ICU4X using the active `gpui_component` locale.
-1. Generated and prototyped infinite-select forms keep the current selected value directly in form state, while `InfiniteSelectPath` tracks the confirmed indices for each depth level.
-1. `build_from_path` remains available as a public helper when consumers want to reconstruct a value from a stored `InfiniteSelectPath`.
-1. For custom components, users define a shape via `custom_component_shape!` or derive `CustomComponentState` on a state type; `GpuiForm` uses that type to generate state entity fields and component constructors.
-1. `gpui-form` re-exports this crate as `gpui_form::runtime` and also keeps
-   root-level compatibility re-exports for the main helper modules.
+`CustomComponentShape` is the contract targeted by
+`component(custom(shape = ...))` and `component(custom(state = ...))`.
 
-## Extension points
+Responsibilities:
 
-- Add runtime helpers here when new component behaviors need non-macro support.
+- define the state type that generated forms store in `FormFields`
+- define how that state type is constructed
+- optionally carry a UI component path for prototyping output
+
+### `infinite_select`
+
+This subsystem provides the runtime half of `#[derive(InfiniteSelect)]`.
+
+Responsibilities:
+
+- represent nested enum variant choices as selectable runtime items
+- track confirmed selection indices with `InfiniteSelectPath`
+- reconstruct nested enum values from stored paths
+- expose type/child labels for generated and prototyped UI
+
+### `date_picker`
+
+This subsystem wraps `gpui_component` calendar behavior in a form-oriented API.
+
+Responsibilities:
+
+- hold selected date state in `DatePickerState`
+- emit `DatePickerEvent::Change(Option<jiff::civil::Date>)`
+- format display text with locale-aware ICU4X/Jiff formatting
+- keep generated code independent from `chrono` display formatting details
+
+## Data Flow
+
+### Infinite select
+
+1. `gpui-form-derive` generates an `InfiniteSelect` impl for a user enum.
+1. Generated or prototyped form code populates select widgets with
+   `InfiniteSelectItem<T>`.
+1. `InfiniteSelectPath` tracks the confirmed indices per depth level.
+1. `build_from_path` can reconstruct a value from that path when callers need a
+   standalone conversion.
+
+### Custom components
+
+1. Users either declare a shape with `custom_component_shape!` or derive
+   `CustomComponentState`.
+1. `GpuiForm` uses that shape to emit `FormFields` entity state and
+   `FormComponents` constructors.
+1. Schema/prototyping metadata can optionally carry a concrete UI component path
+   for scaffold generation.
+
+### Date picker
+
+1. Generated `component(date_picker)` fields store
+   `Entity<DatePickerState>` in `FormFields`.
+1. Runtime date selection emits `DatePickerEvent::Change`.
+1. Generated handler code converts the `jiff::civil::Date` into the holder field
+   type with `parse_form_date` and any `type`/`into` conversion hooks.
+
+## Dependency Role
+
+This crate should remain focused on runtime GPUI behavior.
+
+It should not own:
+
+- derive-time parsing rules
+- inventory registration
+- schema metadata definitions
+
+Those belong in `gpui-form-codegen`, `gpui-form-derive`, and
+`gpui-form-schema`.
+
+## Coordination Rules
+
+When adding a new component behavior that needs runtime state:
+
+1. add the runtime helper in this crate
+1. add parse-time support in `gpui-form-codegen`
+1. add metadata in `gpui-form-schema`
+1. update `gpui-form-prototyping-core` generator mapping
+1. update the facade re-exports in `gpui-form` when the runtime surface should
+   be public
+
+## When To Update This Document
+
+Update this file when:
+
+- runtime responsibilities move between modules
+- a new runtime helper module is added
+- the custom component contract changes
+- infinite-select or date-picker event/data flow changes

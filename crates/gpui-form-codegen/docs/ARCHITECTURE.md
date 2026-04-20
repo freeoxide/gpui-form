@@ -1,46 +1,101 @@
 # gpui-form-codegen Architecture
 
+`gpui-form-codegen` is the parse-time component-model and token-generation layer
+used by `gpui-form-derive`.
+
+It sits between raw proc-macro attribute parsing and emitted code, giving the
+workspace one place to define how built-in components behave at expansion time.
+
 ## Purpose
 
-`gpui-form-codegen` owns the parse-time component model and token-generation
-helpers used by `gpui-form-derive`.
+This crate exists to:
 
-`gpui-form-schema` now stays focused on runtime/schema metadata (`GpuiFormShape`,
-`FieldVariant`, `ComponentKind`, and component behavior descriptors), while this crate handles:
+1. parse `component(...)` options into a typed internal model
+1. map each built-in component onto generated `FormFields` and
+   `FormComponents` tokens
+1. emit behavior metadata tokens aligned with `gpui-form-schema`
 
-- parsing `#[gpui_form(component(...))]`
-- generating `FormFields` / `FormComponents` tokens
-- translating parse-time component options into runtime metadata tokens
+It should stay proc-macro-adjacent rather than becoming a second proc-macro
+crate.
 
-## Key modules
+## Modules
 
-- `src/components.rs`: parse-time component options, the `Components` enum, and
-  helpers for runtime metadata tokens.
-- `src/implementations/*`: per-component field-layout emitters used by the
-  derive macro.
-- `src/names.rs`: helper for generated component field identifiers.
+- `src/lib.rs`: exports the component model
+- `src/components.rs`: parse-time component definitions and behavior-token
+  generation
+- `src/names.rs`: helper naming utilities for generated identifiers
+- `src/implementations/`: per-component `ComponentLayout` implementations
 
-## Data flow
+## Parse-Time Component Model
 
-1. `gpui-form-derive` parses field attributes into `gpui_form_codegen::components::Components`.
-1. `Components::generate_field_layout(...)` emits the generated `FormFields` and
-   `FormComponents` items for each field.
-1. `Components::behaviour_tokens(...)` emits `gpui_form::schema::components::*`
-   metadata so inventory/prototyping stay aligned with derive behavior.
+`components.rs` defines the typed options for the supported component families:
 
-Static component identity now comes from `gpui_form_schema::components::ComponentKind`
-instead of a codegen-local discriminant. This keeps snake-case names and shared
-traits like default `wraps_in_option` aligned across codegen and runtime metadata.
+- `InputOptions`
+- `NumberInputOptions`
+- `SelectOptions`
+- `InfiniteSelectOptions`
+- `CustomOptions`
+- `DatePickerOptions`
 
-For `date_picker`, field state now targets `gpui_form::runtime::date_picker`
-instead of `gpui_component::date_picker` directly so display formatting can be
-centralized in the runtime layer.
+Important parse-time responsibilities:
 
-For `select` and `infinite_select`, field defaults are emitted as optional
-initial indices. If a default expression does not match any generated option,
-the generated code leaves the initial selection unset instead of panicking.
+- `number_input(as = ...)` stores validation-type overrides
+- `select(...)` and `infinite_select(...)` store behavior options plus field
+  defaults
+- `custom(...)` validates that exactly one of `shape = ...` or `state = ...` is
+  present
+- `custom(..., wraps_in_option = false)` overrides the default holder wrapping
+  rule
 
-## Notes
+## Component Layout Emission
 
-- This crate is intentionally proc-macro-adjacent: it depends on `syn`,
-  `quote`, and `proc_macro2`, but is not itself a proc-macro crate.
+Each component implementation under `src/implementations/` emits two things:
+
+- field entries for generated `FormFields`
+- constructor functions for generated `FormComponents`
+
+This keeps `GpuiForm` expansion readable: the derive layer handles struct-level
+coordination while per-component files own the field/runtime wiring details.
+
+## Metadata Emission
+
+The codegen layer also emits `gpui-form-schema` behavior tokens so that
+inventory/prototyping metadata stays aligned with generated runtime behavior.
+
+Static component identity is intentionally sourced from
+`gpui_form_schema::components::ComponentKind` rather than a codegen-local enum.
+
+## Dependency Boundaries
+
+This crate should know about:
+
+- proc-macro-facing parse-time types (`syn`, `quote`, `proc_macro2`)
+- runtime metadata shape (`gpui-form-schema`)
+
+This crate should not know about:
+
+- inventory submission
+- Koruma validator parsing
+- user-facing facade re-export policy
+
+Those belong in `gpui-form-derive`, `koruma-derive-core`, and `gpui-form`.
+
+## New Component Checklist
+
+When adding a component:
+
+1. add its option type and parse-time definition in `components.rs`
+1. add a `ComponentLayout` implementation under `src/implementations/`
+1. emit the matching `ComponentsBehaviour` metadata tokens
+1. update `gpui-form-schema` to define the runtime metadata shape
+1. update `gpui-form-component` if runtime support is required
+1. update `gpui-form-prototyping-core` so the generator understands the new
+   behavior
+
+## When To Update This Document
+
+Update this file when:
+
+- the parse-time component model changes
+- component layout responsibilities move between modules
+- metadata emission rules change

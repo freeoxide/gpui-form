@@ -1,14 +1,45 @@
 # gpui-form-core
 
-Pure, non-GPUI helpers for the `gpui-form` ecosystem.
+UI-neutral helper logic for the `gpui-form` ecosystem.
 
-## What it provides
+Most application code should use [`gpui-form`](../gpui-form/README.md) instead.
+Reach for this crate directly only when you want the helper logic without the
+GPUI runtime layer.
 
-- Numeric input validation helpers used by generated number-input code.
+## What It Provides
 
-## Notes
+Today this crate is intentionally small and focused:
 
-- Runtime helpers for generated forms live in `gpui-form-component`,
-  re-exported by `gpui-form` as `gpui_form::runtime`.
-- Static metadata and inventory registry types live in `gpui-form-schema`.
-- Proc-macro-adjacent parsing/token generation lives in `gpui-form-codegen`.
+- `numeric::validate_signed_numeric`
+- `numeric::validate_unsigned_numeric`
+
+These helpers are used by generated `number_input` code to validate editable
+text before parsing it into the destination type.
+
+## Example
+
+```rs
+use gpui_form_core::numeric::{
+    validate_signed_numeric,
+    validate_unsigned_numeric,
+};
+
+assert!(validate_signed_numeric::<i32>("-42", true));
+assert!(validate_unsigned_numeric::<u32>("42", true));
+
+assert!(!validate_signed_numeric::<i32>("01", true));
+assert!(!validate_unsigned_numeric::<u32>("-1", true));
+```
+
+## When To Use This Crate Directly
+
+- You are building your own numeric input wrapper and want the same text-entry
+  rules as `gpui-form`
+- You want the validation helpers without pulling in `gpui` or
+  `gpui-component`
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for normal application development
+- [`gpui-form-component`](../gpui-form-component/README.md) when you need the
+  GPUI runtime helpers

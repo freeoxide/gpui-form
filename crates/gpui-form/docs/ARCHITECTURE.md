@@ -1,53 +1,90 @@
 # gpui-form Architecture
 
+`gpui-form` is the facade crate and compatibility boundary for the workspace.
+Application crates should be able to depend on this crate alone and get the
+derive macros, runtime helpers, schema types, and compatibility re-exports they
+need.
+
 ## Purpose
 
-`gpui-form` is the facade crate for the workspace. Applications can depend on
-it alone and get:
+This crate exists to:
 
-- pure helper logic from `gpui-form-core`
-- GPUI runtime helpers from `gpui-form-component`
-- schema/registry metadata from `gpui-form-schema`
-- proc macros from `gpui-form-derive`
+1. present a stable public entry point
+1. centralize feature flags that gate proc-macro behavior
+1. preserve root-level compatibility re-exports even when lower-level crates
+   evolve
 
-## Key modules
+## Public Surface
 
-- `src/lib.rs`
-  - Re-exports the core crate as `gpui_form::core`
-  - Re-exports `gpui-form-component` as `gpui_form::runtime`
-  - Re-exports the schema crate as `gpui_form::schema`
-  - Re-exports derive macros when the `derive` feature is enabled
-  - Preserves root-level compatibility re-exports for `custom`,
-    `date_picker`, `infinite_select`, `CustomComponentShape`,
-    `custom_component_shape!`, `numeric`, and `bon`
+`src/lib.rs` re-exports:
 
-## Data flow
+- `gpui_form_derive::*` behind the `derive` feature
+- `gpui_form_component` as `gpui_form::runtime`
+- `gpui_form_component::custom`
+- `gpui_form_component::date_picker`
+- `gpui_form_component::infinite_select`
+- `gpui_form_core` as `gpui_form::core`
+- `gpui_form_core::numeric`
+- `gpui_form_schema` as `gpui_form::schema`
+- `bon` as `gpui_form::bon`
 
-1. The user derives `GpuiForm`/`SelectItem`/`InfiniteSelect` from this crate (requires the `derive` feature).
-1. Optional: users derive `CustomComponentState` for custom component state types.
-1. The derive macros (from `gpui-form-derive`) generate types and wiring that reference runtime metadata in `gpui-form-schema`.
-1. Custom components can be declared via `custom_component_shape!` and consumed by `component(custom(shape = ...))`.
-1. Generated code can target the explicit facade namespaces
-   (`gpui_form::runtime`, `gpui_form::schema`, `gpui_form::core`) while older
-   root-level helper paths remain available.
-1. When `#[gpui_form(skip)]` fields are present, generated value holders derive
-   `::gpui_form::bon::Builder`; the facade re-export keeps that generated path
-   stable for users.
-1. Generated and prototyped date-picker forms consume `gpui_form::runtime::date_picker`, which formats displayed dates via `jiff` + ICU4X while preserving `FromStr`-based conversion into user field types.
-1. Numeric fields use helpers from `gpui-form-core`, re-exported as
-   `gpui_form::numeric`.
+The explicit namespaces (`core`, `runtime`, `schema`) are the preferred public
+paths. Root-level module re-exports remain for compatibility.
 
-## Feature flags
+## Feature Flags
 
-- `derive` (default): exposes the proc macros.
-- `inventory`: forwards to `gpui-form-derive`'s `inventory` feature (effective only when `derive` is enabled).
+- `derive` (default): enables proc-macro re-exports from `gpui-form-derive`
+- `inventory`: forwards inventory-enabled derive behavior so `#[derive(GpuiForm)]`
+  emits `GpuiFormShape` registrations
 
-## Extension points
+`inventory` is meaningful only when `derive` is also enabled.
 
-This crate is intentionally thin. Add new behavior in:
+## Dependency Role
 
-- `gpui-form-core` (pure helper logic)
-- `gpui-form-schema` (component definitions and metadata)
-- `gpui-form-codegen` (derive-time component parsing and token generation)
-- `gpui-form-derive` (macro expansion)
-- `gpui-form-component` (runtime helper implementations, also exposed as `gpui_form::runtime`)
+`gpui-form` depends on four lower layers:
+
+- `gpui-form-core` for UI-neutral helper logic
+- `gpui-form-component` for GPUI runtime helpers
+- `gpui-form-schema` for metadata and inventory types
+- `gpui-form-derive` for proc macros
+
+This crate should stay thin. New behavior normally belongs in one of those
+lower crates and is only re-exported here.
+
+## Control Flow
+
+### Normal derive-driven form generation
+
+1. A user depends on `gpui-form` with the `derive` feature.
+1. The user derives `GpuiForm`, `SelectItem`, `InfiniteSelect`, or
+   `CustomComponentState` through the facade.
+1. Macro expansion emits code that references `gpui_form::runtime`,
+   `gpui_form::schema`, and `gpui_form::core`.
+1. Generated code uses compatibility re-exports only where existing generated
+   paths must stay stable.
+
+### Prototyping flow
+
+1. The user enables `gpui-form`'s `inventory` feature.
+1. `#[derive(GpuiForm)]` emits `GpuiFormShape` registrations through the facade
+   path.
+1. Downstream tooling iterates `gpui_form::schema::registry::inventory`.
+1. `gpui-form-prototyping-core` converts those shapes into scaffolded GPUI code.
+
+## Compatibility Notes
+
+- `gpui_form::bon` is re-exported because generated value holders with skipped
+  fields derive `::gpui_form::bon::Builder`
+- root-level compatibility modules (`custom`, `date_picker`,
+  `infinite_select`, `numeric`) should not be removed casually
+- if a lower-level crate adds a new public runtime/type surface that should be
+  first-class for end users, it usually needs a facade re-export here
+
+## When To Update This Document
+
+Update this file when:
+
+- the facade re-export layout changes
+- a new feature flag is introduced or forwarded
+- generated code changes which facade paths it targets
+- compatibility guarantees for root-level re-exports change

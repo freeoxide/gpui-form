@@ -1,13 +1,14 @@
 # gpui-form-prototyping-core
 
-Utilities for generating gpui form scaffolding from `GpuiFormShape` inventory data.
+Scaffolding utilities built on top of `GpuiFormShape` inventory data.
 
-This crate is useful when you want to rapidly prototype forms from your struct
-definitions without hand-writing the gpui widget wiring.
+Use this crate when you want to generate GPUI form code from the metadata
+emitted by `#[derive(GpuiForm)]` instead of wiring forms by hand.
 
-## Usage
+Most application code should still start with
+[`gpui-form`](../gpui-form/README.md).
 
-Enable the `inventory` feature on `gpui-form` and iterate the registered shapes:
+## Quick Example
 
 ```rs
 use gpui_form::schema::registry::{GpuiFormShape, inventory};
@@ -17,20 +18,37 @@ for shape in inventory::iter::<GpuiFormShape>() {
     let parts = FormShapeAdapter::new(shape)
         .parts()
         .expect("shape metadata should be valid");
-    let _imports = parts.imports;
+
+    let _field_imports = parts.imports;
 }
 ```
 
-Use `generate_file(&impl FormLayout)` when you want the crate to run your layout
-over the computed parts and return a full `syn::File`. See
-`examples/prototyping` for a complete generator that writes formatted files.
+## Main API
 
-Both `parts()` and `generate_file(...)` return `Result<_, PrototypingError>` so
-custom tooling gets a structured error instead of a panic when shape metadata is
-malformed.
+- `FormShapeAdapter::parts()` computes the validated, reusable fragments for one
+  shape
+- `FormShapeAdapter::generate_file(&impl FormLayout)` builds a complete
+  `syn::File`
+- `FormLayout` lets callers define the overall file structure
+- `PrototypingError` reports malformed metadata without panicking
 
-If you prefer calling `inventory::iter` directly, add `inventory` to your dependencies.
+## Example Workflow
 
-## Feature flags
+The workspace example in [`examples/prototyping`](../../examples/prototyping)
+shows the normal flow:
 
-- `fluent`: use `es-fluent` keys for labels and descriptions.
+1. enable `gpui-form`'s `inventory` feature
+1. iterate `inventory::iter::<GpuiFormShape>()`
+1. adapt each shape with `FormShapeAdapter`
+1. render a file through a custom `FormLayout`
+1. format the `syn::File` with `prettyplease`
+
+## Feature Flags
+
+- `fluent`: use `es-fluent` keys for generated labels and descriptions
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for hand-written forms plus derives
+- [`gpui-form-schema`](../gpui-form-schema/README.md) if you only need the
+  metadata layer

@@ -34,6 +34,11 @@ default = [  ]
 inventory = [  ]
 
 [dev-dependencies]
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+gpui-form = { default-features = false, path = "../gpui-form" }
 insta = { workspace = true }
+koruma = { workspace = true }
+koruma-collection = { workspace = true }
 prettyplease = { workspace = true }
 trybuild = "1.0"

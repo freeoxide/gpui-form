@@ -1,50 +1,16 @@
 # gpui-form-derive
 
-Procedural macros for gpui-form.
+Procedural macros for the `gpui-form` ecosystem.
+
+Most users should depend on [`gpui-form`](../gpui-form/README.md) with the
+default `derive` feature instead of using this crate directly.
 
 ## Macros
 
 ### `#[derive(GpuiForm)]`
 
-Generates form state, component fields, and a value holder.
-
-Field attributes:
-
-- `#[gpui_form(component(input))]`
-- `#[gpui_form(component(number_input))]`
-- `#[gpui_form(component(number_input(as = f64)))]` for custom numeric types
-- `#[gpui_form(component(checkbox))]`
-- `#[gpui_form(component(switch))]`
-- `#[gpui_form(component(select))]`
-- `#[gpui_form(component(select(searchable)))]`
-- `#[gpui_form(component(select(partial)))]`
-- `#[gpui_form(component(infinite_select))]`
-- `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
-- `#[gpui_form(component(custom(shape = my::EmailInputShape)))]`
-- `#[gpui_form(component(custom(shape = my::EmailInputShape, component = my::ui::EmailInput)))]`
-- `#[gpui_form(component(custom(state = my::EmailInputState)))]`
-- `#[gpui_form(component(custom(shape = my::EmailInputShape, wraps_in_option = false)))]`
-- `#[gpui_form(component(date_picker))]`
-- `#[gpui_form(skip)]` to skip a field
-- `#[gpui_form(default = <expr>)]` to set default in the value holder
-
-Notes:
-
-- `select` expects `strum::IntoEnumIterator` and `PartialEq`.
-- `#[gpui_form(default = <expr>)]` seeds the generated value holder and also drives the initial selection for `select` and `infinite_select`.
-- If a `select` or `infinite_select` default does not match any generated option, the form leaves the initial selection unset instead of panicking.
-- When no field default is provided, generated default state falls back to `Default::default()`.
-- `infinite_select(max_depth = ...)` clamps the generated child-select depth.
-- `custom(shape = ...)`/`custom(state = ...)` expects the referenced type to implement `gpui_form::custom::CustomComponentShape`.
-- Optional `component = ...` metadata is carried into schema/prototyping output; a field-level component path overrides the shape's `COMPONENT_PATH`.
-- When skipped fields are present, generated value holders expose `into_original(...)`, `present_fields_json()`, and derive `::gpui_form::bon::Builder`.
-
-Struct attributes:
-
-- `#[gpui_form(empty)]` for empty structs
-- `#[gpui_form(koruma)]` or `#[gpui_form(koruma(fluent))]` to enable validation wiring
-
-Example:
+Turns a struct into generated form state, helper constructors, and a typed value
+holder.
 
 ```rs
 use gpui_form::GpuiForm;
@@ -56,32 +22,76 @@ pub struct UserProfile {
 
     #[gpui_form(component(number_input))]
     pub age: Option<u32>,
-
-    #[gpui_form(component(select), default = Country::France)]
-    pub country: Country,
 }
 ```
+
+Supported component forms:
+
+- `#[gpui_form(component(input))]`
+- `#[gpui_form(component(number_input))]`
+- `#[gpui_form(component(number_input(as = f64)))]`
+- `#[gpui_form(component(checkbox))]`
+- `#[gpui_form(component(switch))]`
+- `#[gpui_form(component(select))]`
+- `#[gpui_form(component(select(searchable)))]`
+- `#[gpui_form(component(select(partial)))]`
+- `#[gpui_form(component(infinite_select))]`
+- `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
+- `#[gpui_form(component(date_picker))]`
+- `#[gpui_form(component(custom(shape = my::Shape)))]`
+- `#[gpui_form(component(custom(state = my::State)))]`
+- `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
+- `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
+
+Supporting field attributes:
+
+- `#[gpui_form(default = <expr>)]`
+- `#[gpui_form(skip)]`
+- `#[gpui_form(type = <form_type>)]`
+- `#[gpui_form(from = <expr>)]`
+- `#[gpui_form(into = <expr>)]`
+
+Supporting struct attributes:
+
+- `#[gpui_form(empty)]`
+- `#[gpui_form(koruma)]`
+- `#[gpui_form(koruma(fluent))]`
+
+Behavior notes:
+
+- `select` expects enum-like values that can populate a `gpui_component` select
+- `default = ...` also drives the initial selection for `select` and
+  `infinite_select`
+- `custom(..., wraps_in_option = false)` keeps the generated value-holder field
+  as `T` instead of `Option<T>`
+- `type`/`from`/`into` let the generated holder edit a type that differs from
+  the original model field
+- when skipped fields are present, the generated value holder keeps builder
+  support and exposes `into_original(...)` instead of an unconditional reverse
+  conversion
 
 ### `#[derive(SelectItem)]`
 
 Implements `gpui_component::select::SelectItem` for enums.
 
-Requires `Display` (or `es_fluent::ToFluentString` when using `#[select_item(fluent)]`).
-
 ```rs
 use gpui_form::SelectItem;
 
 #[derive(Clone, Debug, SelectItem)]
-#[select_item(fluent)]
 pub enum Country {
     USA,
     France,
 }
 ```
 
+Optional attribute:
+
+- `#[select_item(fluent)]` uses `es-fluent` for titles
+
 ### `#[derive(InfiniteSelect)]`
 
-Implements the `InfiniteSelect` trait for nested enums.
+Implements `gpui_form::infinite_select::InfiniteSelect` for nested enums used
+by cascading selects.
 
 ```rs
 use gpui_form::InfiniteSelect;
@@ -95,22 +105,33 @@ pub enum Country {
 }
 ```
 
-Variant attributes:
+Variant attribute:
 
-- `#[tuple_enum(skip)]` to omit a variant from the select tree.
+- `#[tuple_enum(skip)]` omits a variant from the select tree
 
 ### `#[derive(CustomComponentState)]`
 
-Implements `gpui_form::custom::CustomComponentShape` for a state type.
-
-By default, generated code calls `Self::new(window, cx)`.
-You can override constructor path and optionally store a UI component path:
+Implements `gpui_form::custom::CustomComponentShape` directly for a state type.
 
 ```rs
-#[derive(CustomComponentState)]
+use gpui_form::CustomComponentState;
+
+#[derive(Clone, Debug, CustomComponentState)]
 #[gpui_form_custom(
     new = crate::state::build,
     component = crate::ui::TagsInput
 )]
 pub struct TagsState;
 ```
+
+By default, the generated implementation calls `Self::new(window, cx)`.
+
+## Feature Flags
+
+- `inventory`: enables `GpuiFormShape` registration for `#[derive(GpuiForm)]`
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for the facade
+- [`gpui-form-schema`](../gpui-form-schema/README.md) when you need runtime
+  metadata rather than proc-macro expansion

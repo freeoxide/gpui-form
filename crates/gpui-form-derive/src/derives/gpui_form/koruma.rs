@@ -3,7 +3,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 /// Convert a ValidatorAttr to a TokenStream for generating koruma attribute.
-/// This produces tokens like `ValidatorPath::<Type>(arg1 = val1, arg2 = val2)`.
+/// This produces normalized builder-chain tokens like
+/// `ValidatorPath::<Type>::builder().arg1(val1).arg2(val2)`.
 pub fn validator_attr_to_tokens(validator: &ValidatorAttr) -> TokenStream {
     let path = &validator.validator;
 
@@ -15,16 +16,12 @@ pub fn validator_attr_to_tokens(validator: &ValidatorAttr) -> TokenStream {
         quote! {}
     };
 
-    let args = if validator.args.is_empty() {
-        quote! {}
-    } else {
-        let arg_tokens: Vec<_> = validator
-            .args
-            .iter()
-            .map(|(name, expr)| quote! { #name = #expr })
-            .collect();
-        quote! { (#(#arg_tokens),*) }
-    };
+    let setter_calls = validator.setter_calls();
+    let builder_calls = setter_calls.iter().map(|method| {
+        let method_name = &method.method;
+        let args = &method.args;
+        quote! { .#method_name(#(#args),*) }
+    });
 
-    quote! { #path #type_params #args }
+    quote! { #path #type_params ::builder() #(#builder_calls)* }
 }

@@ -34,23 +34,23 @@ pub enum EnumCountry {
 #[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyValidation::<_>, PrefixValidation::<_>(prefix = "Xx"), SuffixValidation::<_>(suffix = "xX"))]
+    #[koruma(NonEmptyValidation<_>, PrefixValidation<_>(prefix = "Xx"), SuffixValidation<_>(suffix = "xX"))]
     pub username: String,
 
     #[gpui_form(component(input), default = "test@example.com")]
-    #[koruma(EmailValidation::<_>)]
+    #[koruma(EmailValidation<_>)]
     pub email: String,
 
     #[gpui_form(component(number_input))]
-    #[koruma(RangeValidation::<_>(min = 18, max = 167))]
+    #[koruma(RangeValidation<_>(min = 18, max = 167))]
     pub age: Option<u32>,
 
     #[gpui_form(component(number_input(as = f64)), default = 67)]
-    #[koruma(PositiveValidation::<_>)]
+    #[koruma(PositiveValidation<_>)]
     pub balance: Decimal,
 
     #[gpui_form(component(number_input(as = f64)))]
-    #[koruma(NegativeValidation::<_>)]
+    #[koruma(NegativeValidation<_>)]
     pub debt: Decimal,
 
     #[gpui_form(component(checkbox))]
