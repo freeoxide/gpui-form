@@ -1,10 +1,10 @@
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
-    SharedString, Styled as _, Subscription, Window, div, px,
+    SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_component::{
     IndexPath,
-    form::{field, v_form},
+    form::v_form,
     select::{Select, SelectEvent, SelectState},
 };
 
@@ -13,9 +13,11 @@ use crate::infinite_select::{
     InfiniteSelect as _, InfiniteSelectItem, InfiniteSelectPath, build_from_path, to_select_items,
 };
 
+use super::common::{story_field, story_panel};
+
 type DeploymentSelectState = SelectState<Vec<InfiniteSelectItem<DeploymentTarget>>>;
 
-#[gpui_storybook::story("Runtime Components")]
+#[gpui_storybook::story]
 pub struct InfiniteSelectStory {
     selection: DeploymentTarget,
     path: InfiniteSelectPath,
@@ -388,51 +390,6 @@ impl DesktopPlatform {
             Self::Windows => "Windows",
         }
     }
-}
-
-fn story_panel(
-    title: impl Into<SharedString>,
-    description: impl Into<SharedString>,
-    content: impl IntoElement,
-) -> impl IntoElement {
-    let title = title.into();
-    let description = description.into();
-
-    div()
-        .max_w(px(620.))
-        .flex()
-        .flex_col()
-        .gap_4()
-        .p_4()
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_1()
-                .child(div().text_lg().child(title))
-                .child(div().text_sm().child(description)),
-        )
-        .child(content)
-}
-
-fn story_field(
-    label: impl Into<SharedString>,
-    description: impl Into<SharedString>,
-    content: impl IntoElement,
-) -> gpui_component::form::Field {
-    let label = label.into();
-    let description = description.into();
-
-    field()
-        .label(label)
-        .description_fn(move |_, _| {
-            div()
-                .flex()
-                .flex_col()
-                .gap_1()
-                .child(div().child(description.clone()))
-        })
-        .child(content)
 }
 
 fn path_with_defaults(root_index: usize, child_count: usize) -> InfiniteSelectPath {

@@ -9,6 +9,7 @@ when you want the runtime implementation layer without the facade.
 ## What It Provides
 
 - `infinite_select`: runtime traits and helpers for cascading enum selects
+- `date_picker`: localized runtime state and element wrapper for calendar date input
 - `custom`: the runtime contract for user-defined component state
 
 ## Infinite Select
@@ -37,14 +38,24 @@ Useful runtime types:
 - `to_select_items::<T>()`
 - `build_from_path`
 
-## Date Picker Ownership
+## Date Picker
 
-`gpui-form-component` no longer wraps or re-exports a date picker runtime.
-`#[derive(GpuiForm)]` and the prototyping generator now target
-`gpui_component::date_picker` directly for `component(date_picker)` fields.
+This crate provides the localized runtime date-picker used by generated
+`component(date_picker)` fields.
 
-Most users should use `gpui-component` directly when they need to work with
-`DatePicker`, `DatePickerState`, `DatePickerEvent`, or `calendar::Date`.
+```rs
+use gpui_form::runtime::date_picker::{
+    DateDisplayStyle,
+    DatePicker,
+    DatePickerEvent,
+    DatePickerState,
+};
+```
+
+Generated forms store `Entity<DatePickerState>`, render `DatePicker`, and
+convert emitted `DatePickerEvent::Change` values with `parse_form_date`.
+Most application code should still go through [`gpui-form`](../gpui-form/README.md)
+instead of depending on this crate directly.
 
 ## Storybook Stories
 
@@ -58,8 +69,8 @@ gpui-form-component = { version = "*", features = ["storybook"] }
 gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook", features = ["macros"] }
 ```
 
-This currently registers an interactive infinite-select flow backed by the
-runtime helper types. Date-picker stories now live with `gpui-component`.
+This currently registers interactive infinite-select and date-picker demos
+backed by this crate's runtime helper types.
 
 Launch the crate-local gallery with:
 
