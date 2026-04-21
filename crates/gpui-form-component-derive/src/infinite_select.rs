@@ -266,6 +266,36 @@ pub fn from(input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let variant_key_arms: Vec<_> = variants
+        .iter()
+        .map(|variant| {
+            let pattern = variant.ignore_pattern();
+            let key = variant.ident.to_string();
+            quote! { #pattern => #key, }
+        })
+        .collect();
+
+    let variant_label_arms: Vec<_> = variants
+        .iter()
+        .map(|variant| {
+            let pattern = variant.ignore_pattern();
+            let variant_ident = &variant.ident;
+
+            if fluent_kv.has_label {
+                let label_enum = quote::format_ident!("{}LabelVariants", enum_ident);
+                quote! {
+                    #pattern => {
+                        use es_fluent::ToFluentString as _;
+                        #label_enum::#variant_ident.to_fluent_string().into()
+                    }
+                }
+            } else {
+                let label = variant.ident.to_string();
+                quote! { #pattern => #label.into(), }
+            }
+        })
+        .collect();
+
     let has_inner_arms = map_variant_arms(
         &variants,
         |variant| {
@@ -297,6 +327,44 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
     );
 
+    let child_variant_key_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => vec![], }
+        },
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            quote! {
+                #pattern => {
+                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                        .into_iter()
+                        .map(|variant| variant.variant_key())
+                        .collect()
+                }
+            }
+        },
+    );
+
+    let child_variant_label_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => vec![], }
+        },
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            quote! {
+                #pattern => {
+                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                        .into_iter()
+                        .map(|variant| variant.variant_label())
+                        .collect()
+                }
+            }
+        },
+    );
+
     let inner_child_variant_names_arms = map_variant_arms(
         &variants,
         |variant| {
@@ -306,6 +374,30 @@ pub fn from(input: TokenStream) -> TokenStream {
         |variant, _| {
             let pattern = variant.binding_pattern();
             quote! { #pattern => inner.child_variant_names(), }
+        },
+    );
+
+    let inner_child_variant_key_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => vec![], }
+        },
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            quote! { #pattern => inner.child_variant_keys(), }
+        },
+    );
+
+    let inner_child_variant_label_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => vec![], }
+        },
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            quote! { #pattern => inner.child_variant_labels(), }
         },
     );
 
@@ -321,6 +413,23 @@ pub fn from(input: TokenStream) -> TokenStream {
             quote! {
                 #pattern => {
                     inner.set_child_by_index(index).map(|new_inner| #constructor)
+                }
+            }
+        },
+    );
+
+    let inner_set_child_key_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |variant, _| {
+            let pattern = variant.binding_pattern();
+            let constructor = variant.constructor(quote! { new_inner });
+            quote! {
+                #pattern => {
+                    inner.set_child_by_key(key).map(|new_inner| #constructor)
                 }
             }
         },
@@ -356,6 +465,27 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
     );
 
+    let set_child_key_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            let constructor = variant.constructor(quote! { child });
+            quote! {
+                #pattern => {
+                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    children
+                        .into_iter()
+                        .find(|child| child.variant_key() == key)
+                        .map(|child| #constructor)
+                }
+            }
+        },
+    );
+
     let set_child_by_path_arms = map_variant_arms(
         &variants,
         |variant| {
@@ -377,6 +507,36 @@ pub fn from(input: TokenStream) -> TokenStream {
                         Some(#constructor_child)
                     } else {
                         let updated_child = child.set_child_by_path(&path[1..])?;
+                        Some(#constructor_updated)
+                    }
+                }
+            }
+        },
+    );
+
+    let set_child_by_key_path_arms = map_variant_arms(
+        &variants,
+        |variant| {
+            let pattern = variant.ignore_pattern();
+            quote! { #pattern => None, }
+        },
+        |variant, inner_type| {
+            let pattern = variant.ignore_pattern();
+            let constructor_child = variant.constructor(quote! { child });
+            let constructor_updated = variant.constructor(quote! { updated_child });
+            quote! {
+                #pattern => {
+                    if path.is_empty() {
+                        return None;
+                    }
+                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let child = children
+                        .into_iter()
+                        .find(|child| child.variant_key() == path[0].as_str())?;
+                    if path.len() == 1 {
+                        Some(#constructor_child)
+                    } else {
+                        let updated_child = child.set_child_by_key_path(&path[1..])?;
                         Some(#constructor_updated)
                     }
                 }
@@ -417,6 +577,33 @@ pub fn from(input: TokenStream) -> TokenStream {
                     quote! {
                         #pattern => {
                             ::gpui_form::infinite_select::InfiniteSelectPath::with_indices(vec![#root_index])
+                        }
+                    }
+                },
+            }
+        })
+        .collect();
+
+    let selection_key_path_arms: Vec<_> = variants
+        .iter()
+        .map(|variant| {
+            let root_key = variant.ident.to_string();
+            match variant.inner_type.as_ref() {
+                Some(_) => {
+                    let pattern = variant.binding_pattern();
+                    quote! {
+                        #pattern => {
+                            let mut keys = vec![#root_key.to_string()];
+                            keys.extend(inner.selection_key_path().keys().iter().cloned());
+                            ::gpui_form::infinite_select::InfiniteSelectKeyPath::with_keys(keys)
+                        }
+                    }
+                },
+                None => {
+                    let pattern = variant.ignore_pattern();
+                    quote! {
+                        #pattern => {
+                            ::gpui_form::infinite_select::InfiniteSelectKeyPath::with_keys(vec![#root_key.to_string()])
                         }
                     }
                 },
@@ -505,6 +692,18 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
+            fn variant_key(&self) -> &'static str {
+                match self {
+                    #(#variant_key_arms)*
+                }
+            }
+
+            fn variant_label(&self) -> gpui::SharedString {
+                match self {
+                    #(#variant_label_arms)*
+                }
+            }
+
             fn has_inner(&self) -> bool {
                 match self {
                     #(#has_inner_arms)*
@@ -517,15 +716,39 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
+            fn child_variant_keys(&self) -> Vec<&'static str> {
+                match self {
+                    #(#child_variant_key_arms)*
+                }
+            }
+
+            fn child_variant_labels(&self) -> Vec<gpui::SharedString> {
+                match self {
+                    #(#child_variant_label_arms)*
+                }
+            }
+
             fn set_child_by_index(&self, index: usize) -> Option<Self> {
                 match self {
                     #(#set_child_arms)*
                 }
             }
 
+            fn set_child_by_key(&self, key: &str) -> Option<Self> {
+                match self {
+                    #(#set_child_key_arms)*
+                }
+            }
+
             fn set_child_by_path(&self, path: &[usize]) -> Option<Self> {
                 match self {
                     #(#set_child_by_path_arms)*
+                }
+            }
+
+            fn set_child_by_key_path(&self, path: &[String]) -> Option<Self> {
+                match self {
+                    #(#set_child_by_key_path_arms)*
                 }
             }
 
@@ -545,15 +768,39 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
+            fn selection_key_path(&self) -> ::gpui_form::infinite_select::InfiniteSelectKeyPath {
+                match self {
+                    #(#selection_key_path_arms)*
+                }
+            }
+
             fn inner_child_variant_names(&self) -> Vec<&'static str> {
                 match self {
                     #(#inner_child_variant_names_arms)*
                 }
             }
 
+            fn inner_child_variant_keys(&self) -> Vec<&'static str> {
+                match self {
+                    #(#inner_child_variant_key_arms)*
+                }
+            }
+
+            fn inner_child_variant_labels(&self) -> Vec<gpui::SharedString> {
+                match self {
+                    #(#inner_child_variant_label_arms)*
+                }
+            }
+
             fn inner_set_child_by_index(&self, index: usize) -> Option<Self> {
                 match self {
                     #(#inner_set_child_arms)*
+                }
+            }
+
+            fn inner_set_child_by_key(&self, key: &str) -> Option<Self> {
+                match self {
+                    #(#inner_set_child_key_arms)*
                 }
             }
 

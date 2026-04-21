@@ -16,7 +16,6 @@ pub struct InfiniteSelectCodeGenerator;
 
 const IMPORTS_BASE: &[ImportItem] = &[
     ImportItem::path("gpui_component::select::Select"),
-    ImportItem::path("gpui_form::infinite_select::InfiniteSelect"),
     ImportItem::path("gpui_form::infinite_select::InfiniteSelectEvent"),
 ];
 
@@ -85,39 +84,16 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> TokenStream {
-        let field_name_ident = field.field_ident();
         let field_state_ident = field.field_ident_with_behaviour();
 
         quote! {
-            .child({
-                let field_state = self.fields.#field_state_ident.read(cx);
-                let master_select = field_state.master_select();
-
-                field()
-                    .label(self.current_data.#field_name_ident.type_label())
-                    .description_fn({
-                        let description = self.current_data.#field_name_ident.type_description();
-                        move |_, _| {
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(div().child(description.clone()))
-                        }
-                    })
-                    .child(Select::new(&master_select))
-            })
             .children({
-                let child_selects = self.fields.#field_state_ident.read(cx).child_selects();
-                child_selects.into_iter().enumerate().map(|(i, child)| {
+                let levels = self.fields.#field_state_ident.read(cx).levels();
+                levels.into_iter().map(|level| {
                     field()
-                        .label(self.current_data.#field_name_ident.child_label_at_depth(i).unwrap_or("".into()))
+                        .label(level.label().clone())
                         .description_fn({
-                            let description = self
-                                .current_data
-                                .#field_name_ident
-                                .child_description_at_depth(i)
-                                .unwrap_or("".into());
+                            let description = level.description().clone();
                             move |_, _| {
                                 div()
                                     .flex()
@@ -126,7 +102,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
                                     .child(div().child(description.clone()))
                             }
                         })
-                        .child(Select::new(&child))
+                        .child(Select::new(&level.select()))
                 })
             })
         }
@@ -174,11 +150,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
                 _window: &mut Window,
                 _cx: &mut Context<Self>,
             ) {
-                match event {
-                    InfiniteSelectEvent::Change(value) => {
-                        self.current_data.#field_name_ident = value.clone();
-                    }
-                }
+                self.current_data.#field_name_ident = event.value().clone();
             }
         };
 

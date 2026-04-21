@@ -114,8 +114,9 @@ Common struct-level helpers:
 
 `component(infinite_select)` fields are backed by
 `gpui_form::infinite_select::InfiniteSelectState`, which owns the root and
-child `SelectState`s and emits a single change event with the rebuilt nested
-value.
+child `SelectState`s, exposes render-ready level snapshots, and emits a single
+typed change event with the rebuilt nested value, both path forms, and the
+changed depth.
 
 ```rs
 use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
@@ -128,15 +129,36 @@ cx.subscribe_in(
     &location,
     window,
     |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
-        if let InfiniteSelectEvent::Change(value) = event {
-            let _ = value;
-        }
+        let _value = event.value();
+        let _path = event.path();
+        let _key_path = event.key_path();
+        let _changed_depth = event.changed_depth();
     },
 );
 ```
 
-Generated and prototyped forms use this runtime state directly, so application
-code does not need to rebuild child selects manually.
+Rendering code can stay on the runtime helper instead of combining select
+handles with separate label lookups:
+
+```rs
+let snapshot = location.read(cx).snapshot();
+
+for level in snapshot.levels() {
+    let _label = level.label();
+    let _description = level.description();
+    let _select = level.select();
+}
+```
+
+The derive/runtime pair also exposes typed option labels, stable key paths, and
+typed path errors:
+
+- root option titles come from `variant_label()` instead of raw `variant_name()`
+- `selection_key_path()` / `build_from_key_path(...)` round-trip nested values
+  without depending on enum ordering
+- `build_from_path(...)`, `build_from_key_path(...)`, `set_path(...)`, and
+  `set_key_path(...)` return `InfiniteSelectPathError` with the failing depth
+  plus the invalid key/index segment
 
 ## Validation With Koruma
 

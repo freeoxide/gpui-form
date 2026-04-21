@@ -1,12 +1,14 @@
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
-    SharedString, Styled as _, Subscription, Window, div,
+    Styled as _, Subscription, Window, div,
 };
 use gpui_component::form::v_form;
 use gpui_component::select::Select;
 
 use crate::InfiniteSelect;
-use crate::infinite_select::{InfiniteSelectEvent, InfiniteSelectState, build_from_path};
+use crate::infinite_select::{
+    InfiniteSelectEvent, InfiniteSelectState, build_from_key_path, build_from_path,
+};
 
 use super::common::{story_field, story_panel};
 
@@ -14,8 +16,8 @@ type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
 
 #[gpui_storybook::story]
 pub struct InfiniteSelectStory {
-    selection: DeploymentTarget,
     select_state: Entity<DeploymentSelectState>,
+    last_changed_depth: Option<usize>,
     _subscription: Subscription,
 }
 
@@ -46,8 +48,8 @@ impl InfiniteSelectStory {
         let subscription = cx.subscribe_in(&select_state, window, Self::on_select_change);
 
         Self {
-            selection,
             select_state,
+            last_changed_depth: None,
             _subscription: subscription,
         }
     }
@@ -59,51 +61,30 @@ impl InfiniteSelectStory {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        match event {
-            InfiniteSelectEvent::Change(value) => {
-                self.selection = value.clone();
-            },
-        }
-    }
-
-    fn child_label(&self, depth: usize) -> SharedString {
-        self.selection
-            .story_child_label_at_depth(depth)
-            .unwrap_or_else(|| format!("Level {}", depth + 2).into())
-    }
-
-    fn child_description(&self, depth: usize) -> SharedString {
-        self.selection
-            .story_child_description_at_depth(depth)
-            .unwrap_or_else(|| "Choose the next nested option.".into())
+        self.last_changed_depth = Some(event.changed_depth());
     }
 }
 
 impl Render for InfiniteSelectStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let select_state = self.select_state.read(cx);
-        let master_select = select_state.master_select();
-        let child_selects = select_state.child_selects();
-        let path = select_state.path().clone();
+        let snapshot = self.select_state.read(cx).snapshot();
+        let path = snapshot.path().clone();
+        let key_path = snapshot.key_path().clone();
 
-        let form = child_selects.iter().enumerate().fold(
-            v_form().child(story_field(
-                self.selection.story_type_label(),
-                self.selection.story_type_description(),
-                Select::new(&master_select),
-            )),
-            |form, (depth, child)| {
-                form.child(story_field(
-                    self.child_label(depth),
-                    self.child_description(depth),
-                    Select::new(child),
-                ))
-            },
-        );
+        let form = snapshot.levels().iter().fold(v_form(), |form, level| {
+            form.child(story_field(
+                level.label().clone(),
+                level.description().clone(),
+                Select::new(&level.select()),
+            ))
+        });
 
         let rebuilt = build_from_path::<DeploymentTarget>(&path)
             .map(|value| value.summary())
-            .unwrap_or_else(|| "None".to_string());
+            .unwrap_or_else(|_| "None".to_string());
+        let rebuilt_from_keys = build_from_key_path::<DeploymentTarget>(&key_path)
+            .map(|value| value.summary())
+            .unwrap_or_else(|_| "None".to_string());
 
         story_panel(
             "Cascading selection",
@@ -115,9 +96,17 @@ impl Render for InfiniteSelectStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(format!("Current selection: {}", self.selection.summary()))
+                    .child(format!("Current selection: {}", snapshot.value().summary()))
                     .child(format!("Path indices: {:?}", path.indices()))
-                    .child(format!("Rebuilt from path: {rebuilt}")),
+                    .child(format!("Path keys: {:?}", key_path.keys()))
+                    .child(format!("Rebuilt from path: {rebuilt}"))
+                    .child(format!("Rebuilt from keys: {rebuilt_from_keys}"))
+                    .child(format!(
+                        "Last changed depth: {}",
+                        self.last_changed_depth
+                            .map(|depth| depth.to_string())
+                            .unwrap_or_else(|| "None".to_string())
+                    )),
             ),
         )
     }
@@ -136,52 +125,6 @@ impl DeploymentTarget {
             Self::Web(region) => format!("Web / {}", region.summary()),
             Self::Desktop(platform) => format!("Desktop / {}", platform.name()),
             Self::Docs => "Docs".to_string(),
-        }
-    }
-
-    fn story_type_label(&self) -> SharedString {
-        "Target".into()
-    }
-
-    fn story_type_description(&self) -> SharedString {
-        "Choose the surface that the generated form should target.".into()
-    }
-
-    fn story_child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match depth {
-            0 => match self {
-                Self::Web(_) => Some("Region".into()),
-                Self::Desktop(_) => Some("Platform".into()),
-                Self::Docs => None,
-            },
-            1 => self.story_inner_child_label_at_depth(depth - 1),
-            _ => None,
-        }
-    }
-
-    fn story_child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match depth {
-            0 => match self {
-                Self::Web(_) => Some("Pick a deployment region for the web surface.".into()),
-                Self::Desktop(_) => Some("Pick the desktop platform to generate for.".into()),
-                Self::Docs => None,
-            },
-            1 => self.story_inner_child_description_at_depth(depth - 1),
-            _ => None,
-        }
-    }
-
-    fn story_inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match (self, depth) {
-            (Self::Web(_), 0) => Some("Availability zone".into()),
-            _ => None,
-        }
-    }
-
-    fn story_inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString> {
-        match (self, depth) {
-            (Self::Web(_), 0) => Some("Select the fallback zone within the chosen region.".into()),
-            _ => None,
         }
     }
 }

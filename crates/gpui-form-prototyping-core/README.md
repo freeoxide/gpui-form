@@ -43,6 +43,10 @@ shows the normal flow:
 1. render a file through a custom `FormLayout`
 1. format the `syn::File` with `prettyplease`
 
+Generated infinite-select fields target the runtime `InfiniteSelectState`
+surface directly, including `levels()` for rendering and the richer
+`InfiniteSelectEvent<T>` payload for state updates.
+
 ## Feature Flags
 
 - `fluent`: use `es-fluent` keys for generated labels and descriptions

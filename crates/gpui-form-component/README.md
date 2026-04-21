@@ -35,13 +35,19 @@ Useful runtime types:
 - `InfiniteSelect`
 - `InfiniteSelectItem<T>`
 - `InfiniteSelectPath`
+- `InfiniteSelectKeyPath`
+- `InfiniteSelectPathError`
 - `InfiniteSelectState<T>`
 - `SearchableInfiniteSelectState<T>`
 - `InfiniteSelectEvent<T>`
+- `InfiniteSelectLevel<D>`
+- `InfiniteSelectSnapshot<T, D>`
 - `InfiniteSelectStateOptions`
 - `to_select_items::<T>()`
 - `path_from_value(&value)`
+- `key_path_from_value(&value)`
 - `build_from_path`
+- `build_from_key_path`
 
 Manual forms can subscribe to one runtime entity instead of rebuilding nested
 child selects themselves:
@@ -57,12 +63,34 @@ cx.subscribe_in(
     &location,
     window,
     |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
-        if let InfiniteSelectEvent::Change(value) = event {
-            let _ = value;
-        }
+        let _value = event.value();
+        let _path = event.path();
+        let _key_path = event.key_path();
+        let _changed_depth = event.changed_depth();
     },
 );
 ```
+
+Rendering code can iterate the runtime-owned field levels directly:
+
+```rs
+let snapshot = location.read(cx).snapshot();
+
+for level in snapshot.levels() {
+    let _label = level.label();
+    let _description = level.description();
+    let _select = level.select();
+}
+```
+
+Derived `InfiniteSelect` enums now also expose:
+
+- `variant_label()` for user-facing option titles
+- `variant_key()` plus `selection_key_path()` for order-independent paths
+- `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
+- `build_from_path(...)`, `build_from_key_path(...)`, `set_path(...)`, and
+  `set_key_path(...)` return `InfiniteSelectPathError` instead of failing
+  silently
 
 ## Date Picker
 

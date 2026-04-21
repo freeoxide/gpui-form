@@ -810,20 +810,19 @@ mod gpui_form_tests {
             "InfiniteSelect initialization should bind the full default expression once"
         );
         assert!(
-            compact.contains(".position(|x|x.variant_name()==__gpui_form_default.variant_name())"),
-            "InfiniteSelect initialization should derive the master selection from the bound default expression"
+            compact.contains("new_with_options(__gpui_form_default,")
+                && !compact.contains("new_with_options(crate::defaults::country(),"),
+            "InfiniteSelect initialization should use the bound default expression for runtime construction"
         );
         assert!(
-            compact.contains(".map(::gpui_component::IndexPath::new)")
-                && !compact.contains(
-                    ".position(|x|x.variant_name()==__gpui_form_default.variant_name()).unwrap()"
-                ),
-            "InfiniteSelect initialization should skip invalid defaults instead of panicking"
+            compact.contains("InfiniteSelectState::new_with_options("),
+            "InfiniteSelect initialization should pass the bound default expression into the runtime state"
         );
         assert!(
-            compact.contains("letmax_depth=::core::cmp::max(1usize,::core::cmp::min(")
-                && compact.contains("::depth(),2"),
-            "InfiniteSelect child generation should clamp depth using max_depth"
+            compact.contains("InfiniteSelectStateOptions::default()")
+                && compact.contains(".searchable(false)")
+                && compact.contains(".max_depth(2"),
+            "InfiniteSelect initialization should forward max_depth into the runtime options"
         );
     }
 }

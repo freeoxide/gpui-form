@@ -60,6 +60,8 @@ lower crates and is only re-exported here.
    `CustomComponentState` through the facade.
 1. Macro expansion emits code that references `gpui_form::runtime`,
    `gpui_form::schema`, and `gpui_form::core`.
+1. For `InfiniteSelect`, the facade re-exports both the runtime state helpers
+   and the richer key-path/event/path-error/snapshot surface.
 1. Generated code uses compatibility re-exports only where existing generated
    paths must stay stable.
 

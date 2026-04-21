@@ -30,7 +30,9 @@ This crate exists to:
 1. Component-specific generators produce cached render fragments, event
    handlers, imports, subscriptions, and initialization code.
    Infinite-select fields are generated against one runtime
-   `InfiniteSelectState` subscription instead of raw select-tree glue code.
+   `InfiniteSelectState` subscription instead of raw select-tree glue code,
+   render through `InfiniteSelectState::levels()`, and consume the richer
+   `InfiniteSelectEvent<T>` payload directly.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`

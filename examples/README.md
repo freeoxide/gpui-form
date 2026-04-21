@@ -8,7 +8,8 @@ examples.
 Source structs and enums that demonstrate the supported derive surface:
 
 - basic input, number input, checkbox, switch, and select fields
-- nested `InfiniteSelect` enums
+- nested `InfiniteSelect` enums, including index-path and key-path round trips
+  plus typed path-error reporting
 - custom component state and custom shapes
 - Koruma validation wiring
 - `cfg_attr`-gated derive usage
@@ -24,7 +25,8 @@ This crate demonstrates the cross-crate custom-component shape workflow.
 
 Storybook-style GPUI app that renders generated forms around the example types.
 The checked-in `location_form` example shows the runtime-owned
-`InfiniteSelectState` flow instead of manual child-select rebuilding.
+`InfiniteSelectState` flow with `levels()` snapshots instead of manual
+child-select rebuilding.
 
 Run it with:
 
@@ -36,8 +38,8 @@ cargo run -p some-lib-forms
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded
 form files into `examples/prototyping/output`. Infinite-select fields are
-emitted against the runtime `InfiniteSelectState` helper and a single change
-event.
+emitted against the runtime `InfiniteSelectState` helper, `levels()` rendering,
+and a single change event.
 
 Run it with:
 

@@ -109,6 +109,19 @@ Variant attribute:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 
+Behavior notes:
+
+- derived enums expose both index paths (`selection_path()`) and key paths
+  (`selection_key_path()`)
+- root option titles use `variant_label()` when fluent label metadata is
+  available, otherwise they fall back to the variant name
+- key-based helpers such as `variant_key()`, `set_child_by_key(...)`, and
+  `set_child_by_key_path(...)` let callers persist selections without relying on
+  enum ordering
+- runtime path helpers now return `InfiniteSelectPathError` so invalid persisted
+  paths report the failing depth and bad key/index instead of just returning
+  `None`
+
 ### `#[derive(CustomComponentState)]`
 
 Implements `gpui_form::custom::CustomComponentShape` directly for a state type.

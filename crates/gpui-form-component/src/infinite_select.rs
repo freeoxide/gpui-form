@@ -12,14 +12,15 @@ use gpui_component::{
     IndexPath,
     select::{SearchableVec, SelectDelegate, SelectEvent, SelectItem, SelectState},
 };
+use std::{error::Error, fmt};
 
 /// Trait for infinite-select enums that expose their nested structure.
 ///
 /// This trait is derived using `#[derive(InfiniteSelect)]` and provides:
 /// - the variant list at each level
-/// - child variant names for cascading selects
-/// - index-based child selection to update nested values
-/// - the current selection path for a concrete value
+/// - child variant names, keys, and labels for cascading selects
+/// - index-based and key-based child selection to update nested values
+/// - the current selection paths for a concrete value
 ///
 /// Unlike a simple associated-type approach, this trait supports heterogeneous
 /// inner types: each variant can contain a different inner type.
@@ -30,6 +31,15 @@ pub trait InfiniteSelect: Sized + Clone + Default + 'static {
     /// Returns the variant name/discriminant as a string.
     fn variant_name(&self) -> &'static str;
 
+    /// Returns a stable key for this variant.
+    ///
+    /// The derived implementation currently mirrors `variant_name()`, which is
+    /// stable across enum reordering and suitable for persisted paths.
+    fn variant_key(&self) -> &'static str;
+
+    /// Returns the localized label for this specific variant.
+    fn variant_label(&self) -> SharedString;
+
     /// Returns true if this variant contains an inner value.
     fn has_inner(&self) -> bool;
 
@@ -37,13 +47,25 @@ pub trait InfiniteSelect: Sized + Clone + Default + 'static {
     /// Returns an empty vec for unit variants or variants without children.
     fn child_variant_names(&self) -> Vec<&'static str>;
 
+    /// Returns the stable keys of the children for this specific variant.
+    fn child_variant_keys(&self) -> Vec<&'static str>;
+
+    /// Returns the localized labels of the children for this specific variant.
+    fn child_variant_labels(&self) -> Vec<SharedString>;
+
     /// Creates a new instance with the child at the given index.
     /// Returns None if the variant doesn't have children or the index is out of bounds.
     fn set_child_by_index(&self, index: usize) -> Option<Self>;
 
+    /// Creates a new instance with the child that matches the given key.
+    fn set_child_by_key(&self, key: &str) -> Option<Self>;
+
     /// Sets the child at a given path depth recursively.
     /// `path[0]` is the child index at this level, `path[1]` the grandchild, and so on.
     fn set_child_by_path(&self, path: &[usize]) -> Option<Self>;
+
+    /// Sets the child at a given key path recursively.
+    fn set_child_by_key_path(&self, path: &[String]) -> Option<Self>;
 
     /// Returns the depth of nesting for this variant's children.
     /// Returns 0 for leaf variants.
@@ -57,11 +79,23 @@ pub trait InfiniteSelect: Sized + Clone + Default + 'static {
     /// The returned path includes the root variant index at depth 0.
     fn selection_path(&self) -> InfiniteSelectPath;
 
+    /// Returns the current stable key path for this concrete value.
+    fn selection_key_path(&self) -> InfiniteSelectKeyPath;
+
     /// Returns the variant names of the inner value's children.
     fn inner_child_variant_names(&self) -> Vec<&'static str>;
 
+    /// Returns the stable keys of the inner value's children.
+    fn inner_child_variant_keys(&self) -> Vec<&'static str>;
+
+    /// Returns the localized labels of the inner value's children.
+    fn inner_child_variant_labels(&self) -> Vec<SharedString>;
+
     /// Sets a child on the inner value and wraps it back.
     fn inner_set_child_by_index(&self, index: usize) -> Option<Self>;
+
+    /// Sets a child on the inner value by stable key and wraps it back.
+    fn inner_set_child_by_key(&self, key: &str) -> Option<Self>;
 
     /// Returns true if the inner value itself has children.
     fn inner_has_inner(&self) -> bool;
@@ -105,13 +139,10 @@ impl<T: InfiniteSelect> InfiniteSelectItem<T> {
         }
     }
 
-    /// Creates an item using `variant_name()` as the title.
+    /// Creates an item using `variant_label()` as the title.
     pub fn from_variant(value: T) -> Self {
-        let title = value.variant_name();
-        Self {
-            value,
-            title: title.into(),
-        }
+        let title = value.variant_label();
+        Self { value, title }
     }
 
     /// Returns a reference to the wrapped value.
@@ -134,9 +165,22 @@ impl<T: InfiniteSelect> InfiniteSelectItem<T> {
         self.value.child_variant_names()
     }
 
+    /// Returns the child variant keys if the wrapped value has children.
+    pub fn child_variant_keys(&self) -> Vec<&'static str> {
+        self.value.child_variant_keys()
+    }
+
+    /// Returns the child variant labels if the wrapped value has children.
+    pub fn child_variant_labels(&self) -> Vec<SharedString> {
+        self.value.child_variant_labels()
+    }
+
     /// Returns a new item with a child selected at the given index.
     pub fn with_child_at(&self, index: usize) -> Option<Self> {
-        self.value.set_child_by_index(index).map(Self::from_variant)
+        let title = self.value.child_variant_labels().get(index).cloned()?;
+        self.value
+            .set_child_by_index(index)
+            .map(|value| Self::new(value, title))
     }
 }
 
@@ -163,7 +207,7 @@ where
         .collect()
 }
 
-/// Represents a selection path through nested infinite-select enums.
+/// Represents an index-based selection path through nested infinite-select enums.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InfiniteSelectPath {
     indices: Vec<usize>,
@@ -219,26 +263,329 @@ impl InfiniteSelectPath {
     }
 }
 
+/// Represents a key-based selection path through nested infinite-select enums.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct InfiniteSelectKeyPath {
+    keys: Vec<String>,
+}
+
+impl InfiniteSelectKeyPath {
+    /// Creates a new empty key path.
+    pub fn new() -> Self {
+        Self { keys: Vec::new() }
+    }
+
+    /// Creates a key path with the given keys.
+    pub fn with_keys(keys: Vec<String>) -> Self {
+        Self { keys }
+    }
+
+    /// Returns the selected key at a given depth.
+    pub fn get(&self, depth: usize) -> Option<&str> {
+        self.keys.get(depth).map(String::as_str)
+    }
+
+    /// Sets the selected key at a given depth, truncating deeper selections.
+    pub fn set(&mut self, depth: usize, key: impl Into<String>) {
+        self.keys.truncate(depth);
+        self.keys.push(key.into());
+    }
+
+    /// Clears selections from a given depth onwards.
+    pub fn clear_from(&mut self, depth: usize) {
+        self.keys.truncate(depth);
+    }
+
+    /// Truncates the path to the given length.
+    pub fn truncate(&mut self, len: usize) {
+        self.keys.truncate(len);
+    }
+
+    /// Returns the current depth of the selection.
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    /// Returns all keys as a slice.
+    pub fn keys(&self) -> &[String] {
+        &self.keys
+    }
+
+    /// Returns true if the path is empty.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+}
+
 /// Returns the current selection path for a concrete infinite-select value.
 pub fn path_from_value<T: InfiniteSelect>(value: &T) -> InfiniteSelectPath {
     value.selection_path()
 }
 
-/// Rebuilds a value from a selection path.
-pub fn build_from_path<T: InfiniteSelect>(path: &InfiniteSelectPath) -> Option<T> {
+/// Returns the current key path for a concrete infinite-select value.
+pub fn key_path_from_value<T: InfiniteSelect>(value: &T) -> InfiniteSelectKeyPath {
+    value.selection_key_path()
+}
+
+/// The failing segment of an index- or key-based infinite-select path.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InfiniteSelectPathSegment {
+    Index(usize),
+    Key(String),
+}
+
+impl InfiniteSelectPathSegment {
+    /// Returns the segment as an index when this is an index-based path error.
+    pub fn as_index(&self) -> Option<usize> {
+        match self {
+            Self::Index(index) => Some(*index),
+            Self::Key(_) => None,
+        }
+    }
+
+    /// Returns the segment as a key when this is a key-based path error.
+    pub fn as_key(&self) -> Option<&str> {
+        match self {
+            Self::Index(_) => None,
+            Self::Key(key) => Some(key),
+        }
+    }
+}
+
+/// The reason an infinite-select path failed to resolve.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InfiniteSelectPathErrorReason {
+    EmptyPath,
+    MissingSelectionOptions,
+    InvalidIndex { option_count: usize },
+    UnknownKey { available_keys: Vec<String> },
+}
+
+/// A typed path-resolution failure for infinite-select helpers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InfiniteSelectPathError {
+    depth: usize,
+    segment: Option<InfiniteSelectPathSegment>,
+    reason: InfiniteSelectPathErrorReason,
+}
+
+impl InfiniteSelectPathError {
+    fn empty() -> Self {
+        Self {
+            depth: 0,
+            segment: None,
+            reason: InfiniteSelectPathErrorReason::EmptyPath,
+        }
+    }
+
+    fn missing_selection_options(depth: usize, segment: InfiniteSelectPathSegment) -> Self {
+        Self {
+            depth,
+            segment: Some(segment),
+            reason: InfiniteSelectPathErrorReason::MissingSelectionOptions,
+        }
+    }
+
+    fn invalid_index(depth: usize, index: usize, option_count: usize) -> Self {
+        Self {
+            depth,
+            segment: Some(InfiniteSelectPathSegment::Index(index)),
+            reason: InfiniteSelectPathErrorReason::InvalidIndex { option_count },
+        }
+    }
+
+    fn unknown_key(depth: usize, key: &str, available_keys: Vec<String>) -> Self {
+        Self {
+            depth,
+            segment: Some(InfiniteSelectPathSegment::Key(key.to_string())),
+            reason: InfiniteSelectPathErrorReason::UnknownKey { available_keys },
+        }
+    }
+
+    /// Returns the depth where path resolution failed.
+    pub fn depth(&self) -> usize {
+        self.depth
+    }
+
+    /// Returns the failing path segment, when available.
+    pub fn segment(&self) -> Option<&InfiniteSelectPathSegment> {
+        self.segment.as_ref()
+    }
+
+    /// Alias for `segment()` when callers think in terms of key-or-index input.
+    pub fn key_or_index(&self) -> Option<&InfiniteSelectPathSegment> {
+        self.segment()
+    }
+
+    /// Returns the typed failure reason.
+    pub fn reason(&self) -> &InfiniteSelectPathErrorReason {
+        &self.reason
+    }
+}
+
+impl fmt::Display for InfiniteSelectPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (&self.segment, &self.reason) {
+            (None, InfiniteSelectPathErrorReason::EmptyPath) => {
+                write!(f, "infinite-select path is empty")
+            },
+            (
+                Some(InfiniteSelectPathSegment::Index(index)),
+                InfiniteSelectPathErrorReason::MissingSelectionOptions,
+            ) => {
+                write!(
+                    f,
+                    "no selectable options exist at depth {} for index {}",
+                    self.depth, index
+                )
+            },
+            (
+                Some(InfiniteSelectPathSegment::Key(key)),
+                InfiniteSelectPathErrorReason::MissingSelectionOptions,
+            ) => {
+                write!(
+                    f,
+                    "no selectable options exist at depth {} for key {:?}",
+                    self.depth, key
+                )
+            },
+            (
+                Some(InfiniteSelectPathSegment::Index(index)),
+                InfiniteSelectPathErrorReason::InvalidIndex { option_count },
+            ) => write!(
+                f,
+                "index {} is out of bounds at depth {} ({} options available)",
+                index, self.depth, option_count
+            ),
+            (
+                Some(InfiniteSelectPathSegment::Key(key)),
+                InfiniteSelectPathErrorReason::UnknownKey { available_keys },
+            ) => write!(
+                f,
+                "key {:?} is not valid at depth {} (available keys: {:?})",
+                key, self.depth, available_keys
+            ),
+            _ => write!(f, "invalid infinite-select path at depth {}", self.depth),
+        }
+    }
+}
+
+impl Error for InfiniteSelectPathError {}
+
+/// Rebuilds a value from an index-based selection path.
+pub fn build_from_path<T: InfiniteSelect>(
+    path: &InfiniteSelectPath,
+) -> Result<T, InfiniteSelectPathError> {
     if path.is_empty() {
-        return None;
+        return Err(InfiniteSelectPathError::empty());
     }
 
     let variants = T::variants();
-    let root_index = path.get(0)?;
-    let root = variants.get(root_index)?.clone();
+    let root_index = path
+        .get(0)
+        .expect("non-empty paths include the root selection");
+    let Some(mut current_value) = variants.get(root_index).cloned() else {
+        return Err(InfiniteSelectPathError::invalid_index(
+            0,
+            root_index,
+            variants.len(),
+        ));
+    };
 
-    if path.len() > 1 {
-        root.set_child_by_path(&path.indices()[1..])
-    } else {
-        Some(root)
+    for depth in 1..path.len() {
+        let index = path
+            .get(depth)
+            .expect("path length guarantees a selection at each iterated depth");
+        let items = child_items_for_level(&current_value, depth - 1);
+
+        if items.is_empty() {
+            return Err(InfiniteSelectPathError::missing_selection_options(
+                depth,
+                InfiniteSelectPathSegment::Index(index),
+            ));
+        }
+
+        let Some(item) = items.get(index) else {
+            return Err(InfiniteSelectPathError::invalid_index(
+                depth,
+                index,
+                items.len(),
+            ));
+        };
+
+        current_value = item.get_value().clone();
     }
+
+    Ok(current_value)
+}
+
+/// Rebuilds a value from a key-based selection path.
+pub fn build_from_key_path<T: InfiniteSelect>(
+    path: &InfiniteSelectKeyPath,
+) -> Result<T, InfiniteSelectPathError> {
+    if path.is_empty() {
+        return Err(InfiniteSelectPathError::empty());
+    }
+
+    let root_key = path
+        .get(0)
+        .expect("non-empty key paths include the root selection");
+    let variants = T::variants();
+    let Some(mut current_value) = variants
+        .iter()
+        .find(|variant| variant.variant_key() == root_key)
+        .cloned()
+    else {
+        return Err(InfiniteSelectPathError::unknown_key(
+            0,
+            root_key,
+            variants
+                .iter()
+                .map(|variant| variant.variant_key().to_string())
+                .collect(),
+        ));
+    };
+
+    for depth in 1..path.len() {
+        let key = path
+            .get(depth)
+            .expect("path length guarantees a selection at each iterated depth");
+        let items = child_items_for_level(&current_value, depth - 1);
+
+        if items.is_empty() {
+            return Err(InfiniteSelectPathError::missing_selection_options(
+                depth,
+                InfiniteSelectPathSegment::Key(key.to_string()),
+            ));
+        }
+
+        let available_keys: Vec<String> = items
+            .iter()
+            .filter_map(|item| {
+                item.get_value()
+                    .selection_key_path()
+                    .get(depth)
+                    .map(str::to_string)
+            })
+            .collect();
+
+        let Some(item) = items.iter().find(|item| {
+            item.get_value()
+                .selection_key_path()
+                .get(depth)
+                .is_some_and(|candidate| candidate == key)
+        }) else {
+            return Err(InfiniteSelectPathError::unknown_key(
+                depth,
+                key,
+                available_keys,
+            ));
+        };
+
+        current_value = item.get_value().clone();
+    }
+
+    Ok(current_value)
 }
 
 /// Options for the runtime `InfiniteSelectState`.
@@ -257,7 +604,7 @@ impl InfiniteSelectStateOptions {
 
     /// Limits how many levels the state will render.
     ///
-    /// The stored value and selection path still preserve deeper default selections.
+    /// The stored value and selection paths still preserve deeper default selections.
     pub fn max_depth(mut self, max_depth: usize) -> Self {
         self.max_depth = Some(max_depth);
         self
@@ -266,8 +613,135 @@ impl InfiniteSelectStateOptions {
 
 /// Event emitted by `InfiniteSelectState` whenever the selection changes.
 #[derive(Clone)]
-pub enum InfiniteSelectEvent<T: InfiniteSelect> {
-    Change(T),
+pub struct InfiniteSelectEvent<T: InfiniteSelect> {
+    value: T,
+    path: InfiniteSelectPath,
+    key_path: InfiniteSelectKeyPath,
+    changed_depth: usize,
+}
+
+impl<T: InfiniteSelect> InfiniteSelectEvent<T> {
+    /// Returns the rebuilt concrete selection value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Consumes the event and returns the rebuilt concrete selection value.
+    pub fn into_value(self) -> T {
+        self.value
+    }
+
+    /// Returns the current index path.
+    pub fn path(&self) -> &InfiniteSelectPath {
+        &self.path
+    }
+
+    /// Returns the current key path.
+    pub fn key_path(&self) -> &InfiniteSelectKeyPath {
+        &self.key_path
+    }
+
+    /// Returns the first depth that changed for this selection event.
+    pub fn changed_depth(&self) -> usize {
+        self.changed_depth
+    }
+}
+
+/// A single rendered level of an infinite-select field.
+#[derive(Clone)]
+pub struct InfiniteSelectLevel<D>
+where
+    D: SelectDelegate + 'static,
+{
+    depth: usize,
+    label: SharedString,
+    description: SharedString,
+    select: Entity<SelectState<D>>,
+    selected_index: Option<usize>,
+    selected_key: Option<String>,
+}
+
+impl<D> InfiniteSelectLevel<D>
+where
+    D: SelectDelegate + 'static,
+{
+    /// Returns the rendered depth for this select level.
+    pub fn depth(&self) -> usize {
+        self.depth
+    }
+
+    /// Returns true when this level is the root select.
+    pub fn is_root(&self) -> bool {
+        self.depth == 0
+    }
+
+    /// Returns the field label for this level.
+    pub fn label(&self) -> &SharedString {
+        &self.label
+    }
+
+    /// Returns the field description for this level.
+    pub fn description(&self) -> &SharedString {
+        &self.description
+    }
+
+    /// Returns the backing select entity for this level.
+    pub fn select(&self) -> Entity<SelectState<D>> {
+        self.select.clone()
+    }
+
+    /// Returns the selected index for this level, when available.
+    pub fn selected_index(&self) -> Option<usize> {
+        self.selected_index
+    }
+
+    /// Returns the selected stable key for this level, when available.
+    pub fn selected_key(&self) -> Option<&str> {
+        self.selected_key.as_deref()
+    }
+}
+
+/// An owned snapshot of the current infinite-select runtime state.
+#[derive(Clone)]
+pub struct InfiniteSelectSnapshot<T, D>
+where
+    D: SelectDelegate + 'static,
+{
+    value: T,
+    path: InfiniteSelectPath,
+    key_path: InfiniteSelectKeyPath,
+    levels: Vec<InfiniteSelectLevel<D>>,
+}
+
+impl<T, D> InfiniteSelectSnapshot<T, D>
+where
+    T: InfiniteSelect,
+    D: SelectDelegate + 'static,
+{
+    /// Returns the concrete selected value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns the current index-based selection path.
+    pub fn path(&self) -> &InfiniteSelectPath {
+        &self.path
+    }
+
+    /// Returns the current key-based selection path.
+    pub fn key_path(&self) -> &InfiniteSelectKeyPath {
+        &self.key_path
+    }
+
+    /// Returns the rendered select levels in root-to-leaf order.
+    pub fn levels(&self) -> &[InfiniteSelectLevel<D>] {
+        &self.levels
+    }
+
+    /// Consumes the snapshot and returns the owned level list.
+    pub fn into_levels(self) -> Vec<InfiniteSelectLevel<D>> {
+        self.levels
+    }
 }
 
 /// Runtime state for a cascading infinite-select field.
@@ -278,6 +752,7 @@ where
 {
     value: T,
     path: InfiniteSelectPath,
+    key_path: InfiniteSelectKeyPath,
     master_select: Entity<SelectState<D>>,
     child_selects: Vec<Entity<SelectState<D>>>,
     options: InfiniteSelectStateOptions,
@@ -329,6 +804,7 @@ where
         cx: &mut Context<Self>,
     ) -> Self {
         let path = path_from_value(&initial_value);
+        let key_path = key_path_from_value(&initial_value);
         let root_selected = path.get(0);
         let master_select = cx.new(|cx| {
             build_select_state::<T, D>(
@@ -344,6 +820,7 @@ where
         let mut this = Self {
             value: initial_value,
             path,
+            key_path,
             master_select,
             child_selects: Vec::new(),
             options,
@@ -359,9 +836,45 @@ where
         &self.value
     }
 
-    /// Returns the current selection path.
+    /// Returns the current index-based selection path.
     pub fn path(&self) -> &InfiniteSelectPath {
         &self.path
+    }
+
+    /// Returns the current key-based selection path.
+    pub fn key_path(&self) -> &InfiniteSelectKeyPath {
+        &self.key_path
+    }
+
+    /// Returns the selected index at the given depth.
+    pub fn selected_index_at_depth(&self, depth: usize) -> Option<usize> {
+        self.path.get(depth)
+    }
+
+    /// Returns the selected key at the given depth.
+    pub fn selected_key_at_depth(&self, depth: usize) -> Option<&str> {
+        self.key_path.get(depth)
+    }
+
+    /// Returns the current rendered select levels in root-to-leaf order.
+    pub fn levels(&self) -> Vec<InfiniteSelectLevel<D>> {
+        build_levels(
+            &self.value,
+            &self.path,
+            &self.key_path,
+            &self.master_select,
+            &self.child_selects,
+        )
+    }
+
+    /// Returns an owned snapshot of the value, paths, and rendered levels.
+    pub fn snapshot(&self) -> InfiniteSelectSnapshot<T, D> {
+        InfiniteSelectSnapshot {
+            value: self.value.clone(),
+            path: self.path.clone(),
+            key_path: self.key_path.clone(),
+            levels: self.levels(),
+        }
     }
 
     /// Returns the root select entity.
@@ -376,7 +889,31 @@ where
 
     /// Programmatically sets the current selection.
     pub fn set_value(&mut self, value: T, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_selection(value, false, window, cx);
+        self.apply_selection(value, None, false, window, cx);
+    }
+
+    /// Programmatically sets the current selection from an index path.
+    pub fn set_path(
+        &mut self,
+        path: &InfiniteSelectPath,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), InfiniteSelectPathError> {
+        let value = build_from_path::<T>(path)?;
+        self.apply_selection(value, None, false, window, cx);
+        Ok(())
+    }
+
+    /// Programmatically sets the current selection from a key path.
+    pub fn set_key_path(
+        &mut self,
+        key_path: &InfiniteSelectKeyPath,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), InfiniteSelectPathError> {
+        let value = build_from_key_path::<T>(key_path)?;
+        self.apply_selection(value, None, false, window, cx);
+        Ok(())
     }
 
     fn max_depth(&self) -> usize {
@@ -388,7 +925,7 @@ where
 
     fn on_select_event(
         &mut self,
-        _this: &Entity<SelectState<D>>,
+        this: &Entity<SelectState<D>>,
         event: &SelectEvent<D>,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -397,22 +934,49 @@ where
             return;
         };
 
-        self.apply_selection(selected.clone(), true, window, cx);
+        let changed_depth = self
+            .select_depth(this)
+            .or_else(|| Some(first_changed_depth(&self.path, &selected.selection_path())));
+
+        self.apply_selection(selected.clone(), changed_depth, true, window, cx);
+    }
+
+    fn select_depth(&self, this: &Entity<SelectState<D>>) -> Option<usize> {
+        if &self.master_select == this {
+            Some(0)
+        } else {
+            self.child_selects
+                .iter()
+                .position(|child| child == this)
+                .map(|position| position + 1)
+        }
     }
 
     fn apply_selection(
         &mut self,
         value: T,
+        changed_depth: Option<usize>,
         emit: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let new_path = path_from_value(&value);
+        let new_key_path = key_path_from_value(&value);
+        let changed_depth =
+            changed_depth.unwrap_or_else(|| first_changed_depth(&self.path, &new_path));
+
         self.value = value.clone();
-        self.path = path_from_value(&value);
+        self.path = new_path.clone();
+        self.key_path = new_key_path.clone();
         self.sync_master_select(window, cx);
         self.rebuild_child_selects(window, cx);
         if emit {
-            cx.emit(InfiniteSelectEvent::Change(value));
+            cx.emit(InfiniteSelectEvent {
+                value,
+                path: new_path,
+                key_path: new_key_path,
+                changed_depth,
+            });
         }
         cx.notify();
     }
@@ -484,27 +1048,67 @@ where
     selects
 }
 
+fn build_levels<T, D>(
+    value: &T,
+    path: &InfiniteSelectPath,
+    key_path: &InfiniteSelectKeyPath,
+    master_select: &Entity<SelectState<D>>,
+    child_selects: &[Entity<SelectState<D>>],
+) -> Vec<InfiniteSelectLevel<D>>
+where
+    T: InfiniteSelect,
+    D: SelectDelegate + 'static,
+{
+    let mut levels = Vec::with_capacity(child_selects.len() + 1);
+    levels.push(InfiniteSelectLevel {
+        depth: 0,
+        label: value.type_label(),
+        description: value.type_description(),
+        select: master_select.clone(),
+        selected_index: path.get(0),
+        selected_key: key_path.get(0).map(str::to_string),
+    });
+
+    levels.extend(child_selects.iter().enumerate().map(|(index, select)| {
+        let depth = index + 1;
+        InfiniteSelectLevel {
+            depth,
+            label: value
+                .child_label_at_depth(index)
+                .unwrap_or_else(|| "".into()),
+            description: value
+                .child_description_at_depth(index)
+                .unwrap_or_else(|| "".into()),
+            select: select.clone(),
+            selected_index: path.get(depth),
+            selected_key: key_path.get(depth).map(str::to_string),
+        }
+    }));
+
+    levels
+}
+
 fn child_items_for_level<T: InfiniteSelect>(
     current_value: &T,
     level: usize,
 ) -> Vec<InfiniteSelectItem<T>> {
-    let (has_more, child_names) = if level == 0 {
+    let (has_more, child_labels) = if level == 0 {
         (
             current_value.has_inner(),
-            current_value.child_variant_names(),
+            current_value.child_variant_labels(),
         )
     } else {
         (
             current_value.inner_has_inner(),
-            current_value.inner_child_variant_names(),
+            current_value.inner_child_variant_labels(),
         )
     };
 
-    if !has_more || child_names.is_empty() {
+    if !has_more || child_labels.is_empty() {
         return Vec::new();
     }
 
-    child_names
+    child_labels
         .into_iter()
         .enumerate()
         .filter_map(|(index, title)| {
@@ -547,4 +1151,15 @@ fn selected_index(row: usize) -> Option<IndexPath> {
         row,
         column: 0,
     })
+}
+
+fn first_changed_depth(previous: &InfiniteSelectPath, next: &InfiniteSelectPath) -> usize {
+    let max_depth = previous.len().max(next.len());
+    for depth in 0..max_depth {
+        if previous.get(depth) != next.get(depth) {
+            return depth;
+        }
+    }
+
+    max_depth.saturating_sub(1)
 }

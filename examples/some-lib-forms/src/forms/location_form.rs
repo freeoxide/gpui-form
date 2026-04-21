@@ -11,7 +11,7 @@ use gpui_component::form::v_form;
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::Select;
 use gpui_component::v_flex;
-use gpui_form::infinite_select::{InfiniteSelect, InfiniteSelectEvent, InfiniteSelectState};
+use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::location::*;
 const CONTEXT: &str = "LocationFormForm";
@@ -64,11 +64,7 @@ impl LocationFormForm {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        match event {
-            InfiniteSelectEvent::Change(value) => {
-                self.current_data.location = value.clone();
-            },
-        }
+        self.current_data.location = event.value().clone();
     }
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = LocationFormFormValueHolder::default();
@@ -175,43 +171,13 @@ impl Render for LocationFormForm {
                             })
                             .child(Input::new(&self.fields.name_input)),
                     )
-                    .child({
-                        let field_state = self.fields.location_infinite_select.read(cx);
-                        let master_select = field_state.master_select();
-                        field()
-                            .label(self.current_data.location.type_label())
-                            .description_fn({
-                                let description = self.current_data.location.type_description();
-                                move |_, _| {
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .gap_1()
-                                        .child(div().child(description.clone()))
-                                }
-                            })
-                            .child(Select::new(&master_select))
-                    })
                     .children({
-                        let child_selects = self
-                            .fields
-                            .location_infinite_select
-                            .read(cx)
-                            .child_selects();
-                        child_selects.into_iter().enumerate().map(|(i, child)| {
+                        let levels = self.fields.location_infinite_select.read(cx).levels();
+                        levels.into_iter().map(|level| {
                             field()
-                                .label(
-                                    self.current_data
-                                        .location
-                                        .child_label_at_depth(i)
-                                        .unwrap_or("".into()),
-                                )
+                                .label(level.label().clone())
                                 .description_fn({
-                                    let description = self
-                                        .current_data
-                                        .location
-                                        .child_description_at_depth(i)
-                                        .unwrap_or("".into());
+                                    let description = level.description().clone();
                                     move |_, _| {
                                         div()
                                             .flex()
@@ -220,7 +186,7 @@ impl Render for LocationFormForm {
                                             .child(div().child(description.clone()))
                                     }
                                 })
-                                .child(Select::new(&child))
+                                .child(Select::new(&level.select()))
                         })
                     })
                     .child(field().label_indent(false).child(self.action_buttons(

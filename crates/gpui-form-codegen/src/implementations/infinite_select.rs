@@ -23,14 +23,21 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             quote! { ::gpui_form::infinite_select::InfiniteSelectState<#r#type> }
         };
 
-        let initial_value_expr = if let Some(default_expr) = options.field_default() {
-            let default_expr = default_expr.clone();
-            quote! { #default_expr }
-        } else if options.use_enum_default() {
-            quote! { <#r#type as ::core::default::Default>::default() }
-        } else {
-            quote! { <#r#type as ::core::default::Default>::default() }
-        };
+        let (initial_value_binding, initial_value_expr) =
+            if let Some(default_expr) = options.field_default() {
+                let default_expr = default_expr.clone();
+                (
+                    quote! {
+                        let __gpui_form_default = #default_expr;
+                    },
+                    quote! { __gpui_form_default },
+                )
+            } else {
+                (
+                    quote! {},
+                    quote! { <#r#type as ::core::default::Default>::default() },
+                )
+            };
 
         let options_expr = if let Some(max_depth) = options.behaviour.max_depth {
             quote! {
@@ -54,6 +61,7 @@ impl super::ComponentLayout for InfiniteSelectComponent {
                 window: &mut ::gpui::Window,
                 cx: &mut ::gpui::Context<'_, #state_type>,
             ) -> #state_type {
+                #initial_value_binding
                 ::gpui_form::infinite_select::InfiniteSelectState::new_with_options(
                     #initial_value_expr,
                     #options_expr,

@@ -158,7 +158,10 @@ pub struct LocationForm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_form::infinite_select::{InfiniteSelect, InfiniteSelectPath, build_from_path};
+    use gpui_form::infinite_select::{
+        InfiniteSelect, InfiniteSelectKeyPath, InfiniteSelectPath, InfiniteSelectPathErrorReason,
+        InfiniteSelectPathSegment, build_from_key_path, build_from_path,
+    };
 
     #[test]
     fn test_depth_calculation() {
@@ -284,6 +287,91 @@ mod tests {
             },
             _ => panic!("Expected Canada"),
         }
+    }
+
+    #[test]
+    fn test_key_path_building() {
+        let path = InfiniteSelectKeyPath::with_keys(vec![
+            "USA".to_string(),
+            "Texas".to_string(),
+            "Austin".to_string(),
+        ]);
+
+        let country: Country = build_from_key_path(&path).expect("key path should be valid");
+
+        match country {
+            Country::USA(state) => match state {
+                USAState::Texas(city) => {
+                    assert_eq!(city.variant_key(), "Austin");
+                },
+                _ => panic!("Expected Texas"),
+            },
+            _ => panic!("Expected USA"),
+        }
+    }
+
+    #[test]
+    fn test_selection_key_path_round_trips_current_value() {
+        let value = Country::Canada {
+            province: CanadaProvince::Quebec(QuebecCity::Longueuil),
+        };
+
+        let rebuilt: Country = build_from_key_path(&value.selection_key_path())
+            .expect("selection_key_path should rebuild the current nested value");
+
+        match rebuilt {
+            Country::Canada { province } => match province {
+                CanadaProvince::Quebec(city) => {
+                    assert_eq!(city.variant_key(), "Longueuil");
+                },
+                _ => panic!("Expected Quebec"),
+            },
+            _ => panic!("Expected Canada"),
+        }
+    }
+
+    #[test]
+    fn test_build_from_path_reports_typed_errors() {
+        let error = build_from_path::<Country>(&InfiniteSelectPath::new())
+            .expect_err("empty paths should return a typed error");
+        assert_eq!(error.depth(), 0);
+        assert_eq!(error.key_or_index(), None);
+        assert_eq!(error.reason(), &InfiniteSelectPathErrorReason::EmptyPath);
+
+        let invalid_path = InfiniteSelectPath::with_indices(vec![0, 99]);
+        let error = build_from_path::<Country>(&invalid_path)
+            .expect_err("invalid child indices should return a typed error");
+        assert_eq!(error.depth(), 1);
+        assert_eq!(
+            error.key_or_index(),
+            Some(&InfiniteSelectPathSegment::Index(99))
+        );
+        assert_eq!(
+            error.reason(),
+            &InfiniteSelectPathErrorReason::InvalidIndex { option_count: 3 }
+        );
+    }
+
+    #[test]
+    fn test_build_from_key_path_reports_typed_errors() {
+        let invalid_path = InfiniteSelectKeyPath::with_keys(vec![
+            "USA".to_string(),
+            "Texas".to_string(),
+            "MoonBase".to_string(),
+        ]);
+        let error = build_from_key_path::<Country>(&invalid_path)
+            .expect_err("unknown child keys should return a typed error");
+
+        assert_eq!(error.depth(), 2);
+        assert_eq!(
+            error.key_or_index(),
+            Some(&InfiniteSelectPathSegment::Key("MoonBase".to_string()))
+        );
+        let InfiniteSelectPathErrorReason::UnknownKey { available_keys } = error.reason() else {
+            panic!("expected unknown-key error");
+        };
+        assert!(available_keys.iter().any(|key| key == "Austin"));
+        assert!(available_keys.iter().any(|key| key == "Houston"));
     }
 
     #[test]

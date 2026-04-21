@@ -44,9 +44,14 @@ Responsibilities:
 
 - represent nested enum variant choices as selectable runtime items
 - track confirmed selection indices with `InfiniteSelectPath`
+- track stable persisted selections with `InfiniteSelectKeyPath`
+- report invalid stored paths with `InfiniteSelectPathError`
 - own the cascading root/child `SelectState`s through `InfiniteSelectState`
+- expose render-ready `InfiniteSelectLevel` / `InfiniteSelectSnapshot` views for
+  form code
 - reconstruct nested enum values from stored paths
-- emit `InfiniteSelectEvent::Change(T)` when the confirmed nested value changes
+- emit `InfiniteSelectEvent<T>` with the rebuilt value, both path forms, and
+  the changed depth
 - expose type/child labels for generated and prototyped UI
 
 ### `date_picker`
@@ -66,11 +71,15 @@ Responsibilities:
 
 1. `gpui-form-derive` generates an `InfiniteSelect` impl for a user enum.
 1. `InfiniteSelectState<T>` constructs the master select, derives child selects,
-   and keeps `InfiniteSelectPath` aligned with the current nested value.
+   keeps both `InfiniteSelectPath` and `InfiniteSelectKeyPath` aligned with the
+   current nested value, and can snapshot the visible levels for rendering.
 1. Generated or prototyped form code subscribes to
-   `InfiniteSelectEvent::Change(T)` instead of managing child-select rebuilds.
-1. `build_from_path` and `path_from_value` convert between concrete values and
-   stored paths when callers need standalone conversion.
+   `InfiniteSelectEvent<T>` and iterates `levels()` / `snapshot()` instead of
+   managing child-select rebuilds.
+1. `build_from_path`, `build_from_key_path`, `path_from_value`, and
+   `key_path_from_value` convert between concrete values and stored paths when
+   callers need standalone conversion; invalid persisted paths return
+   `InfiniteSelectPathError`.
 
 ### Custom components
 
