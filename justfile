@@ -7,10 +7,6 @@ fmt:
     taplo fmt
     uvx mdformat .
 
-update_crate_paths:
-    cargo crate-paths -c gpui -o crates/gpui-form-core/src/implementations/__crate_paths
-    cargo crate-paths -c gpui-component -o crates/gpui-form-core/src/implementations/__crate_paths
-
 clippy:
     cargo clippy --workspace --all-features --exclude some-lib-forms
 
@@ -22,3 +18,8 @@ test:
 
 test-publish:
     cargo publish --workspace --dry-run --allow-dirty
+
+update_crate_paths:
+    cargo crate-paths -c gpui -o __crate_paths__
+    cargo crate-paths -c gpui-component -o __crate_paths__
+    cargo crate-paths -c gpui-form -o __crate_paths__
