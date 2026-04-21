@@ -19,16 +19,16 @@ for shape in inventory::iter::<GpuiFormShape>() {
         .parts()
         .expect("shape metadata should be valid");
 
-    let _field_imports = parts.imports;
+    let _imports = parts.imports;
 }
 ```
 
 ## Main API
 
-- `FormShapeAdapter::parts()` computes the validated, reusable fragments for one
-  shape
-- `FormShapeAdapter::generate_file(&impl FormLayout)` builds a complete
-  `syn::File`
+- `FormShapeAdapter::parts()` returns validated identifiers, imports, and form
+  fragments for one shape
+- `FormShapeAdapter::generate_file(&impl FormLayout)` renders a full file with
+  your chosen layout
 - `FormLayout` lets callers define the overall file structure
 - `PrototypingError` reports malformed metadata without panicking
 
@@ -41,11 +41,10 @@ shows the normal flow:
 1. iterate `inventory::iter::<GpuiFormShape>()`
 1. adapt each shape with `FormShapeAdapter`
 1. render a file through a custom `FormLayout`
-1. format the `syn::File` with `prettyplease`
+1. write the generated form files
 
-Generated infinite-select fields target the runtime `InfiniteSelectState`
-surface directly, including `form_fields()` for rendering and the richer
-`InfiniteSelectEvent<T>` payload for state updates.
+Generated infinite-select fields use the same `InfiniteSelectState` runtime
+helpers that hand-written forms use.
 
 ## Feature Flags
 

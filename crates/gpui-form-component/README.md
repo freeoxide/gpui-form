@@ -14,8 +14,14 @@ when you want the runtime implementation layer without the facade.
 
 ## Infinite Select
 
-`#[derive(InfiniteSelect)]` lives in `gpui-form-derive`; this crate provides the
-runtime trait and helper types that generated code targets.
+Most applications derive `gpui_form::InfiniteSelect` through the facade and use
+the runtime types from `gpui_form::runtime` or
+`gpui_form::infinite_select`. This crate owns the runtime trait and state
+helpers those derives target.
+
+If you want the derive without the full facade, use
+[`gpui-form-component-derive`](../gpui-form-component-derive/README.md) and
+expose this runtime crate to the macro as `gpui_form` in your `Cargo.toml`.
 
 ```rs
 use gpui_form::InfiniteSelect;
@@ -109,8 +115,9 @@ use gpui_form::runtime::date_picker::{
 
 Generated forms store `Entity<DatePickerState>`, render `DatePicker`, and
 convert emitted `DatePickerEvent::Change` values with `parse_form_date`.
-Most application code should still go through [`gpui-form`](../gpui-form/README.md)
-instead of depending on this crate directly.
+Most application code should still go through
+[`gpui-form`](../gpui-form/README.md) instead of depending on this crate
+directly.
 
 ## Storybook Stories
 
@@ -149,7 +156,8 @@ gpui_form::custom_component_shape!(
 );
 ```
 
-Or derive directly on a state type:
+Or, through the facade derive, implement the same contract directly on a state
+type:
 
 ```rs
 #[derive(gpui_form::CustomComponentState)]
@@ -163,6 +171,8 @@ pub struct TagsState;
 ## Most Users Should Use Instead
 
 - [`gpui-form`](../gpui-form/README.md) for the public facade
+- [`gpui-form-component-derive`](../gpui-form-component-derive/README.md) when
+  you want only the `InfiniteSelect` derive plus this runtime layer
 - [`gpui-component`](https://github.com/longbridge/gpui-component) for the
   upstream date-picker widget and other base components
 - [`gpui-form-schema`](../gpui-form-schema/README.md) for metadata and inventory

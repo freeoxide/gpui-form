@@ -32,6 +32,8 @@ crate.
 
 - `InputOptions`
 - `NumberInputOptions`
+- `CheckboxOptions`
+- `SwitchOptions`
 - `SelectOptions`
 - `InfiniteSelectOptions`
 - `CustomOptions`

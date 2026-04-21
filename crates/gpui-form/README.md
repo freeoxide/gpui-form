@@ -15,8 +15,6 @@ It is designed for three things:
 1. Runtime helpers, metadata, and prototyping support around the derive-based
    workflow.
 
-Most application code should start with [`gpui-form`](README.md).
-
 ## Compatibility
 
 | `gpui-form` | `gpui-component` | `gpui` |
@@ -31,10 +29,10 @@ Most application code should start with [`gpui-form`](README.md).
 gpui = { git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
 
-gpui-form = { version = "*", features = ["derive"] }
+gpui-form = "*"
 
 # Optional: inventory registration for prototyping/code generation
-# gpui-form = { version = "*", features = ["derive", "inventory"] }
+# gpui-form = { version = "*", features = ["inventory"] }
 ```
 
 ## Quick Start
@@ -102,6 +100,9 @@ Common field-level helpers:
   allowing prefill from the original model.
 - `#[gpui_form(type = <form_type>, from = <expr>, into = <expr>)]` lets the
   generated form edit a type that differs from the original field type.
+
+`component(infinite_select)` expects the field type to implement
+`gpui_form::InfiniteSelect`, usually by deriving it on the enum tree.
 
 Common struct-level helpers:
 
@@ -280,9 +281,8 @@ for shape in inventory::iter::<GpuiFormShape>() {
 }
 ```
 
-See [`examples/prototyping`](../../examples/prototyping) for a complete generator that
-walks inventory, produces `syn::File`, formats it with `prettyplease`, and
-writes scaffolded GPUI form files.
+See [`examples/prototyping`](../../examples/prototyping) for a complete
+generator that reads shape inventory and writes scaffolded GPUI form files.
 
 ## Examples
 

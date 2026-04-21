@@ -19,7 +19,8 @@ At the moment the crate is intentionally narrow:
 
 ## Numeric Validation Semantics
 
-`numeric.rs` validates editable text before parse-time conversion.
+`numeric.rs` validates editable text before parsing it into the destination
+type.
 
 The helpers intentionally allow intermediate editing states:
 

@@ -8,11 +8,13 @@ examples.
 Source structs and enums that demonstrate the supported derive surface:
 
 - basic input, number input, checkbox, switch, and select fields
+- searchable select, date-picker conversion, and skipped-field workflows
 - nested `InfiniteSelect` enums, including index-path and key-path round trips
   plus typed path-error reporting, custom persisted keys, and key-path string
   serialization
-- custom component state and custom shapes
+- custom component state, local shapes, and cross-crate shapes
 - Koruma validation wiring
+- newtype-backed numeric validation
 - `cfg_attr`-gated derive usage
 - empty forms and date conversion
 
@@ -38,9 +40,7 @@ cargo run -p some-lib-forms
 ## prototyping
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded
-form files into `examples/prototyping/output`. Infinite-select fields are
-emitted against the runtime `InfiniteSelectState` helper, `form_fields()` rendering,
-and a single change event.
+form files into `examples/prototyping/output`.
 
 Run it with:
 

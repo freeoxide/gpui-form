@@ -48,6 +48,8 @@ Those belong in `gpui-form-derive`, `gpui-form-codegen`, and
 1. A user derives `InfiniteSelect` through `gpui-form` or directly through this
    crate.
 1. The macro emits trait impls against `gpui_form::infinite_select`.
+1. Direct users therefore need a crate named `gpui_form` in scope, while facade
+   users get that path automatically from `gpui-form`.
 1. Runtime code in `gpui-form-component` consumes that impl through
    `InfiniteSelectItem`, `InfiniteSelectPath`, `InfiniteSelectKeyPath`, and the
    path reconstruction helpers.

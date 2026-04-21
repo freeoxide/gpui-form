@@ -1,16 +1,25 @@
 # gpui-form-derive
 
-Procedural macros for the `gpui-form` ecosystem.
+Procedural macros behind the `gpui-form` ecosystem.
 
-Most users should depend on [`gpui-form`](../gpui-form/README.md) with the
-default `derive` feature instead of using this crate directly.
+Most users should depend on [`gpui-form`](../gpui-form/README.md) and derive
+from the facade crate. Use this crate directly when you want the proc-macro
+layer without the facade's runtime and metadata re-exports.
 
-## Macros
+## What This Crate Provides
 
-### `#[derive(GpuiForm)]`
+- `#[derive(GpuiForm)]`
+- `#[derive(SelectItem)]`
+- `#[derive(CustomComponentState)]`
 
-Turns a struct into generated form state, helper constructors, and a typed value
-holder.
+`#[derive(InfiniteSelect)]` does not live in this crate. It is provided by
+[`gpui-form-component-derive`](../gpui-form-component-derive/README.md) and
+re-exported by the facade as `gpui_form::InfiniteSelect`.
+
+## `#[derive(GpuiForm)]`
+
+Turns a struct into typed form state plus helper types for editing and
+submission.
 
 ```rs
 use gpui_form::GpuiForm;
@@ -60,7 +69,9 @@ Supporting struct attributes:
 Behavior notes:
 
 - `select` expects enum-like values that can populate a `gpui_component` select
-- `default = ...` also drives the initial selection for `select` and
+- `component(infinite_select)` expects the field type to implement
+  `gpui_form::InfiniteSelect`
+- `default = ...` also seeds the initial selection for `select` and
   `infinite_select`
 - `custom(..., wraps_in_option = false)` keeps the generated value-holder field
   as `T` instead of `Option<T>`
@@ -70,7 +81,7 @@ Behavior notes:
   support and exposes `into_original(...)` instead of an unconditional reverse
   conversion
 
-### `#[derive(SelectItem)]`
+## `#[derive(SelectItem)]`
 
 Implements `gpui_component::select::SelectItem` for enums.
 
@@ -88,44 +99,7 @@ Optional attribute:
 
 - `#[select_item(fluent)]` uses `es-fluent` for titles
 
-### `#[derive(InfiniteSelect)]`
-
-Implements `gpui_form::infinite_select::InfiniteSelect` for nested enums used
-by cascading selects.
-
-```rs
-use gpui_form::InfiniteSelect;
-
-#[derive(Clone, Debug, Default, InfiniteSelect)]
-pub enum Country {
-    #[default]
-    USA(USAState),
-    Canada(CanadaProvince),
-    UK,
-}
-```
-
-Variant attribute:
-
-- `#[tuple_enum(skip)]` omits a variant from the select tree
-- `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
-
-Behavior notes:
-
-- derived enums expose both index paths (`selection_path()`) and key paths
-  (`selection_key_path()`)
-- root option titles use `variant_label()` when fluent label metadata is
-  available, otherwise they fall back to the variant name
-- key-based helpers such as `variant_key()`, `set_child_by_key(...)`, and
-  `set_child_by_key_path(...)` let callers persist selections without relying on
-  enum ordering
-- `InfiniteSelectKeyPath` also supports `Display`, `FromStr`, and serde string
-  round-trips for persisted paths
-- runtime path helpers now return `InfiniteSelectPathError` so invalid persisted
-  paths report the failing depth and bad key/index instead of just returning
-  `None`
-
-### `#[derive(CustomComponentState)]`
+## `#[derive(CustomComponentState)]`
 
 Implements `gpui_form::custom::CustomComponentShape` directly for a state type.
 
@@ -148,6 +122,8 @@ By default, the generated implementation calls `Self::new(window, cx)`.
 
 ## Most Users Should Use Instead
 
-- [`gpui-form`](../gpui-form/README.md) for the facade
-- [`gpui-form-schema`](../gpui-form-schema/README.md) when you need runtime
-  metadata rather than proc-macro expansion
+- [`gpui-form`](../gpui-form/README.md) for the main facade
+- [`gpui-form-component-derive`](../gpui-form-component-derive/README.md) for
+  `#[derive(InfiniteSelect)]`
+- [`gpui-form-schema`](../gpui-form-schema/README.md) when you need metadata
+  rather than derives
