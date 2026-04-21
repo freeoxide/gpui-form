@@ -396,6 +396,34 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
     );
 
+    let selection_path_arms: Vec<_> = variants
+        .iter()
+        .enumerate()
+        .map(|(index, variant)| {
+            let root_index = index;
+            match variant.inner_type.as_ref() {
+                Some(_) => {
+                    let pattern = variant.binding_pattern();
+                    quote! {
+                        #pattern => {
+                            let mut indices = vec![#root_index];
+                            indices.extend(inner.selection_path().indices().iter().copied());
+                            ::gpui_form::infinite_select::InfiniteSelectPath::with_indices(indices)
+                        }
+                    }
+                },
+                None => {
+                    let pattern = variant.ignore_pattern();
+                    quote! {
+                        #pattern => {
+                            ::gpui_form::infinite_select::InfiniteSelectPath::with_indices(vec![#root_index])
+                        }
+                    }
+                },
+            }
+        })
+        .collect();
+
     let inner_child_label_arms = map_variant_arms(
         &variants,
         |variant| {
@@ -509,6 +537,12 @@ pub fn from(input: TokenStream) -> TokenStream {
 
             fn depth() -> usize {
                 #depth_calculation
+            }
+
+            fn selection_path(&self) -> ::gpui_form::infinite_select::InfiniteSelectPath {
+                match self {
+                    #(#selection_path_arms)*
+                }
             }
 
             fn inner_child_variant_names(&self) -> Vec<&'static str> {

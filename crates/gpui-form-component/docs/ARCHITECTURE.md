@@ -19,7 +19,7 @@ schema metadata:
 - `src/lib.rs`: public module surface
 - `src/custom.rs`: `CustomComponentShape` and `custom_component_shape!`
 - `src/infinite_select.rs`: `InfiniteSelect`, `InfiniteSelectItem`,
-  `InfiniteSelectPath`, and path reconstruction helpers
+  `InfiniteSelectPath`, `InfiniteSelectState`, and path reconstruction helpers
 - `src/date_picker.rs`: runtime state and element wrapper for localized date
   editing
 
@@ -44,7 +44,9 @@ Responsibilities:
 
 - represent nested enum variant choices as selectable runtime items
 - track confirmed selection indices with `InfiniteSelectPath`
+- own the cascading root/child `SelectState`s through `InfiniteSelectState`
 - reconstruct nested enum values from stored paths
+- emit `InfiniteSelectEvent::Change(T)` when the confirmed nested value changes
 - expose type/child labels for generated and prototyped UI
 
 ### `date_picker`
@@ -63,11 +65,12 @@ Responsibilities:
 ### Infinite select
 
 1. `gpui-form-derive` generates an `InfiniteSelect` impl for a user enum.
-1. Generated or prototyped form code populates select widgets with
-   `InfiniteSelectItem<T>`.
-1. `InfiniteSelectPath` tracks the confirmed indices per depth level.
-1. `build_from_path` can reconstruct a value from that path when callers need a
-   standalone conversion.
+1. `InfiniteSelectState<T>` constructs the master select, derives child selects,
+   and keeps `InfiniteSelectPath` aligned with the current nested value.
+1. Generated or prototyped form code subscribes to
+   `InfiniteSelectEvent::Change(T)` instead of managing child-select rebuilds.
+1. `build_from_path` and `path_from_value` convert between concrete values and
+   stored paths when callers need standalone conversion.
 
 ### Custom components
 

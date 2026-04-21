@@ -54,6 +54,10 @@ Each component implementation under `src/implementations/` emits two things:
 - field entries for generated `FormFields`
 - constructor functions for generated `FormComponents`
 
+For `infinite_select`, that emitted field/runtime wiring is intentionally
+coarse-grained: generated code stores one runtime `InfiniteSelectState` entity
+per form field rather than separate root/child select entities.
+
 This keeps `GpuiForm` expansion readable: the derive layer handles struct-level
 coordination while per-component files own the field/runtime wiring details.
 

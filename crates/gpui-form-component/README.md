@@ -35,8 +35,34 @@ Useful runtime types:
 - `InfiniteSelect`
 - `InfiniteSelectItem<T>`
 - `InfiniteSelectPath`
+- `InfiniteSelectState<T>`
+- `SearchableInfiniteSelectState<T>`
+- `InfiniteSelectEvent<T>`
+- `InfiniteSelectStateOptions`
 - `to_select_items::<T>()`
+- `path_from_value(&value)`
 - `build_from_path`
+
+Manual forms can subscribe to one runtime entity instead of rebuilding nested
+child selects themselves:
+
+```rs
+use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
+
+let location = cx.new(|cx| {
+    InfiniteSelectState::new(Country::default(), window, cx)
+});
+
+cx.subscribe_in(
+    &location,
+    window,
+    |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
+        if let InfiniteSelectEvent::Change(value) = event {
+            let _ = value;
+        }
+    },
+);
+```
 
 ## Date Picker
 

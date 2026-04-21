@@ -267,6 +267,26 @@ mod tests {
     }
 
     #[test]
+    fn test_selection_path_round_trips_current_value() {
+        let value = Country::Canada {
+            province: CanadaProvince::Quebec(QuebecCity::Longueuil),
+        };
+
+        let rebuilt: Country = build_from_path(&value.selection_path())
+            .expect("selection_path should rebuild the current nested value");
+
+        match rebuilt {
+            Country::Canada { province } => match province {
+                CanadaProvince::Quebec(city) => {
+                    assert_eq!(city.variant_name(), "Longueuil");
+                },
+                _ => panic!("Expected Quebec"),
+            },
+            _ => panic!("Expected Canada"),
+        }
+    }
+
+    #[test]
     fn test_max_depth() {
         assert_eq!(Country::depth(), 3);
         assert_eq!(USAState::depth(), 2);

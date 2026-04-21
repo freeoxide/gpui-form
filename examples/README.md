@@ -23,6 +23,8 @@ This crate demonstrates the cross-crate custom-component shape workflow.
 ## some-lib-forms
 
 Storybook-style GPUI app that renders generated forms around the example types.
+The checked-in `location_form` example shows the runtime-owned
+`InfiniteSelectState` flow instead of manual child-select rebuilding.
 
 Run it with:
 
@@ -33,7 +35,9 @@ cargo run -p some-lib-forms
 ## prototyping
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded
-form files into `examples/prototyping/output`.
+form files into `examples/prototyping/output`. Infinite-select fields are
+emitted against the runtime `InfiniteSelectState` helper and a single change
+event.
 
 Run it with:
 

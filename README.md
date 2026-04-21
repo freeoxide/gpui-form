@@ -110,6 +110,34 @@ Common struct-level helpers:
 - `#[gpui_form(koruma(fluent))]` enables Koruma validation plus fluent error
   rendering.
 
+## Infinite Select Runtime
+
+`component(infinite_select)` fields are backed by
+`gpui_form::infinite_select::InfiniteSelectState`, which owns the root and
+child `SelectState`s and emits a single change event with the rebuilt nested
+value.
+
+```rs
+use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
+
+let location = cx.new(|cx| {
+    InfiniteSelectState::new(Country::default(), window, cx)
+});
+
+cx.subscribe_in(
+    &location,
+    window,
+    |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
+        if let InfiniteSelectEvent::Change(value) = event {
+            let _ = value;
+        }
+    },
+);
+```
+
+Generated and prototyped forms use this runtime state directly, so application
+code does not need to rebuild child selects manually.
+
 ## Validation With Koruma
 
 `gpui-form` can mirror Koruma validation metadata into the generated value
