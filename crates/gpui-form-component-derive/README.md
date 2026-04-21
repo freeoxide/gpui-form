@@ -29,6 +29,13 @@ pub enum Country {
 Variant attribute:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
+- `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
+
+Behavior notes:
+
+- derived enums expose stable `variant_key()` values plus `selection_key_path()`
+- custom keys are validated for uniqueness at macro-expansion time
+- fluent-backed labels still drive `variant_label()` when available
 
 ## Most Users Should Use Instead
 

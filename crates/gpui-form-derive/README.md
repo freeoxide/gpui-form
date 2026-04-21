@@ -108,6 +108,7 @@ pub enum Country {
 Variant attribute:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
+- `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
 
 Behavior notes:
 
@@ -118,6 +119,8 @@ Behavior notes:
 - key-based helpers such as `variant_key()`, `set_child_by_key(...)`, and
   `set_child_by_key_path(...)` let callers persist selections without relying on
   enum ordering
+- `InfiniteSelectKeyPath` also supports `Display`, `FromStr`, and serde string
+  round-trips for persisted paths
 - runtime path helpers now return `InfiniteSelectPathError` so invalid persisted
   paths report the failing depth and bad key/index instead of just returning
   `None`

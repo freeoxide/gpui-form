@@ -6,12 +6,15 @@
 
 use gpui::{
     App, AppContext as _, Context, Empty, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, Render, SharedString, Subscription, Window,
+    IntoElement, ParentElement as _, Render, SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_component::{
     IndexPath,
-    select::{SearchableVec, SelectDelegate, SelectEvent, SelectItem, SelectState},
+    form::{Field, field},
+    select::{SearchableVec, Select, SelectDelegate, SelectEvent, SelectItem, SelectState},
 };
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
+use std::str::FromStr;
 use std::{error::Error, fmt};
 
 /// Trait for infinite-select enums that expose their nested structure.
@@ -317,6 +320,130 @@ impl InfiniteSelectKeyPath {
     }
 }
 
+impl fmt::Display for InfiniteSelectKeyPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, key) in self.keys.iter().enumerate() {
+            if index > 0 {
+                write!(f, "/")?;
+            }
+
+            for ch in key.chars() {
+                match ch {
+                    '\\' => write!(f, "\\\\")?,
+                    '/' => write!(f, "\\/")?,
+                    _ => write!(f, "{ch}")?,
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// A parse failure for the string form of `InfiniteSelectKeyPath`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InfiniteSelectKeyPathParseError {
+    input: String,
+    reason: InfiniteSelectKeyPathParseErrorReason,
+}
+
+impl InfiniteSelectKeyPathParseError {
+    fn dangling_escape(input: &str) -> Self {
+        Self {
+            input: input.to_string(),
+            reason: InfiniteSelectKeyPathParseErrorReason::DanglingEscape,
+        }
+    }
+
+    /// Returns the original string input that failed to parse.
+    pub fn input(&self) -> &str {
+        &self.input
+    }
+
+    /// Returns the typed parse failure reason.
+    pub fn reason(&self) -> &InfiniteSelectKeyPathParseErrorReason {
+        &self.reason
+    }
+}
+
+impl fmt::Display for InfiniteSelectKeyPathParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.reason {
+            InfiniteSelectKeyPathParseErrorReason::DanglingEscape => {
+                write!(
+                    f,
+                    "infinite-select key path {:?} ends with an incomplete escape sequence",
+                    self.input
+                )
+            },
+        }
+    }
+}
+
+impl Error for InfiniteSelectKeyPathParseError {}
+
+/// The reason a string key path could not be parsed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InfiniteSelectKeyPathParseErrorReason {
+    DanglingEscape,
+}
+
+impl FromStr for InfiniteSelectKeyPath {
+    type Err = InfiniteSelectKeyPathParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value.is_empty() {
+            return Ok(Self::new());
+        }
+
+        let mut keys = Vec::new();
+        let mut current = String::new();
+        let mut escaped = false;
+
+        for ch in value.chars() {
+            if escaped {
+                current.push(ch);
+                escaped = false;
+                continue;
+            }
+
+            match ch {
+                '\\' => escaped = true,
+                '/' => {
+                    keys.push(std::mem::take(&mut current));
+                },
+                _ => current.push(ch),
+            }
+        }
+
+        if escaped {
+            return Err(InfiniteSelectKeyPathParseError::dangling_escape(value));
+        }
+
+        keys.push(current);
+        Ok(Self::with_keys(keys))
+    }
+}
+
+impl Serialize for InfiniteSelectKeyPath {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for InfiniteSelectKeyPath {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        value.parse().map_err(D::Error::custom)
+    }
+}
+
 /// Returns the current selection path for a concrete infinite-select value.
 pub fn path_from_value<T: InfiniteSelect>(value: &T) -> InfiniteSelectPath {
     value.selection_path()
@@ -614,6 +741,9 @@ impl InfiniteSelectStateOptions {
 /// Event emitted by `InfiniteSelectState` whenever the selection changes.
 #[derive(Clone)]
 pub struct InfiniteSelectEvent<T: InfiniteSelect> {
+    previous_value: T,
+    previous_path: InfiniteSelectPath,
+    previous_key_path: InfiniteSelectKeyPath,
     value: T,
     path: InfiniteSelectPath,
     key_path: InfiniteSelectKeyPath,
@@ -621,6 +751,21 @@ pub struct InfiniteSelectEvent<T: InfiniteSelect> {
 }
 
 impl<T: InfiniteSelect> InfiniteSelectEvent<T> {
+    /// Returns the concrete selection value before this change.
+    pub fn previous_value(&self) -> &T {
+        &self.previous_value
+    }
+
+    /// Returns the index path before this change.
+    pub fn previous_path(&self) -> &InfiniteSelectPath {
+        &self.previous_path
+    }
+
+    /// Returns the key path before this change.
+    pub fn previous_key_path(&self) -> &InfiniteSelectKeyPath {
+        &self.previous_key_path
+    }
+
     /// Returns the rebuilt concrete selection value.
     pub fn value(&self) -> &T {
         &self.value
@@ -699,6 +844,24 @@ where
     pub fn selected_key(&self) -> Option<&str> {
         self.selected_key.as_deref()
     }
+
+    /// Builds a `gpui_component::form::Field` for this select level.
+    pub fn to_form_field(&self) -> Field {
+        let label = self.label.clone();
+        let description = self.description.clone();
+        let select = self.select.clone();
+
+        field()
+            .label(label)
+            .description_fn(move |_, _| {
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(div().child(description.clone()))
+            })
+            .child(Select::new(&select))
+    }
 }
 
 /// An owned snapshot of the current infinite-select runtime state.
@@ -741,6 +904,14 @@ where
     /// Consumes the snapshot and returns the owned level list.
     pub fn into_levels(self) -> Vec<InfiniteSelectLevel<D>> {
         self.levels
+    }
+
+    /// Returns render-ready GPUI form fields for each select level.
+    pub fn form_fields(&self) -> Vec<Field> {
+        self.levels
+            .iter()
+            .map(InfiniteSelectLevel::to_form_field)
+            .collect()
     }
 }
 
@@ -877,6 +1048,14 @@ where
         }
     }
 
+    /// Returns render-ready GPUI form fields for each visible select level.
+    pub fn form_fields(&self) -> Vec<Field> {
+        self.levels()
+            .into_iter()
+            .map(|level| level.to_form_field())
+            .collect()
+    }
+
     /// Returns the root select entity.
     pub fn master_select(&self) -> Entity<SelectState<D>> {
         self.master_select.clone()
@@ -914,6 +1093,47 @@ where
         let value = build_from_key_path::<T>(key_path)?;
         self.apply_selection(value, None, false, window, cx);
         Ok(())
+    }
+
+    /// Programmatically changes one selection index and resets deeper levels to defaults.
+    pub fn set_selected_index_at_depth(
+        &mut self,
+        depth: usize,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), InfiniteSelectPathError> {
+        if depth > self.path.len() {
+            return Err(InfiniteSelectPathError::missing_selection_options(
+                depth,
+                InfiniteSelectPathSegment::Index(index),
+            ));
+        }
+
+        let mut path = self.path.clone();
+        path.set(depth, index);
+        self.set_path(&path, window, cx)
+    }
+
+    /// Programmatically changes one selection key and resets deeper levels to defaults.
+    pub fn set_selected_key_at_depth(
+        &mut self,
+        depth: usize,
+        key: impl Into<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), InfiniteSelectPathError> {
+        let key = key.into();
+        if depth > self.key_path.len() {
+            return Err(InfiniteSelectPathError::missing_selection_options(
+                depth,
+                InfiniteSelectPathSegment::Key(key),
+            ));
+        }
+
+        let mut key_path = self.key_path.clone();
+        key_path.set(depth, key);
+        self.set_key_path(&key_path, window, cx)
     }
 
     fn max_depth(&self) -> usize {
@@ -960,10 +1180,13 @@ where
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let previous_value = self.value.clone();
+        let previous_path = self.path.clone();
+        let previous_key_path = self.key_path.clone();
         let new_path = path_from_value(&value);
         let new_key_path = key_path_from_value(&value);
         let changed_depth =
-            changed_depth.unwrap_or_else(|| first_changed_depth(&self.path, &new_path));
+            changed_depth.unwrap_or_else(|| first_changed_depth(&previous_path, &new_path));
 
         self.value = value.clone();
         self.path = new_path.clone();
@@ -972,6 +1195,9 @@ where
         self.rebuild_child_selects(window, cx);
         if emit {
             cx.emit(InfiniteSelectEvent {
+                previous_value,
+                previous_path,
+                previous_key_path,
                 value,
                 path: new_path,
                 key_path: new_key_path,

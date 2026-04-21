@@ -40,10 +40,15 @@ icu_calendar = { workspace = true }
 icu_datetime = { workspace = true }
 icu_locale_core = { workspace = true }
 jiff = { workspace = true }
+serde = { workspace = true }
 strum = { optional = true, workspace = true }
 
 [build-dependencies]
 es-fluent = { features = [ "build" ], workspace = true }
+
+[dev-dependencies]
+gpui-form-component-derive = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

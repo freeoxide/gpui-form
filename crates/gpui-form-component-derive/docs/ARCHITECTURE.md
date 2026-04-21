@@ -23,10 +23,12 @@ Responsibilities:
 - parse unit, single-field tuple, and single-field struct variants
 - support `#[tuple_enum(skip)]` for variants that should not appear in the
   select tree
+- support `#[tuple_enum(key = "...")]` for persisted key overrides
 - emit recursive child traversal methods that match the runtime contract in
   `gpui-form-component`
 - optionally wire `fluent_kv` label/description metadata into type and child
   labels
+- validate that persisted keys stay unique within one enum
 
 ## Dependency Role
 
@@ -47,7 +49,8 @@ Those belong in `gpui-form-derive`, `gpui-form-codegen`, and
    crate.
 1. The macro emits trait impls against `gpui_form::infinite_select`.
 1. Runtime code in `gpui-form-component` consumes that impl through
-   `InfiniteSelectItem`, `InfiniteSelectPath`, and `build_from_path`.
+   `InfiniteSelectItem`, `InfiniteSelectPath`, `InfiniteSelectKeyPath`, and the
+   path reconstruction helpers.
 1. `GpuiForm` and prototyping output can then build cascading selects on top of
    those runtime helpers.
 

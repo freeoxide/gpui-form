@@ -3,14 +3,13 @@ use gpui::{
     Styled as _, Subscription, Window, div,
 };
 use gpui_component::form::v_form;
-use gpui_component::select::Select;
 
 use crate::InfiniteSelect;
 use crate::infinite_select::{
     InfiniteSelectEvent, InfiniteSelectState, build_from_key_path, build_from_path,
 };
 
-use super::common::{story_field, story_panel};
+use super::common::story_panel;
 
 type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
 
@@ -18,6 +17,7 @@ type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
 pub struct InfiniteSelectStory {
     select_state: Entity<DeploymentSelectState>,
     last_changed_depth: Option<usize>,
+    last_previous_key_path: Option<String>,
     _subscription: Subscription,
 }
 
@@ -50,6 +50,7 @@ impl InfiniteSelectStory {
         Self {
             select_state,
             last_changed_depth: None,
+            last_previous_key_path: None,
             _subscription: subscription,
         }
     }
@@ -62,6 +63,7 @@ impl InfiniteSelectStory {
         _cx: &mut Context<Self>,
     ) {
         self.last_changed_depth = Some(event.changed_depth());
+        self.last_previous_key_path = Some(event.previous_key_path().to_string());
     }
 }
 
@@ -71,13 +73,10 @@ impl Render for InfiniteSelectStory {
         let path = snapshot.path().clone();
         let key_path = snapshot.key_path().clone();
 
-        let form = snapshot.levels().iter().fold(v_form(), |form, level| {
-            form.child(story_field(
-                level.label().clone(),
-                level.description().clone(),
-                Select::new(&level.select()),
-            ))
-        });
+        let form = snapshot
+            .form_fields()
+            .into_iter()
+            .fold(v_form(), |form, field| form.child(field));
 
         let rebuilt = build_from_path::<DeploymentTarget>(&path)
             .map(|value| value.summary())
@@ -101,6 +100,12 @@ impl Render for InfiniteSelectStory {
                     .child(format!("Path keys: {:?}", key_path.keys()))
                     .child(format!("Rebuilt from path: {rebuilt}"))
                     .child(format!("Rebuilt from keys: {rebuilt_from_keys}"))
+                    .child(format!(
+                        "Previous key path: {}",
+                        self.last_previous_key_path
+                            .clone()
+                            .unwrap_or_else(|| "None".to_string())
+                    ))
                     .child(format!(
                         "Last changed depth: {}",
                         self.last_changed_depth

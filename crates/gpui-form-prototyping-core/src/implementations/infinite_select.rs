@@ -14,10 +14,9 @@ use super::{
 
 pub struct InfiniteSelectCodeGenerator;
 
-const IMPORTS_BASE: &[ImportItem] = &[
-    ImportItem::path("gpui_component::select::Select"),
-    ImportItem::path("gpui_form::infinite_select::InfiniteSelectEvent"),
-];
+const IMPORTS_BASE: &[ImportItem] = &[ImportItem::path(
+    "gpui_form::infinite_select::InfiniteSelectEvent",
+)];
 
 impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
     fn generate_imports(&self, field: &FieldVariant) -> Vec<ImportItem> {
@@ -87,24 +86,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         let field_state_ident = field.field_ident_with_behaviour();
 
         quote! {
-            .children({
-                let levels = self.fields.#field_state_ident.read(cx).levels();
-                levels.into_iter().map(|level| {
-                    field()
-                        .label(level.label().clone())
-                        .description_fn({
-                            let description = level.description().clone();
-                            move |_, _| {
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_1()
-                                    .child(div().child(description.clone()))
-                            }
-                        })
-                        .child(Select::new(&level.select()))
-                })
-            })
+            .children(self.fields.#field_state_ident.read(cx).form_fields())
         }
     }
 

@@ -36,6 +36,7 @@ Useful runtime types:
 - `InfiniteSelectItem<T>`
 - `InfiniteSelectPath`
 - `InfiniteSelectKeyPath`
+- `InfiniteSelectKeyPathParseError`
 - `InfiniteSelectPathError`
 - `InfiniteSelectState<T>`
 - `SearchableInfiniteSelectState<T>`
@@ -66,20 +67,17 @@ cx.subscribe_in(
         let _value = event.value();
         let _path = event.path();
         let _key_path = event.key_path();
+        let _previous_key_path = event.previous_key_path();
         let _changed_depth = event.changed_depth();
     },
 );
 ```
 
-Rendering code can iterate the runtime-owned field levels directly:
+Rendering code can iterate render-ready form fields directly:
 
 ```rs
-let snapshot = location.read(cx).snapshot();
-
-for level in snapshot.levels() {
-    let _label = level.label();
-    let _description = level.description();
-    let _select = level.select();
+for field in location.read(cx).form_fields() {
+    let _ = field;
 }
 ```
 
@@ -87,7 +85,10 @@ Derived `InfiniteSelect` enums now also expose:
 
 - `variant_label()` for user-facing option titles
 - `variant_key()` plus `selection_key_path()` for order-independent paths
+- `#[tuple_enum(key = "...")]` when persisted keys should not mirror variant names
 - `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
+- `InfiniteSelectKeyPath` implements `Display`, `FromStr`, and serde string serialization
+- `set_selected_index_at_depth(...)` / `set_selected_key_at_depth(...)` for incremental updates
 - `build_from_path(...)`, `build_from_key_path(...)`, `set_path(...)`, and
   `set_key_path(...)` return `InfiniteSelectPathError` instead of failing
   silently

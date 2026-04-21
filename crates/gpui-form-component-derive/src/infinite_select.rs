@@ -1,6 +1,7 @@
 use darling::{FromDeriveInput, FromVariant};
 use proc_macro::TokenStream;
 use quote::quote;
+use std::collections::HashMap;
 use syn::{DeriveInput, Ident, Type};
 
 #[derive(FromVariant)]
@@ -10,6 +11,8 @@ struct VariantArgs {
     fields: darling::ast::Fields<syn::Field>,
     #[darling(default)]
     skip: bool,
+    #[darling(default)]
+    key: Option<String>,
 }
 
 #[derive(FromDeriveInput)]
@@ -22,6 +25,7 @@ struct InfiniteSelectArgs {
 
 struct VariantInfo {
     ident: Ident,
+    key: String,
     inner_type: Option<Type>,
     field_name: Option<Ident>,
     is_unit: bool,
@@ -233,6 +237,10 @@ pub fn from(input: TokenStream) -> TokenStream {
                 let is_unit = inner_type.is_none();
                 Ok(VariantInfo {
                     ident: variant.ident.clone(),
+                    key: variant
+                        .key
+                        .clone()
+                        .unwrap_or_else(|| variant.ident.to_string()),
                     inner_type,
                     field_name,
                     is_unit,
@@ -246,6 +254,22 @@ pub fn from(input: TokenStream) -> TokenStream {
         Ok(variants) => variants,
         Err(err) => return err.to_compile_error().into(),
     };
+
+    let mut seen_keys = HashMap::new();
+    for variant in &variants {
+        if let Some(previous_variant) = seen_keys.insert(variant.key.clone(), variant.ident.clone())
+        {
+            return syn::Error::new_spanned(
+                &variant.ident,
+                format!(
+                    "duplicate infinite-select key {:?} on variants `{}` and `{}`",
+                    variant.key, previous_variant, variant.ident
+                ),
+            )
+            .to_compile_error()
+            .into();
+        }
+    }
 
     let all_unit = variants.iter().all(|variant| variant.is_unit);
 
@@ -270,7 +294,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         .iter()
         .map(|variant| {
             let pattern = variant.ignore_pattern();
-            let key = variant.ident.to_string();
+            let key = &variant.key;
             quote! { #pattern => #key, }
         })
         .collect();
@@ -587,7 +611,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     let selection_key_path_arms: Vec<_> = variants
         .iter()
         .map(|variant| {
-            let root_key = variant.ident.to_string();
+            let root_key = &variant.key;
             match variant.inner_type.as_ref() {
                 Some(_) => {
                     let pattern = variant.binding_pattern();
@@ -857,7 +881,8 @@ pub fn from(input: TokenStream) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::FluentKvOptions;
+    use super::{FluentKvOptions, VariantArgs};
+    use darling::FromVariant;
 
     #[test]
     fn fluent_kv_options_merge_across_attributes() {
@@ -884,5 +909,17 @@ mod tests {
         let attrs = vec![syn::parse_quote!(#[fluent_kv(keys = "label")])];
 
         assert!(FluentKvOptions::from_attrs(&attrs).is_err());
+    }
+
+    #[test]
+    fn variant_args_parse_custom_key() {
+        let variant: syn::Variant = syn::parse_quote!(
+            #[tuple_enum(key = "docs/reference")]
+            Docs
+        );
+
+        let args = VariantArgs::from_variant(&variant).expect("variant attrs should parse");
+
+        assert_eq!(args.key.as_deref(), Some("docs/reference"));
     }
 }

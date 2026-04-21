@@ -44,7 +44,7 @@ shows the normal flow:
 1. format the `syn::File` with `prettyplease`
 
 Generated infinite-select fields target the runtime `InfiniteSelectState`
-surface directly, including `levels()` for rendering and the richer
+surface directly, including `form_fields()` for rendering and the richer
 `InfiniteSelectEvent<T>` payload for state updates.
 
 ## Feature Flags

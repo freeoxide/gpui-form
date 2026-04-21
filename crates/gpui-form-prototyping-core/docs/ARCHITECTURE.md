@@ -31,7 +31,7 @@ This crate exists to:
    handlers, imports, subscriptions, and initialization code.
    Infinite-select fields are generated against one runtime
    `InfiniteSelectState` subscription instead of raw select-tree glue code,
-   render through `InfiniteSelectState::levels()`, and consume the richer
+   render through `InfiniteSelectState::form_fields()`, and consume the richer
    `InfiniteSelectEvent<T>` payload directly.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or

@@ -5,7 +5,6 @@ use gpui::prelude::FluentBuilder as _;
 use gpui_component::ActiveTheme as _;
 use gpui_component::form::field;
 use gpui_component::input::{Input, InputEvent, InputState};
-use gpui_component::select::Select;
 use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use es_fluent::ThisFtl as _;
 use gpui::{
@@ -190,30 +189,9 @@ impl Render for LocationFormForm {
                             })
                             .child(Input::new(&self.fields.name_input)),
                     )
-                    .children({
-                        let levels = self
-                            .fields
-                            .location_infinite_select
-                            .read(cx)
-                            .levels();
-                        levels
-                            .into_iter()
-                            .map(|level| {
-                                field()
-                                    .label(level.label().clone())
-                                    .description_fn({
-                                        let description = level.description().clone();
-                                        move |_, _| {
-                                            div()
-                                                .flex()
-                                                .flex_col()
-                                                .gap_1()
-                                                .child(div().child(description.clone()))
-                                        }
-                                    })
-                                    .child(Select::new(&level.select()))
-                            })
-                    })
+                    .children(
+                        self.fields.location_infinite_select.read(cx).form_fields(),
+                    )
                     .child(
                         field()
                             .label_indent(false)
