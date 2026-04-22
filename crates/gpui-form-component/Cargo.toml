@@ -12,13 +12,13 @@ repository.workspace = true
 readme = "README.md"
 
 [[bin]]
-name = "gpui-form-component"
-path = "src/main.rs"
-required-features = [ "storybook" ]
+name = "story"
+path = "src/bin/story.rs"
+required-features = ["story"]
 
 [features]
-derive = [ "dep:gpui-form-component-derive" ]
-storybook = [
+derive = ["dep:gpui-form-component-derive"]
+story = [
   "derive",
   "dep:es-fluent",
   "dep:es-fluent-lang",
@@ -29,12 +29,12 @@ storybook = [
 
 [dependencies]
 chrono = { workspace = true }
-es-fluent = { features = [ "derive" ], optional = true, workspace = true }
+es-fluent = { features = ["derive"], optional = true, workspace = true }
 es-fluent-lang = { optional = true, workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-form-component-derive = { optional = true, workspace = true }
-gpui-storybook = { features = [ "macros" ], optional = true, workspace = true }
+gpui-storybook = { features = ["macros"], optional = true, workspace = true }
 gpui_platform = { optional = true, workspace = true }
 icu_calendar = { workspace = true }
 icu_datetime = { workspace = true }
@@ -44,7 +44,7 @@ serde = { workspace = true }
 strum = { optional = true, workspace = true }
 
 [build-dependencies]
-es-fluent = { features = [ "build" ], workspace = true }
+es-fluent = { features = ["build"], workspace = true }
 
 [dev-dependencies]
 gpui-form-component-derive = { workspace = true }
