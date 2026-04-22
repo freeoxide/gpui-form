@@ -14,7 +14,7 @@ keywords = [ "gpui", "gpui-component", "form" ]
 
 [features]
 default = [ "derive" ]
-derive = [ "dep:gpui-form-derive" ]
+derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
 
 [dependencies]

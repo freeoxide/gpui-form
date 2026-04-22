@@ -14,156 +14,60 @@ impl super::ComponentLayout for InfiniteSelectComponent {
             r#type,
         } = &self.0;
 
-        let master_field_name = quote::format_ident!("{}_master_select", name);
-        let path_field_name = quote::format_ident!("{}_path", name);
-
+        let field_name_ident = crate::component_field_name!(name);
         let searchable = options.behaviour.searchable;
 
-        let vec_type = if searchable {
-            quote! { ::gpui_component::select::SearchableVec }
+        let state_type = if searchable {
+            quote! { ::gpui_form::infinite_select::SearchableInfiniteSelectState<#r#type> }
         } else {
-            quote! { Vec }
+            quote! { ::gpui_form::infinite_select::InfiniteSelectState<#r#type> }
         };
 
-        let master_state_type = quote! {
-            ::gpui_component::select::SelectState<
-                #vec_type<::gpui_form::infinite_select::InfiniteSelectItem<#r#type>>
-            >
-        };
-
-        let child_selects_field_name = quote::format_ident!("{}_child_selects", name);
-
-        // Generate field structure definitions
-        let field_structure_definition = quote! {
-            /// The master select for choosing the top-level variant
-            pub #master_field_name: ::gpui::Entity<#master_state_type>,
-            /// The dynamic list of child selects for nested variants
-            pub #child_selects_field_name: Vec<::gpui::Entity<#master_state_type>>,
-            /// The selection path tracking all levels of the hierarchy
-            pub #path_field_name: ::gpui_form::infinite_select::InfiniteSelectPath,
-        };
-
-        // Generate initialization methods
-        let index = if let Some(default_expr) = options.field_default() {
-            let default_expr = default_expr.clone();
-            quote! {
-                {
-                    let __gpui_form_default = #default_expr;
-                    <#r#type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
-                        .iter()
-                        .position(|x| x.variant_name() == __gpui_form_default.variant_name())
-                        .map(::gpui_component::IndexPath::new)
-                }
-            }
-        } else if options.use_enum_default() {
-            quote! {
-                Some(::gpui_component::IndexPath::new(0))
-            }
-        } else {
-            quote! { None }
-        };
-
-        let max_depth_expr = if let Some(max_depth) = options.behaviour.max_depth {
-            quote! {
-                ::core::cmp::max(
-                    1usize,
-                    ::core::cmp::min(
-                        <#r#type as InfiniteSelect>::depth(),
-                        #max_depth
-                    )
+        let (initial_value_binding, initial_value_expr) =
+            if let Some(default_expr) = options.field_default() {
+                let default_expr = default_expr.clone();
+                (
+                    quote! {
+                        let __gpui_form_default = #default_expr;
+                    },
+                    quote! { __gpui_form_default },
                 )
+            } else {
+                (
+                    quote! {},
+                    quote! { <#r#type as ::core::default::Default>::default() },
+                )
+            };
+
+        let options_expr = if let Some(max_depth) = options.behaviour.max_depth {
+            quote! {
+                ::gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+                    .searchable(#searchable)
+                    .max_depth(#max_depth)
             }
         } else {
-            quote! { <#r#type as InfiniteSelect>::depth() }
+            quote! {
+                ::gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+                    .searchable(#searchable)
+            }
+        };
+
+        let field_structure_definition = quote! {
+            pub #field_name_ident: ::gpui::Entity<#state_type>,
         };
 
         let field_base_declaration = quote! {
-            /// Initialize the master select for the infinite select enum outer variants
-            pub fn #master_field_name(
+            pub fn #field_name_ident(
                 window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<'_, #master_state_type>,
-            ) -> #master_state_type {
-                let items: Vec<::gpui_form::infinite_select::InfiniteSelectItem<#r#type>> =
-                    ::gpui_form::infinite_select::to_select_items::<#r#type>();
-
-                ::gpui_component::select::SelectState::new(items.into(), #index, window, cx)
-            }
-
-            /// Get the child variant names for a given parent value.
-            /// Returns the names of variants available at the next level.
-            pub fn #path_field_name(parent: &#r#type) -> Vec<&'static str> {
-                use ::gpui_form::infinite_select::InfiniteSelect as _;
-                parent.child_variant_names()
-            }
-
-            /// Rebuilds the child selects for a given parent value.
-            /// This iterates through the depth of the structure and creates selects for each level
-            /// where children exist.
-            pub fn #child_selects_field_name<V>(
-                parent: &#r#type,
-                start_level: usize,
-                window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<V>
-            ) -> Vec<::gpui::Entity<#master_state_type>>
-            where V: 'static
-            {
-                use ::gpui_form::infinite_select::{InfiniteSelect, InfiniteSelectItem};
-                use ::gpui::AppContext;
-                use ::gpui_component::IndexPath;
-                use ::gpui_component::select::SelectState;
-
-                let max_depth = #max_depth_expr;
-                let mut current_value = parent.clone();
-                let mut selects = Vec::new();
-
-                for level in start_level..(max_depth - 1) {
-                    let (child_names, has_more) = if level == 0 {
-                        (current_value.child_variant_names(), current_value.has_inner())
-                    } else {
-                        (current_value.inner_child_variant_names(), current_value.inner_has_inner())
-                    };
-
-                    if !has_more || child_names.is_empty() {
-                        break;
-                    }
-
-                    // Create items for this level
-                    let items: Vec<InfiniteSelectItem<#r#type>> = child_names
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(idx, name)| {
-                            let variant = if level == 0 {
-                                current_value.set_child_by_index(idx)
-                            } else {
-                                current_value.inner_set_child_by_index(idx)
-                            };
-                            variant.map(|v| InfiniteSelectItem::new(v, name.to_string()))
-                        })
-                        .collect();
-
-                    if items.is_empty() {
-                        break;
-                    }
-
-                    // Default to first item selected
-                    let selected_index = Some(IndexPath {
-                        section: 0,
-                        row: 0,
-                        column: 0,
-                    });
-
-                    let child_select = cx.new(|cx| SelectState::new(items.clone(), selected_index, window, cx));
-                    selects.push(child_select);
-
-                    // Move to the first child for the next iteration
-                    if let Some(first_item) = items.first() {
-                        current_value = first_item.get_value().clone();
-                    } else {
-                        break;
-                    }
-                }
-
-                selects
+                cx: &mut ::gpui::Context<'_, #state_type>,
+            ) -> #state_type {
+                #initial_value_binding
+                ::gpui_form::infinite_select::InfiniteSelectState::new_with_options(
+                    #initial_value_expr,
+                    #options_expr,
+                    window,
+                    cx,
+                )
             }
         };
 

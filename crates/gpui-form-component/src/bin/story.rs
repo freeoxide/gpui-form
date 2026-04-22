@@ -3,12 +3,12 @@ use es_fluent_lang::es_fluent_language;
 use gpui_storybook::{Assets, Gallery};
 use strum::EnumIter;
 
-// bring the stories in scope for inventory
+// Bring the library target into scope so story inventory registrations are linked.
 #[allow(unused_imports, clippy::single_component_path_imports)]
-use some_lib_forms;
+use gpui_form_component;
 
 #[es_fluent_language]
-#[derive(Clone, Copy, Debug, EnumIter, EsFluent, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, EsFluent, PartialEq)]
 pub enum Languages {}
 
 fn main() {

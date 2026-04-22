@@ -5,7 +5,7 @@ This file is the working guide for contributors and coding agents in the `gpui-f
 Use it to answer three questions quickly:
 
 1. Where does this documentation belong?
-1. Which crates are the default entry points vs integration points vs internals?
+1. Which crates are public entry points versus integration points versus internals?
 1. What other surfaces must be updated in the same change?
 
 ## Project summary
@@ -26,15 +26,15 @@ Reach for `crates/gpui-form-prototyping-core` when you want to generate GPUI sca
 
 These labels describe the crate or surface itself, not the documentation file you are editing:
 
-- **User-facing**: normal entry points for application developers.
-- **Public integration**: public crates meant for extensions, lower-level runtime access, tooling, or deeper customization, but not usually the default starting point.
-- **Internal**: workspace plumbing, parse-time/token-generation internals, examples, and maintenance surfaces.
+- **User-facing**: Normal entry points for application developers.
+- **Public integration**: Public crates meant for extensions, lower-level runtime access, tooling, or deeper customization. These are not usually the default starting point.
+- **Internal**: Workspace plumbing, parse-time and token-generation internals, examples, and maintenance surfaces.
 
 ## Documentation rules
 
 ### User-facing documentation
 
-These surfaces are user-facing:
+These surfaces are always user-facing:
 
 - the root `README.md`,
 - `examples/README.md`,
@@ -83,7 +83,7 @@ Additional rules:
 
 ## Workspace map
 
-### Main user-facing entry point
+### Main user-facing entry points
 
 - `crates/gpui-form`
   Audience: **User-facing**
@@ -115,7 +115,7 @@ Additional rules:
 - `crates/gpui-form-prototyping-core`
   Audience: **Public integration**
   Docs: [Architecture](crates/gpui-form-prototyping-core/docs/ARCHITECTURE.md)
-  Role: prototyping/codegen helpers that consume `GpuiFormShape` inventory data and generate scaffolded form code.
+  Role: prototyping and code-generation helpers that consume `GpuiFormShape` inventory data and generate scaffolded form code.
 
 ### Internal crates
 
@@ -169,15 +169,14 @@ Additional rules:
 
 - When adding or changing a component, update `gpui-form-codegen` component parsing and layout, `gpui-form-schema` runtime behavior metadata, and `gpui-form-prototyping-core` `FieldCodeGenerator` mapping together.
 - Update user-facing docs for supported components and usage syntax in the same change.
-- Keep facade re-exports and lower-level runtime/types aligned when generated code paths change.
+- Keep facade re-exports and lower-level runtime and type surfaces aligned when generated code paths change.
 
 ### When editing prototyping or generated outputs
 
-- Ignore all folders matching `**/__crate_paths/**`; they are generated.
 - Prefer changing the source generator or inventory metadata over hand-editing generated output.
 - Keep `examples/prototyping` aligned with `gpui-form-prototyping-core` when shape metadata or emitted layout changes.
 
 ### When writing tests
 
 - Prefer focused crate-level tests near the changed subsystem.
-- For macro or token-generation changes, test emitted behavior at the derive/codegen boundary rather than only the lowest-level helper.
+- For macro or token-generation changes, test emitted behavior at the derive and codegen boundary rather than only the lowest-level helper.

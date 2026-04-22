@@ -1,10 +1,10 @@
 # gpui-form-derive Architecture
 
-`gpui-form-derive` owns the proc-macro entry points for the workspace.
+`gpui-form-derive` owns the main proc-macro entry points for the workspace.
 
-It parses user structs and enums, delegates parse-time component modeling to
+It parses user structs and enums, delegates component modeling to
 `gpui-form-codegen`, and emits the generated types and inventory metadata that
-make the rest of the ecosystem work.
+power the rest of the ecosystem.
 
 ## Entry Points
 
@@ -12,8 +12,11 @@ make the rest of the ecosystem work.
 
 - `#[derive(GpuiForm)]`
 - `#[derive(SelectItem)]`
-- `#[derive(InfiniteSelect)]`
 - `#[derive(CustomComponentState)]`
+
+`#[derive(InfiniteSelect)]` is not part of this crate. It lives in
+`gpui-form-component-derive` and is re-exported by the facade as
+`gpui_form::InfiniteSelect`.
 
 ## Module Layout
 
@@ -27,16 +30,16 @@ make the rest of the ecosystem work.
 - `src/derives/gpui_form/cfg_attr.rs`: `cfg_attr` flattening before parse-time
   inspection
 - `src/derives/select_item.rs`: `SelectItem` expansion
-- `src/derives/infinite_select.rs`: `InfiniteSelect` expansion
 - `src/derives/custom_component_state.rs`: `CustomComponentState` expansion
 
 ## `GpuiForm` Expansion Pipeline
 
 1. Parse the input with `syn`.
-1. Flatten `cfg_attr` wrappers so downstream parsing sees effective attributes.
+1. Flatten `cfg_attr` wrappers so downstream parsing sees effective
+   `#[gpui_form(...)]` data.
 1. Parse struct-level and field-level `#[gpui_form(...)]` data with `darling`.
 1. Parse Koruma field metadata through `koruma-derive-core`.
-1. For each component field, delegate parse-time component handling to
+1. For each component field, delegate component-specific modeling to
    `gpui-form-codegen`.
 1. Emit:
    - `FormFields`
@@ -47,7 +50,7 @@ make the rest of the ecosystem work.
 
 ## Value Holder Responsibilities
 
-`value_holder.rs` is the densest part of the derive implementation. It owns:
+`value_holder.rs` owns:
 
 - optionality normalization between model fields and editable form state
 - default-value seeding
@@ -59,15 +62,15 @@ Important behaviors:
 
 - originally optional fields stay optional in the holder
 - input-style fields usually wrap in `Option<T>` to represent empty UI state
-- skipped fields are still prefilled when converting from the original model into
-  the holder
+- skipped fields are still prefilled when converting from the original model
+  into the holder
 - reverse conversion becomes explicit `into_original(...)` when skipped fields
-  prevent a fully automatic roundtrip
+  prevent a fully automatic round trip
 
 ## Koruma Integration
 
-`GpuiForm` can enable Koruma-aware holder generation even when the source struct
-only contains field-level `#[koruma(...)]` attributes.
+`GpuiForm` can enable Koruma-aware holder generation even when the source
+struct only contains field-level `#[koruma(...)]` attributes.
 
 The derive layer:
 
@@ -84,8 +87,9 @@ When the `inventory` feature is enabled:
 1. `GpuiForm` emits one `GpuiFormShape` per derived struct.
 1. Each field becomes a `FieldVariant` with behavior metadata from
    `gpui-form-codegen`.
-1. metadata includes validation rule identifiers, defaults, full value type
-   paths, and skipped-field information for downstream generators.
+1. Metadata includes validation rule identifiers, defaults, full value type
+   paths, custom component UI paths, and skipped-field information for
+   downstream generators.
 
 ## Other Derives
 
@@ -93,12 +97,6 @@ When the `inventory` feature is enabled:
 
 - implements `gpui_component::select::SelectItem`
 - optionally uses `es-fluent` titles through `#[select_item(fluent)]`
-
-### `InfiniteSelect`
-
-- emits an `InfiniteSelect` impl for nested enums
-- supports unit, tuple, and single-field struct variants
-- drives the runtime cascading-select API in `gpui-form-component`
 
 ### `CustomComponentState`
 
@@ -115,6 +113,10 @@ When adding a component or attribute:
 1. update `gpui-form-schema` metadata emission
 1. update `gpui-form-prototyping-core` generator support
 1. update user-facing docs in the facade README and derive README
+
+If the change also affects `InfiniteSelect`, update
+`gpui-form-component-derive`, `gpui-form-component`, and their docs in the same
+change.
 
 ## Tests
 

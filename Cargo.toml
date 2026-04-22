@@ -5,6 +5,7 @@ members = [
   "crates/gpui-form-core",
   "crates/gpui-form-codegen",
   "crates/gpui-form-component",
+  "crates/gpui-form-component-derive",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-prototyping-core",
@@ -29,17 +30,17 @@ anyhow = "1.0"
 bon = "3.9"
 chrono = "0.4"
 crabtime = "1.1"
-crate-paths = "0.2"
 darling = "0.23"
 derive_more = "2.1"
 es-fluent = "0.15"
 es-fluent-lang = "0.15"
 es-fluent-manager-embedded = "0.15"
-gpui = { git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
+gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.5.1" }
 gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.1" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
@@ -50,7 +51,7 @@ gpui_platform = { features = [
   "x11",
   "wayland",
   "runtime_shaders",
-], git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
+], git = "https://github.com/zed-industries/zed", rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b" }
 heck = "0.5.0"
 icu_calendar = "2.2.0"
 icu_datetime = "2.2.0"
@@ -64,6 +65,7 @@ koruma-collection = "0.8"
 koruma-derive-core = "0.8"
 log = "0.4"
 prettyplease = "0.2"
+proc-macro-crate = "3.2"
 proc-macro-error2 = "2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
@@ -80,7 +82,7 @@ unic-langid = "0.9"
 unicode-segmentation = "1.12"
 
 [replace]
-"https://github.com/zed-industries/zed#gpui@0.2.2" = { git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
+"https://github.com/zed-industries/zed#gpui@0.2.2" = { git = "https://github.com/zed-industries/zed", rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b" }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "deny" }

@@ -2,23 +2,25 @@
 
 `gpui-form` is the facade crate and compatibility boundary for the workspace.
 Application crates should be able to depend on this crate alone and get the
-derive macros, runtime helpers, schema types, and compatibility re-exports they
-need.
+derive macros, runtime helpers, schema types, and compatibility re-exports
+they need.
 
 ## Purpose
 
 This crate exists to:
 
 1. present a stable public entry point
-1. centralize feature flags that gate proc-macro behavior
-1. preserve root-level compatibility re-exports even when lower-level crates
-   evolve
+1. centralize public feature flags
+1. re-export lower-level crates under consistent paths
+1. preserve compatibility re-exports for older generated code and examples
 
 ## Public Surface
 
 `src/lib.rs` re-exports:
 
-- `gpui_form_derive::*` behind the `derive` feature
+- `gpui_form_derive::{CustomComponentState, GpuiForm, SelectItem}` behind the
+  `derive` feature
+- `gpui_form_component::InfiniteSelect` behind the `derive` feature
 - `gpui_form_component` as `gpui_form::runtime`
 - `gpui_form_component::custom`
 - `gpui_form_component::date_picker`
@@ -33,9 +35,13 @@ paths. Root-level module re-exports remain for compatibility.
 
 ## Feature Flags
 
-- `derive` (default): enables proc-macro re-exports from `gpui-form-derive`
-- `inventory`: forwards inventory-enabled derive behavior so `#[derive(GpuiForm)]`
-  emits `GpuiFormShape` registrations
+- `derive` (default): enables the public derive surface
+  - `GpuiForm`, `SelectItem`, and `CustomComponentState` come from
+    `gpui-form-derive`
+  - `InfiniteSelect` comes through `gpui-form-component`, which re-exports the
+    proc macro from `gpui-form-component-derive`
+- `inventory`: forwards inventory-enabled `GpuiForm` behavior so
+  `#[derive(GpuiForm)]` emits `GpuiFormShape` registrations
 
 `inventory` is meaningful only when `derive` is also enabled.
 
@@ -44,24 +50,27 @@ paths. Root-level module re-exports remain for compatibility.
 `gpui-form` depends on four lower layers:
 
 - `gpui-form-core` for UI-neutral helper logic
-- `gpui-form-component` for GPUI runtime helpers
+- `gpui-form-component` for GPUI runtime helpers and the facade's
+  `InfiniteSelect` re-export
 - `gpui-form-schema` for metadata and inventory types
-- `gpui-form-derive` for proc macros
+- `gpui-form-derive` for `GpuiForm`, `SelectItem`, and `CustomComponentState`
 
 This crate should stay thin. New behavior normally belongs in one of those
 lower crates and is only re-exported here.
 
 ## Control Flow
 
-### Normal derive-driven form generation
+### Facade-driven derives
 
 1. A user depends on `gpui-form` with the `derive` feature.
-1. The user derives `GpuiForm`, `SelectItem`, `InfiniteSelect`, or
-   `CustomComponentState` through the facade.
-1. Macro expansion emits code that references `gpui_form::runtime`,
-   `gpui_form::schema`, and `gpui_form::core`.
-1. Generated code uses compatibility re-exports only where existing generated
-   paths must stay stable.
+1. `GpuiForm`, `SelectItem`, and `CustomComponentState` resolve to
+   `gpui-form-derive`.
+1. `InfiniteSelect` resolves through `gpui-form-component` to
+   `gpui-form-component-derive`.
+1. `GpuiForm` generated code references `gpui_form::runtime`,
+   `gpui_form::schema`, `gpui_form::core`, and compatibility re-exports such as
+   `gpui_form::numeric`.
+1. `InfiniteSelect` generated code targets `gpui_form::infinite_select`.
 
 ### Prototyping flow
 
@@ -69,7 +78,8 @@ lower crates and is only re-exported here.
 1. `#[derive(GpuiForm)]` emits `GpuiFormShape` registrations through the facade
    path.
 1. Downstream tooling iterates `gpui_form::schema::registry::inventory`.
-1. `gpui-form-prototyping-core` converts those shapes into scaffolded GPUI code.
+1. `gpui-form-prototyping-core` converts those shapes into scaffolded GPUI
+   code.
 
 ## Compatibility Notes
 
@@ -77,14 +87,14 @@ lower crates and is only re-exported here.
   fields derive `::gpui_form::bon::Builder`
 - root-level compatibility modules (`custom`, `date_picker`,
   `infinite_select`, `numeric`) should not be removed casually
-- if a lower-level crate adds a new public runtime/type surface that should be
-  first-class for end users, it usually needs a facade re-export here
+- if a lower-level crate adds a new public surface that should be first-class
+  for end users, it usually needs a facade re-export here
 
 ## When To Update This Document
 
 Update this file when:
 
 - the facade re-export layout changes
-- a new feature flag is introduced or forwarded
+- a feature flag is introduced, removed, or re-routed
 - generated code changes which facade paths it targets
 - compatibility guarantees for root-level re-exports change

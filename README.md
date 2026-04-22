@@ -15,26 +15,24 @@ It is designed for three things:
 1. Runtime helpers, metadata, and prototyping support around the derive-based
    workflow.
 
-Most application code should start with [`gpui-form`](crates/gpui-form/README.md).
-
 ## Compatibility
 
 | `gpui-form` | `gpui-component` | `gpui` |
 | :---------- | :--------------- | :----- |
 | **git** | | |
-| `branch = "master"` | `branch = "main"` | `rev = "15d8660748b508b3525d3403e5d172f1a557bfa5"` |
+| `branch = "master"` | `branch = "main"` | `rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b"` |
 
 ## Installation
 
 ```toml
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "15d8660748b508b3525d3403e5d172f1a557bfa5" }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
 
-gpui-form = { version = "*", features = ["derive"] }
+gpui-form = "*"
 
 # Optional: inventory registration for prototyping/code generation
-# gpui-form = { version = "*", features = ["derive", "inventory"] }
+# gpui-form = { version = "*", features = ["inventory"] }
 ```
 
 ## Quick Start
@@ -103,12 +101,71 @@ Common field-level helpers:
 - `#[gpui_form(type = <form_type>, from = <expr>, into = <expr>)]` lets the
   generated form edit a type that differs from the original field type.
 
+`component(infinite_select)` expects the field type to implement
+`gpui_form::InfiniteSelect`, usually by deriving it on the enum tree.
+Lower-level users can derive the same runtime contract from
+`gpui-form-component` or `gpui-form-component-derive`; the macro resolves
+whichever runtime crate is present, including renamed dependencies.
+
 Common struct-level helpers:
 
 - `#[gpui_form(empty)]` marks an intentional empty form.
 - `#[gpui_form(koruma)]` enables Koruma-backed validation wiring.
 - `#[gpui_form(koruma(fluent))]` enables Koruma validation plus fluent error
   rendering.
+
+## Infinite Select Runtime
+
+`component(infinite_select)` fields are backed by
+`gpui_form::infinite_select::InfiniteSelectState`, which owns the root and
+child `SelectState`s, exposes render-ready level snapshots, and emits a single
+typed change event with the rebuilt nested value, both path forms, the
+previous paths, and the changed depth.
+
+```rs
+use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
+
+let location = cx.new(|cx| {
+    InfiniteSelectState::new(Country::default(), window, cx)
+});
+
+cx.subscribe_in(
+    &location,
+    window,
+    |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
+        let _value = event.value();
+        let _path = event.path();
+        let _key_path = event.key_path();
+        let _previous_key_path = event.previous_key_path();
+        let _changed_depth = event.changed_depth();
+    },
+);
+```
+
+Rendering code can stay on the runtime helper instead of combining select
+handles with separate label lookups:
+
+```rs
+for field in location.read(cx).form_fields() {
+    let _ = field;
+}
+```
+
+The derive/runtime pair also exposes typed option labels, stable key paths, and
+typed path errors:
+
+- root option titles come from `variant_label()` instead of raw `variant_name()`
+- `#[tuple_enum(key = "...")]` overrides persisted keys when enum names should
+  stay decoupled from storage
+- `selection_key_path()` / `build_from_key_path(...)` round-trip nested values
+  without depending on enum ordering
+- `InfiniteSelectKeyPath` supports `Display`, `FromStr`, and serde string
+  round-trips for URLs and persisted config
+- `build_from_path(...)`, `build_from_key_path(...)`, `set_path(...)`, and
+  `set_key_path(...)` return `InfiniteSelectPathError` with the failing depth
+  plus the invalid key/index segment
+- `set_selected_index_at_depth(...)` / `set_selected_key_at_depth(...)` support
+  incremental programmatic updates
 
 ## Validation With Koruma
 
@@ -227,9 +284,8 @@ for shape in inventory::iter::<GpuiFormShape>() {
 }
 ```
 
-See [`examples/prototyping`](examples/prototyping) for a complete generator that
-walks inventory, produces `syn::File`, formats it with `prettyplease`, and
-writes scaffolded GPUI form files.
+See [`examples/prototyping`](examples/prototyping) for a complete generator
+that reads shape inventory and writes scaffolded GPUI form files.
 
 ## Examples
 

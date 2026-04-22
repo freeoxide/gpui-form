@@ -13,8 +13,7 @@ Today this crate is intentionally small and focused:
 - `numeric::validate_signed_numeric`
 - `numeric::validate_unsigned_numeric`
 
-These helpers are used by generated `number_input` code to validate editable
-text before parsing it into the destination type.
+These helpers match the text-entry rules used by `gpui-form` number inputs.
 
 ## Example
 
