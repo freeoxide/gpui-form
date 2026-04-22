@@ -18,8 +18,3 @@ test:
 
 test-publish:
     cargo publish --workspace --dry-run --allow-dirty
-
-update_crate_paths:
-    cargo crate-paths -c gpui -o __crate_paths__
-    cargo crate-paths -c gpui-component -o __crate_paths__
-    cargo crate-paths -c gpui-form -o __crate_paths__
