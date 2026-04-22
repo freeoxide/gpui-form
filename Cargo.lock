@@ -3050,6 +3050,7 @@ name = "gpui-form-component-derive"
 version = "0.5.1"
 dependencies = [
  "darling",
+ "proc-macro-crate 3.5.0",
  "proc-macro-error2",
  "proc-macro2",
  "quote",

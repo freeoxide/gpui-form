@@ -1,6 +1,7 @@
 use darling::{FromDeriveInput, FromVariant};
 use proc_macro::TokenStream;
-use quote::quote;
+use proc_macro_crate::{FoundCrate, crate_name};
+use quote::{format_ident, quote};
 use std::collections::HashMap;
 use syn::{DeriveInput, Ident, Type};
 
@@ -153,6 +154,36 @@ where
         .collect()
 }
 
+fn crate_tokens(found_crate: FoundCrate) -> proc_macro2::TokenStream {
+    match found_crate {
+        FoundCrate::Itself => quote! { crate },
+        FoundCrate::Name(name) => {
+            let ident = format_ident!("{}", name.replace('-', "_"));
+            quote! { ::#ident }
+        },
+    }
+}
+
+fn resolve_runtime_crate() -> syn::Result<proc_macro2::TokenStream> {
+    let facade_error = match crate_name("gpui-form") {
+        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
+        Err(err) => err,
+    };
+
+    let runtime_error = match crate_name("gpui-form-component") {
+        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
+        Err(err) => err,
+    };
+
+    Err(syn::Error::new(
+        proc_macro2::Span::call_site(),
+        format!(
+            "InfiniteSelect derive could not resolve the runtime crate. Add either `gpui-form` or `gpui-form-component` as a dependency. Resolution errors: `gpui-form`: {}; `gpui-form-component`: {}",
+            facade_error, runtime_error,
+        ),
+    ))
+}
+
 pub fn from(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
 
@@ -162,6 +193,10 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let enum_ident = &args.ident;
+    let runtime_crate = match resolve_runtime_crate() {
+        Ok(path) => path,
+        Err(err) => return err.to_compile_error().into(),
+    };
 
     let fluent_kv = match FluentKvOptions::from_attrs(&args.attrs) {
         Ok(options) => options,
@@ -342,7 +377,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
                         .map(|variant| variant.variant_name())
                         .collect()
@@ -361,7 +396,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
                         .map(|variant| variant.variant_key())
                         .collect()
@@ -380,7 +415,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
                         .map(|variant| variant.variant_label())
                         .collect()
@@ -482,7 +517,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let constructor = variant.constructor(quote! { child.clone() });
             quote! {
                 #pattern => {
-                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     children.get(index).map(|child| #constructor)
                 }
             }
@@ -500,7 +535,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let constructor = variant.constructor(quote! { child });
             quote! {
                 #pattern => {
-                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     children
                         .into_iter()
                         .find(|child| child.variant_key() == key)
@@ -525,7 +560,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     if path.is_empty() {
                         return None;
                     }
-                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     let child = children.get(path[0])?.clone();
                     if path.len() == 1 {
                         Some(#constructor_child)
@@ -553,7 +588,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     if path.is_empty() {
                         return None;
                     }
-                    let children = <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     let child = children
                         .into_iter()
                         .find(|child| child.variant_key() == path[0].as_str())?;
@@ -576,7 +611,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, inner_type| {
             let pattern = variant.ignore_pattern();
-            quote! { #pattern => <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::depth(), }
+            quote! { #pattern => <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::depth(), }
         },
     );
 
@@ -592,7 +627,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                         #pattern => {
                             let mut indices = vec![#root_index];
                             indices.extend(inner.selection_path().indices().iter().copied());
-                            ::gpui_form::infinite_select::InfiniteSelectPath::with_indices(indices)
+                            #runtime_crate::infinite_select::InfiniteSelectPath::with_indices(indices)
                         }
                     }
                 },
@@ -600,7 +635,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     let pattern = variant.ignore_pattern();
                     quote! {
                         #pattern => {
-                            ::gpui_form::infinite_select::InfiniteSelectPath::with_indices(vec![#root_index])
+                            #runtime_crate::infinite_select::InfiniteSelectPath::with_indices(vec![#root_index])
                         }
                     }
                 },
@@ -619,7 +654,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                         #pattern => {
                             let mut keys = vec![#root_key.to_string()];
                             keys.extend(inner.selection_key_path().keys().iter().cloned());
-                            ::gpui_form::infinite_select::InfiniteSelectKeyPath::with_keys(keys)
+                            #runtime_crate::infinite_select::InfiniteSelectKeyPath::with_keys(keys)
                         }
                     }
                 },
@@ -627,7 +662,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     let pattern = variant.ignore_pattern();
                     quote! {
                         #pattern => {
-                            ::gpui_form::infinite_select::InfiniteSelectKeyPath::with_keys(vec![#root_key.to_string()])
+                            #runtime_crate::infinite_select::InfiniteSelectKeyPath::with_keys(vec![#root_key.to_string()])
                         }
                     }
                 },
@@ -690,7 +725,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             &variants,
             |_| quote! {},
             |_, inner_type| {
-                quote! { <#inner_type as ::gpui_form::infinite_select::InfiniteSelect>::depth() }
+                quote! { <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::depth() }
             },
         )
         .into_iter()
@@ -703,7 +738,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl ::gpui_form::infinite_select::InfiniteSelect for #enum_ident {
+        impl #runtime_crate::infinite_select::InfiniteSelect for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*
@@ -786,13 +821,13 @@ pub fn from(input: TokenStream) -> TokenStream {
                 #depth_calculation
             }
 
-            fn selection_path(&self) -> ::gpui_form::infinite_select::InfiniteSelectPath {
+            fn selection_path(&self) -> #runtime_crate::infinite_select::InfiniteSelectPath {
                 match self {
                     #(#selection_path_arms)*
                 }
             }
 
-            fn selection_key_path(&self) -> ::gpui_form::infinite_select::InfiniteSelectKeyPath {
+            fn selection_key_path(&self) -> #runtime_crate::infinite_select::InfiniteSelectKeyPath {
                 match self {
                     #(#selection_key_path_arms)*
                 }

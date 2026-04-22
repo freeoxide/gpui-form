@@ -9,21 +9,23 @@ crate.
 
 ## Direct Use
 
-When you use this crate without the facade, make the runtime crate available to
-the macro as `gpui_form`:
+When you use this crate without the facade, depend on the runtime crate
+normally. The macro resolves either `gpui-form` or `gpui-form-component`,
+including renamed dependencies:
 
 ```toml
 [dependencies]
-gpui_form = { package = "gpui-form-component", version = "*" }
+gpui-form-component = "*"
 gpui-form-component-derive = "*"
 ```
 
 ## `#[derive(InfiniteSelect)]`
 
-Implements `gpui_form::infinite_select::InfiniteSelect` for nested enums used
+Implements the runtime crate's `InfiniteSelect` contract for nested enums used
 by cascading selects.
 
 ```rs
+use gpui_form_component::infinite_select::{InfiniteSelectPath, build_from_path};
 use gpui_form_component_derive::InfiniteSelect;
 
 #[derive(Clone, Debug, Default, InfiniteSelect)]

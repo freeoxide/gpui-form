@@ -103,6 +103,9 @@ Common field-level helpers:
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree.
+Lower-level users can derive the same runtime contract from
+`gpui-form-component` or `gpui-form-component-derive`; the macro resolves
+whichever runtime crate is present, including renamed dependencies.
 
 Common struct-level helpers:
 

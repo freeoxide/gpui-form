@@ -15,8 +15,8 @@ to the runtime helper layer in `gpui-form-component`.
 
 ## `InfiniteSelect`
 
-This derive emits an implementation of
-`gpui_form::infinite_select::InfiniteSelect` for nested enums.
+This derive emits an implementation of the runtime crate's
+`InfiniteSelect` trait for nested enums.
 
 Responsibilities:
 
@@ -45,11 +45,13 @@ Those belong in `gpui-form-derive`, `gpui-form-codegen`, and
 
 ## Data Flow
 
-1. A user derives `InfiniteSelect` through `gpui-form` or directly through this
-   crate.
-1. The macro emits trait impls against `gpui_form::infinite_select`.
-1. Direct users therefore need a crate named `gpui_form` in scope, while facade
-   users get that path automatically from `gpui-form`.
+1. A user derives `InfiniteSelect` through `gpui-form`, through
+   `gpui-form-component`, or directly through this crate.
+1. The macro resolves the runtime crate path from the consuming crate's
+   dependencies and emits trait impls against either `gpui-form` or
+   `gpui-form-component`.
+1. Direct users therefore do not need a `gpui_form` rename in `Cargo.toml`,
+   while facade users keep the same generated path through `gpui-form`.
 1. Runtime code in `gpui-form-component` consumes that impl through
    `InfiniteSelectItem`, `InfiniteSelectPath`, `InfiniteSelectKeyPath`, and the
    path reconstruction helpers.

@@ -19,13 +19,15 @@ the runtime types from `gpui_form::runtime` or
 `gpui_form::infinite_select`. This crate owns the runtime trait and state
 helpers those derives target.
 
-If you want the derive without the full facade, use
-[`gpui-form-component-derive`](../gpui-form-component-derive/README.md) and
-expose this runtime crate to the macro as `gpui_form` in your `Cargo.toml`.
+If you want the derive without the full facade, either enable this crate's
+`derive` feature or pair it with
+[`gpui-form-component-derive`](../gpui-form-component-derive/README.md). The
+proc macro resolves either `gpui-form` or `gpui-form-component`
+automatically, so direct users do not need a dependency rename.
 
 ```rs
-use gpui_form::InfiniteSelect;
-use gpui_form::infinite_select::{InfiniteSelectPath, build_from_path};
+use gpui_form_component::InfiniteSelect;
+use gpui_form_component::infinite_select::{InfiniteSelectPath, build_from_path};
 
 #[derive(Clone, Debug, Default, InfiniteSelect)]
 pub enum Country {

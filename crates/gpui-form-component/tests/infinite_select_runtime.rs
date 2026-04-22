@@ -1,5 +1,3 @@
-extern crate gpui_form_component as gpui_form;
-
 use gpui_form_component::infinite_select::{
     InfiniteSelect as _, InfiniteSelectKeyPath, InfiniteSelectPath, InfiniteSelectPathErrorReason,
     InfiniteSelectPathSegment, build_from_key_path, build_from_path,
