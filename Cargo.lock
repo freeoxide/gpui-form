@@ -2982,7 +2982,6 @@ dependencies = [
  "darling",
  "derive_more",
  "gpui-form-schema",
- "heck 0.5.0",
  "proc-macro2",
  "quote",
  "strum 0.28.0",
