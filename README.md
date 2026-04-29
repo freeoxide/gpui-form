@@ -242,8 +242,33 @@ Runtime helpers are available from both:
 
 - `gpui_form::runtime`
 - legacy compatibility re-exports such as `gpui_form::custom`,
-  `gpui_form::date_picker`, `gpui_form::infinite_select`, and
+  `gpui_form::date_picker`, `gpui_form::file_picker`,
+  `gpui_form::infinite_select`, and
   `gpui_form::numeric`
+
+## File Picker Runtime
+
+For native path selection, use `gpui_form::file_picker` or
+`gpui_form::runtime::file_picker`. The runtime uses GPUI's
+`PathPromptOptions` from the pinned Zed git dependency and renders the control
+with `gpui-component` buttons, icons, sizing, and theme tokens.
+
+```rs
+use gpui_form::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
+
+let picker = cx.new(|cx| FilePickerState::new(window, cx));
+
+cx.subscribe_in(&picker, window, |_, _, event: &FilePickerEvent, _, _| {
+    if let FilePickerEvent::Change(paths) = event {
+        let _paths = paths;
+    }
+});
+
+FilePicker::new(&picker)
+    .placeholder("Choose a file")
+    .prompt("Choose a file")
+    .cleanable(true);
+```
 
 ## Date Conversion
 

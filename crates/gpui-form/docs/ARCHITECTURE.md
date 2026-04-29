@@ -24,6 +24,7 @@ This crate exists to:
 - `gpui_form_component` as `gpui_form::runtime`
 - `gpui_form_component::custom`
 - `gpui_form_component::date_picker`
+- `gpui_form_component::file_picker`
 - `gpui_form_component::infinite_select`
 - `gpui_form_core` as `gpui_form::core`
 - `gpui_form_core::numeric`
@@ -85,7 +86,7 @@ lower crates and is only re-exported here.
 
 - `gpui_form::bon` is re-exported because generated value holders with skipped
   fields derive `::gpui_form::bon::Builder`
-- root-level compatibility modules (`custom`, `date_picker`,
+- root-level compatibility modules (`custom`, `date_picker`, `file_picker`,
   `infinite_select`, `numeric`) should not be removed casually
 - if a lower-level crate adds a new public surface that should be first-class
   for end users, it usually needs a facade re-export here

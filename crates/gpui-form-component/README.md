@@ -10,6 +10,7 @@ when you want the runtime implementation layer without the facade.
 
 - `infinite_select`: runtime traits and helpers for cascading enum selects
 - `date_picker`: localized runtime state and element wrapper for calendar date input
+- `file_picker`: native GPUI path selection rendered with `gpui-component` controls
 - `custom`: the runtime contract for user-defined component state
 
 ## Infinite Select
@@ -121,6 +122,36 @@ Most application code should still go through
 [`gpui-form`](../gpui-form/README.md) instead of depending on this crate
 directly.
 
+## File Picker
+
+This crate provides a native path picker backed by the pinned GPUI git API,
+not a separate dialog crate.
+
+```rs
+use gpui_form::runtime::file_picker::{
+    FilePicker,
+    FilePickerEvent,
+    FilePickerState,
+};
+
+let picker = cx.new(|cx| FilePickerState::new(window, cx));
+
+cx.subscribe_in(&picker, window, |_, _, event: &FilePickerEvent, _, _| {
+    if let FilePickerEvent::Change(paths) = event {
+        let _paths = paths;
+    }
+});
+
+FilePicker::new(&picker)
+    .placeholder("Choose a file")
+    .prompt("Choose a file")
+    .cleanable(true);
+```
+
+Use `FilePicker::directories()` or `FilePicker::files_or_directories()` when
+the dialog should select directories instead of files. Multiple selection is
+available through `FilePicker::multiple(true)`.
+
 ## Storybook Stories
 
 Enable the optional `storybook` feature when you want this crate to register
@@ -133,8 +164,8 @@ gpui-form-component = { version = "*", features = ["storybook"] }
 gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook", features = ["macros"] }
 ```
 
-This currently registers interactive infinite-select and date-picker demos
-backed by this crate's runtime helper types.
+This currently registers interactive infinite-select, date-picker, and
+file-picker demos backed by this crate's runtime helper types.
 
 Launch the crate-local gallery with:
 

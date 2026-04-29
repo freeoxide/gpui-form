@@ -11,6 +11,7 @@ This crate exists for behavior that cannot live purely in proc-macro output or
 schema metadata:
 
 - localized date-picker runtime state
+- native file-picker runtime state over GPUI path prompts
 - cascading select runtime helpers for nested enums
 - the runtime contract for custom component state
 
@@ -22,6 +23,8 @@ schema metadata:
   `InfiniteSelectPath`, `InfiniteSelectState`, and path reconstruction helpers
 - `src/date_picker.rs`: runtime state and element wrapper for localized date
   editing
+- `src/file_picker.rs`: runtime state and element wrapper for native path
+  selection with `gpui::PathPromptOptions`
 
 ## Subsystem Boundaries
 
@@ -66,6 +69,19 @@ Responsibilities:
 - format display text with locale-aware ICU4X/Jiff formatting
 - keep generated code independent from `chrono` display formatting details
 
+### `file_picker`
+
+This subsystem wraps GPUI's native platform path prompt in a form-oriented API.
+
+Responsibilities:
+
+- hold selected path state in `FilePickerState`
+- emit `FilePickerEvent::Change`, `Cancel`, and `Error`
+- render the control with `gpui-component` buttons, icons, theme tokens, and
+  sizing helpers
+- use the workspace-pinned GPUI git API instead of adding another native dialog
+  dependency
+
 ## Data Flow
 
 ### Infinite select
@@ -101,6 +117,15 @@ Responsibilities:
 1. Runtime date selection emits `DatePickerEvent::Change`.
 1. Generated handler code converts the `jiff::civil::Date` into the holder field
    type with `parse_form_date` and any `type`/`into` conversion hooks.
+
+### File picker
+
+1. Manual or custom form code stores `Entity<FilePickerState>`.
+1. `FilePicker` renders a path display, clear action, and browse button.
+1. Browse actions call `App::prompt_for_paths(PathPromptOptions)` and update the
+   state asynchronously when the platform dialog returns.
+1. Subscribers receive changed path lists, cancellation, or platform-dialog
+   errors through `FilePickerEvent`.
 
 ## Dependency Role
 

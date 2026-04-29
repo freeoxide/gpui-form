@@ -3,6 +3,7 @@
 //! This crate provides:
 //! - `custom` shape contracts/macros for user-defined components
 //! - `date_picker` for the localized runtime picker used by generated forms
+//! - `file_picker` for native GPUI path selection with gpui-component styling
 //! - `infinite_select` for cascading selects over nested enums
 
 #[cfg(feature = "derive")]
@@ -13,6 +14,9 @@ pub mod custom;
 
 /// Runtime helpers for the localized date picker component.
 pub mod date_picker;
+
+/// Runtime helpers for the native file picker component.
+pub mod file_picker;
 
 /// Runtime helpers for the InfiniteSelect component.
 pub mod infinite_select;
