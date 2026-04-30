@@ -142,6 +142,9 @@ pub struct SwitchOptions;
 #[derive(Clone, Debug, FromMeta)]
 pub struct DatePickerOptions;
 
+#[derive(Clone, Debug, FromMeta)]
+pub struct FilePickerOptions;
+
 fn default_custom_wraps_in_option() -> bool {
     true
 }
@@ -268,6 +271,7 @@ impl_component_option!(
     CheckboxOptions,
     SwitchOptions,
     DatePickerOptions,
+    FilePickerOptions,
     CustomOptions,
     BehaviourInfiniteSelectOptions,
     InfiniteSelectOptions,
@@ -284,6 +288,7 @@ pub enum Components {
     InfiniteSelect(InfiniteSelectOptions),
     Custom(CustomOptions),
     DatePicker,
+    FilePicker,
 }
 
 define_component_definition!(InputComponent, InputOptions, Input);
@@ -298,6 +303,7 @@ define_component_definition!(
 );
 define_component_definition!(CustomComponent, CustomOptions, Custom);
 define_component_definition!(DatePickerComponent, DatePickerOptions, DatePicker);
+define_component_definition!(FilePickerComponent, FilePickerOptions, FilePicker);
 
 fn number_input_kind(type_str: &str) -> NumberInputKind {
     if type_str.starts_with('f') {
@@ -360,6 +366,7 @@ impl Components {
             Self::InfiniteSelect(_) => ComponentKind::InfiniteSelect,
             Self::Custom(_) => ComponentKind::Custom,
             Self::DatePicker => ComponentKind::DatePicker,
+            Self::FilePicker => ComponentKind::FilePicker,
         }
     }
 
@@ -462,6 +469,17 @@ impl Components {
                     &mut field_base_declarations_tokens,
                 );
             },
+            Self::FilePicker => {
+                let component = FilePickerComponent(FieldInformation::new(
+                    FilePickerOptions,
+                    field_name,
+                    field_type,
+                ));
+                component.field_tokens(
+                    &mut field_structure_tokens,
+                    &mut field_base_declarations_tokens,
+                );
+            },
         }
 
         GeneratedFieldLayout {
@@ -523,6 +541,9 @@ impl Components {
             },
             Self::DatePicker => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::DatePicker }
+            },
+            Self::FilePicker => {
+                quote! { ::gpui_form::schema::components::ComponentsBehaviour::FilePicker }
             },
         }
     }

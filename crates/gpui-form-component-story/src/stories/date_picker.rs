@@ -1,20 +1,24 @@
+use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_component::form::v_form;
-use icu_locale_core::locale;
 use jiff::civil::{Date as JiffDate, date};
 
-use crate::date_picker::{DateDisplayStyle, DatePicker, DatePickerEvent, DatePickerState};
+use gpui_form_component::date_picker::{
+    DateDisplayStyle, DatePicker, DatePickerEvent, DatePickerState, DateRangePicker,
+    DateRangePickerEvent, DateRangePickerState,
+};
+
+use crate::i18n::DatePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
 #[gpui_storybook::story]
 pub struct DatePickerStory {
-    default_picker: Entity<DatePickerState>,
+    range_picker: Entity<DateRangePickerState>,
     long_picker: Entity<DatePickerState>,
-    localized_picker: Entity<DatePickerState>,
     compact_picker: Entity<DatePickerState>,
     last_change: SharedString,
     _subscriptions: Vec<Subscription>,
@@ -26,7 +30,7 @@ impl gpui_storybook::Story for DatePickerStory {
     }
 
     fn description() -> String {
-        "Localized runtime date-picker demo covering empty, prefilled, and styled variants.".into()
+        "Localized runtime date-picker demo covering range, prefilled, and styled variants.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -36,59 +40,42 @@ impl gpui_storybook::Story for DatePickerStory {
 
 impl Focusable for DatePickerStory {
     fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
-        self.default_picker.read(cx).focus_handle(cx)
+        self.range_picker.read(cx).focus_handle(cx)
     }
 }
 
 impl DatePickerStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let default_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let range_picker = cx.new(|cx| DateRangePickerState::new(window, cx));
         let long_picker = cx.new(|cx| {
-            let mut state = DatePickerState::new(window, cx)
-                .display_locale(locale!("en-US"))
-                .display_style(DateDisplayStyle::Long);
+            let mut state = DatePickerState::new(window, cx).display_style(DateDisplayStyle::Long);
             state.set_date(Some(date(2026, 4, 20)), window, cx);
             state
         });
-        let localized_picker = cx.new(|cx| {
-            let mut state = DatePickerState::new(window, cx)
-                .display_locale(locale!("fr-FR"))
-                .display_style(DateDisplayStyle::Long);
-            state.set_date(Some(date(2026, 7, 14)), window, cx);
-            state
-        });
         let compact_picker = cx.new(|cx| {
-            let mut state = DatePickerState::new(window, cx)
-                .display_locale(locale!("en-GB"))
-                .display_style(DateDisplayStyle::Short);
+            let mut state = DatePickerState::new(window, cx).display_style(DateDisplayStyle::Short);
             state.set_date(Some(date(2026, 10, 5)), window, cx);
             state
         });
 
         let subscriptions = vec![
-            cx.subscribe_in(&default_picker, window, Self::on_picker_change),
+            cx.subscribe_in(&range_picker, window, Self::on_range_picker_change),
             cx.subscribe_in(&long_picker, window, Self::on_picker_change),
-            cx.subscribe_in(&localized_picker, window, Self::on_picker_change),
             cx.subscribe_in(&compact_picker, window, Self::on_picker_change),
         ];
 
         Self {
-            default_picker,
+            range_picker,
             long_picker,
-            localized_picker,
             compact_picker,
-            last_change: "Interact with a picker to inspect DatePickerEvent::Change output.".into(),
+            last_change: "Interact with a picker to inspect emitted change output.".into(),
             _subscriptions: subscriptions,
         }
     }
 
     fn picker_label(&self, picker: &Entity<DatePickerState>) -> &'static str {
-        if picker == &self.default_picker {
-            "Default"
-        } else if picker == &self.long_picker {
+        if picker == &self.long_picker {
             "Long"
-        } else if picker == &self.localized_picker {
-            "French"
         } else if picker == &self.compact_picker {
             "Compact"
         } else {
@@ -112,34 +99,45 @@ impl DatePickerStory {
         .into();
         cx.notify();
     }
+
+    fn on_range_picker_change(
+        &mut self,
+        _: &Entity<DateRangePickerState>,
+        event: &DateRangePickerEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let DateRangePickerEvent::Change(start_date, end_date) = event;
+        self.last_change = format!(
+            "Range picker changed to {}",
+            describe_range(*start_date, *end_date)
+        )
+        .into();
+        cx.notify();
+    }
 }
 
 impl Render for DatePickerStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let default_value = describe_date(self.default_picker.read(cx).date());
+        let (range_start, range_end) = self.range_picker.read(cx).range();
+        let range_value = describe_range(range_start, range_end);
         let long_value = describe_date(self.long_picker.read(cx).date());
-        let localized_value = describe_date(self.localized_picker.read(cx).date());
         let compact_value = describe_date(self.compact_picker.read(cx).date());
 
         let form = v_form()
             .child(story_field(
-                "Default picker",
-                "Starts empty, uses the active locale, and shows the default two-month calendar.",
-                DatePicker::new(&self.default_picker)
-                    .placeholder("Select a launch date")
+                "Range select",
+                "Starts empty, uses the active locale, and selects a start and end date across the default two-month calendar.",
+                DateRangePicker::new(&self.range_picker)
+                    .placeholder(DatePickerComponentText::LaunchPlaceholder.to_fluent_string())
                     .cleanable(true),
             ))
             .child(story_field(
                 "Long display",
-                "Prefilled with DateDisplayStyle::Long so the input renders a fully localized date string.",
+                "Prefilled with DateDisplayStyle::Long so the input follows the active locale with a full date string.",
                 DatePicker::new(&self.long_picker)
                     .cleanable(true)
                     .number_of_months(1),
-            ))
-            .child(story_field(
-                "French locale",
-                "Overrides the display locale to French while still emitting the same Jiff date value.",
-                DatePicker::new(&self.localized_picker).cleanable(true),
             ))
             .child(story_field(
                 "Compact appearance",
@@ -160,9 +158,8 @@ impl Render for DatePickerStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(format!("Default value: {default_value}"))
+                    .child(format!("Range value: {range_value}"))
                     .child(format!("Long value: {long_value}"))
-                    .child(format!("French value: {localized_value}"))
                     .child(format!("Compact value: {compact_value}"))
                     .child(format!("Last change event: {}", self.last_change)),
             ),
@@ -175,4 +172,12 @@ fn describe_date(date: Option<JiffDate>) -> String {
         Some(date) => date.to_string(),
         None => "None".to_string(),
     }
+}
+
+fn describe_range(start_date: Option<JiffDate>, end_date: Option<JiffDate>) -> String {
+    format!(
+        "{} - {}",
+        describe_date(start_date),
+        describe_date(end_date)
+    )
 }

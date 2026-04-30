@@ -38,6 +38,7 @@ crate.
 - `InfiniteSelectOptions`
 - `CustomOptions`
 - `DatePickerOptions`
+- `FilePickerOptions`
 
 Important parse-time responsibilities:
 
@@ -48,6 +49,8 @@ Important parse-time responsibilities:
   present
 - `custom(..., wraps_in_option = false)` overrides the default holder wrapping
   rule
+- `file_picker` uses the runtime file-picker state and wraps selected paths in
+  `Option<PathBuf>` by default
 
 ## Component Layout Emission
 

@@ -37,6 +37,17 @@ Run it with:
 cargo run -p some-lib-forms
 ```
 
+## gpui-form-component-story
+
+Storybook-style GPUI app for the reusable runtime components themselves:
+infinite select, date picker, and file picker.
+
+Run it with:
+
+```sh
+cargo run -p gpui-form-component-story
+```
+
 ## prototyping
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded

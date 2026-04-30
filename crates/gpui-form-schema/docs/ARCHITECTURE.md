@@ -40,6 +40,7 @@ Per-field runtime behavior metadata with payloads for:
 - select behavior
 - infinite-select behavior
 - number-input behavior
+- file-picker behavior
 
 This is the metadata level that downstream consumers use; derive/codegen
 internals should not invent separate parallel runtime models.

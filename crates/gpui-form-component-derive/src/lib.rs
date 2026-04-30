@@ -8,7 +8,7 @@ use proc_macro_error2::proc_macro_error;
 /// This macro emits an implementation of `gpui_form::infinite_select::InfiniteSelect`
 /// for nested enums composed of unit, single-field tuple, or single-field struct
 /// variants.
-#[proc_macro_derive(InfiniteSelect, attributes(tuple_enum))]
+#[proc_macro_derive(InfiniteSelect, attributes(tuple_enum, fluent_kv))]
 #[proc_macro_error]
 pub fn derive_infinite_select(input: TokenStream) -> TokenStream {
     infinite_select::from(input)

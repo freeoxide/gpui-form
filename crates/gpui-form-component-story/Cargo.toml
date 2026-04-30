@@ -1,0 +1,34 @@
+[package]
+name = "gpui-form-component-story"
+description = """
+Storybook gallery for gpui-form-component runtime helpers
+"""
+version.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+es-fluent = { features = [ "derive" ], workspace = true }
+es-fluent-lang = { workspace = true }
+es-fluent-manager-embedded = { workspace = true }
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+gpui-form-component = { features = [ "derive" ], workspace = true }
+gpui-storybook = { features = [ "macros" ], workspace = true }
+gpui_platform = { workspace = true }
+icu_locale_core = { workspace = true }
+jiff = { workspace = true }
+strum = { workspace = true }
+
+[build-dependencies]
+es-fluent = { features = [ "build" ], workspace = true }
+
+[dev-dependencies]
+unic-langid = { workspace = true }
+
+[lints]
+workspace = true

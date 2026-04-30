@@ -11,6 +11,7 @@ This crate exists for behavior that cannot live purely in proc-macro output or
 schema metadata:
 
 - localized date-picker runtime state
+- native file-picker runtime state over GPUI path prompts
 - cascading select runtime helpers for nested enums
 - the runtime contract for custom component state
 
@@ -22,6 +23,12 @@ schema metadata:
   `InfiniteSelectPath`, `InfiniteSelectState`, and path reconstruction helpers
 - `src/date_picker.rs`: runtime state and element wrapper for localized date
   editing
+- `src/calendar.rs`: private calendar popover used by `date_picker`, with
+  ICU4X-driven labels and locale-specific week layout
+- `src/file_picker.rs`: runtime state and element wrapper for native path
+  selection with `gpui::PathPromptOptions`
+- `src/i18n.rs`: crate-local `es-fluent` module registration and one message
+  enum per runtime namespace
 
 ## Subsystem Boundaries
 
@@ -57,14 +64,37 @@ Responsibilities:
 
 ### `date_picker`
 
-This subsystem wraps `gpui_component` calendar behavior in a form-oriented API.
+This subsystem wraps calendar behavior in a form-oriented API and owns a
+private calendar popover so the date picker can use one ICU4X locale for both
+the selected-date label and the calendar chrome.
 
 Responsibilities:
 
 - hold selected date state in `DatePickerState`
+- hold selected manual date-range state in `DateRangePickerState`
 - emit `DatePickerEvent::Change(Option<jiff::civil::Date>)`
+- emit `DateRangePickerEvent::Change(Option<jiff::civil::Date>, Option<jiff::civil::Date>)`
 - format display text with locale-aware ICU4X/Jiff formatting
+- format calendar month names, weekday headers, day/year labels, and week-start
+  layout with ICU4X locale data
+- localize the default empty placeholder through the crate's `es-fluent`
+  messages
 - keep generated code independent from `chrono` display formatting details
+
+### `file_picker`
+
+This subsystem wraps GPUI's native platform path prompt in a form-oriented API.
+
+Responsibilities:
+
+- hold selected path state in `FilePickerState`
+- emit `FilePickerEvent::Change`, `Cancel`, and `Error`
+- render the control with `gpui-component` buttons, icons, theme tokens, and
+  sizing helpers
+- localize built-in placeholders, prompts, button labels, selected-count text,
+  and dropped-dialog errors through the crate's `es-fluent` messages
+- use the workspace-pinned GPUI git API instead of adding another native dialog
+  dependency
 
 ## Data Flow
 
@@ -101,6 +131,33 @@ Responsibilities:
 1. Runtime date selection emits `DatePickerEvent::Change`.
 1. Generated handler code converts the `jiff::civil::Date` into the holder field
    type with `parse_form_date` and any `type`/`into` conversion hooks.
+1. Manual range-picking UI can store `Entity<DateRangePickerState>`, render
+   `DateRangePicker`, and subscribe to `DateRangePickerEvent::Change`.
+
+### File picker
+
+1. Manual or custom form code stores `Entity<FilePickerState>`.
+1. `FilePicker` renders a path display, clear action, and browse button.
+1. Browse actions call `App::prompt_for_paths(PathPromptOptions)` and update the
+   state asynchronously when the platform dialog returns.
+1. Subscribers receive changed path lists, cancellation, or platform-dialog
+   errors through `FilePickerEvent`.
+
+### Built-in text
+
+1. `src/i18n.rs` registers this crate's embedded Fluent assets with
+   `es-fluent-manager-embedded`.
+1. `i18n.toml` allowlists the runtime namespaces (`date_picker`,
+   `file_picker`).
+1. Fluent resources live under
+   `i18n/{locale}/gpui-form-component/{namespace}.ftl`; add new component text
+   to the matching namespace file instead of a shared crate-level Fluent file.
+1. Runtime resources currently ship for `en`, `fr-FR`, and `zh-CN`.
+1. Runtime components call `ToFluentString` for built-in defaults only.
+1. Caller-provided labels, prompts, placeholders, and event errors remain
+   caller-owned text.
+1. Story/demo text belongs to `gpui-form-component-story`, not this runtime
+   crate.
 
 ## Dependency Role
 
@@ -134,3 +191,4 @@ Update this file when:
 - a new runtime helper module is added
 - the custom component contract changes
 - infinite-select or date-picker event/data flow changes
+- story/demo ownership moves back into or out of this runtime crate

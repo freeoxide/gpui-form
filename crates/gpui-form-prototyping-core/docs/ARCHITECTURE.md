@@ -33,6 +33,8 @@ This crate exists to:
    `InfiniteSelectState` subscription instead of raw select-tree glue code,
    render through `InfiniteSelectState::form_fields()`, and consume the richer
    `InfiniteSelectEvent<T>` payload directly.
+   File-picker fields use one `FilePickerState` entity, render the runtime
+   `FilePicker`, and store the first selected path in the form value holder.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`

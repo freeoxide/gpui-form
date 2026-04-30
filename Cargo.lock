@@ -2994,19 +2994,17 @@ version = "0.5.1"
 dependencies = [
  "chrono",
  "es-fluent",
- "es-fluent-lang",
+ "es-fluent-manager-embedded",
  "gpui 0.2.2 (git+https://github.com/zed-industries/zed?rev=f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b)",
  "gpui-component",
  "gpui-form-component-derive",
- "gpui-storybook",
- "gpui_platform",
  "icu_calendar",
  "icu_datetime",
  "icu_locale_core",
  "jiff",
  "serde",
  "serde_json",
- "strum 0.28.0",
+ "unic-langid",
 ]
 
 [[package]]
@@ -3019,6 +3017,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "gpui-form-component-story"
+version = "0.5.1"
+dependencies = [
+ "es-fluent",
+ "es-fluent-lang",
+ "es-fluent-manager-embedded",
+ "gpui 0.2.2 (git+https://github.com/zed-industries/zed?rev=f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b)",
+ "gpui-component",
+ "gpui-form-component",
+ "gpui-storybook",
+ "gpui_platform",
+ "icu_locale_core",
+ "jiff",
+ "strum 0.28.0",
+ "unic-langid",
 ]
 
 [[package]]

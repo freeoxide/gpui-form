@@ -47,6 +47,7 @@ Supported component forms:
 - `#[gpui_form(component(infinite_select))]`
 - `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
 - `#[gpui_form(component(date_picker))]`
+- `#[gpui_form(component(file_picker))]`
 - `#[gpui_form(component(custom(shape = my::Shape)))]`
 - `#[gpui_form(component(custom(state = my::State)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
@@ -71,12 +72,18 @@ Behavior notes:
 - `select` expects enum-like values that can populate a `gpui_component` select
 - `component(infinite_select)` expects the field type to implement
   `gpui_form::InfiniteSelect`
+- `component(file_picker)` stores a selected `PathBuf` in the generated value
+  holder and can be paired with `type`/`from`/`into` for model fields that store
+  bytes or other path-derived data
 - `default = ...` also seeds the initial selection for `select` and
   `infinite_select`
 - `custom(..., wraps_in_option = false)` keeps the generated value-holder field
   as `T` instead of `Option<T>`
 - `type`/`from`/`into` let the generated holder edit a type that differs from
   the original model field
+- field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
+  onto the generated value holder, which allows validating form-side override
+  types without deriving `Koruma` on the original model
 - when skipped fields are present, the generated value holder keeps builder
   support and exposes `into_original(...)` instead of an unconditional reverse
   conversion

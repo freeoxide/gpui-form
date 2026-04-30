@@ -24,6 +24,10 @@ Responsibilities:
 - support `#[tuple_enum(skip)]` for variants that should not appear in the
   select tree
 - support `#[tuple_enum(key = "...")]` for persisted key overrides
+- support `#[fluent_kv(keys = ["label", "description"], keys_this)]` for
+  `es-fluent`-backed option titles, type labels, and type descriptions
+  while allowing sibling `es-fluent` derives to route those messages through
+  their own `#[fluent(namespace = "...")]` metadata
 - emit recursive child traversal methods that match the runtime contract in
   `gpui-form-component`
 - optionally wire `fluent_kv` label/description metadata into type and child
