@@ -87,6 +87,7 @@ These component forms are currently supported:
 - `#[gpui_form(component(infinite_select))]`
 - `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
 - `#[gpui_form(component(date_picker))]`
+- `#[gpui_form(component(file_picker))]`
 - `#[gpui_form(component(custom(shape = my::Shape)))]`
 - `#[gpui_form(component(custom(state = my::State)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
@@ -248,7 +249,11 @@ Runtime helpers are available from both:
 
 ## File Picker Runtime
 
-For native path selection, use `gpui_form::file_picker` or
+For generated native path selection, use `#[gpui_form(component(file_picker))]`
+on a `PathBuf` field or combine it with `type`, `from`, and `into` when the
+model stores something derived from a path.
+
+For manual native path selection, use `gpui_form::file_picker` or
 `gpui_form::runtime::file_picker`. The runtime uses GPUI's
 `PathPromptOptions` from the pinned Zed git dependency and renders the control
 with `gpui-component` buttons, icons, sizing, and theme tokens.

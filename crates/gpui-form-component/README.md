@@ -126,6 +126,8 @@ directly.
 
 This crate provides a native path picker backed by the pinned GPUI git API,
 not a separate dialog crate.
+Generated forms can use the same runtime with
+`#[gpui_form(component(file_picker))]`.
 
 ```rs
 use gpui_form::runtime::file_picker::{

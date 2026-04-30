@@ -47,6 +47,7 @@ Supported component forms:
 - `#[gpui_form(component(infinite_select))]`
 - `#[gpui_form(component(infinite_select(searchable, max_depth = 3)))]`
 - `#[gpui_form(component(date_picker))]`
+- `#[gpui_form(component(file_picker))]`
 - `#[gpui_form(component(custom(shape = my::Shape)))]`
 - `#[gpui_form(component(custom(state = my::State)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
@@ -71,6 +72,9 @@ Behavior notes:
 - `select` expects enum-like values that can populate a `gpui_component` select
 - `component(infinite_select)` expects the field type to implement
   `gpui_form::InfiniteSelect`
+- `component(file_picker)` stores a selected `PathBuf` in the generated value
+  holder and can be paired with `type`/`from`/`into` for model fields that store
+  bytes or other path-derived data
 - `default = ...` also seeds the initial selection for `select` and
   `infinite_select`
 - `custom(..., wraps_in_option = false)` keeps the generated value-holder field

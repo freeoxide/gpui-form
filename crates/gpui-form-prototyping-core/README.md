@@ -43,8 +43,8 @@ shows the normal flow:
 1. render a file through a custom `FormLayout`
 1. write the generated form files
 
-Generated infinite-select fields use the same `InfiniteSelectState` runtime
-helpers that hand-written forms use.
+Generated infinite-select and file-picker fields use the same runtime helpers
+that hand-written forms use.
 
 ## Feature Flags
 

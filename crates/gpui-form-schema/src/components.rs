@@ -11,6 +11,7 @@ pub enum ComponentKind {
     InfiniteSelect,
     Custom,
     DatePicker,
+    FilePicker,
 }
 
 impl ComponentKind {
@@ -34,18 +35,23 @@ impl ComponentKind {
                 | Self::Select
                 | Self::InfiniteSelect
                 | Self::DatePicker
+                | Self::FilePicker
         )
     }
 
     pub const fn focusable(self) -> bool {
         matches!(
             self,
-            Self::Input | Self::NumberInput | Self::Select | Self::InfiniteSelect
+            Self::Input
+                | Self::NumberInput
+                | Self::Select
+                | Self::InfiniteSelect
+                | Self::FilePicker
         )
     }
 
     pub const fn default_wraps_in_option(self) -> bool {
-        matches!(self, Self::Input | Self::NumberInput)
+        matches!(self, Self::Input | Self::NumberInput | Self::FilePicker)
     }
 }
 
@@ -94,6 +100,7 @@ pub enum ComponentsBehaviour {
     InfiniteSelect(InfiniteSelectBehaviour),
     Custom,
     DatePicker,
+    FilePicker,
 }
 
 impl ComponentsBehaviour {
@@ -107,6 +114,7 @@ impl ComponentsBehaviour {
             Self::InfiniteSelect(_) => ComponentKind::InfiniteSelect,
             Self::Custom => ComponentKind::Custom,
             Self::DatePicker => ComponentKind::DatePicker,
+            Self::FilePicker => ComponentKind::FilePicker,
         }
     }
 

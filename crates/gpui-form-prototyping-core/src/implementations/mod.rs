@@ -1,6 +1,7 @@
 pub mod checkbox;
 pub mod custom;
 pub mod date_picker;
+pub mod file_picker;
 pub mod infinite_select;
 pub mod input;
 pub mod number_input;
@@ -32,6 +33,8 @@ static INFINITE_SELECT_GENERATOR: infinite_select::InfiniteSelectCodeGenerator =
 static CUSTOM_GENERATOR: custom::CustomCodeGenerator = custom::CustomCodeGenerator;
 static DATE_PICKER_GENERATOR: date_picker::DatePickerCodeGenerator =
     date_picker::DatePickerCodeGenerator;
+static FILE_PICKER_GENERATOR: file_picker::FilePickerCodeGenerator =
+    file_picker::FilePickerCodeGenerator;
 
 pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCodeGenerator {
     match behaviour {
@@ -43,6 +46,7 @@ pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCod
         ComponentsBehaviour::InfiniteSelect(_) => &INFINITE_SELECT_GENERATOR,
         ComponentsBehaviour::Custom => &CUSTOM_GENERATOR,
         ComponentsBehaviour::DatePicker => &DATE_PICKER_GENERATOR,
+        ComponentsBehaviour::FilePicker => &FILE_PICKER_GENERATOR,
     }
 }
 
