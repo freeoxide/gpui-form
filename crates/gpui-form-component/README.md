@@ -121,11 +121,21 @@ use gpui_form::runtime::date_picker::{
     DatePicker,
     DatePickerEvent,
     DatePickerState,
+    DateRangePicker,
+    DateRangePickerEvent,
+    DateRangePickerState,
 };
 ```
 
 Generated forms store `Entity<DatePickerState>`, render `DatePicker`, and
 convert emitted `DatePickerEvent::Change` values with `parse_form_date`.
+The selected-date label and embedded calendar popover share the same display
+locale: ICU4X formats month names, weekday headers, day/year labels, and the
+locale-specific first day of the week.
+Manual forms can use `DateRangePickerState`, `DateRangePicker`, and
+`DateRangePickerEvent` when they need range selection over the same localized
+calendar popover. Generated `component(date_picker)` fields remain single-date
+fields.
 Most application code should still go through
 [`gpui-form`](../gpui-form/README.md) instead of depending on this crate
 directly.

@@ -311,7 +311,11 @@ The default empty placeholder is localized through the runtime crate's
 `date_picker` `es-fluent` namespace; pass `DatePicker::placeholder(...)` when a
 form needs custom copy. Initialize the embedded fluent manager when using the
 default placeholder. Built-in runtime text ships English, French (`fr-FR`), and
-Simplified Chinese (`zh-CN`) resources.
+Simplified Chinese (`zh-CN`) resources. The selected-date label and calendar
+popover use ICU4X for localized month names, weekday headers, day/year labels,
+and locale-specific week starts. Manual runtime code can use
+`DateRangePicker` and `DateRangePickerState` for range selection; generated
+`component(date_picker)` fields remain single-date fields.
 
 ## Prototyping
 

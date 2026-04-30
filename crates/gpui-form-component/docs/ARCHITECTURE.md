@@ -23,6 +23,8 @@ schema metadata:
   `InfiniteSelectPath`, `InfiniteSelectState`, and path reconstruction helpers
 - `src/date_picker.rs`: runtime state and element wrapper for localized date
   editing
+- `src/calendar.rs`: private calendar popover used by `date_picker`, with
+  ICU4X-driven labels and locale-specific week layout
 - `src/file_picker.rs`: runtime state and element wrapper for native path
   selection with `gpui::PathPromptOptions`
 - `src/i18n.rs`: crate-local `es-fluent` module registration and one message
@@ -62,13 +64,19 @@ Responsibilities:
 
 ### `date_picker`
 
-This subsystem wraps `gpui_component` calendar behavior in a form-oriented API.
+This subsystem wraps calendar behavior in a form-oriented API and owns a
+private calendar popover so the date picker can use one ICU4X locale for both
+the selected-date label and the calendar chrome.
 
 Responsibilities:
 
 - hold selected date state in `DatePickerState`
+- hold selected manual date-range state in `DateRangePickerState`
 - emit `DatePickerEvent::Change(Option<jiff::civil::Date>)`
+- emit `DateRangePickerEvent::Change(Option<jiff::civil::Date>, Option<jiff::civil::Date>)`
 - format display text with locale-aware ICU4X/Jiff formatting
+- format calendar month names, weekday headers, day/year labels, and week-start
+  layout with ICU4X locale data
 - localize the default empty placeholder through the crate's `es-fluent`
   messages
 - keep generated code independent from `chrono` display formatting details
@@ -123,6 +131,8 @@ Responsibilities:
 1. Runtime date selection emits `DatePickerEvent::Change`.
 1. Generated handler code converts the `jiff::civil::Date` into the holder field
    type with `parse_form_date` and any `type`/`into` conversion hooks.
+1. Manual range-picking UI can store `Entity<DateRangePickerState>`, render
+   `DateRangePicker`, and subscribe to `DateRangePickerEvent::Change`.
 
 ### File picker
 
