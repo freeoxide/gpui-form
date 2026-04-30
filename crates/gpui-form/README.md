@@ -265,9 +265,10 @@ For manual native path selection, use `gpui_form::file_picker` or
 with `gpui-component` buttons, icons, sizing, and theme tokens.
 Built-in default placeholders, prompts, button text, and selected-count text are
 localized through the runtime crate's `file_picker` `es-fluent` namespace;
-initialize the embedded fluent manager when using those defaults. Explicit
-`placeholder(...)`, `prompt(...)`, and `browse_label(...)` values remain
-caller-provided text.
+initialize the embedded fluent manager when using those defaults. The runtime
+ships English, French (`fr-FR`), and Simplified Chinese (`zh-CN`) resources.
+Explicit `placeholder(...)`, `prompt(...)`, and `browse_label(...)` values
+remain caller-provided text.
 
 ```rs
 use gpui_form::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
@@ -309,7 +310,8 @@ but the UI should edit a calendar date.
 The default empty placeholder is localized through the runtime crate's
 `date_picker` `es-fluent` namespace; pass `DatePicker::placeholder(...)` when a
 form needs custom copy. Initialize the embedded fluent manager when using the
-default placeholder.
+default placeholder. Built-in runtime text ships English, French (`fr-FR`), and
+Simplified Chinese (`zh-CN`) resources.
 
 ## Prototyping
 

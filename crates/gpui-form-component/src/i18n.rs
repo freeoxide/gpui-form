@@ -38,6 +38,25 @@ mod tests {
             strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
             "2 paths selected"
         );
+
+        es_fluent_manager_embedded::select_language(unic_langid::langid!("fr-FR")).unwrap();
+        assert_eq!(
+            DatePickerText::SelectDate.to_fluent_string(),
+            "Sélectionner une date"
+        );
+        assert_eq!(FilePickerText::Browse.to_fluent_string(), "Parcourir");
+        assert_eq!(
+            strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
+            "2 chemins sélectionnés"
+        );
+
+        es_fluent_manager_embedded::select_language(unic_langid::langid!("zh-CN")).unwrap();
+        assert_eq!(DatePickerText::SelectDate.to_fluent_string(), "选择日期");
+        assert_eq!(FilePickerText::Browse.to_fluent_string(), "浏览");
+        assert_eq!(
+            strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
+            "已选择 2 个路径"
+        );
     }
 
     fn strip_fluent_isolates(value: &str) -> String {

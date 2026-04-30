@@ -1,13 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_component::form::v_form;
 
-use crate::i18n::FilePickerStoryText;
 use gpui_form_component::file_picker::{
     FilePicker, FilePickerEvent, FilePickerMode, FilePickerState,
 };
@@ -25,11 +23,11 @@ pub struct FilePickerStory {
 
 impl gpui_storybook::Story for FilePickerStory {
     fn title() -> String {
-        FilePickerStoryText::Title.to_fluent_string()
+        "File Picker".into()
     }
 
     fn description() -> String {
-        FilePickerStoryText::Description.to_fluent_string()
+        "Native GPUI path prompts rendered with gpui-component controls.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -63,20 +61,20 @@ impl FilePickerStory {
             file_picker,
             directory_picker,
             multiple_picker,
-            last_event: FilePickerStoryText::InitialEvent.to_fluent_string().into(),
+            last_event: "Interact with a picker to inspect FilePickerEvent output.".into(),
             _subscriptions: subscriptions,
         }
     }
 
-    fn picker_label(&self, picker: &Entity<FilePickerState>) -> String {
+    fn picker_label(&self, picker: &Entity<FilePickerState>) -> &'static str {
         if picker == &self.file_picker {
-            FilePickerStoryText::FileLabel.to_fluent_string()
+            "File"
         } else if picker == &self.directory_picker {
-            FilePickerStoryText::DirectoryLabel.to_fluent_string()
+            "Directory"
         } else if picker == &self.multiple_picker {
-            FilePickerStoryText::MultipleLabel.to_fluent_string()
+            "Multiple"
         } else {
-            FilePickerStoryText::UnknownLabel.to_fluent_string()
+            "Unknown"
         }
     }
 
@@ -88,20 +86,19 @@ impl FilePickerStory {
         cx: &mut Context<Self>,
     ) {
         self.last_event = match event {
-            FilePickerEvent::Change(paths) => FilePickerStoryText::Changed {
-                picker: self.picker_label(picker),
-                paths: describe_paths(paths),
-            }
-            .to_fluent_string(),
-            FilePickerEvent::Cancel => FilePickerStoryText::Cancelled {
-                picker: self.picker_label(picker),
-            }
-            .to_fluent_string(),
-            FilePickerEvent::Error(message) => FilePickerStoryText::Error {
-                picker: self.picker_label(picker),
-                message: message.to_string(),
-            }
-            .to_fluent_string(),
+            FilePickerEvent::Change(paths) => {
+                format!(
+                    "{} picker changed to {}",
+                    self.picker_label(picker),
+                    describe_paths(paths)
+                )
+            },
+            FilePickerEvent::Cancel => {
+                format!("{} picker was cancelled", self.picker_label(picker))
+            },
+            FilePickerEvent::Error(message) => {
+                format!("{} picker error: {message}", self.picker_label(picker))
+            },
         }
         .into();
         cx.notify();
@@ -116,34 +113,34 @@ impl Render for FilePickerStory {
 
         let form = v_form()
             .child(story_field(
-                FilePickerStoryText::FileFieldLabel.to_fluent_string(),
-                FilePickerStoryText::FileFieldDescription.to_fluent_string(),
+                "File",
+                "Selects one file using GPUI's native PathPromptOptions.",
                 FilePicker::new(&self.file_picker)
-                    .placeholder(FilePickerStoryText::SourcePlaceholder.to_fluent_string())
-                    .prompt(FilePickerStoryText::SourcePlaceholder.to_fluent_string())
+                    .placeholder("Choose a source file")
+                    .prompt("Choose a source file")
                     .cleanable(true),
             ))
             .child(story_field(
-                FilePickerStoryText::DirectoryFieldLabel.to_fluent_string(),
-                FilePickerStoryText::DirectoryFieldDescription.to_fluent_string(),
+                "Directory",
+                "Selects one directory and starts with a programmatic value.",
                 FilePicker::new(&self.directory_picker)
                     .mode(FilePickerMode::Directory)
-                    .placeholder(FilePickerStoryText::OutputPlaceholder.to_fluent_string())
-                    .prompt(FilePickerStoryText::OutputPlaceholder.to_fluent_string())
+                    .placeholder("Choose an output directory")
+                    .prompt("Choose an output directory")
                     .cleanable(true),
             ))
             .child(story_field(
-                FilePickerStoryText::MultipleFieldLabel.to_fluent_string(),
-                FilePickerStoryText::MultipleFieldDescription.to_fluent_string(),
+                "Multiple",
+                "Allows selecting multiple files; the state stores the full PathBuf list.",
                 FilePicker::new(&self.multiple_picker)
                     .multiple(true)
-                    .browse_label(FilePickerStoryText::ChooseFiles.to_fluent_string())
+                    .browse_label("Choose files")
                     .cleanable(true),
             ));
 
         story_panel(
-            FilePickerStoryText::PanelTitle.to_fluent_string(),
-            FilePickerStoryText::PanelDescription.to_fluent_string(),
+            "Native path selection",
+            "This exercises FilePickerState, native GPUI path prompts, clear handling, cancellation, and error events.",
             div().flex().flex_col().gap_4().child(form).child(
                 div()
                     .flex()
@@ -151,25 +148,10 @@ impl Render for FilePickerStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(FilePickerStoryText::FileValue { value: file_value }.to_fluent_string())
-                    .child(
-                        FilePickerStoryText::DirectoryValue {
-                            value: directory_value,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        FilePickerStoryText::MultipleValue {
-                            value: multiple_value,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        FilePickerStoryText::LastEvent {
-                            value: self.last_event.to_string(),
-                        }
-                        .to_fluent_string(),
-                    ),
+                    .child(format!("File value: {file_value}"))
+                    .child(format!("Directory value: {directory_value}"))
+                    .child(format!("Multiple value: {multiple_value}"))
+                    .child(format!("Last event: {}", self.last_event)),
             ),
         )
     }
@@ -177,7 +159,7 @@ impl Render for FilePickerStory {
 
 fn describe_paths(paths: &[PathBuf]) -> String {
     match paths {
-        [] => FilePickerStoryText::None.to_fluent_string(),
+        [] => "None".to_string(),
         [path] => display_path(path),
         _ => paths
             .iter()

@@ -1,22 +1,3 @@
-## InfiniteSelectStoryText
-
-infinite_select_story_text-None = None
-infinite_select_story_text-Title = Infinite Select
-infinite_select_story_text-Description = Cascading select demo backed by the runtime infinite-select state helper.
-infinite_select_story_text-PanelTitle = Cascading selection
-infinite_select_story_text-PanelDescription = This mirrors the runtime helper flow used by generated forms: one state entity owns the master select, derived child selects, and the selection path.
-infinite_select_story_text-CurrentSelection = Current selection: { $value }
-infinite_select_story_text-PathIndices = Path indices: { $value }
-infinite_select_story_text-PathKeys = Path keys: { $value }
-infinite_select_story_text-RebuiltFromPath = Rebuilt from path: { $value }
-infinite_select_story_text-RebuiltFromKeys = Rebuilt from keys: { $value }
-infinite_select_story_text-PreviousKeyPath = Previous key path: { $value }
-infinite_select_story_text-LastChangedDepth = Last changed depth: { $value }
-infinite_select_story_text-DeploymentWeb = Web / { $region }
-infinite_select_story_text-DeploymentDesktop = Desktop / { $platform }
-infinite_select_story_text-DeploymentDocs = Docs
-infinite_select_story_text-WebRegion = { $region } / { $zone }
-
 ## DeploymentTarget
 
 deployment_target_this = Deployment Target

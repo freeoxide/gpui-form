@@ -112,7 +112,8 @@ This crate provides the localized runtime date-picker used by generated
 Its default empty placeholder is an `es-fluent` message registered by this
 crate in the `date_picker` namespace; pass `DatePicker::placeholder(...)` when
 a form needs caller-provided copy. Initialize the embedded fluent manager when
-using the default.
+using the default. Built-in runtime text ships English, French (`fr-FR`), and
+Simplified Chinese (`zh-CN`) resources.
 
 ```rs
 use gpui_form::runtime::date_picker::{
@@ -139,7 +140,8 @@ The built-in placeholders, native-dialog prompts, browse label, dropped-dialog
 error, and selected-count text are `es-fluent` messages. Explicit builder
 values such as `placeholder(...)`, `prompt(...)`, and `browse_label(...)`
 remain caller-provided text. Initialize the embedded fluent manager when using
-the defaults. This runtime copy lives in the `file_picker` namespace.
+the defaults. This runtime copy lives in the `file_picker` namespace and ships
+English, French (`fr-FR`), and Simplified Chinese (`zh-CN`) resources.
 
 ```rs
 use gpui_form::runtime::file_picker::{
@@ -171,7 +173,7 @@ available through `FilePicker::multiple(true)`.
 This crate is library-only. The interactive infinite-select, date-picker, and
 file-picker storybook gallery lives in
 [`gpui-form-component-story`](../gpui-form-component-story/README.md), which
-owns the demo UI, launcher binary, and story-only localized copy.
+owns the demo UI, launcher binary, and any story-only demo metadata.
 
 Launch the component gallery with:
 

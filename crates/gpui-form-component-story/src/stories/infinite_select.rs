@@ -5,7 +5,6 @@ use gpui::{
 };
 use gpui_component::form::v_form;
 
-use crate::i18n::InfiniteSelectStoryText;
 use gpui_form_component::InfiniteSelect;
 use gpui_form_component::infinite_select::{
     InfiniteSelectEvent, InfiniteSelectState, build_from_key_path, build_from_path,
@@ -25,11 +24,11 @@ pub struct InfiniteSelectStory {
 
 impl gpui_storybook::Story for InfiniteSelectStory {
     fn title() -> String {
-        InfiniteSelectStoryText::Title.to_fluent_string()
+        "Infinite Select".into()
     }
 
     fn description() -> String {
-        InfiniteSelectStoryText::Description.to_fluent_string()
+        "Cascading select demo backed by the runtime infinite-select state helper.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -82,14 +81,14 @@ impl Render for InfiniteSelectStory {
 
         let rebuilt = build_from_path::<DeploymentTarget>(&path)
             .map(|value| value.summary())
-            .unwrap_or_else(|_| InfiniteSelectStoryText::None.to_fluent_string());
+            .unwrap_or_else(|_| "None".to_string());
         let rebuilt_from_keys = build_from_key_path::<DeploymentTarget>(&key_path)
             .map(|value| value.summary())
-            .unwrap_or_else(|_| InfiniteSelectStoryText::None.to_fluent_string());
+            .unwrap_or_else(|_| "None".to_string());
 
         story_panel(
-            InfiniteSelectStoryText::PanelTitle.to_fluent_string(),
-            InfiniteSelectStoryText::PanelDescription.to_fluent_string(),
+            "Cascading selection",
+            "This mirrors the runtime helper flow used by generated forms: one state entity owns the master select, derived child selects, and the selection path.",
             div().flex().flex_col().gap_4().child(form).child(
                 div()
                     .flex()
@@ -97,53 +96,23 @@ impl Render for InfiniteSelectStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(
-                        InfiniteSelectStoryText::CurrentSelection {
-                            value: snapshot.value().summary(),
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::PathIndices {
-                            value: format!("{:?}", path.indices()),
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::PathKeys {
-                            value: format!("{:?}", key_path.keys()),
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::RebuiltFromPath { value: rebuilt }
-                            .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::RebuiltFromKeys {
-                            value: rebuilt_from_keys,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::PreviousKeyPath {
-                            value: self.last_previous_key_path.clone().unwrap_or_else(|| {
-                                InfiniteSelectStoryText::None.to_fluent_string()
-                            }),
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        InfiniteSelectStoryText::LastChangedDepth {
-                            value: self
-                                .last_changed_depth
-                                .map(|depth| depth.to_string())
-                                .unwrap_or_else(|| {
-                                    InfiniteSelectStoryText::None.to_fluent_string()
-                                }),
-                        }
-                        .to_fluent_string(),
-                    ),
+                    .child(format!("Current selection: {}", snapshot.value().summary()))
+                    .child(format!("Path indices: {:?}", path.indices()))
+                    .child(format!("Path keys: {:?}", key_path.keys()))
+                    .child(format!("Rebuilt from path: {rebuilt}"))
+                    .child(format!("Rebuilt from keys: {rebuilt_from_keys}"))
+                    .child(format!(
+                        "Previous key path: {}",
+                        self.last_previous_key_path
+                            .clone()
+                            .unwrap_or_else(|| "None".to_string())
+                    ))
+                    .child(format!(
+                        "Last changed depth: {}",
+                        self.last_changed_depth
+                            .map(|depth| depth.to_string())
+                            .unwrap_or_else(|| "None".to_string())
+                    )),
             ),
         )
     }
@@ -163,15 +132,9 @@ enum DeploymentTarget {
 impl DeploymentTarget {
     fn summary(&self) -> String {
         match self {
-            Self::Web(region) => InfiniteSelectStoryText::DeploymentWeb {
-                region: region.summary(),
-            }
-            .to_fluent_string(),
-            Self::Desktop(platform) => InfiniteSelectStoryText::DeploymentDesktop {
-                platform: platform.name(),
-            }
-            .to_fluent_string(),
-            Self::Docs => InfiniteSelectStoryText::DeploymentDocs.to_fluent_string(),
+            Self::Web(region) => format!("Web / {}", region.summary()),
+            Self::Desktop(platform) => format!("Desktop / {}", platform.name()),
+            Self::Docs => "Docs".to_string(),
         }
     }
 }
@@ -202,11 +165,7 @@ impl WebRegion {
 
     fn summary(&self) -> String {
         match self {
-            Self::UsEast(zone) | Self::Europe(zone) => InfiniteSelectStoryText::WebRegion {
-                region: self.name(),
-                zone: zone.name(),
-            }
-            .to_fluent_string(),
+            Self::UsEast(zone) | Self::Europe(zone) => format!("{} / {}", self.name(), zone.name()),
         }
     }
 }
@@ -258,5 +217,40 @@ impl DesktopPlatform {
             Self::Linux => DesktopPlatformLabelVariants::Linux.to_fluent_string(),
             Self::Windows => DesktopPlatformLabelVariants::Windows.to_fluent_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use es_fluent::ToFluentString as _;
+
+    use super::{DeploymentTargetLabelVariants, WebRegionLabelVariants};
+
+    #[test]
+    fn resolves_infinite_select_demo_metadata() {
+        es_fluent_manager_embedded::init_with_language(unic_langid::langid!("en"));
+
+        assert_eq!(DeploymentTargetLabelVariants::Web.to_fluent_string(), "Web");
+        assert_eq!(WebRegionLabelVariants::UsEast.to_fluent_string(), "US East");
+
+        es_fluent_manager_embedded::select_language(unic_langid::langid!("fr-FR")).unwrap();
+        assert_eq!(
+            DeploymentTargetLabelVariants::Desktop.to_fluent_string(),
+            "Bureau"
+        );
+        assert_eq!(
+            WebRegionLabelVariants::UsEast.to_fluent_string(),
+            "Est des États-Unis"
+        );
+
+        es_fluent_manager_embedded::select_language(unic_langid::langid!("zh-CN")).unwrap();
+        assert_eq!(
+            DeploymentTargetLabelVariants::Docs.to_fluent_string(),
+            "文档"
+        );
+        assert_eq!(
+            WebRegionLabelVariants::UsEast.to_fluent_string(),
+            "美国东部"
+        );
     }
 }

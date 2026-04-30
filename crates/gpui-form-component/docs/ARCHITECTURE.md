@@ -142,6 +142,7 @@ Responsibilities:
 1. Fluent resources live under
    `i18n/{locale}/gpui-form-component/{namespace}.ftl`; add new component text
    to the matching namespace file instead of a shared crate-level Fluent file.
+1. Runtime resources currently ship for `en`, `fr-FR`, and `zh-CN`.
 1. Runtime components call `ToFluentString` for built-in defaults only.
 1. Caller-provided labels, prompts, placeholders, and event errors remain
    caller-owned text.

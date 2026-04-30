@@ -1,4 +1,3 @@
-use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -7,7 +6,6 @@ use gpui_component::form::v_form;
 use icu_locale_core::locale;
 use jiff::civil::{Date as JiffDate, date};
 
-use crate::i18n::DatePickerStoryText;
 use gpui_form_component::date_picker::{
     DateDisplayStyle, DatePicker, DatePickerEvent, DatePickerState,
 };
@@ -26,11 +24,11 @@ pub struct DatePickerStory {
 
 impl gpui_storybook::Story for DatePickerStory {
     fn title() -> String {
-        DatePickerStoryText::Title.to_fluent_string()
+        "Date Picker".into()
     }
 
     fn description() -> String {
-        DatePickerStoryText::Description.to_fluent_string()
+        "Localized runtime date-picker demo covering empty, prefilled, and styled variants.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -81,22 +79,22 @@ impl DatePickerStory {
             long_picker,
             localized_picker,
             compact_picker,
-            last_change: DatePickerStoryText::InitialEvent.to_fluent_string().into(),
+            last_change: "Interact with a picker to inspect DatePickerEvent::Change output.".into(),
             _subscriptions: subscriptions,
         }
     }
 
-    fn picker_label(&self, picker: &Entity<DatePickerState>) -> String {
+    fn picker_label(&self, picker: &Entity<DatePickerState>) -> &'static str {
         if picker == &self.default_picker {
-            DatePickerStoryText::DefaultLabel.to_fluent_string()
+            "Default"
         } else if picker == &self.long_picker {
-            DatePickerStoryText::LongLabel.to_fluent_string()
+            "Long"
         } else if picker == &self.localized_picker {
-            DatePickerStoryText::FrenchLabel.to_fluent_string()
+            "French"
         } else if picker == &self.compact_picker {
-            DatePickerStoryText::CompactLabel.to_fluent_string()
+            "Compact"
         } else {
-            DatePickerStoryText::UnknownLabel.to_fluent_string()
+            "Unknown"
         }
     }
 
@@ -108,11 +106,11 @@ impl DatePickerStory {
         cx: &mut Context<Self>,
     ) {
         let DatePickerEvent::Change(date) = event;
-        self.last_change = DatePickerStoryText::Changed {
-            picker: self.picker_label(picker),
-            date: describe_date(*date),
-        }
-        .to_fluent_string()
+        self.last_change = format!(
+            "{} picker changed to {}",
+            self.picker_label(picker),
+            describe_date(*date)
+        )
         .into();
         cx.notify();
     }
@@ -127,27 +125,27 @@ impl Render for DatePickerStory {
 
         let form = v_form()
             .child(story_field(
-                DatePickerStoryText::DefaultFieldLabel.to_fluent_string(),
-                DatePickerStoryText::DefaultFieldDescription.to_fluent_string(),
+                "Default picker",
+                "Starts empty, uses the active locale, and shows the default two-month calendar.",
                 DatePicker::new(&self.default_picker)
-                    .placeholder(DatePickerStoryText::LaunchPlaceholder.to_fluent_string())
+                    .placeholder("Select a launch date")
                     .cleanable(true),
             ))
             .child(story_field(
-                DatePickerStoryText::LongFieldLabel.to_fluent_string(),
-                DatePickerStoryText::LongFieldDescription.to_fluent_string(),
+                "Long display",
+                "Prefilled with DateDisplayStyle::Long so the input renders a fully localized date string.",
                 DatePicker::new(&self.long_picker)
                     .cleanable(true)
                     .number_of_months(1),
             ))
             .child(story_field(
-                DatePickerStoryText::FrenchFieldLabel.to_fluent_string(),
-                DatePickerStoryText::FrenchFieldDescription.to_fluent_string(),
+                "French locale",
+                "Overrides the display locale to French while still emitting the same Jiff date value.",
                 DatePicker::new(&self.localized_picker).cleanable(true),
             ))
             .child(story_field(
-                DatePickerStoryText::CompactFieldLabel.to_fluent_string(),
-                DatePickerStoryText::CompactFieldDescription.to_fluent_string(),
+                "Compact appearance",
+                "Uses a short format, a single calendar month, and the borderless input presentation.",
                 DatePicker::new(&self.compact_picker)
                     .cleanable(true)
                     .number_of_months(1)
@@ -155,8 +153,8 @@ impl Render for DatePickerStory {
             ));
 
         story_panel(
-            DatePickerStoryText::PanelTitle.to_fluent_string(),
-            DatePickerStoryText::PanelDescription.to_fluent_string(),
+            "Localized date selection",
+            "This exercises the runtime wrapper around the calendar component: locale-aware display text, selection state, and emitted change events.",
             div().flex().flex_col().gap_4().child(form).child(
                 div()
                     .flex()
@@ -164,31 +162,11 @@ impl Render for DatePickerStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(
-                        DatePickerStoryText::DefaultValue {
-                            value: default_value,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(DatePickerStoryText::LongValue { value: long_value }.to_fluent_string())
-                    .child(
-                        DatePickerStoryText::FrenchValue {
-                            value: localized_value,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        DatePickerStoryText::CompactValue {
-                            value: compact_value,
-                        }
-                        .to_fluent_string(),
-                    )
-                    .child(
-                        DatePickerStoryText::LastChange {
-                            value: self.last_change.to_string(),
-                        }
-                        .to_fluent_string(),
-                    ),
+                    .child(format!("Default value: {default_value}"))
+                    .child(format!("Long value: {long_value}"))
+                    .child(format!("French value: {localized_value}"))
+                    .child(format!("Compact value: {compact_value}"))
+                    .child(format!("Last change event: {}", self.last_change)),
             ),
         )
     }
@@ -197,6 +175,6 @@ impl Render for DatePickerStory {
 fn describe_date(date: Option<JiffDate>) -> String {
     match date {
         Some(date) => date.to_string(),
-        None => DatePickerStoryText::None.to_fluent_string(),
+        None => "None".to_string(),
     }
 }
