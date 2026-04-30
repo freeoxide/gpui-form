@@ -3,16 +3,96 @@ use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     Styled as _, Subscription, Window, div,
 };
+use gpui_component::IndexPath;
 use gpui_component::form::v_form;
 
 use gpui_form_component::InfiniteSelect;
 use gpui_form_component::infinite_select::{
-    InfiniteSelectEvent, InfiniteSelectState, build_from_key_path, build_from_path,
+    InfiniteSelect as _, InfiniteSelectEvent, InfiniteSelectItem, InfiniteSelectState,
+    build_from_key_path, build_from_path, to_select_items,
 };
 
 use super::common::story_panel;
 
 type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
+
+fn selected_index(row: usize) -> Option<IndexPath> {
+    Some(IndexPath {
+        section: 0,
+        row,
+        column: 0,
+    })
+}
+
+fn refresh_select_labels(
+    state: &Entity<DeploymentSelectState>,
+    window: &mut Window,
+    cx: &mut Context<InfiniteSelectStory>,
+) {
+    let (value, path, master_select, child_selects) = {
+        let state = state.read(cx);
+        (
+            state.value().clone(),
+            state.path().clone(),
+            state.master_select(),
+            state.child_selects(),
+        )
+    };
+
+    master_select.update(cx, |select, cx| {
+        select.set_items(to_select_items::<DeploymentTarget>(), window, cx);
+        select.set_selected_index(path.get(0).and_then(selected_index), window, cx);
+    });
+
+    let mut current_value = value;
+    for (level, child_select) in child_selects.into_iter().enumerate() {
+        let items = child_items_for_level(&current_value, level);
+        if items.is_empty() {
+            break;
+        }
+
+        let selected_row = path.get(level + 1).unwrap_or(0).min(items.len() - 1);
+        child_select.update(cx, |select, cx| {
+            select.set_items(items.clone(), window, cx);
+            select.set_selected_index(selected_index(selected_row), window, cx);
+        });
+        current_value = items[selected_row].get_value().clone();
+    }
+}
+
+fn child_items_for_level(
+    current_value: &DeploymentTarget,
+    level: usize,
+) -> Vec<InfiniteSelectItem<DeploymentTarget>> {
+    let (has_more, child_labels) = if level == 0 {
+        (
+            current_value.has_inner(),
+            current_value.child_variant_labels(),
+        )
+    } else {
+        (
+            current_value.inner_has_inner(),
+            current_value.inner_child_variant_labels(),
+        )
+    };
+
+    if !has_more || child_labels.is_empty() {
+        return Vec::new();
+    }
+
+    child_labels
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, title)| {
+            let value = if level == 0 {
+                current_value.set_child_by_index(index)
+            } else {
+                current_value.inner_set_child_by_index(index)
+            };
+            value.map(|value| InfiniteSelectItem::new(value, title))
+        })
+        .collect()
+}
 
 #[gpui_storybook::story]
 pub struct InfiniteSelectStory {
@@ -69,7 +149,9 @@ impl InfiniteSelectStory {
 }
 
 impl Render for InfiniteSelectStory {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        refresh_select_labels(&self.select_state, window, cx);
+
         let snapshot = self.select_state.read(cx).snapshot();
         let path = snapshot.path().clone();
         let key_path = snapshot.key_path().clone();
@@ -132,9 +214,17 @@ enum DeploymentTarget {
 impl DeploymentTarget {
     fn summary(&self) -> String {
         match self {
-            Self::Web(region) => format!("Web / {}", region.summary()),
-            Self::Desktop(platform) => format!("Desktop / {}", platform.name()),
-            Self::Docs => "Docs".to_string(),
+            Self::Web(region) => format!(
+                "{} / {}",
+                DeploymentTargetLabelVariants::Web.to_fluent_string(),
+                region.summary()
+            ),
+            Self::Desktop(platform) => format!(
+                "{} / {}",
+                DeploymentTargetLabelVariants::Desktop.to_fluent_string(),
+                platform.name()
+            ),
+            Self::Docs => DeploymentTargetLabelVariants::Docs.to_fluent_string(),
         }
     }
 }
@@ -224,6 +314,8 @@ impl DesktopPlatform {
 mod tests {
     use es_fluent::ToFluentString as _;
 
+    use crate::i18n::{DatePickerComponentText, FilePickerComponentText};
+
     use super::{DeploymentTargetLabelVariants, WebRegionLabelVariants};
 
     #[test]
@@ -232,6 +324,14 @@ mod tests {
 
         assert_eq!(DeploymentTargetLabelVariants::Web.to_fluent_string(), "Web");
         assert_eq!(WebRegionLabelVariants::UsEast.to_fluent_string(), "US East");
+        assert_eq!(
+            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            "Choose a source file"
+        );
+        assert_eq!(
+            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            "Select a launch date"
+        );
 
         es_fluent_manager_embedded::select_language(unic_langid::langid!("fr-FR")).unwrap();
         assert_eq!(
@@ -242,6 +342,14 @@ mod tests {
             WebRegionLabelVariants::UsEast.to_fluent_string(),
             "Est des États-Unis"
         );
+        assert_eq!(
+            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            "Sélectionner un fichier source"
+        );
+        assert_eq!(
+            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            "Sélectionner une date de lancement"
+        );
 
         es_fluent_manager_embedded::select_language(unic_langid::langid!("zh-CN")).unwrap();
         assert_eq!(
@@ -251,6 +359,14 @@ mod tests {
         assert_eq!(
             WebRegionLabelVariants::UsEast.to_fluent_string(),
             "美国东部"
+        );
+        assert_eq!(
+            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            "选择源文件"
+        );
+        assert_eq!(
+            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            "选择发布日期"
         );
     }
 }

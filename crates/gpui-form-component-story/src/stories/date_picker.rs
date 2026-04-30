@@ -1,3 +1,4 @@
+use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -9,6 +10,8 @@ use jiff::civil::{Date as JiffDate, date};
 use gpui_form_component::date_picker::{
     DateDisplayStyle, DatePicker, DatePickerEvent, DatePickerState,
 };
+
+use crate::i18n::DatePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
@@ -128,7 +131,7 @@ impl Render for DatePickerStory {
                 "Default picker",
                 "Starts empty, uses the active locale, and shows the default two-month calendar.",
                 DatePicker::new(&self.default_picker)
-                    .placeholder("Select a launch date")
+                    .placeholder(DatePickerComponentText::LaunchPlaceholder.to_fluent_string())
                     .cleanable(true),
             ))
             .child(story_field(

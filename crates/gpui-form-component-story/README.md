@@ -14,8 +14,8 @@ cargo run -p gpui-form-component-story
 ```
 
 Story titles, descriptions, diagnostics, and other demo chrome are in-place
-English strings. The only `es-fluent` resources in this package are the
-`infinite_select` namespace messages used by the demo enum metadata, so the
-storybook can exercise fluent-backed `InfiniteSelect` labels and descriptions.
-Those demo metadata resources ship in English, French (`fr-FR`), and
-Simplified Chinese (`zh-CN`).
+English strings. Text passed into the demo components is fluent-backed: the
+`infinite_select` namespace covers demo enum metadata, while `date_picker` and
+`file_picker` cover component placeholders, prompts, and action labels. Those
+component-facing resources ship in English, French (`fr-FR`), and Simplified
+Chinese (`zh-CN`).

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use es_fluent::ToFluentString as _;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -9,6 +10,8 @@ use gpui_component::form::v_form;
 use gpui_form_component::file_picker::{
     FilePicker, FilePickerEvent, FilePickerMode, FilePickerState,
 };
+
+use crate::i18n::FilePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
@@ -116,8 +119,8 @@ impl Render for FilePickerStory {
                 "File",
                 "Selects one file using GPUI's native PathPromptOptions.",
                 FilePicker::new(&self.file_picker)
-                    .placeholder("Choose a source file")
-                    .prompt("Choose a source file")
+                    .placeholder(FilePickerComponentText::SourcePlaceholder.to_fluent_string())
+                    .prompt(FilePickerComponentText::SourcePlaceholder.to_fluent_string())
                     .cleanable(true),
             ))
             .child(story_field(
@@ -125,8 +128,8 @@ impl Render for FilePickerStory {
                 "Selects one directory and starts with a programmatic value.",
                 FilePicker::new(&self.directory_picker)
                     .mode(FilePickerMode::Directory)
-                    .placeholder("Choose an output directory")
-                    .prompt("Choose an output directory")
+                    .placeholder(FilePickerComponentText::OutputPlaceholder.to_fluent_string())
+                    .prompt(FilePickerComponentText::OutputPlaceholder.to_fluent_string())
                     .cleanable(true),
             ))
             .child(story_field(
@@ -134,7 +137,7 @@ impl Render for FilePickerStory {
                 "Allows selecting multiple files; the state stores the full PathBuf list.",
                 FilePicker::new(&self.multiple_picker)
                     .multiple(true)
-                    .browse_label("Choose files")
+                    .browse_label(FilePickerComponentText::ChooseFiles.to_fluent_string())
                     .cleanable(true),
             ));
 
