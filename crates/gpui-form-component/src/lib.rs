@@ -18,8 +18,7 @@ pub mod date_picker;
 /// Runtime helpers for the native file picker component.
 pub mod file_picker;
 
+mod i18n;
+
 /// Runtime helpers for the InfiniteSelect component.
 pub mod infinite_select;
-
-#[cfg(feature = "story")]
-mod stories;

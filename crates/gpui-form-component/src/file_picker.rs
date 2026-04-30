@@ -19,6 +19,9 @@ use gpui_component::{
     h_flex,
 };
 
+use crate::i18n::FilePickerText;
+use es_fluent::ToFluentString as _;
+
 /// Which path kinds a [`FilePicker`] should ask GPUI to select.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FilePickerMode {
@@ -52,19 +55,21 @@ impl FilePickerMode {
 
     fn default_placeholder(self) -> SharedString {
         match self {
-            Self::File => "Select a file",
-            Self::Directory => "Select a directory",
-            Self::FileOrDirectory => "Select a file or directory",
+            Self::File => FilePickerText::SelectAFile,
+            Self::Directory => FilePickerText::SelectADirectory,
+            Self::FileOrDirectory => FilePickerText::SelectAFileOrDirectory,
         }
+        .to_fluent_string()
         .into()
     }
 
     fn default_prompt(self) -> SharedString {
         match self {
-            Self::File => "Select file",
-            Self::Directory => "Select directory",
-            Self::FileOrDirectory => "Select file or directory",
+            Self::File => FilePickerText::SelectFile,
+            Self::Directory => FilePickerText::SelectDirectory,
+            Self::FileOrDirectory => FilePickerText::SelectFileOrDirectory,
         }
+        .to_fluent_string()
         .into()
     }
 }
@@ -348,7 +353,7 @@ impl RenderOnce for FilePicker {
         let browse_label = self
             .browse_label
             .clone()
-            .unwrap_or_else(|| SharedString::from("Browse"));
+            .unwrap_or_else(|| FilePickerText::Browse.to_fluent_string().into());
         let text_state = self.state.clone();
         let text_prompt = prompt.clone();
         let browse_state = self.state.clone();
@@ -486,10 +491,7 @@ fn prompt_for_selection(
                 Ok(Ok(Some(paths))) => this.replace_paths(paths, true, window, cx),
                 Ok(Ok(None)) => this.emit_cancel(cx),
                 Ok(Err(error)) => this.emit_error(error.to_string(), cx),
-                Err(_) => this.emit_error(
-                    "file picker dialog was dropped before returning a result",
-                    cx,
-                ),
+                Err(_) => this.emit_error(FilePickerText::DialogDropped.to_fluent_string(), cx),
             });
         })
         .detach();
@@ -499,6 +501,8 @@ fn display_paths(paths: &[PathBuf], placeholder: SharedString) -> SharedString {
     match paths {
         [] => placeholder,
         [path] => path.display().to_string().into(),
-        _ => format!("{} paths selected", paths.len()).into(),
+        _ => FilePickerText::PathsSelected { count: paths.len() }
+            .to_fluent_string()
+            .into(),
     }
 }

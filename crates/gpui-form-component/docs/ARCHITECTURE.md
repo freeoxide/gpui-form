@@ -25,6 +25,8 @@ schema metadata:
   editing
 - `src/file_picker.rs`: runtime state and element wrapper for native path
   selection with `gpui::PathPromptOptions`
+- `src/i18n.rs`: crate-local `es-fluent` module registration and one message
+  enum per runtime namespace
 
 ## Subsystem Boundaries
 
@@ -67,6 +69,8 @@ Responsibilities:
 - hold selected date state in `DatePickerState`
 - emit `DatePickerEvent::Change(Option<jiff::civil::Date>)`
 - format display text with locale-aware ICU4X/Jiff formatting
+- localize the default empty placeholder through the crate's `es-fluent`
+  messages
 - keep generated code independent from `chrono` display formatting details
 
 ### `file_picker`
@@ -79,6 +83,8 @@ Responsibilities:
 - emit `FilePickerEvent::Change`, `Cancel`, and `Error`
 - render the control with `gpui-component` buttons, icons, theme tokens, and
   sizing helpers
+- localize built-in placeholders, prompts, button labels, selected-count text,
+  and dropped-dialog errors through the crate's `es-fluent` messages
 - use the workspace-pinned GPUI git API instead of adding another native dialog
   dependency
 
@@ -127,6 +133,21 @@ Responsibilities:
 1. Subscribers receive changed path lists, cancellation, or platform-dialog
    errors through `FilePickerEvent`.
 
+### Built-in text
+
+1. `src/i18n.rs` registers this crate's embedded Fluent assets with
+   `es-fluent-manager-embedded`.
+1. `i18n.toml` allowlists the runtime namespaces (`date_picker`,
+   `file_picker`).
+1. Fluent resources live under
+   `i18n/{locale}/gpui-form-component/{namespace}.ftl`; add new component text
+   to the matching namespace file instead of a shared crate-level Fluent file.
+1. Runtime components call `ToFluentString` for built-in defaults only.
+1. Caller-provided labels, prompts, placeholders, and event errors remain
+   caller-owned text.
+1. Story/demo text belongs to `gpui-form-component-story`, not this runtime
+   crate.
+
 ## Dependency Role
 
 This crate should remain focused on runtime GPUI behavior.
@@ -159,3 +180,4 @@ Update this file when:
 - a new runtime helper module is added
 - the custom component contract changes
 - infinite-select or date-picker event/data flow changes
+- story/demo ownership moves back into or out of this runtime crate

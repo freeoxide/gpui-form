@@ -6,6 +6,7 @@ members = [
   "crates/gpui-form-codegen",
   "crates/gpui-form-component",
   "crates/gpui-form-component-derive",
+  "crates/gpui-form-component-story",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-prototyping-core",
@@ -41,6 +42,7 @@ gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
 gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.5.1" }
+gpui-form-component-story = { path = "crates/gpui-form-component-story", version = "0.5.1" }
 gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.1" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }

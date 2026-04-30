@@ -18,6 +18,9 @@ use icu_datetime::{FixedCalendarDateTimeFormatter, fieldsets};
 use icu_locale_core::{Locale, locale};
 use jiff::civil::Date as JiffDate;
 
+use crate::i18n::DatePickerText;
+use es_fluent::ToFluentString as _;
+
 /// Localized date display widths for the runtime date picker.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum DateDisplayStyle {
@@ -257,7 +260,7 @@ impl RenderOnce for DatePicker {
         let placeholder = self
             .placeholder
             .clone()
-            .unwrap_or_else(|| SharedString::from("Select date"));
+            .unwrap_or_else(|| DatePickerText::SelectDate.to_fluent_string().into());
         let locale = state.display_locale.clone().unwrap_or_else(active_locale);
         let display_title = state
             .date

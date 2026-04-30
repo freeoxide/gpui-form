@@ -5,7 +5,7 @@ use strum::EnumIter;
 
 // Bring the library target into scope so story inventory registrations are linked.
 #[allow(unused_imports, clippy::single_component_path_imports)]
-use gpui_form_component;
+use gpui_form_component_story;
 
 #[es_fluent_language]
 #[derive(Clone, Copy, Debug, EnumIter, Eq, EsFluent, PartialEq)]

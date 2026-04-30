@@ -124,6 +124,10 @@ Additional rules:
   Docs: [Architecture](crates/gpui-form-codegen/docs/ARCHITECTURE.md)
   Role: parse-time component parsing, per-component layout emission, and token generation used by `gpui-form-derive`.
 
+- `crates/gpui-form-component-story`
+  Audience: **Internal**
+  Role: Storybook launcher, story UI, and story-only localization assets for the runtime components in `gpui-form-component`.
+
 ### Examples and shared surfaces
 
 - `examples/README.md`
@@ -142,6 +146,11 @@ Additional rules:
   Storybook-like GPUI example app for browsing generated forms.
 
   Run with `cargo run -p some-lib-forms`.
+
+- `crates/gpui-form-component-story`
+  Storybook-like GPUI example app for browsing the reusable runtime components.
+
+  Run with `cargo run -p gpui-form-component-story`.
 
 - `examples/prototyping`
   Prototype generator that reads `GpuiFormShape` inventory data and emits form scaffolding.

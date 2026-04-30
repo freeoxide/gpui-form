@@ -41,6 +41,11 @@ Variant attributes:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 - `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` tells the derive
+  to use `EsFluentVariants` / `EsFluentThis` metadata for option titles, type
+  labels, and type descriptions. The corresponding `es-fluent` derives may use
+  `#[fluent(namespace = "...")]` when those messages live in namespaced Fluent
+  files.
 
 Behavior notes:
 
