@@ -81,6 +81,9 @@ Behavior notes:
   as `T` instead of `Option<T>`
 - `type`/`from`/`into` let the generated holder edit a type that differs from
   the original model field
+- field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
+  onto the generated value holder, which allows validating form-side override
+  types without deriving `Koruma` on the original model
 - when skipped fields are present, the generated value holder keeps builder
   support and exposes `into_original(...)` instead of an unconditional reverse
   conversion

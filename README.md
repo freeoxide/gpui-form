@@ -101,6 +101,9 @@ Common field-level helpers:
   allowing prefill from the original model.
 - `#[gpui_form(type = <form_type>, from = <expr>, into = <expr>)]` lets the
   generated form edit a type that differs from the original field type.
+- Field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
+  onto the generated value holder, including fields that use `type`, `from`,
+  and `into` to validate a form-side type.
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree.
