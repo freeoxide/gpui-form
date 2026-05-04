@@ -1,6 +1,4 @@
 pub mod cfg_attr_example;
-pub mod custom_vec_string;
-pub mod custom_vec_string_external;
 pub mod empty;
 pub mod form_action;
 pub mod location;

@@ -1,21 +1,27 @@
 use some_lib::structs::location::*;
-use es_fluent::ToFluentString as _;
+use es_fluent::FluentMessage as _;
 use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
 use gpui::prelude::FluentBuilder as _;
 use gpui_component::ActiveTheme as _;
 use gpui_component::form::field;
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
-use es_fluent::ThisFtl as _;
+use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
 };
 use gpui_component::Disableable as _;
-use gpui_component::divider::Divider;
+use gpui_component::separator::Separator;
 use gpui_component::form::v_form;
 use gpui_component::v_flex;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "LocationFormForm";
+
+fn localize(message: &impl FluentMessage) -> String {
+    crate::i18n::localize(message)
+}
+
+
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
@@ -32,7 +38,7 @@ impl Focusable for LocationFormForm {
 }
 impl gpui_storybook::Story for LocationFormForm {
     fn title() -> String {
-        LocationForm::this_ftl()
+        crate::i18n::localize_label::<LocationForm>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -156,9 +162,9 @@ impl LocationFormForm {
             .flex()
             .gap_2()
             .child(
-                self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit),
+                self.submit_button(cx, localize(&FormAction::Submit), on_submit),
             )
-            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+            .child(self.reset_button(cx, localize(&FormAction::Reset)))
     }
 }
 impl Render for LocationFormForm {
@@ -170,15 +176,20 @@ impl Render for LocationFormForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(LocationFormLabelVariants::Name.to_fluent_string())
+                            .label({
+                                let message = LocationFormLabelVariants::Name;
+                                localize(&message)
+                            })
                             .description_fn({
-                                let description = LocationFormDescriptionVariants::Name
-                                    .to_fluent_string();
+                                let description = {
+                                let message = LocationFormDescriptionVariants::Name;
+                                localize(&message)
+                            };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -206,7 +217,7 @@ impl Render for LocationFormForm {
                             ),
                     ),
             )
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(

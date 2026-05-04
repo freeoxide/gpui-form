@@ -104,7 +104,9 @@ pub enum Country {
 
 Optional attribute:
 
-- `#[select_item(fluent)]` uses `es-fluent` for titles
+- `#[select_item(fluent)]` allows enums that derive `EsFluent` to avoid a
+  `Display` bound, but `SelectItem::title()` has no localizer argument. Render
+  localized select labels in the application layer when localization is needed.
 
 ## `#[derive(CustomComponentState)]`
 

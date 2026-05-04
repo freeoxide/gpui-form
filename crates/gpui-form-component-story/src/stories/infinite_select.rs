@@ -1,4 +1,4 @@
-use es_fluent::{EsFluentThis, EsFluentVariants, ToFluentString as _};
+use es_fluent::{EsFluentLabel, EsFluentVariants};
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     Styled as _, Subscription, Window, div,
@@ -15,6 +15,10 @@ use gpui_form_component::infinite_select::{
 use super::common::story_panel;
 
 type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
+
+fn localize(message: &impl es_fluent::FluentMessage) -> String {
+    crate::i18n::localize(message)
+}
 
 fn selected_index(row: usize) -> Option<IndexPath> {
     Some(IndexPath {
@@ -200,9 +204,9 @@ impl Render for InfiniteSelectStory {
     }
 }
 
-#[derive(Clone, Debug, EsFluentThis, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_this(origin, variants)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum DeploymentTarget {
@@ -216,15 +220,15 @@ impl DeploymentTarget {
         match self {
             Self::Web(region) => format!(
                 "{} / {}",
-                DeploymentTargetLabelVariants::Web.to_fluent_string(),
+                localize(&DeploymentTargetLabelVariants::Web),
                 region.summary()
             ),
             Self::Desktop(platform) => format!(
                 "{} / {}",
-                DeploymentTargetLabelVariants::Desktop.to_fluent_string(),
+                localize(&DeploymentTargetLabelVariants::Desktop),
                 platform.name()
             ),
-            Self::Docs => DeploymentTargetLabelVariants::Docs.to_fluent_string(),
+            Self::Docs => localize(&DeploymentTargetLabelVariants::Docs),
         }
     }
 }
@@ -235,9 +239,9 @@ impl Default for DeploymentTarget {
     }
 }
 
-#[derive(Clone, Debug, EsFluentThis, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_this(origin, variants)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum WebRegion {
@@ -248,8 +252,8 @@ enum WebRegion {
 impl WebRegion {
     fn name(&self) -> String {
         match self {
-            Self::UsEast(_) => WebRegionLabelVariants::UsEast.to_fluent_string(),
-            Self::Europe(_) => WebRegionLabelVariants::Europe.to_fluent_string(),
+            Self::UsEast(_) => localize(&WebRegionLabelVariants::UsEast),
+            Self::Europe(_) => localize(&WebRegionLabelVariants::Europe),
         }
     }
 
@@ -266,9 +270,9 @@ impl Default for WebRegion {
     }
 }
 
-#[derive(Clone, Debug, Default, EsFluentThis, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_this(origin, variants)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum AvailabilityZone {
@@ -280,17 +284,15 @@ enum AvailabilityZone {
 impl AvailabilityZone {
     fn name(&self) -> String {
         match self {
-            Self::Primary => AvailabilityZoneLabelVariants::Primary.to_fluent_string(),
-            Self::DisasterRecovery => {
-                AvailabilityZoneLabelVariants::DisasterRecovery.to_fluent_string()
-            },
+            Self::Primary => localize(&AvailabilityZoneLabelVariants::Primary),
+            Self::DisasterRecovery => localize(&AvailabilityZoneLabelVariants::DisasterRecovery),
         }
     }
 }
 
-#[derive(Clone, Debug, Default, EsFluentThis, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_this(origin, variants)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum DesktopPlatform {
@@ -303,69 +305,96 @@ enum DesktopPlatform {
 impl DesktopPlatform {
     fn name(&self) -> String {
         match self {
-            Self::MacOs => DesktopPlatformLabelVariants::MacOs.to_fluent_string(),
-            Self::Linux => DesktopPlatformLabelVariants::Linux.to_fluent_string(),
-            Self::Windows => DesktopPlatformLabelVariants::Windows.to_fluent_string(),
+            Self::MacOs => localize(&DesktopPlatformLabelVariants::MacOs),
+            Self::Linux => localize(&DesktopPlatformLabelVariants::Linux),
+            Self::Windows => localize(&DesktopPlatformLabelVariants::Windows),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use es_fluent::ToFluentString as _;
-
     use crate::i18n::{DatePickerComponentText, FilePickerComponentText};
 
-    use super::{DeploymentTargetLabelVariants, WebRegionLabelVariants};
+    use es_fluent::FluentLabel as _;
+
+    use super::{DeploymentTarget, DeploymentTargetLabelVariants, WebRegionLabelVariants};
 
     #[test]
     fn resolves_infinite_select_demo_metadata() {
-        es_fluent_manager_embedded::init_with_language(unic_langid::langid!("en"));
+        let i18n = es_fluent_manager_embedded::EmbeddedI18n::try_new_with_language(
+            unic_langid::langid!("en"),
+        )
+        .unwrap();
 
-        assert_eq!(DeploymentTargetLabelVariants::Web.to_fluent_string(), "Web");
-        assert_eq!(WebRegionLabelVariants::UsEast.to_fluent_string(), "US East");
         assert_eq!(
-            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            i18n.localize_message(&DeploymentTargetLabelVariants::Web),
+            "Web"
+        );
+        assert_eq!(
+            i18n.localize_message(&WebRegionLabelVariants::UsEast),
+            "US East"
+        );
+        assert_eq!(DeploymentTarget::localize_label(&i18n), "Deployment Target");
+        assert_eq!(
+            DeploymentTargetLabelVariants::localize_label(&i18n),
+            "Deployment Target"
+        );
+        assert_eq!(
+            i18n.localize_message(&FilePickerComponentText::SourcePlaceholder),
             "Choose a source file"
         );
         assert_eq!(
-            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            i18n.localize_message(&DatePickerComponentText::LaunchPlaceholder),
             "Select a launch date"
         );
 
-        es_fluent_manager_embedded::select_language(unic_langid::langid!("fr-FR")).unwrap();
+        i18n.select_language(unic_langid::langid!("fr-FR")).unwrap();
         assert_eq!(
-            DeploymentTargetLabelVariants::Desktop.to_fluent_string(),
+            i18n.localize_message(&DeploymentTargetLabelVariants::Desktop),
             "Bureau"
         );
         assert_eq!(
-            WebRegionLabelVariants::UsEast.to_fluent_string(),
+            i18n.localize_message(&WebRegionLabelVariants::UsEast),
             "Est des États-Unis"
         );
         assert_eq!(
-            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            DeploymentTarget::localize_label(&i18n),
+            "Cible de déploiement"
+        );
+        assert_eq!(
+            DeploymentTargetLabelVariants::localize_label(&i18n),
+            "Cible de déploiement"
+        );
+        assert_eq!(
+            i18n.localize_message(&FilePickerComponentText::SourcePlaceholder),
             "Sélectionner un fichier source"
         );
         assert_eq!(
-            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            i18n.localize_message(&DatePickerComponentText::LaunchPlaceholder),
             "Sélectionner une date de lancement"
         );
 
-        es_fluent_manager_embedded::select_language(unic_langid::langid!("zh-CN")).unwrap();
+        i18n.select_language(unic_langid::langid!("zh-CN")).unwrap();
         assert_eq!(
-            DeploymentTargetLabelVariants::Docs.to_fluent_string(),
+            i18n.localize_message(&DeploymentTargetLabelVariants::Docs),
             "文档"
         );
         assert_eq!(
-            WebRegionLabelVariants::UsEast.to_fluent_string(),
+            i18n.localize_message(&WebRegionLabelVariants::UsEast),
             "美国东部"
         );
+        assert_eq!(DeploymentTarget::localize_label(&i18n), "部署目标");
         assert_eq!(
-            FilePickerComponentText::SourcePlaceholder.to_fluent_string(),
+            DeploymentTargetLabelVariants::localize_label(&i18n),
+            "部署目标"
+        );
+        assert_eq!(
+            i18n.localize_message(&FilePickerComponentText::SourcePlaceholder),
             "选择源文件"
         );
         assert_eq!(
-            DatePickerComponentText::LaunchPlaceholder.to_fluent_string(),
+            i18n.localize_message(&DatePickerComponentText::LaunchPlaceholder),
             "选择发布日期"
         );
     }

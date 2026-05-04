@@ -61,4 +61,6 @@ cargo run -p prototyping
 
 ## i18n
 
-Shared localization assets used by the example crates.
+Shared localization assets used by the example crates. Story apps own a small
+`i18n` helper around `EmbeddedI18n`; generated/story rendering calls that helper
+instead of relying on a hidden runtime localization context.

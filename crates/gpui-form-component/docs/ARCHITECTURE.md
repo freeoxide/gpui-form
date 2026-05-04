@@ -77,8 +77,8 @@ Responsibilities:
 - format display text with locale-aware ICU4X/Jiff formatting
 - format calendar month names, weekday headers, day/year labels, and week-start
   layout with ICU4X locale data
-- localize the default empty placeholder through the crate's `es-fluent`
-  messages
+- provide plain English fallback placeholder copy and let applications pass
+  localized placeholder text explicitly
 - keep generated code independent from `chrono` display formatting details
 
 ### `file_picker`
@@ -91,8 +91,9 @@ Responsibilities:
 - emit `FilePickerEvent::Change`, `Cancel`, and `Error`
 - render the control with `gpui-component` buttons, icons, theme tokens, and
   sizing helpers
-- localize built-in placeholders, prompts, button labels, selected-count text,
-  and dropped-dialog errors through the crate's `es-fluent` messages
+- provide plain English fallback copy for built-in placeholders, prompts,
+  button labels, selected-count text, and dropped-dialog errors while keeping
+  Fluent resources available for application-owned localizers
 - use the workspace-pinned GPUI git API instead of adding another native dialog
   dependency
 
@@ -153,7 +154,9 @@ Responsibilities:
    `i18n/{locale}/gpui-form-component/{namespace}.ftl`; add new component text
    to the matching namespace file instead of a shared crate-level Fluent file.
 1. Runtime resources currently ship for `en`, `fr-FR`, and `zh-CN`.
-1. Runtime components call `ToFluentString` for built-in defaults only.
+1. Runtime components use plain English fallback copy unless callers pass
+   localized text explicitly; `src/i18n.rs` exposes helpers for applications
+   that want to render this crate's messages through their own localizer.
 1. Caller-provided labels, prompts, placeholders, and event errors remain
    caller-owned text.
 1. Story/demo text belongs to `gpui-form-component-story`, not this runtime

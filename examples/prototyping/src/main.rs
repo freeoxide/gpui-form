@@ -129,8 +129,8 @@ impl FormLayout for StorybookLayout {
                     div()
                         .flex()
                         .gap_2()
-                        .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
-                        .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+                        .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
+                        .child(self.reset_button(cx, localize(&FormAction::Reset)))
                 }
             }
         };
@@ -158,15 +158,18 @@ impl FormLayout for StorybookLayout {
 
         syn::parse2(quote! {
             #imports
-            use es_fluent::ThisFtl as _;
             use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
             use gpui_component::Disableable as _;
-            use gpui_component::divider::Divider;
+            use gpui_component::separator::Separator;
             use gpui_component::form::v_form;
             use gpui_component::v_flex;
             #form_action_import
 
             const CONTEXT: &str = #context_str;
+
+            fn localize(message: &impl es_fluent::FluentMessage) -> String {
+                crate::i18n::localize(message)
+            }
 
             #[gpui_storybook::story_init]
             pub fn init(cx: &mut App) {}
@@ -187,7 +190,7 @@ impl FormLayout for StorybookLayout {
 
             impl gpui_storybook::Story for #form_ident {
                 fn title() -> String {
-                    #struct_name_ident::this_ftl()
+                    crate::i18n::localize_label::<#struct_name_ident>()
                 }
 
                 fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -220,7 +223,7 @@ impl FormLayout for StorybookLayout {
 
             impl Render for #form_ident {
                 fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-                    #validation_binding
+#validation_binding
                     v_flex()
                         .key_context(CONTEXT)
                         .id(#form_id_literal)
@@ -228,13 +231,13 @@ impl FormLayout for StorybookLayout {
                         .p_4()
                         .justify_start()
                         .gap_3()
-                        .child(Divider::horizontal())
+                        .child(Separator::horizontal())
                         .child(
                             v_form()
                                 #render_children
                                 #action_buttons_child
                         )
-                        .child(Divider::horizontal())
+                        .child(Separator::horizontal())
                         #debug_child
                 }
             }

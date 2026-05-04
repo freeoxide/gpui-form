@@ -1,5 +1,5 @@
 use anyhow::Context as _;
-use es_fluent::{EsFluent, EsFluentThis, EsFluentVariants};
+use es_fluent::{EsFluent, EsFluentLabel, EsFluentVariants};
 use gpui_form::{GpuiForm, SelectItem};
 use koruma::{Koruma, KorumaAllFluent};
 use koruma_collection::{
@@ -28,8 +28,8 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, EsFluentThis, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
-#[fluent_this(origin, variants)]
+#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[gpui_form(koruma(fluent))]
 pub struct User {

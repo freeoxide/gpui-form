@@ -1,4 +1,4 @@
-use es_fluent::{EsFluentThis, EsFluentVariants};
+use es_fluent::{EsFluentLabel, EsFluentVariants};
 use gpui_form::SelectItem;
 use koruma_collection::{
     collection::NonEmptyValidation,
@@ -52,8 +52,8 @@ pub struct Age {
 /// Features required: ui, validation, fluent
 #[cfg_attr(feature = "ui", derive(gpui_form::GpuiForm))]
 #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
-#[cfg_attr(feature = "fluent", derive(EsFluentVariants, EsFluentThis))]
-#[cfg_attr(feature = "fluent", fluent_this(origin, variants))]
+#[cfg_attr(feature = "fluent", derive(EsFluentVariants, EsFluentLabel))]
+#[cfg_attr(feature = "fluent", fluent_label(origin, variants))]
 #[cfg_attr(feature = "fluent", fluent_variants(keys = ["description", "label"]))]
 #[cfg_attr(
     feature = "validation",

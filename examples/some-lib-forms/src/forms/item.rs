@@ -1,17 +1,22 @@
-use es_fluent::{ThisFtl as _, ToFluentString as _};
+use es_fluent::FluentMessage;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
-use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction};
+use gpui_component::separator::Separator;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";
+
+fn localize(message: &impl FluentMessage) -> String {
+    crate::i18n::localize(message)
+}
+
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
@@ -28,7 +33,7 @@ impl Focusable for ItemForm {
 }
 impl gpui_storybook::Story for ItemForm {
     fn title() -> String {
-        Item::this_ftl()
+        crate::i18n::localize_label::<Item>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -149,8 +154,8 @@ impl ItemForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
-            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+            .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(&FormAction::Reset)))
     }
 }
 impl Render for ItemForm {
@@ -163,14 +168,14 @@ impl Render for ItemForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(ItemLabelVariants::Index.to_fluent_string())
+                            .label(localize(&ItemLabelVariants::Index))
                             .description_fn({
-                                let description = ItemDescriptionVariants::Index.to_fluent_string();
+                                let description = localize(&ItemDescriptionVariants::Index);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.index().all();
@@ -179,7 +184,7 @@ impl Render for ItemForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -211,7 +216,7 @@ impl Render for ItemForm {
                         },
                     ))),
             )
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: {:?}",

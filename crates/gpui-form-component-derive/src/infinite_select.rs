@@ -204,23 +204,13 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let type_label_impl = if fluent_kv.uses_type_label() {
-        let label_enum = quote::format_ident!("{}LabelVariants", enum_ident);
-
-        quote! {
-            use es_fluent::ThisFtl as _;
-            #label_enum::this_ftl().into()
-        }
+        quote! { stringify!(#enum_ident).into() }
     } else {
         quote! { stringify!(#enum_ident).into() }
     };
 
     let type_description_impl = if fluent_kv.uses_type_description() {
-        let description_enum = quote::format_ident!("{}DescriptionVariants", enum_ident);
-
-        quote! {
-            use es_fluent::ThisFtl as _;
-            #description_enum::this_ftl().into()
-        }
+        quote! { stringify!(#enum_ident).into() }
     } else {
         quote! { stringify!(#enum_ident).into() }
     };
@@ -338,16 +328,10 @@ pub fn from(input: TokenStream) -> TokenStream {
         .iter()
         .map(|variant| {
             let pattern = variant.ignore_pattern();
-            let variant_ident = &variant.ident;
 
             if fluent_kv.has_label {
-                let label_enum = quote::format_ident!("{}LabelVariants", enum_ident);
-                quote! {
-                    #pattern => {
-                        use es_fluent::ToFluentString as _;
-                        #label_enum::#variant_ident.to_fluent_string().into()
-                    }
-                }
+                let fallback = variant.ident.to_string();
+                quote! { #pattern => #fallback.into(), }
             } else {
                 let label = variant.ident.to_string();
                 quote! { #pattern => #label.into(), }

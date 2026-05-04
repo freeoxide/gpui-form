@@ -48,7 +48,9 @@ that hand-written forms use.
 
 ## Feature Flags
 
-- `fluent`: use `es-fluent` keys for generated labels and descriptions
+- `fluent`: use `es-fluent` keys for generated labels, descriptions, and
+  validation messages through an application helper named
+  `crate::i18n::localize(...)`
 
 ## Most Users Should Use Instead
 

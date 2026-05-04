@@ -1,13 +1,19 @@
 use some_lib::structs::empty::*;
-use es_fluent::ThisFtl as _;
+use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
 };
 use gpui_component::Disableable as _;
-use gpui_component::divider::Divider;
+use gpui_component::separator::Separator;
 use gpui_component::form::v_form;
 use gpui_component::v_flex;
 const CONTEXT: &str = "EmptyForm";
+
+fn localize(message: &impl FluentMessage) -> String {
+    crate::i18n::localize(message)
+}
+
+
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
 #[gpui_storybook::story]
@@ -22,7 +28,7 @@ impl Focusable for EmptyForm {
 }
 impl gpui_storybook::Story for EmptyForm {
     fn title() -> String {
-        Empty::this_ftl()
+        crate::i18n::localize_label::<Empty>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -45,8 +51,8 @@ impl Render for EmptyForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(v_form())
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
     }
 }

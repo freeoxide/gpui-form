@@ -26,7 +26,7 @@ const FRAGMENT_IMPORTS: &[ImportItem] = &[
 
 #[cfg(feature = "fluent")]
 const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
-    "es_fluent::ToFluentString",
+    "es_fluent::FluentMessage",
     Alias::Anonymous,
 )];
 

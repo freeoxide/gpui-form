@@ -345,7 +345,10 @@ pub fn generate_label_tokens(
     {
         let ftl_label_ident = component.ftl_label_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
-        quote! { #ftl_label_ident::#field_name_pascal_case_ident.to_fluent_string() }
+        quote! {{
+            let message = #ftl_label_ident::#field_name_pascal_case_ident;
+            crate::i18n::localize(&message)
+        }}
     }
     #[cfg(not(feature = "fluent"))]
     {
@@ -365,7 +368,10 @@ pub fn generate_description_fn_tokens(
     let description_tokens = {
         let ftl_description_ident = component.ftl_description_ident();
         let field_name_pascal_case_ident = field.field_ident_pascal();
-        quote! { #ftl_description_ident::#field_name_pascal_case_ident.to_fluent_string() }
+        quote! {{
+            let message = #ftl_description_ident::#field_name_pascal_case_ident;
+            crate::i18n::localize(&message)
+        }}
     };
     #[cfg(not(feature = "fluent"))]
     let description_tokens = {
@@ -378,7 +384,9 @@ pub fn generate_description_fn_tokens(
     let uses_optional_inner_validation_errors = field.uses_optional_inner_validation_errors();
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
-        let conversion_tokens = quote! { v.to_fluent_string() };
+        let conversion_tokens = quote! {
+            crate::i18n::localize(v)
+        };
         #[cfg(not(feature = "fluent"))]
         let conversion_tokens = quote! { v.to_string() };
 

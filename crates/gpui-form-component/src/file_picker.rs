@@ -20,7 +20,6 @@ use gpui_component::{
 };
 
 use crate::i18n::FilePickerText;
-use es_fluent::ToFluentString as _;
 
 /// Which path kinds a [`FilePicker`] should ask GPUI to select.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -54,23 +53,21 @@ impl FilePickerMode {
     }
 
     fn default_placeholder(self) -> SharedString {
-        match self {
+        let message = match self {
             Self::File => FilePickerText::SelectAFile,
             Self::Directory => FilePickerText::SelectADirectory,
             Self::FileOrDirectory => FilePickerText::SelectAFileOrDirectory,
-        }
-        .to_fluent_string()
-        .into()
+        };
+        message.default_text().into()
     }
 
     fn default_prompt(self) -> SharedString {
-        match self {
+        let message = match self {
             Self::File => FilePickerText::SelectFile,
             Self::Directory => FilePickerText::SelectDirectory,
             Self::FileOrDirectory => FilePickerText::SelectFileOrDirectory,
-        }
-        .to_fluent_string()
-        .into()
+        };
+        message.default_text().into()
     }
 }
 
@@ -353,7 +350,7 @@ impl RenderOnce for FilePicker {
         let browse_label = self
             .browse_label
             .clone()
-            .unwrap_or_else(|| FilePickerText::Browse.to_fluent_string().into());
+            .unwrap_or_else(|| FilePickerText::Browse.default_text().into());
         let text_state = self.state.clone();
         let text_prompt = prompt.clone();
         let browse_state = self.state.clone();
@@ -491,7 +488,7 @@ fn prompt_for_selection(
                 Ok(Ok(Some(paths))) => this.replace_paths(paths, true, window, cx),
                 Ok(Ok(None)) => this.emit_cancel(cx),
                 Ok(Err(error)) => this.emit_error(error.to_string(), cx),
-                Err(_) => this.emit_error(FilePickerText::DialogDropped.to_fluent_string(), cx),
+                Err(_) => this.emit_error(FilePickerText::DialogDropped.default_text(), cx),
             });
         })
         .detach();
@@ -502,7 +499,7 @@ fn display_paths(paths: &[PathBuf], placeholder: SharedString) -> SharedString {
         [] => placeholder,
         [path] => path.display().to_string().into(),
         _ => FilePickerText::PathsSelected { count: paths.len() }
-            .to_fluent_string()
+            .default_text()
             .into(),
     }
 }

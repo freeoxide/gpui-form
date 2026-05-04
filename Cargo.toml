@@ -11,7 +11,6 @@ members = [
   "crates/gpui-form-derive",
   "crates/gpui-form-prototyping-core",
   "examples/some-lib",
-  "examples/some-lib-custom-components",
   "examples/some-lib-forms",
   "examples/prototyping",
 ]
@@ -33,9 +32,9 @@ chrono = "0.4"
 crabtime = "1.1"
 darling = "0.23"
 derive_more = "2.1"
-es-fluent = "0.15"
-es-fluent-lang = "0.15"
-es-fluent-manager-embedded = "0.15"
+es-fluent = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
+es-fluent-lang = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
+es-fluent-manager-embedded = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
 gpui = { git = "https://github.com/zed-industries/zed", rev = "f7d46cf7d02c88d3d71ec495a31d7f19bd5eb96b" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
@@ -47,7 +46,8 @@ gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.1" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
 gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.1" }
-gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook" }
+gpui-storybook = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/gpui-storybook" }
+gpui-storybook-core = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/gpui-storybook" }
 gpui_platform = { features = [
   "font-kit",
   "x11",
@@ -62,9 +62,9 @@ insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
 jiff = "0.2.23"
-koruma = "0.8"
-koruma-collection = "0.8"
-koruma-derive-core = "0.8"
+koruma = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
+koruma-collection = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
+koruma-derive-core = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
 log = "0.4"
 prettyplease = "0.2"
 proc-macro-crate = "3.2"

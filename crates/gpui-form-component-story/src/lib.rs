@@ -1,4 +1,4 @@
 //! Storybook registrations for `gpui-form-component`.
 
-mod i18n;
+pub mod i18n;
 mod stories;

@@ -41,18 +41,17 @@ Variant attributes:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 - `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` tells the derive
-  to use `EsFluentVariants` / `EsFluentThis` metadata for option titles, type
-  labels, and type descriptions. The corresponding `es-fluent` derives may use
-  `#[fluent(namespace = "...")]` when those messages live in namespaced Fluent
-  files.
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` keeps
+  `EsFluentVariants` / `EsFluentLabel` metadata available for application-owned
+  localizers. Runtime labels without a localizer use plain fallback names.
 
 Behavior notes:
 
 - derived enums expose stable `variant_key()` values plus `selection_key_path()`
 - custom keys are validated for uniqueness within the enum
-- fluent-backed labels and descriptions are used when the enum carries the
-  matching metadata
+- fluent metadata is emitted for callers that render through their own
+  `es-fluent` localizer; runtime trait methods use fallback names because they
+  do not receive a localizer
 
 ## Most Users Should Use Instead
 

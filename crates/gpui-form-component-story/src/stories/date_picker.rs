@@ -1,4 +1,4 @@
-use es_fluent::ToFluentString as _;
+use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -14,6 +14,10 @@ use gpui_form_component::date_picker::{
 use crate::i18n::DatePickerComponentText;
 
 use super::common::{story_field, story_panel};
+
+fn localize(message: &impl FluentMessage) -> String {
+    crate::i18n::localize(message)
+}
 
 #[gpui_storybook::story]
 pub struct DatePickerStory {
@@ -129,7 +133,7 @@ impl Render for DatePickerStory {
                 "Range select",
                 "Starts empty, uses the active locale, and selects a start and end date across the default two-month calendar.",
                 DateRangePicker::new(&self.range_picker)
-                    .placeholder(DatePickerComponentText::LaunchPlaceholder.to_fluent_string())
+                    .placeholder(localize(&DatePickerComponentText::LaunchPlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
