@@ -18,11 +18,6 @@ location_form_label = 位置表单
 
 user_label = 用户
 
-## FormAction
-
-form_action-Submit = 提交
-form_action-Reset = 重置
-
 ## AccountType
 
 account_type-Enterprise = 企业版
@@ -116,6 +111,11 @@ enum_country-China = 中国
 enum_country-France = 法国
 enum_country-UnitedStates = 美国
 
+## FormAction
+
+form_action-Reset = 重置
+form_action-Submit = 提交
+
 ## ItemDescriptionVariants
 
 item_description_variants_label = 项目描述
@@ -161,6 +161,12 @@ ontario_city-Toronto = 多伦多
 prefered_language-Chinese = 中文
 prefered_language-English = 英语
 prefered_language-French = 法语
+
+## PreferredLanguage
+
+preferred_language-Chinese = Chinese
+preferred_language-English = English
+preferred_language-French = French
 
 ## QuebecCity
 

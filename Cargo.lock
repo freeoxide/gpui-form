@@ -4511,7 +4511,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "koruma"
 version = "0.8.0"
-source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#b001338a9a1f26568b4dfe875a17a63f0060a8bc"
+source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#c6c93b4add6f3448637b2b734f65ef84873c8d30"
 dependencies = [
  "bon",
  "koruma-core",
@@ -4521,7 +4521,7 @@ dependencies = [
 [[package]]
 name = "koruma-collection"
 version = "0.8.0"
-source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#b001338a9a1f26568b4dfe875a17a63f0060a8bc"
+source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#c6c93b4add6f3448637b2b734f65ef84873c8d30"
 dependencies = [
  "email_address",
  "es-fluent",
@@ -4534,7 +4534,7 @@ dependencies = [
 [[package]]
 name = "koruma-core"
 version = "0.8.0"
-source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#b001338a9a1f26568b4dfe875a17a63f0060a8bc"
+source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#c6c93b4add6f3448637b2b734f65ef84873c8d30"
 dependencies = [
  "es-fluent",
 ]
@@ -4542,7 +4542,7 @@ dependencies = [
 [[package]]
 name = "koruma-derive"
 version = "0.8.0"
-source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#b001338a9a1f26568b4dfe875a17a63f0060a8bc"
+source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#c6c93b4add6f3448637b2b734f65ef84873c8d30"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -4556,7 +4556,7 @@ dependencies = [
 [[package]]
 name = "koruma-derive-core"
 version = "0.8.0"
-source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#b001338a9a1f26568b4dfe875a17a63f0060a8bc"
+source = "git+https://github.com/stayhydated/koruma?branch=es-fluent-no-singleton#c6c93b4add6f3448637b2b734f65ef84873c8d30"
 dependencies = [
  "heck 0.5.0",
  "quote",

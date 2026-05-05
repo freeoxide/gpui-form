@@ -18,11 +18,6 @@ location_form_label = Location Form
 
 user_label = User
 
-## FormAction
-
-form_action-Submit = Submit
-form_action-Reset = Reset
-
 ## AccountType
 
 account_type-Enterprise = Enterprise
@@ -116,6 +111,11 @@ enum_country-China = China
 enum_country-France = France
 enum_country-UnitedStates = United States
 
+## FormAction
+
+form_action-Reset = Reset
+form_action-Submit = Submit
+
 ## ItemDescriptionVariants
 
 item_description_variants_label = Item Description
@@ -161,6 +161,12 @@ ontario_city-Toronto = Toronto
 prefered_language-Chinese = Chinese
 prefered_language-English = English
 prefered_language-French = French
+
+## PreferredLanguage
+
+preferred_language-Chinese = Chinese
+preferred_language-English = English
+preferred_language-French = French
 
 ## QuebecCity
 
