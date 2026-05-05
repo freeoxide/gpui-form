@@ -31,6 +31,7 @@ Responsibilities:
   `gpui-form-component`
 - keep `fluent_kv` label/description metadata available to callers with an
   explicit localizer; generated runtime trait methods use fallback names
+  because the contract is localizer-free
 - validate that persisted keys stay unique within one enum
 
 ## Dependency Role

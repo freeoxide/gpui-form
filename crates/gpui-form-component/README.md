@@ -90,12 +90,12 @@ for field in location.read(cx).form_fields() {
 }
 ```
 
-Derived `InfiniteSelect` enums now also expose:
+Derived `InfiniteSelect` enums expose:
 
 - `variant_label()` for user-facing option titles
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` to keep
-  `es-fluent` metadata available for application-owned localizers; runtime
-  labels without a localizer use plain fallback names
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` to emit
+  `es-fluent` metadata for application-owned localizers; runtime labels use
+  plain fallback names because the runtime trait contract is localizer-free
 - `variant_key()` plus `selection_key_path()` for order-independent paths
 - `#[tuple_enum(key = "...")]` when persisted keys should not mirror variant names
 - `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
@@ -110,7 +110,7 @@ Derived `InfiniteSelect` enums now also expose:
 This crate provides the localized runtime date-picker used by generated
 `component(date_picker)` fields.
 Its default empty placeholder is plain English fallback copy. Pass
-`DatePicker::placeholder(...)` with text rendered by your application-owned
+`DatePicker::placeholder(...)` with text rendered through your application-owned
 `es-fluent` localizer when a form needs localized or custom copy.
 
 ```rs
@@ -147,7 +147,7 @@ Generated forms can use the same runtime with
 The built-in placeholders, native-dialog prompts, browse label, dropped-dialog
 error, and selected-count text have plain English fallback copy. Explicit
 builder values such as `placeholder(...)`, `prompt(...)`, and
-`browse_label(...)` remain caller-provided text; render localized strings with
+`browse_label(...)` remain caller-provided text; render localized strings through
 your application-owned `es-fluent` localizer before passing them in.
 
 ```rs

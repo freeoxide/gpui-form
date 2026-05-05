@@ -41,17 +41,18 @@ Variant attributes:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 - `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` keeps
-  `EsFluentVariants` / `EsFluentLabel` metadata available for application-owned
-  localizers. Runtime labels without a localizer use plain fallback names.
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` emits
+  `EsFluentVariants` / `EsFluentLabel` metadata for application-owned
+  localizers. Runtime labels use plain fallback names because the runtime trait
+  contract is localizer-free.
 
 Behavior notes:
 
 - derived enums expose stable `variant_key()` values plus `selection_key_path()`
 - custom keys are validated for uniqueness within the enum
 - fluent metadata is emitted for callers that render through their own
-  `es-fluent` localizer; runtime trait methods use fallback names because they
-  do not receive a localizer
+  `es-fluent` localizer; runtime trait methods use fallback names because the
+  contract is localizer-free
 
 ## Most Users Should Use Instead
 

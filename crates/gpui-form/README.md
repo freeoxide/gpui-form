@@ -159,10 +159,10 @@ The derive/runtime pair also exposes typed option labels, stable key paths, and
 typed path errors:
 
 - root option titles come from `variant_label()` instead of raw `variant_name()`
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` keeps
-  `es-fluent` variant and type metadata available, but runtime labels without a
-  localizer use plain fallback names; localize select copy in the application
-  layer when needed
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` emits
+  `es-fluent` variant and type metadata for application-owned localizers;
+  generated runtime labels use plain fallback names because the runtime trait
+  contract is localizer-free
 - `#[tuple_enum(key = "...")]` overrides persisted keys when enum names should
   stay decoupled from storage
 - `selection_key_path()` / `build_from_key_path(...)` round-trip nested values
@@ -265,10 +265,10 @@ For manual native path selection, use `gpui_form::file_picker` or
 `PathPromptOptions` from the pinned Zed git dependency and renders the control
 with `gpui-component` buttons, icons, sizing, and theme tokens.
 Built-in defaults are plain English fallback copy. When a form needs localized
-placeholder, prompt, or button text, initialize an application-owned
-`es-fluent` localizer and pass rendered strings through `placeholder(...)`,
-`prompt(...)`, and `browse_label(...)`. The runtime still registers its Fluent
-resources so application localizers can render those messages explicitly.
+placeholder, prompt, or button text, render those messages through an
+application-owned `es-fluent` localizer and pass the resulting strings through
+`placeholder(...)`, `prompt(...)`, and `browse_label(...)`. The runtime ships
+Fluent resources for callers that localize those messages explicitly.
 
 ```rs
 use gpui_form::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
@@ -310,9 +310,9 @@ but the UI should edit a calendar date.
 The default empty placeholder is plain English fallback copy; pass
 `DatePicker::placeholder(...)` when a form needs localized or custom copy. The
 selected-date label and calendar popover use ICU4X for localized month names,
-weekday headers, day/year labels, and locale-specific week starts. Manual runtime code can use
-`DateRangePicker` and `DateRangePickerState` for range selection; generated
-`component(date_picker)` fields remain single-date fields.
+weekday headers, day/year labels, and locale-specific week starts. Manual
+runtime code can use `DateRangePicker` and `DateRangePickerState` for range
+selection; generated `component(date_picker)` fields remain single-date fields.
 
 ## Prototyping
 

@@ -27,8 +27,8 @@ schema metadata:
   ICU4X-driven labels and locale-specific week layout
 - `src/file_picker.rs`: runtime state and element wrapper for native path
   selection with `gpui::PathPromptOptions`
-- `src/i18n.rs`: crate-local `es-fluent` module registration and one message
-  enum per runtime namespace
+- `src/i18n.rs`: crate-local `es-fluent` message enums plus helpers for
+  caller-owned localizers
 
 ## Subsystem Boundaries
 
@@ -93,7 +93,7 @@ Responsibilities:
   sizing helpers
 - provide plain English fallback copy for built-in placeholders, prompts,
   button labels, selected-count text, and dropped-dialog errors while keeping
-  Fluent resources available for application-owned localizers
+  Fluent resources available for caller-owned localizers
 - use the workspace-pinned GPUI git API instead of adding another native dialog
   dependency
 
@@ -146,8 +146,8 @@ Responsibilities:
 
 ### Built-in text
 
-1. `src/i18n.rs` registers this crate's embedded Fluent assets with
-   `es-fluent-manager-embedded`.
+1. `src/i18n.rs` defines this crate's embedded Fluent resource module and
+   message enums for caller-owned `es-fluent` localizers.
 1. `i18n.toml` allowlists the runtime namespaces (`date_picker`,
    `file_picker`).
 1. Fluent resources live under
@@ -155,8 +155,8 @@ Responsibilities:
    to the matching namespace file instead of a shared crate-level Fluent file.
 1. Runtime resources currently ship for `en`, `fr-FR`, and `zh-CN`.
 1. Runtime components use plain English fallback copy unless callers pass
-   localized text explicitly; `src/i18n.rs` exposes helpers for applications
-   that want to render this crate's messages through their own localizer.
+   localized text explicitly; `src/i18n.rs` exposes helpers that render this
+   crate's messages through caller-owned localizers.
 1. Caller-provided labels, prompts, placeholders, and event errors remain
    caller-owned text.
 1. Story/demo text belongs to `gpui-form-component-story`, not this runtime
