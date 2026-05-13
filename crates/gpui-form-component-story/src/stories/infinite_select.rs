@@ -16,8 +16,8 @@ use super::common::story_panel;
 
 type DeploymentSelectState = InfiniteSelectState<DeploymentTarget>;
 
-fn localize(message: &impl es_fluent::FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 fn selected_index(row: usize) -> Option<IndexPath> {
@@ -50,7 +50,7 @@ fn refresh_select_labels(
 
     let mut current_value = value;
     for (level, child_select) in child_selects.into_iter().enumerate() {
-        let items = child_items_for_level(&current_value, level);
+        let items = child_items_for_level(&current_value, level, cx);
         if items.is_empty() {
             break;
         }
@@ -67,6 +67,7 @@ fn refresh_select_labels(
 fn child_items_for_level(
     current_value: &DeploymentTarget,
     level: usize,
+    _cx: &impl std::borrow::Borrow<App>,
 ) -> Vec<InfiniteSelectItem<DeploymentTarget>> {
     let (has_more, child_labels) = if level == 0 {
         (
@@ -166,10 +167,10 @@ impl Render for InfiniteSelectStory {
             .fold(v_form(), |form, field| form.child(field));
 
         let rebuilt = build_from_path::<DeploymentTarget>(&path)
-            .map(|value| value.summary())
+            .map(|value| value.summary(cx))
             .unwrap_or_else(|_| "None".to_string());
         let rebuilt_from_keys = build_from_key_path::<DeploymentTarget>(&key_path)
-            .map(|value| value.summary())
+            .map(|value| value.summary(cx))
             .unwrap_or_else(|_| "None".to_string());
 
         story_panel(
@@ -182,7 +183,10 @@ impl Render for InfiniteSelectStory {
                     .gap_1()
                     .mt_2()
                     .text_sm()
-                    .child(format!("Current selection: {}", snapshot.value().summary()))
+                    .child(format!(
+                        "Current selection: {}",
+                        snapshot.value().summary(cx)
+                    ))
                     .child(format!("Path indices: {:?}", path.indices()))
                     .child(format!("Path keys: {:?}", key_path.keys()))
                     .child(format!("Rebuilt from path: {rebuilt}"))
@@ -216,19 +220,19 @@ enum DeploymentTarget {
 }
 
 impl DeploymentTarget {
-    fn summary(&self) -> String {
+    fn summary(&self, cx: &impl std::borrow::Borrow<App>) -> String {
         match self {
             Self::Web(region) => format!(
                 "{} / {}",
-                localize(&DeploymentTargetLabelVariants::Web),
-                region.summary()
+                localize(cx, &DeploymentTargetLabelVariants::Web),
+                region.summary(cx)
             ),
             Self::Desktop(platform) => format!(
                 "{} / {}",
-                localize(&DeploymentTargetLabelVariants::Desktop),
-                platform.name()
+                localize(cx, &DeploymentTargetLabelVariants::Desktop),
+                platform.name(cx)
             ),
-            Self::Docs => localize(&DeploymentTargetLabelVariants::Docs),
+            Self::Docs => localize(cx, &DeploymentTargetLabelVariants::Docs),
         }
     }
 }
@@ -250,16 +254,18 @@ enum WebRegion {
 }
 
 impl WebRegion {
-    fn name(&self) -> String {
+    fn name(&self, cx: &impl std::borrow::Borrow<App>) -> String {
         match self {
-            Self::UsEast(_) => localize(&WebRegionLabelVariants::UsEast),
-            Self::Europe(_) => localize(&WebRegionLabelVariants::Europe),
+            Self::UsEast(_) => localize(cx, &WebRegionLabelVariants::UsEast),
+            Self::Europe(_) => localize(cx, &WebRegionLabelVariants::Europe),
         }
     }
 
-    fn summary(&self) -> String {
+    fn summary(&self, cx: &impl std::borrow::Borrow<App>) -> String {
         match self {
-            Self::UsEast(zone) | Self::Europe(zone) => format!("{} / {}", self.name(), zone.name()),
+            Self::UsEast(zone) | Self::Europe(zone) => {
+                format!("{} / {}", self.name(cx), zone.name(cx))
+            },
         }
     }
 }
@@ -282,10 +288,12 @@ enum AvailabilityZone {
 }
 
 impl AvailabilityZone {
-    fn name(&self) -> String {
+    fn name(&self, cx: &impl std::borrow::Borrow<App>) -> String {
         match self {
-            Self::Primary => localize(&AvailabilityZoneLabelVariants::Primary),
-            Self::DisasterRecovery => localize(&AvailabilityZoneLabelVariants::DisasterRecovery),
+            Self::Primary => localize(cx, &AvailabilityZoneLabelVariants::Primary),
+            Self::DisasterRecovery => {
+                localize(cx, &AvailabilityZoneLabelVariants::DisasterRecovery)
+            },
         }
     }
 }
@@ -303,11 +311,11 @@ enum DesktopPlatform {
 }
 
 impl DesktopPlatform {
-    fn name(&self) -> String {
+    fn name(&self, cx: &impl std::borrow::Borrow<App>) -> String {
         match self {
-            Self::MacOs => localize(&DesktopPlatformLabelVariants::MacOs),
-            Self::Linux => localize(&DesktopPlatformLabelVariants::Linux),
-            Self::Windows => localize(&DesktopPlatformLabelVariants::Windows),
+            Self::MacOs => localize(cx, &DesktopPlatformLabelVariants::MacOs),
+            Self::Linux => localize(cx, &DesktopPlatformLabelVariants::Linux),
+            Self::Windows => localize(cx, &DesktopPlatformLabelVariants::Windows),
         }
     }
 }

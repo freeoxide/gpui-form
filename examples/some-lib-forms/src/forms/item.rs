@@ -4,17 +4,17 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
+use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{InputEvent, InputState, NumberInput, NumberInputEvent, StepAction};
-use gpui_component::separator::Separator;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 #[gpui_storybook::story_init]
@@ -33,7 +33,7 @@ impl Focusable for ItemForm {
 }
 impl gpui_storybook::Story for ItemForm {
     fn title() -> String {
-        crate::i18n::localize_label::<Item>()
+        crate::i18n::fallback_label::<Item>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -154,8 +154,8 @@ impl ItemForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(&FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for ItemForm {
@@ -168,14 +168,14 @@ impl Render for ItemForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(localize(&ItemLabelVariants::Index))
+                            .label(localize(cx, &ItemLabelVariants::Index))
                             .description_fn({
-                                let description = localize(&ItemDescriptionVariants::Index);
+                                let description = localize(cx, &ItemDescriptionVariants::Index);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.index().all();
@@ -184,7 +184,7 @@ impl Render for ItemForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -216,7 +216,7 @@ impl Render for ItemForm {
                         },
                     ))),
             )
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: {:?}",

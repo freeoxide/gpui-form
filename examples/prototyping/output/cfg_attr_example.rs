@@ -16,14 +16,14 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
 };
 use gpui_component::Disableable as _;
-use gpui_component::separator::Separator;
+use gpui_component::divider::Divider;
 use gpui_component::form::v_form;
 use gpui_component::v_flex;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "CfgAttrExampleForm";
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 
@@ -43,7 +43,7 @@ impl Focusable for CfgAttrExampleForm {
 }
 impl gpui_storybook::Story for CfgAttrExampleForm {
     fn title() -> String {
-        crate::i18n::localize_label::<CfgAttrExample>()
+        crate::i18n::fallback_label::<CfgAttrExample>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -362,9 +362,9 @@ impl CfgAttrExampleForm {
             .flex()
             .gap_2()
             .child(
-                self.submit_button(cx, localize(&FormAction::Submit), on_submit),
+                self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit),
             )
-            .child(self.reset_button(cx, localize(&FormAction::Reset)))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for CfgAttrExampleForm {
@@ -377,7 +377,7 @@ impl Render for CfgAttrExampleForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(
                 v_form()
                     .child(
@@ -385,13 +385,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::Username;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Username;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 let error = {
                                     validation_errors
@@ -404,7 +404,7 @@ impl Render for CfgAttrExampleForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(v))
+                                                        .map(|v| localize(cx, v))
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -436,12 +436,12 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label({
                                 let message = CfgAttrExampleLabelVariants::Email;
-                                localize(&message)
+                                localize(cx, &message)
                             })
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Email;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 let error = {
                                     validation_errors
@@ -454,7 +454,7 @@ impl Render for CfgAttrExampleForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(v))
+                                                        .map(|v| localize(cx, v))
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -486,12 +486,12 @@ impl Render for CfgAttrExampleForm {
                         field()
                             .label({
                                 let message = CfgAttrExampleLabelVariants::Age;
-                                localize(&message)
+                                localize(cx, &message)
                             })
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Age;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 let error = validation_errors
                                     .as_ref()
@@ -500,7 +500,7 @@ impl Render for CfgAttrExampleForm {
                                     .filter(|errs| !errs.is_empty())
                                     .map(|errs| {
                                         errs.iter()
-                                            .map(|v| localize(v))
+                                            .map(|v| localize(cx, v))
                                             .collect::<Vec<_>>()
                                             .join("\n")
                                     });
@@ -530,13 +530,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::Balance;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Balance;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 let error = {
                                     validation_errors
@@ -549,7 +549,7 @@ impl Render for CfgAttrExampleForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(v))
+                                                        .map(|v| localize(cx, v))
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -582,13 +582,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::Active;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Active;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 move |_, _| {
                                     div()
@@ -614,13 +614,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::Enabled;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::Enabled;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 move |_, _| {
                                     div()
@@ -647,13 +647,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::AccountType;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::AccountType;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 move |_, _| {
                                     div()
@@ -670,13 +670,13 @@ impl Render for CfgAttrExampleForm {
                             .label(
                                 {
                                 let message = CfgAttrExampleLabelVariants::CreatedAt;
-                                localize(&message)
+                                localize(cx, &message)
                             },
                             )
                             .description_fn({
                                 let description = {
                                 let message = CfgAttrExampleDescriptionVariants::CreatedAt;
-                                localize(&message)
+                                localize(cx, &message)
                             };
                                 move |_, _| {
                                     div()
@@ -702,7 +702,7 @@ impl Render for CfgAttrExampleForm {
                             ),
                     ),
             )
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(

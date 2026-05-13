@@ -15,8 +15,8 @@ use crate::i18n::FilePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 #[gpui_storybook::story]
@@ -123,8 +123,8 @@ impl Render for FilePickerStory {
                 "File",
                 "Selects one file using GPUI's native PathPromptOptions.",
                 FilePicker::new(&self.file_picker)
-                    .placeholder(localize(&FilePickerComponentText::SourcePlaceholder))
-                    .prompt(localize(&FilePickerComponentText::SourcePlaceholder))
+                    .placeholder(localize(cx, &FilePickerComponentText::SourcePlaceholder))
+                    .prompt(localize(cx, &FilePickerComponentText::SourcePlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
@@ -132,8 +132,8 @@ impl Render for FilePickerStory {
                 "Selects one directory and starts with a programmatic value.",
                 FilePicker::new(&self.directory_picker)
                     .mode(FilePickerMode::Directory)
-                    .placeholder(localize(&FilePickerComponentText::OutputPlaceholder))
-                    .prompt(localize(&FilePickerComponentText::OutputPlaceholder))
+                    .placeholder(localize(cx, &FilePickerComponentText::OutputPlaceholder))
+                    .prompt(localize(cx, &FilePickerComponentText::OutputPlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
@@ -141,7 +141,7 @@ impl Render for FilePickerStory {
                 "Allows selecting multiple files; the state stores the full PathBuf list.",
                 FilePicker::new(&self.multiple_picker)
                     .multiple(true)
-                    .browse_label(localize(&FilePickerComponentText::ChooseFiles))
+                    .browse_label(localize(cx, &FilePickerComponentText::ChooseFiles))
                     .cleanable(true),
             ));
 

@@ -22,7 +22,7 @@ use koruma_collection::numeric::NonNegativeValidation;
 #[display("{}", value)]
 #[koruma(try_new, newtype)]
 pub struct Age {
-    #[koruma(NonNegativeValidation<_>)]
+    #[koruma(NonNegativeValidation::<_>::builder())]
     pub value: i32,
 }
 

@@ -347,7 +347,7 @@ pub fn generate_label_tokens(
         let field_name_pascal_case_ident = field.field_ident_pascal();
         quote! {{
             let message = #ftl_label_ident::#field_name_pascal_case_ident;
-            crate::i18n::localize(&message)
+            localize(cx, &message)
         }}
     }
     #[cfg(not(feature = "fluent"))]
@@ -370,7 +370,7 @@ pub fn generate_description_fn_tokens(
         let field_name_pascal_case_ident = field.field_ident_pascal();
         quote! {{
             let message = #ftl_description_ident::#field_name_pascal_case_ident;
-            crate::i18n::localize(&message)
+            localize(cx, &message)
         }}
     };
     #[cfg(not(feature = "fluent"))]
@@ -385,7 +385,7 @@ pub fn generate_description_fn_tokens(
     let error_tokens = if field_has_validations {
         #[cfg(feature = "fluent")]
         let conversion_tokens = quote! {
-            crate::i18n::localize(v)
+            localize(cx, v)
         };
         #[cfg(not(feature = "fluent"))]
         let conversion_tokens = quote! { v.to_string() };

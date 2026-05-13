@@ -5,12 +5,12 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::checkbox::Checkbox;
+use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
-use gpui_component::separator::Separator;
 use gpui_component::switch::Switch;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
@@ -19,8 +19,8 @@ use some_lib::structs::form_action::FormAction;
 use some_lib::structs::user::*;
 const CONTEXT: &str = "UserForm";
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 #[gpui_storybook::story_init]
@@ -39,7 +39,7 @@ impl Focusable for UserForm {
 }
 impl gpui_storybook::Story for UserForm {
     fn title() -> String {
-        crate::i18n::localize_label::<User>()
+        crate::i18n::fallback_label::<User>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -383,8 +383,8 @@ impl UserForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(&FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for UserForm {
@@ -397,14 +397,14 @@ impl Render for UserForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Username))
+                            .label(localize(cx, &UserLabelVariants::Username))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Username);
+                                let description = localize(cx, &UserDescriptionVariants::Username);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -413,7 +413,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -440,9 +440,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Email))
+                            .label(localize(cx, &UserLabelVariants::Email))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Email);
+                                let description = localize(cx, &UserDescriptionVariants::Email);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -451,7 +451,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -478,9 +478,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Age))
+                            .label(localize(cx, &UserLabelVariants::Age))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Age);
+                                let description = localize(cx, &UserDescriptionVariants::Age);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.age().all();
@@ -489,7 +489,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -516,9 +516,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Balance))
+                            .label(localize(cx, &UserLabelVariants::Balance))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Balance);
+                                let description = localize(cx, &UserDescriptionVariants::Balance);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -527,7 +527,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -554,9 +554,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Debt))
+                            .label(localize(cx, &UserLabelVariants::Debt))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Debt);
+                                let description = localize(cx, &UserDescriptionVariants::Debt);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.debt().all();
@@ -565,7 +565,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -592,10 +592,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::SubscribeNewsletter))
+                            .label(localize(cx, &UserLabelVariants::SubscribeNewsletter))
                             .description_fn({
                                 let description =
-                                    localize(&UserDescriptionVariants::SubscribeNewsletter);
+                                    localize(cx, &UserDescriptionVariants::SubscribeNewsletter);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -615,10 +615,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::EnableNotifications))
+                            .label(localize(cx, &UserLabelVariants::EnableNotifications))
                             .description_fn({
                                 let description =
-                                    localize(&UserDescriptionVariants::EnableNotifications);
+                                    localize(cx, &UserDescriptionVariants::EnableNotifications);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -638,9 +638,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Preferred))
+                            .label(localize(cx, &UserLabelVariants::Preferred))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Preferred);
+                                let description = localize(cx, &UserDescriptionVariants::Preferred);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -653,9 +653,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::Country))
+                            .label(localize(cx, &UserLabelVariants::Country))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::Country);
+                                let description = localize(cx, &UserDescriptionVariants::Country);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -668,9 +668,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(&UserLabelVariants::BirthDate))
+                            .label(localize(cx, &UserLabelVariants::BirthDate))
                             .description_fn({
-                                let description = localize(&UserDescriptionVariants::BirthDate);
+                                let description = localize(cx, &UserDescriptionVariants::BirthDate);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -688,7 +688,7 @@ impl Render for UserForm {
                         },
                     ))),
             )
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: incomplete; present_fields_json: {}",

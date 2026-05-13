@@ -129,8 +129,8 @@ impl FormLayout for StorybookLayout {
                     div()
                         .flex()
                         .gap_2()
-                        .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
-                        .child(self.reset_button(cx, localize(&FormAction::Reset)))
+                        .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+                        .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
                 }
             }
         };
@@ -160,15 +160,15 @@ impl FormLayout for StorybookLayout {
             #imports
             use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
             use gpui_component::Disableable as _;
-            use gpui_component::separator::Separator;
+            use gpui_component::divider::Divider;
             use gpui_component::form::v_form;
             use gpui_component::v_flex;
             #form_action_import
 
             const CONTEXT: &str = #context_str;
 
-            fn localize(message: &impl es_fluent::FluentMessage) -> String {
-                crate::i18n::localize(message)
+            fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
+                crate::i18n::localize_message(cx, message)
             }
 
             #[gpui_storybook::story_init]
@@ -190,7 +190,7 @@ impl FormLayout for StorybookLayout {
 
             impl gpui_storybook::Story for #form_ident {
                 fn title() -> String {
-                    crate::i18n::localize_label::<#struct_name_ident>()
+                    crate::i18n::fallback_label::<#struct_name_ident>()
                 }
 
                 fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -231,13 +231,13 @@ impl FormLayout for StorybookLayout {
                         .p_4()
                         .justify_start()
                         .gap_3()
-                        .child(Separator::horizontal())
+                        .child(Divider::horizontal())
                         .child(
                             v_form()
                                 #render_children
                                 #action_buttons_child
                         )
-                        .child(Separator::horizontal())
+                        .child(Divider::horizontal())
                         #debug_child
                 }
             }

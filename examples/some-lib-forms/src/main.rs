@@ -29,8 +29,11 @@ impl<L: Language> FormLocaleStore<L> {
 }
 
 impl<L: Language> LocaleStore for FormLocaleStore<L> {
-    fn available_locales(&self) -> anyhow::Result<Vec<(String, LanguageIdentifier)>> {
-        self.inner.available_locales()
+    fn available_locales(
+        &self,
+        cx: &gpui::App,
+    ) -> anyhow::Result<Vec<(String, LanguageIdentifier)>> {
+        self.inner.available_locales(cx)
     }
 
     fn current_locale(&self, cx: &gpui::App) -> anyhow::Result<LanguageIdentifier> {
@@ -43,7 +46,7 @@ impl<L: Language> LocaleStore for FormLocaleStore<L> {
         cx: &mut gpui::App,
     ) -> anyhow::Result<()> {
         self.inner.set_current_locale(locale.clone(), cx)?;
-        some_lib_forms::i18n::change_locale(locale.clone()).map_err(|err| {
+        some_lib_forms::i18n::change_locale(cx, locale.clone()).map_err(|err| {
             anyhow::anyhow!("failed to sync gpui-form locale to '{}': {err}", locale)
         })?;
         Ok(())
@@ -56,8 +59,9 @@ fn main() {
 
     app.run(move |app_cx| {
         gpui_component::init(app_cx);
-        some_lib_forms::i18n::init();
-        gpui_storybook::init(Languages::default(), app_cx);
+        some_lib_forms::i18n::init(app_cx, Languages::default())
+            .expect("failed to initialize form story i18n");
+        gpui_storybook::init(app_cx, Languages::default());
         app_cx.set_global(Box::new(FormLocaleStore::<Languages>::new()) as Box<dyn LocaleStore>);
         app_cx
             .update_global::<Box<dyn LocaleStore>, _>(|locale_store, cx| {

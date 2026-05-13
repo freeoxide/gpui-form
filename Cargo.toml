@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["examples/some-lib-forms"]
+default-members = [ "examples/some-lib-forms" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
@@ -32,11 +32,12 @@ chrono = "0.4"
 crabtime = "1.1"
 darling = "0.23"
 derive_more = "2.1"
-es-fluent = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
-es-fluent-lang = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
-es-fluent-manager-embedded = { branch = "no-singleton", git = "https://github.com/stayhydated/es-fluent" }
+es-fluent = { path = "../es-fluent/crates/es-fluent" }
+es-fluent-build = { path = "../es-fluent/crates/es-fluent-build" }
+es-fluent-lang = { path = "../es-fluent/crates/es-fluent-lang" }
+es-fluent-manager-embedded = { path = "../es-fluent/crates/es-fluent-manager-embedded" }
 gpui = { git = "https://github.com/zed-industries/zed", rev = "832c17e8192e2e1d472f0751e7cef2af84ded622" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "be000a7eb26649460609fbf3e7ed4e535de4b9c1" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
@@ -46,8 +47,8 @@ gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.1" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.1" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.1" }
 gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.1" }
-gpui-storybook = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/gpui-storybook" }
-gpui-storybook-core = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/gpui-storybook" }
+gpui-storybook = { path = "../gpui-storybook/crates/gpui-storybook" }
+gpui-storybook-core = { path = "../gpui-storybook/crates/gpui-storybook-core" }
 gpui_platform = { features = [
   "font-kit",
   "x11",
@@ -62,9 +63,9 @@ insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
 jiff = "0.2.23"
-koruma = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
-koruma-collection = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
-koruma-derive-core = { branch = "es-fluent-no-singleton", git = "https://github.com/stayhydated/koruma" }
+koruma = { path = "../koruma/crates/koruma" }
+koruma-collection = { path = "../koruma/crates/koruma-collection" }
+koruma-derive-core = { path = "../koruma/crates/koruma-derive-core" }
 log = "0.4"
 prettyplease = "0.2"
 proc-macro-crate = "3.2"

@@ -5,12 +5,12 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::checkbox::Checkbox;
+use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{Select, SelectEvent, SelectState};
-use gpui_component::separator::Separator;
 use gpui_component::switch::Switch;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
@@ -19,8 +19,8 @@ use some_lib::structs::cfg_attr_example::*;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "CfgAttrExampleForm";
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 #[gpui_storybook::story_init]
@@ -39,7 +39,7 @@ impl Focusable for CfgAttrExampleForm {
 }
 impl gpui_storybook::Story for CfgAttrExampleForm {
     fn title() -> String {
-        crate::i18n::localize_label::<CfgAttrExample>()
+        crate::i18n::fallback_label::<CfgAttrExample>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -329,8 +329,8 @@ impl CfgAttrExampleForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(&FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(&FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for CfgAttrExampleForm {
@@ -343,15 +343,15 @@ impl Render for CfgAttrExampleForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Username))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Username))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::Username);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Username);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -360,7 +360,7 @@ impl Render for CfgAttrExampleForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -387,10 +387,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Email))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Email))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::Email);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Email);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -399,7 +399,7 @@ impl Render for CfgAttrExampleForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -426,9 +426,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Age))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Age))
                             .description_fn({
-                                let description = localize(&CfgAttrExampleDescriptionVariants::Age);
+                                let description =
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Age);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         e.age().and_then(|inner_error| {
@@ -438,7 +439,7 @@ impl Render for CfgAttrExampleForm {
                                             } else {
                                                 Some(
                                                     errs.iter()
-                                                        .map(|v| localize(v))
+                                                        .map(|v| localize(cx, v))
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -466,10 +467,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Balance))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Balance))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::Balance);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Balance);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -478,7 +479,7 @@ impl Render for CfgAttrExampleForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(v))
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -505,10 +506,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Active))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Active))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::Active);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Active);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -527,10 +528,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::Enabled))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::Enabled))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::Enabled);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::Enabled);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -550,10 +551,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::AccountType))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::AccountType))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::AccountType);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::AccountType);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -566,10 +567,10 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(localize(&CfgAttrExampleLabelVariants::CreatedAt))
+                            .label(localize(cx, &CfgAttrExampleLabelVariants::CreatedAt))
                             .description_fn({
                                 let description =
-                                    localize(&CfgAttrExampleDescriptionVariants::CreatedAt);
+                                    localize(cx, &CfgAttrExampleDescriptionVariants::CreatedAt);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -587,7 +588,7 @@ impl Render for CfgAttrExampleForm {
                         },
                     ))),
             )
-            .child(Separator::horizontal())
+            .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: incomplete; present_fields_json: {}",

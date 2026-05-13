@@ -15,8 +15,8 @@ use crate::i18n::DatePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
-fn localize(message: &impl FluentMessage) -> String {
-    crate::i18n::localize(message)
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
 }
 
 #[gpui_storybook::story]
@@ -133,7 +133,7 @@ impl Render for DatePickerStory {
                 "Range select",
                 "Starts empty, uses the active locale, and selects a start and end date across the default two-month calendar.",
                 DateRangePicker::new(&self.range_picker)
-                    .placeholder(localize(&DatePickerComponentText::LaunchPlaceholder))
+                    .placeholder(localize(cx, &DatePickerComponentText::LaunchPlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
