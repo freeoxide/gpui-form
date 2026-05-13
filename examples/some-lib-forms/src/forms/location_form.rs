@@ -5,10 +5,10 @@ use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement
 use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
 use gpui_component::ActiveTheme as _;
 use gpui_component::Disableable as _;
-use gpui_component::divider::Divider;
 use gpui_component::form::field;
 use gpui_component::form::v_form;
 use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_component::separator::Separator;
 use gpui_component::v_flex;
 use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use some_lib::structs::form_action::FormAction;
@@ -156,7 +156,7 @@ impl Render for LocationFormForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(
                 v_form()
                     .child(
@@ -183,7 +183,7 @@ impl Render for LocationFormForm {
                         },
                     ))),
             )
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: {:?}",

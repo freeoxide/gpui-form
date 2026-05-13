@@ -4,8 +4,8 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
-use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
+use gpui_component::separator::Separator;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::empty::*;
@@ -52,8 +52,8 @@ impl Render for EmptyForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(v_form())
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
     }
 }
