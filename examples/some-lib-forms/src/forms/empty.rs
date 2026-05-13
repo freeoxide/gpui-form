@@ -16,20 +16,20 @@ fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) ->
 }
 
 #[gpui_storybook::story_init]
-pub fn init(cx: &mut App) {}
+pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct EmptyForm {
     fields: EmptyFormFields,
     focus_handle: FocusHandle,
 }
 impl Focusable for EmptyForm {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
 impl gpui_storybook::Story for EmptyForm {
-    fn title(_: &gpui::App) -> String {
-        crate::i18n::fallback_label::<Empty>()
+    fn title(cx: &gpui::App) -> String {
+        crate::i18n::localize_label::<Empty>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))

@@ -41,7 +41,11 @@ shows the normal flow:
 1. iterate `inventory::iter::<GpuiFormShape>()`
 1. adapt each shape with `FormShapeAdapter`
 1. render a file through a custom `FormLayout`
-1. write the generated form files
+1. clear stale generated modules and write the generated form files
+
+When the layout emits `gpui_storybook::Story`, pass the `cx: &gpui::App`
+provided by `Story::title` into the application i18n helper so generated form
+titles follow the active Storybook locale.
 
 Generated infinite-select and file-picker fields use the same runtime helpers
 that hand-written forms use.

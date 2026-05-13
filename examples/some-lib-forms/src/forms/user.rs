@@ -24,7 +24,7 @@ fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) ->
 }
 
 #[gpui_storybook::story_init]
-pub fn init(cx: &mut App) {}
+pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct UserForm {
     current_data: UserFormValueHolder,
@@ -33,13 +33,13 @@ pub struct UserForm {
     _subscriptions: Vec<Subscription>,
 }
 impl Focusable for UserForm {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
 impl gpui_storybook::Story for UserForm {
-    fn title(_: &gpui::App) -> String {
-        crate::i18n::fallback_label::<User>()
+    fn title(cx: &gpui::App) -> String {
+        crate::i18n::localize_label::<User>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))

@@ -51,7 +51,8 @@ cargo run -p gpui-form-component-story
 ## prototyping
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded
-form files into `examples/prototyping/output`.
+form files into `examples/prototyping/output`. Generated Storybook form titles
+use the example app's active locale.
 
 Run it with:
 

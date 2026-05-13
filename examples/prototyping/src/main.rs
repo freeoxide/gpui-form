@@ -172,7 +172,7 @@ impl FormLayout for StorybookLayout {
             }
 
             #[gpui_storybook::story_init]
-            pub fn init(cx: &mut App) {}
+            pub fn init(_cx: &mut App) {}
 
             #[gpui_storybook::story]
             pub struct #form_ident {
@@ -183,14 +183,14 @@ impl FormLayout for StorybookLayout {
             }
 
             impl Focusable for #form_ident {
-                fn focus_handle(&self, cx: &App) -> FocusHandle {
+                fn focus_handle(&self, _cx: &App) -> FocusHandle {
                     self.focus_handle.clone()
                 }
             }
 
             impl gpui_storybook::Story for #form_ident {
-                fn title(_: &gpui::App) -> String {
-                    crate::i18n::fallback_label::<#struct_name_ident>()
+                fn title(cx: &gpui::App) -> String {
+                    crate::i18n::localize_label::<#struct_name_ident>(cx)
                 }
 
                 fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -249,6 +249,16 @@ impl FormLayout for StorybookLayout {
 fn main() {
     let output_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("output");
     fs::create_dir_all(&output_dir).expect("Failed to create output directory");
+    for entry in fs::read_dir(&output_dir).expect("Failed to read output directory") {
+        let entry = entry.expect("Failed to inspect output entry");
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "rs")
+            && path.file_name().is_none_or(|name| name != "mod.rs")
+        {
+            fs::remove_file(&path)
+                .unwrap_or_else(|_| panic!("Failed to remove stale file: {}", path.display()));
+        }
+    }
     println!("Generating forms in: {}", output_dir.display());
 
     let mut modules: BTreeSet<String> = BTreeSet::new();
