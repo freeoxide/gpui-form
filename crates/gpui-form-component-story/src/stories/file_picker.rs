@@ -29,12 +29,8 @@ pub struct FilePickerStory {
 }
 
 impl gpui_storybook::Story for FilePickerStory {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         "File Picker".into()
-    }
-
-    fn description() -> String {
-        "Native GPUI path prompts rendered with gpui-component controls.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

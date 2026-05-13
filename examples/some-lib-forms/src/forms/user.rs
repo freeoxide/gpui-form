@@ -38,7 +38,7 @@ impl Focusable for UserForm {
     }
 }
 impl gpui_storybook::Story for UserForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<User>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

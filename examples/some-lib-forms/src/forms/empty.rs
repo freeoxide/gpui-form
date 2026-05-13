@@ -28,7 +28,7 @@ impl Focusable for EmptyForm {
     }
 }
 impl gpui_storybook::Story for EmptyForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<Empty>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

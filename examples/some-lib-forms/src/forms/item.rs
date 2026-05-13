@@ -32,7 +32,7 @@ impl Focusable for ItemForm {
     }
 }
 impl gpui_storybook::Story for ItemForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<Item>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

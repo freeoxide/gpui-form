@@ -38,7 +38,7 @@ impl Focusable for CfgAttrExampleForm {
     }
 }
 impl gpui_storybook::Story for CfgAttrExampleForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<CfgAttrExample>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

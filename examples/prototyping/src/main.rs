@@ -189,7 +189,7 @@ impl FormLayout for StorybookLayout {
             }
 
             impl gpui_storybook::Story for #form_ident {
-                fn title() -> String {
+                fn title(_: &gpui::App) -> String {
                     crate::i18n::fallback_label::<#struct_name_ident>()
                 }
 

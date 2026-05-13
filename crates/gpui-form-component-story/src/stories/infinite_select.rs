@@ -108,12 +108,8 @@ pub struct InfiniteSelectStory {
 }
 
 impl gpui_storybook::Story for InfiniteSelectStory {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         "Infinite Select".into()
-    }
-
-    fn description() -> String {
-        "Cascading select demo backed by the runtime infinite-select state helper.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

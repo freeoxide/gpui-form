@@ -1,31 +1,28 @@
-use some_lib::structs::cfg_attr_example::*;
 use es_fluent::FluentMessage as _;
-use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
+use es_fluent::FluentMessage;
 use gpui::prelude::FluentBuilder as _;
+use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
+use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
 use gpui_component::ActiveTheme as _;
+use gpui_component::Disableable as _;
 use gpui_component::checkbox::Checkbox;
+use gpui_component::divider::Divider;
 use gpui_component::form::field;
+use gpui_component::form::v_form;
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
-use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use es_fluent::FluentMessage;
-use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
-};
-use gpui_component::Disableable as _;
-use gpui_component::divider::Divider;
-use gpui_component::form::v_form;
 use gpui_component::v_flex;
+use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
+use some_lib::structs::cfg_attr_example::*;
 use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "CfgAttrExampleForm";
 
 fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
     crate::i18n::localize_message(cx, message)
 }
-
 
 #[gpui_storybook::story_init]
 pub fn init(cx: &mut App) {}
@@ -42,7 +39,7 @@ impl Focusable for CfgAttrExampleForm {
     }
 }
 impl gpui_storybook::Story for CfgAttrExampleForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<CfgAttrExample>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -65,8 +62,8 @@ impl CfgAttrExampleForm {
                 } else {
                     Some(text.to_string())
                 };
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_email_input_event(
@@ -84,8 +81,8 @@ impl CfgAttrExampleForm {
                 } else {
                     Some(text.to_string())
                 };
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_age_input_event(
@@ -99,8 +96,8 @@ impl CfgAttrExampleForm {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
                 self.current_data.age = text.parse::<Age>().ok();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_age_number_input_event(
@@ -111,38 +108,30 @@ impl CfgAttrExampleForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self
-                            .current_data
-                            .age
-                            .unwrap_or_default()
-                            .saturating_sub(1u8.into());
-                        self.current_data.age = Some(new_value.into());
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self
-                            .current_data
-                            .age
-                            .unwrap_or_default()
-                            .saturating_add(1u8.into());
-                        self.current_data.age = Some(new_value.into());
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self
+                        .current_data
+                        .age
+                        .unwrap_or_default()
+                        .saturating_sub(1u8.into());
+                    self.current_data.age = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self
+                        .current_data
+                        .age
+                        .unwrap_or_default()
+                        .saturating_add(1u8.into());
+                    self.current_data.age = Some(new_value.into());
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_balance_input_event(
@@ -156,8 +145,8 @@ impl CfgAttrExampleForm {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
                 self.current_data.balance = text.parse::<Decimal>().ok();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
     fn on_balance_number_input_event(
@@ -168,32 +157,22 @@ impl CfgAttrExampleForm {
         cx: &mut Context<Self>,
     ) {
         match event {
-            NumberInputEvent::Step(step_action) => {
-                match step_action {
-                    StepAction::Decrement => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            - 1.0;
-                        self.current_data.balance = Some(new_value);
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                    StepAction::Increment => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            + 1.0;
-                        self.current_data.balance = Some(new_value);
-                        this.update(
-                            cx,
-                            |input, cx| {
-                                input.set_value(new_value.to_string(), window, cx);
-                            },
-                        );
-                    }
-                }
-            }
+            NumberInputEvent::Step(step_action) => match step_action {
+                StepAction::Decrement => {
+                    let new_value = self.current_data.balance.unwrap_or_default() - 1.0;
+                    self.current_data.balance = Some(new_value);
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+                StepAction::Increment => {
+                    let new_value = self.current_data.balance.unwrap_or_default() + 1.0;
+                    self.current_data.balance = Some(new_value);
+                    this.update(cx, |input, cx| {
+                        input.set_value(new_value.to_string(), window, cx);
+                    });
+                },
+            },
         }
     }
     fn on_account_type_select_event(
@@ -208,7 +187,7 @@ impl CfgAttrExampleForm {
                 if let Some(value) = value {
                     self.current_data.account_type = value.clone();
                 }
-            }
+            },
         }
     }
     fn on_created_at_date_picker_event(
@@ -220,72 +199,64 @@ impl CfgAttrExampleForm {
     ) {
         match event {
             DatePickerEvent::Change(date) => {
-                self.current_data.created_at = date
-                    .and_then(::gpui_form::runtime::date_picker::parse_form_date);
-            }
+                self.current_data.created_at =
+                    date.and_then(::gpui_form::runtime::date_picker::parse_form_date);
+            },
         }
     }
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = CfgAttrExampleFormValueHolder::default();
-        let username_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::username_input(window, cx));
-        let email_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::email_input(window, cx));
-        let age_number_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::age_number_input(window, cx));
-        let balance_number_input = cx
-            .new(|cx| CfgAttrExampleFormComponents::balance_number_input(window, cx));
-        let account_type_select = cx
-            .new(|cx| CfgAttrExampleFormComponents::account_type_select(window, cx));
-        let created_at_date_picker = cx
-            .new(|cx| CfgAttrExampleFormComponents::created_at_date_picker(window, cx));
+        let username_input = cx.new(|cx| CfgAttrExampleFormComponents::username_input(window, cx));
+        let email_input = cx.new(|cx| CfgAttrExampleFormComponents::email_input(window, cx));
+        let age_number_input =
+            cx.new(|cx| CfgAttrExampleFormComponents::age_number_input(window, cx));
+        let balance_number_input =
+            cx.new(|cx| CfgAttrExampleFormComponents::balance_number_input(window, cx));
+        let account_type_select =
+            cx.new(|cx| CfgAttrExampleFormComponents::account_type_select(window, cx));
+        let created_at_date_picker =
+            cx.new(|cx| CfgAttrExampleFormComponents::created_at_date_picker(window, cx));
         let mut _subscriptions = vec![
-            cx.subscribe_in(& username_input, window, Self::on_username_input_event), cx
-            .subscribe_in(& email_input, window, Self::on_email_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_input_event), cx
-            .subscribe_in(& age_number_input, window, Self::on_age_number_input_event),
-            cx.subscribe_in(& balance_number_input, window,
-            Self::on_balance_input_event), cx.subscribe_in(& balance_number_input,
-            window, Self::on_balance_number_input_event), cx.subscribe_in(&
-            account_type_select, window, Self::on_account_type_select_event), cx
-            .subscribe_in(& created_at_date_picker, window,
-            Self::on_created_at_date_picker_event)
+            cx.subscribe_in(&username_input, window, Self::on_username_input_event),
+            cx.subscribe_in(&email_input, window, Self::on_email_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_input_event),
+            cx.subscribe_in(&age_number_input, window, Self::on_age_number_input_event),
+            cx.subscribe_in(&balance_number_input, window, Self::on_balance_input_event),
+            cx.subscribe_in(
+                &balance_number_input,
+                window,
+                Self::on_balance_number_input_event,
+            ),
+            cx.subscribe_in(
+                &account_type_select,
+                window,
+                Self::on_account_type_select_event,
+            ),
+            cx.subscribe_in(
+                &created_at_date_picker,
+                window,
+                Self::on_created_at_date_picker_event,
+            ),
         ];
         if let Some(value) = current_data.username.as_ref() {
-            username_input
-                .update(
-                    cx,
-                    |state, cx| {
-                        state.set_value(value.to_string(), window, cx);
-                    },
-                );
+            username_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
         }
         if let Some(value) = current_data.email.as_ref() {
-            email_input
-                .update(
-                    cx,
-                    |state, cx| {
-                        state.set_value(value.to_string(), window, cx);
-                    },
-                );
+            email_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
         }
         if let Some(value) = current_data.age.as_ref() {
-            age_number_input
-                .update(
-                    cx,
-                    |state, cx| {
-                        state.set_value(value.to_string(), window, cx);
-                    },
-                );
+            age_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
         }
         if let Some(value) = current_data.balance.as_ref() {
-            balance_number_input
-                .update(
-                    cx,
-                    |state, cx| {
-                        state.set_value(value.to_string(), window, cx);
-                    },
-                );
+            balance_number_input.update(cx, |state, cx| {
+                state.set_value(value.to_string(), window, cx);
+            });
         }
         Self {
             current_data,
@@ -321,33 +292,23 @@ impl CfgAttrExampleForm {
             &mut Context<Self>,
         ) + 'static,
     ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(
-                format!("{}-submit-button", "cfg_attr_example-form"),
-            )
+        gpui_component::button::Button::new(format!("{}-submit-button", "cfg_attr_example-form"))
             .label(label)
             .disabled(self.current_data.validate().is_err())
-            .on_click(
-                cx
-                    .listener(move |this, _, window, cx| {
-                        on_submit(this.submit_payload(), window, cx);
-                    }),
-            )
+            .on_click(cx.listener(move |this, _, window, cx| {
+                on_submit(this.submit_payload(), window, cx);
+            }))
     }
     fn reset_button(
         &self,
         cx: &mut Context<Self>,
         label: impl Into<gpui::SharedString>,
     ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(
-                format!("{}-reset-button", "cfg_attr_example-form"),
-            )
+        gpui_component::button::Button::new(format!("{}-reset-button", "cfg_attr_example-form"))
             .label(label)
-            .on_click(
-                cx
-                    .listener(|this, _, window, cx| {
-                        this.reset_form(window, cx);
-                    }),
-            )
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.reset_form(window, cx);
+            }))
     }
     fn action_buttons(
         &self,
@@ -361,9 +322,7 @@ impl CfgAttrExampleForm {
         div()
             .flex()
             .gap_2()
-            .child(
-                self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit),
-            )
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
             .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
@@ -382,34 +341,29 @@ impl Render for CfgAttrExampleForm {
                 v_form()
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::Username;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Username;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Username;
+                                    localize(cx, &message)
+                                };
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.username().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| localize(cx, v))
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.username().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| localize(cx, v))
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -418,16 +372,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.username_input)),
@@ -440,26 +391,23 @@ impl Render for CfgAttrExampleForm {
                             })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Email;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Email;
+                                    localize(cx, &message)
+                                };
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.email().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| localize(cx, v))
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.email().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| localize(cx, v))
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -468,16 +416,13 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(Input::new(&self.fields.email_input)),
@@ -490,9 +435,9 @@ impl Render for CfgAttrExampleForm {
                             })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Age;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Age;
+                                    localize(cx, &message)
+                                };
                                 let error = validation_errors
                                     .as_ref()
                                     .and_then(|e| e.age())
@@ -511,50 +456,42 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.age_number_input)),
                     )
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::Balance;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Balance;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Balance;
+                                    localize(cx, &message)
+                                };
                                 let error = {
-                                    validation_errors
-                                        .as_ref()
-                                        .and_then(|e| {
-                                            let errs = e.balance().all();
-                                            if errs.is_empty() {
-                                                None
-                                            } else {
-                                                Some(
-                                                    errs
-                                                        .iter()
-                                                        .map(|v| localize(cx, v))
-                                                        .collect::<Vec<_>>()
-                                                        .join("\n"),
-                                                )
-                                            }
-                                        })
+                                    validation_errors.as_ref().and_then(|e| {
+                                        let errs = e.balance().all();
+                                        if errs.is_empty() {
+                                            None
+                                        } else {
+                                            Some(
+                                                errs.iter()
+                                                    .map(|v| localize(cx, v))
+                                                    .collect::<Vec<_>>()
+                                                    .join("\n"),
+                                            )
+                                        }
+                                    })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -563,33 +500,28 @@ impl Render for CfgAttrExampleForm {
                                         .flex_col()
                                         .gap_1()
                                         .child(div().child(description.clone()))
-                                        .when(
-                                            error.is_some(),
-                                            |this| {
-                                                this.child(
-                                                    div()
-                                                        .text_color(error_color)
-                                                        .child(error.clone().unwrap_or_default()),
-                                                )
-                                            },
-                                        )
+                                        .when(error.is_some(), |this| {
+                                            this.child(
+                                                div()
+                                                    .text_color(error_color)
+                                                    .child(error.clone().unwrap_or_default()),
+                                            )
+                                        })
                                 }
                             })
                             .child(NumberInput::new(&self.fields.balance_number_input)),
                     )
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::Active;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Active;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Active;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -601,27 +533,22 @@ impl Render for CfgAttrExampleForm {
                             .child(
                                 Checkbox::new("active-checkbox")
                                     .checked(self.current_data.active)
-                                    .on_click(
-                                        cx
-                                            .listener(|v, _, _, _| {
-                                                v.current_data.active = !v.current_data.active;
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(|v, _, _, _| {
+                                        v.current_data.active = !v.current_data.active;
+                                    })),
                             ),
                     )
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::Enabled;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::Enabled;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::Enabled;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -633,28 +560,23 @@ impl Render for CfgAttrExampleForm {
                             .child(
                                 Switch::new("enabled-switch")
                                     .checked(self.current_data.enabled)
-                                    .on_click(
-                                        cx
-                                            .listener(move |v, checked, _, cx| {
-                                                v.current_data.enabled = *checked;
-                                                cx.notify();
-                                            }),
-                                    ),
+                                    .on_click(cx.listener(move |v, checked, _, cx| {
+                                        v.current_data.enabled = *checked;
+                                        cx.notify();
+                                    })),
                             ),
                     )
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::AccountType;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::AccountType;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::AccountType;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -667,17 +589,15 @@ impl Render for CfgAttrExampleForm {
                     )
                     .child(
                         field()
-                            .label(
-                                {
+                            .label({
                                 let message = CfgAttrExampleLabelVariants::CreatedAt;
                                 localize(cx, &message)
-                            },
-                            )
+                            })
                             .description_fn({
                                 let description = {
-                                let message = CfgAttrExampleDescriptionVariants::CreatedAt;
-                                localize(cx, &message)
-                            };
+                                    let message = CfgAttrExampleDescriptionVariants::CreatedAt;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -688,27 +608,18 @@ impl Render for CfgAttrExampleForm {
                             })
                             .child(DatePicker::new(&self.fields.created_at_date_picker)),
                     )
-                    .child(
-                        field()
-                            .label_indent(false)
-                            .child(
-                                self
-                                    .action_buttons(
-                                        cx,
-                                        |payload, _, _| {
-                                            let _ = payload;
-                                        },
-                                    ),
-                            ),
-                    ),
+                    .child(field().label_indent(false).child(self.action_buttons(
+                        cx,
+                        |payload, _, _| {
+                            let _ = payload;
+                        },
+                    ))),
             )
             .child(Divider::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
-            .child(
-                format!(
-                    "into_original: incomplete; present_fields_json: {}", self
-                    .current_data.present_fields_json()
-                ),
-            )
+            .child(format!(
+                "into_original: incomplete; present_fields_json: {}",
+                self.current_data.present_fields_json()
+            ))
     }
 }

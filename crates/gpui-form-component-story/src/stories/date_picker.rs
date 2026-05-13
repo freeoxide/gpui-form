@@ -29,12 +29,8 @@ pub struct DatePickerStory {
 }
 
 impl gpui_storybook::Story for DatePickerStory {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         "Date Picker".into()
-    }
-
-    fn description() -> String {
-        "Localized runtime date-picker demo covering range, prefilled, and styled variants.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

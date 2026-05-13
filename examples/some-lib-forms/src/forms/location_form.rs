@@ -34,7 +34,7 @@ impl Focusable for LocationFormForm {
     }
 }
 impl gpui_storybook::Story for LocationFormForm {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         crate::i18n::fallback_label::<LocationForm>()
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
