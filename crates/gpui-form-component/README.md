@@ -216,6 +216,12 @@ type:
 pub struct TagsState;
 ```
 
+For custom components that should participate in generated prototyping
+subscriptions, implement `custom::CustomComponentValueAdapter<T>` for the same
+shape and add `value_binding` to the `component(custom(...))` options. The
+adapter seeds state from the current form value and maps component events to
+`CustomComponentValueChange<T>`.
+
 ## Most Users Should Use Instead
 
 - [`gpui-form`](../gpui-form/README.md) for the public facade

@@ -57,7 +57,7 @@ impl LocationFormForm {
                 self.current_data.name = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             }
             _ => {}

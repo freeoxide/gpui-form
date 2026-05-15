@@ -48,7 +48,13 @@ provided by `Story::title` into the application i18n helper so generated form
 titles follow the active Storybook locale.
 
 Generated infinite-select and file-picker fields use the same runtime helpers
-that hand-written forms use.
+that hand-written forms use. Generated text inputs use the form-side
+`FieldVariant::value_type` and parse non-`String` values with `FromStr` instead
+of assuming every text field stores `String`.
+
+Custom fields remain inert by default. If a field's shape opts into
+`value_binding`, the adapter emits generic seed and subscription hooks through
+`gpui_form::custom::CustomComponentValueAdapter<T>`.
 
 ## Feature Flags
 

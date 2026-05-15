@@ -76,6 +76,23 @@ impl FieldCodeGenerator for InputCodeGenerator {
         ];
 
         let field_name_ident = field.field_ident();
+        let field_type_path = field.value_type();
+
+        let update_current_data = if field.value_holder_wraps_in_option() {
+            quote! {
+                self.current_data.#field_name_ident = if text.is_empty() {
+                    None
+                } else {
+                    text.parse::<#field_type_path>().ok()
+                };
+            }
+        } else {
+            quote! {
+                if let Ok(value) = text.parse::<#field_type_path>() {
+                    self.current_data.#field_name_ident = value;
+                }
+            }
+        };
 
         let handler = quote! {
             fn #event_handler_fn_name_ident(
@@ -88,11 +105,7 @@ impl FieldCodeGenerator for InputCodeGenerator {
                 match event {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
-                        self.current_data.#field_name_ident = if text.is_empty() {
-                            None
-                        } else {
-                            Some(text.to_string())
-                        };
+                        #update_current_data
                     }
                     _ => {}
                 }
@@ -147,6 +160,33 @@ mod tests {
         assert!(
             !compact.contains("ifletInputEvent::Change=event"),
             "input handlers should not collapse to if let: {compact}"
+        );
+    }
+
+    #[test]
+    fn input_generator_parses_typed_text_values() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "account_no",
+            "crate::AccountCode",
+            false,
+            ComponentsBehaviour::Input,
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = InputCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&field, &SHAPE)
+            .expect("input fields should generate subscriptions");
+        let compact = compact(&generated.handlers[0].to_string());
+
+        assert!(
+            compact.contains("text.parse::<crate::AccountCode>().ok()"),
+            "input handlers should parse form-side text value types: {compact}"
+        );
+        assert!(
+            !compact.contains("Some(text.to_string())"),
+            "input handlers should not hard-code String assignment: {compact}"
         );
     }
 }

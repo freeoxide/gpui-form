@@ -28,6 +28,54 @@ pub trait CustomComponentShape {
     const COMPONENT_PATH: Option<&'static str> = None;
 }
 
+/// Value update emitted by a custom component adapter.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CustomComponentValueChange<T> {
+    /// The component event did not change the form value.
+    Unchanged,
+    /// Replace the form value with the supplied value.
+    Set(T),
+    /// Clear an optional form value.
+    Clear,
+}
+
+impl<T> CustomComponentValueChange<T> {
+    pub const fn set(value: T) -> Self {
+        Self::Set(value)
+    }
+
+    pub const fn clear() -> Self {
+        Self::Clear
+    }
+
+    pub const fn unchanged() -> Self {
+        Self::Unchanged
+    }
+}
+
+/// Optional value-binding contract for user-defined custom components.
+///
+/// Implement this alongside [`CustomComponentShape`] when generated
+/// prototyping code should seed the component from the form value holder and
+/// subscribe to component events. The form derive opts into this path with
+/// `component(custom(..., value_binding))`.
+pub trait CustomComponentValueAdapter<T>: CustomComponentShape {
+    /// Event emitted by the custom component state.
+    type Event: 'static;
+
+    /// Seed component state from the current form value.
+    fn set_state_value(
+        _state: &mut Self::State,
+        _value: Option<&T>,
+        _window: &mut gpui::Window,
+        _cx: &mut gpui::Context<'_, Self::State>,
+    ) {
+    }
+
+    /// Convert a component event into a form value update.
+    fn value_change(state: &Self::State, event: &Self::Event) -> CustomComponentValueChange<T>;
+}
+
 /// Define a custom component shape with minimal boilerplate.
 ///
 /// # Example

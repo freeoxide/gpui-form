@@ -65,11 +65,17 @@ Important fields:
 
 - `field_name`
 - `value_type`
+- `source_value_type`
 - `optional`
+- `wraps_in_option`
 - `behaviour`
 - `validations`
 - `default_expr`
+- `from_expr`
+- `into_expr`
+- `custom_shape`
 - `custom_component`
+- `custom_value_binding`
 
 ## Data Flow
 

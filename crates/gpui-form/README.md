@@ -92,6 +92,7 @@ These component forms are currently supported:
 - `#[gpui_form(component(custom(state = my::State)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
+- `#[gpui_form(component(custom(shape = my::Shape, value_binding)))]`
 
 Common field-level helpers:
 
@@ -101,6 +102,9 @@ Common field-level helpers:
   allowing prefill from the original model.
 - `#[gpui_form(type = <form_type>, from = <expr>, into = <expr>)]` lets the
   generated form edit a type that differs from the original field type.
+- `component(input)` parses non-`String` form-side value types with `FromStr`
+  in prototyping output, so value objects can use `type`, `from`, and `into`
+  while the source model keeps its storage type.
 - Field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
   onto the generated value holder, including fields that use `type`, `from`,
   and `into` to validate a form-side type.
@@ -192,11 +196,11 @@ use koruma_collection::{
 #[gpui_form(koruma(fluent))]
 pub struct Signup {
     #[gpui_form(component(input))]
-    #[koruma(NonEmptyValidation<_>)]
+    #[koruma(NonEmptyValidation::<_>::builder())]
     pub username: String,
 
     #[gpui_form(component(number_input))]
-    #[koruma(RangeValidation<_>(min = 18, max = 120))]
+    #[koruma(RangeValidation::<_>::builder().min(18).max(120))]
     pub age: Option<u32>,
 }
 ```
@@ -205,7 +209,7 @@ When validation is enabled:
 
 - required-value semantics are preserved when the generated holder wraps fields
   in `Option<T>`
-- shorthand Koruma attrs and builder-chain attrs are both mirrored
+- builder-chain Koruma attrs are mirrored
 - generated value-holder validation uses the same validator set as the source
   struct
 
@@ -245,6 +249,12 @@ pub struct ContactForm {
     pub email: String,
 }
 ```
+
+Custom components can also opt into generated value synchronization by
+implementing `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape
+and adding `value_binding` to the custom component options. The adapter remains
+application-owned; `gpui-form` only calls its generic seed and event-conversion
+hooks.
 
 Runtime helpers are available from both:
 

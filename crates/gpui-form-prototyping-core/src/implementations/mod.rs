@@ -57,6 +57,7 @@ pub struct ResolvedField<'a> {
     field_ident_with_behaviour: Ident,
     value_type: Type,
     component_ident: Ident,
+    custom_shape_path: Option<Path>,
     custom_component_path: Option<Path>,
 }
 
@@ -83,6 +84,17 @@ impl<'a> ResolvedField<'a> {
             None => None,
         };
 
+        let custom_shape_path = match field.custom_shape {
+            Some(shape_path) => Some(syn::parse_str::<Path>(shape_path).map_err(|error| {
+                PrototypingError::InvalidPath {
+                    kind: "custom component shape path",
+                    value: shape_path.to_string(),
+                    error: error.to_string(),
+                }
+            })?),
+            None => None,
+        };
+
         Ok(Self {
             field,
             field_ident: format_ident!("{}", field.field_name),
@@ -90,6 +102,7 @@ impl<'a> ResolvedField<'a> {
             field_ident_with_behaviour: format_ident!("{}", field.field_name_with_behaviour()),
             value_type,
             component_ident: format_ident!("{}", field.behaviour.component_name().to_pascal_case()),
+            custom_shape_path,
             custom_component_path,
         })
     }
@@ -130,8 +143,20 @@ impl<'a> ResolvedField<'a> {
         self.field.optional
     }
 
+    pub fn value_holder_wraps_in_option(&self) -> bool {
+        self.field.value_holder_wraps_in_option()
+    }
+
+    pub fn custom_value_binding(&self) -> bool {
+        self.field.custom_value_binding
+    }
+
     pub fn custom_component(&self) -> Option<&'a str> {
         self.field.custom_component
+    }
+
+    pub fn custom_shape_path(&self) -> Option<&Path> {
+        self.custom_shape_path.as_ref()
     }
 
     pub fn custom_component_path(&self) -> Option<&Path> {
@@ -293,10 +318,18 @@ pub fn generate_text_value_prefill(field: &ResolvedField<'_>) -> TokenStream {
     let field_var_name_ident = field.field_ident_with_behaviour();
     let field_name_ident = field.field_ident();
 
-    quote! {
-        if let Some(value) = current_data.#field_name_ident.as_ref() {
+    if field.value_holder_wraps_in_option() {
+        quote! {
+            if let Some(value) = current_data.#field_name_ident.as_ref() {
+                #field_var_name_ident.update(cx, |state, cx| {
+                    state.set_value(value.to_string(), window, cx);
+                });
+            }
+        }
+    } else {
+        quote! {
             #field_var_name_ident.update(cx, |state, cx| {
-                state.set_value(value.to_string(), window, cx);
+                state.set_value(current_data.#field_name_ident.to_string(), window, cx);
             });
         }
     }

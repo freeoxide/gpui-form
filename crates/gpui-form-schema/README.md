@@ -17,6 +17,10 @@ prototyping flows around generated form metadata.
 - `registry::FieldVariant`
 - `registry::inventory`
 
+`FieldVariant` records both source-model and form-side value types, generated
+value-holder wrapping, conversion expressions, custom component shape paths,
+and opt-in custom value-binding metadata for generators.
+
 ## Example
 
 ```rs

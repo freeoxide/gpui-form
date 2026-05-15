@@ -62,7 +62,7 @@ impl UserForm {
                 self.current_data.username = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             }
             _ => {}
@@ -81,7 +81,7 @@ impl UserForm {
                 self.current_data.email = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             }
             _ => {}
