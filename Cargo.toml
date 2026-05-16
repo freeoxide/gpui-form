@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = ["examples/some-lib-forms"]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
@@ -32,13 +32,13 @@ chrono = "0.4"
 crabtime = "1.1"
 darling = "0.23"
 derive_more = "2.1"
-es-fluent = { path = "../es-fluent/crates/es-fluent" }
-es-fluent-build = { path = "../es-fluent/crates/es-fluent-build" }
-es-fluent-lang = { path = "../es-fluent/crates/es-fluent-lang" }
-es-fluent-manager-embedded = { path = "../es-fluent/crates/es-fluent-manager-embedded" }
+es-fluent = "0.16"
+es-fluent-build = "0.16"
+es-fluent-lang = "0.16"
+es-fluent-manager-embedded = "0.16"
 gpui = { git = "https://github.com/zed-industries/zed", rev = "832c17e8192e2e1d472f0751e7cef2af84ded622" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-gpui-es-fluent = { path = "../gpui-es-fluent/crates/gpui-es-fluent" }
+gpui-es-fluent = { git = "https://github.com/stayhydated/gpui-es-fluent" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.1" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.1" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.1" }
@@ -64,9 +64,9 @@ insta = "1.46"
 inventory = "0.3"
 itertools = "0.14"
 jiff = "0.2.23"
-koruma = { path = "../koruma/crates/koruma" }
-koruma-collection = { path = "../koruma/crates/koruma-collection" }
-koruma-derive-core = { path = "../koruma/crates/koruma-derive-core" }
+koruma = "0.9"
+koruma-collection = "0.9"
+koruma-derive-core = "0.9"
 log = "0.4"
 prettyplease = "0.2"
 proc-macro-crate = "3.2"

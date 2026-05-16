@@ -1754,6 +1754,8 @@ dependencies = [
 [[package]]
 name = "es-fluent"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5b55cbcb5d9d6483b22641481afd022a166dc3d195e5dd1d52e4dc9d8011231"
 dependencies = [
  "es-fluent-derive",
  "es-fluent-manager-core",
@@ -1768,6 +1770,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-build"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "455140cb5d882492115e4f7f02d6ab7caf72533fa34f431a6ee8790744947718"
 dependencies = [
  "es-fluent-toml",
 ]
@@ -1775,6 +1779,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-derive"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03f8782fecb1edb453f0652586cd7c336be50a876dcd0170af2e1b701a68acb4"
 dependencies = [
  "darling",
  "es-fluent-derive-core",
@@ -1790,6 +1796,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-derive-core"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "602c3e6241f9b2c0e06318156db1a74bc436c3a3adb08cc8b51efab357623850"
 dependencies = [
  "bon",
  "darling",
@@ -1808,6 +1816,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-lang"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c10c27fde2f597cf63249835f69b71872a824b140d0eb5ec005a926d5a475ba4"
 dependencies = [
  "es-fluent-lang-macro",
  "es-fluent-manager-core",
@@ -1823,6 +1833,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-lang-macro"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06a268957e9dd7cf14c3e1363192f3f03ccca7dbfd7da369b3917f8a47897dbd"
 dependencies = [
  "es-fluent-toml",
  "heck 0.5.0",
@@ -1836,6 +1848,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-manager-core"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf4731085359e68ebfc7135ceabd5966da95036b65cfa2320ac8a3b85edccf39"
 dependencies = [
  "es-fluent-shared",
  "fluent-bundle",
@@ -1854,6 +1868,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-manager-embedded"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e95fdfd2b6ba4adfd088195292a677054fac375a3130849168ccb7ae2fa47238"
 dependencies = [
  "es-fluent",
  "es-fluent-manager-core",
@@ -1865,6 +1881,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-manager-macros"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e2ffc665252db517ed78f8c66d5e529ec98203aced6a780fbee02e4b769cd7"
 dependencies = [
  "es-fluent-shared",
  "es-fluent-toml",
@@ -1878,6 +1896,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-shared"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df9561a01753f64990a2606d6a63c265b5256d2b85a94ceccae04adfb9f3d63c"
 dependencies = [
  "anyhow",
  "camino",
@@ -1899,6 +1919,8 @@ dependencies = [
 [[package]]
 name = "es-fluent-toml"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d948eb5a013e803f92ce6e640f2a6e7bee1a051c7b252f39b40979629bce0dc"
 dependencies = [
  "es-fluent-shared",
  "fs-err",
@@ -2925,6 +2947,7 @@ dependencies = [
 [[package]]
 name = "gpui-es-fluent"
 version = "0.1.0"
+source = "git+https://github.com/stayhydated/gpui-es-fluent#bc27352263bc94be178aa4076dfdf2e256e8b13d"
 dependencies = [
  "es-fluent",
  "es-fluent-manager-embedded",
@@ -4506,7 +4529,9 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "koruma"
-version = "0.8.0"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b0fb572c1373155ab0c055ccd54ba6c7e9f6d87c4f7aef5c21d4b1723490be1"
 dependencies = [
  "bon",
  "koruma-core",
@@ -4515,7 +4540,9 @@ dependencies = [
 
 [[package]]
 name = "koruma-collection"
-version = "0.8.0"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a99ca603b2f4d4e8b8bd4487d7bfcfd1b5684ae37c18224508fde52850ff1eca"
 dependencies = [
  "email_address",
  "es-fluent",
@@ -4528,14 +4555,18 @@ dependencies = [
 
 [[package]]
 name = "koruma-core"
-version = "0.8.0"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c4eaac2dc915f8934b98f713f197b2bd87d86157202bdd7b13d3ae7b9c2e2d9"
 dependencies = [
  "es-fluent",
 ]
 
 [[package]]
 name = "koruma-derive"
-version = "0.8.0"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d104184007e484bea8ad7ebfb5da4838e54a72a14e4b9415523442a18b1624"
 dependencies = [
  "heck 0.5.0",
  "koruma-derive-core",
@@ -4548,7 +4579,9 @@ dependencies = [
 
 [[package]]
 name = "koruma-derive-core"
-version = "0.8.0"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d36f0618cc89d554de526d00a2a520b8a7faaae4092fd86dc7bc42027a89f376"
 dependencies = [
  "heck 0.5.0",
  "quote",
