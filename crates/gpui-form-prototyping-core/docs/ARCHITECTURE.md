@@ -35,6 +35,8 @@ This crate exists to:
    `InfiniteSelectEvent<T>` payload directly.
    File-picker fields use one `FilePickerState` entity, render the runtime
    `FilePicker`, and store the first selected path in the form value holder.
+   Text input fields parse the form-side value type from `FieldVariant`
+   metadata instead of assuming `String`.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`
@@ -76,6 +78,7 @@ bare identifier. That is important because inventory metadata may carry:
 - crate-qualified enum paths
 - nested module paths
 - type overrides emitted by the derive layer
+- source/form conversion metadata and generated value-holder wrapping policy
 
 Each field is resolved once into a typed internal representation before any
 component-specific generation runs.
@@ -88,7 +91,9 @@ For `ComponentsBehaviour::Custom`:
 - if `FieldVariant::custom_component` is present, the generator can emit
   `Component::new(&entity)` and import the component type
 - if that metadata is missing, the generator falls back to a placeholder row
-- custom subscriptions are still project-specific and are not inferred
+- custom subscriptions are generated only when `FieldVariant::custom_value_binding`
+  is true; the field's shape must provide the generic
+  `CustomComponentValueAdapter<T>` hook that maps events to value updates
 
 ## Coordination Rules
 

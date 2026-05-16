@@ -1,16 +1,16 @@
-use es_fluent::{ThisFtl as _, ToFluentString as _};
+use es_fluent::FluentMessage;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::checkbox::Checkbox;
-use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
+use gpui_component::separator::Separator;
 use gpui_component::switch::Switch;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
@@ -18,8 +18,13 @@ use rust_decimal::Decimal;
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::user::*;
 const CONTEXT: &str = "UserForm";
+
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
+}
+
 #[gpui_storybook::story_init]
-pub fn init(cx: &mut App) {}
+pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct UserForm {
     current_data: UserFormValueHolder,
@@ -28,13 +33,13 @@ pub struct UserForm {
     _subscriptions: Vec<Subscription>,
 }
 impl Focusable for UserForm {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
 impl gpui_storybook::Story for UserForm {
-    fn title() -> String {
-        User::this_ftl()
+    fn title(cx: &gpui::App) -> String {
+        crate::i18n::localize_label::<User>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -378,8 +383,8 @@ impl UserForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
-            .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for UserForm {
@@ -392,15 +397,14 @@ impl Render for UserForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(
                 v_form()
                     .child(
                         field()
-                            .label(UserLabelVariants::Username.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Username))
                             .description_fn({
-                                let description =
-                                    UserDescriptionVariants::Username.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Username);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -409,7 +413,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -436,9 +440,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Email.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Email))
                             .description_fn({
-                                let description = UserDescriptionVariants::Email.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Email);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -447,7 +451,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -474,9 +478,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Age.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Age))
                             .description_fn({
-                                let description = UserDescriptionVariants::Age.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Age);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.age().all();
@@ -485,7 +489,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -512,10 +516,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Balance.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Balance))
                             .description_fn({
-                                let description =
-                                    UserDescriptionVariants::Balance.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Balance);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -524,7 +527,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -551,9 +554,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Debt.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Debt))
                             .description_fn({
-                                let description = UserDescriptionVariants::Debt.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Debt);
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.debt().all();
@@ -562,7 +565,7 @@ impl Render for UserForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| v.to_fluent_string())
+                                                    .map(|v| localize(cx, v))
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )
@@ -589,10 +592,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::SubscribeNewsletter.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::SubscribeNewsletter))
                             .description_fn({
                                 let description =
-                                    UserDescriptionVariants::SubscribeNewsletter.to_fluent_string();
+                                    localize(cx, &UserDescriptionVariants::SubscribeNewsletter);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -612,10 +615,10 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::EnableNotifications.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::EnableNotifications))
                             .description_fn({
                                 let description =
-                                    UserDescriptionVariants::EnableNotifications.to_fluent_string();
+                                    localize(cx, &UserDescriptionVariants::EnableNotifications);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -635,10 +638,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Preferred.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Preferred))
                             .description_fn({
-                                let description =
-                                    UserDescriptionVariants::Preferred.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Preferred);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -651,10 +653,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::Country.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::Country))
                             .description_fn({
-                                let description =
-                                    UserDescriptionVariants::Country.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::Country);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -667,10 +668,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(UserLabelVariants::BirthDate.to_fluent_string())
+                            .label(localize(cx, &UserLabelVariants::BirthDate))
                             .description_fn({
-                                let description =
-                                    UserDescriptionVariants::BirthDate.to_fluent_string();
+                                let description = localize(cx, &UserDescriptionVariants::BirthDate);
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -688,7 +688,7 @@ impl Render for UserForm {
                         },
                     ))),
             )
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: incomplete; present_fields_json: {}",

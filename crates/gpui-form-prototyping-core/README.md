@@ -41,14 +41,26 @@ shows the normal flow:
 1. iterate `inventory::iter::<GpuiFormShape>()`
 1. adapt each shape with `FormShapeAdapter`
 1. render a file through a custom `FormLayout`
-1. write the generated form files
+1. clear stale generated modules and write the generated form files
+
+When the layout emits `gpui_storybook::Story`, pass the `cx: &gpui::App`
+provided by `Story::title` into the application i18n helper so generated form
+titles follow the active Storybook locale.
 
 Generated infinite-select and file-picker fields use the same runtime helpers
-that hand-written forms use.
+that hand-written forms use. Generated text inputs use the form-side
+`FieldVariant::value_type` and parse non-`String` values with `FromStr` instead
+of assuming every text field stores `String`.
+
+Custom fields remain inert by default. If a field's shape opts into
+`value_binding`, the adapter emits generic seed and subscription hooks through
+`gpui_form::custom::CustomComponentValueAdapter<T>`.
 
 ## Feature Flags
 
-- `fluent`: use `es-fluent` keys for generated labels and descriptions
+- `fluent`: use `es-fluent` keys for generated labels, descriptions, and
+  validation messages through an application helper named
+  `crate::i18n::localize(...)`
 
 ## Most Users Should Use Instead
 

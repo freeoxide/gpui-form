@@ -77,10 +77,97 @@ impl FieldCodeGenerator for CustomCodeGenerator {
 
     fn generate_subscription(
         &self,
-        _field: &ResolvedField<'_>,
+        field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
-        None
+        if !field.custom_value_binding() {
+            return None;
+        }
+
+        let shape = field.custom_shape_path()?;
+        let field_type = field.value_type();
+        let field_var_name_ident = field.field_ident_with_behaviour();
+        let field_name_ident = field.field_ident();
+        let event_handler_fn_name_ident = field.event_handler_ident("custom_event");
+
+        let calls = vec![
+            quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
+        ];
+
+        let set_tokens = if field.value_holder_wraps_in_option() {
+            quote! { self.current_data.#field_name_ident = Some(value); }
+        } else {
+            quote! { self.current_data.#field_name_ident = value; }
+        };
+        let clear_tokens = if field.value_holder_wraps_in_option() {
+            quote! { self.current_data.#field_name_ident = None; }
+        } else {
+            quote! { self.current_data.#field_name_ident = ::core::default::Default::default(); }
+        };
+
+        let handler = quote! {
+            fn #event_handler_fn_name_ident(
+                &mut self,
+                state: &Entity<<#shape as ::gpui_form::custom::CustomComponentShape>::State>,
+                event: &<#shape as ::gpui_form::custom::CustomComponentValueAdapter<#field_type>>::Event,
+                _window: &mut Window,
+                _cx: &mut Context<Self>,
+            ) {
+                let change = {
+                    let state = state.read(_cx);
+                    <#shape as ::gpui_form::custom::CustomComponentValueAdapter<#field_type>>::value_change(
+                        &state,
+                        event,
+                    )
+                };
+
+                match change {
+                    ::gpui_form::custom::CustomComponentValueChange::Set(value) => {
+                        #set_tokens
+                    }
+                    ::gpui_form::custom::CustomComponentValueChange::Clear => {
+                        #clear_tokens
+                    }
+                    ::gpui_form::custom::CustomComponentValueChange::Unchanged => {}
+                }
+            }
+        };
+
+        Some(GeneratedSubscription {
+            calls,
+            handlers: vec![handler],
+        })
+    }
+
+    fn generate_post_subscription_initialization(
+        &self,
+        field: &ResolvedField<'_>,
+        _component: &GpuiFormShape,
+    ) -> Option<TokenStream> {
+        if !field.custom_value_binding() {
+            return None;
+        }
+
+        let shape = field.custom_shape_path()?;
+        let field_type = field.value_type();
+        let field_var_name_ident = field.field_ident_with_behaviour();
+        let field_name_ident = field.field_ident();
+        let value_tokens = if field.value_holder_wraps_in_option() {
+            quote! { current_data.#field_name_ident.as_ref() }
+        } else {
+            quote! { Some(&current_data.#field_name_ident) }
+        };
+
+        Some(quote! {
+            #field_var_name_ident.update(cx, |state, cx| {
+                <#shape as ::gpui_form::custom::CustomComponentValueAdapter<#field_type>>::set_state_value(
+                    state,
+                    #value_tokens,
+                    window,
+                    cx,
+                );
+            });
+        })
     }
 }
 
@@ -155,6 +242,46 @@ mod tests {
         assert!(
             compact.contains("TagsInput::new(&self.fields.tags_custom)"),
             "render should emit Component::new(&entity): got {compact}"
+        );
+    }
+
+    #[test]
+    fn custom_generator_wires_opt_in_value_binding() {
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("country", "CountryCode", false, ComponentsBehaviour::Custom)
+                    .with_wraps_in_option(true)
+                    .with_custom_shape("crate::shapes::CountryShape")
+                    .with_custom_value_binding(true),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = CustomCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&field, &SHAPE)
+            .expect("value-bound custom fields should generate subscriptions");
+        let compact_handler = compact(&generated.handlers[0].to_string());
+
+        assert!(
+            compact_handler.contains(
+                "<crate::shapes::CountryShapeas::gpui_form::custom::CustomComponentValueAdapter<CountryCode>>::Event"
+            ),
+            "custom event handler should use the shape's value adapter event type: {compact_handler}"
+        );
+        assert!(
+            compact_handler.contains("self.current_data.country=Some(value);"),
+            "optional custom value binding should assign Some(value): {compact_handler}"
+        );
+
+        let init = generator
+            .generate_post_subscription_initialization(&field, &SHAPE)
+            .expect("value-bound custom fields should seed state");
+        let compact_init = compact(&init.to_string());
+        assert!(
+            compact_init
+                .contains("set_state_value(state,current_data.country.as_ref(),window,cx,)"),
+            "custom value binding should seed state from current_data: {compact_init}"
         );
     }
 }

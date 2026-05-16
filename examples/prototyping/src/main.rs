@@ -129,8 +129,8 @@ impl FormLayout for StorybookLayout {
                     div()
                         .flex()
                         .gap_2()
-                        .child(self.submit_button(cx, FormAction::Submit.to_fluent_string(), on_submit))
-                        .child(self.reset_button(cx, FormAction::Reset.to_fluent_string()))
+                        .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+                        .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
                 }
             }
         };
@@ -158,18 +158,21 @@ impl FormLayout for StorybookLayout {
 
         syn::parse2(quote! {
             #imports
-            use es_fluent::ThisFtl as _;
             use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
             use gpui_component::Disableable as _;
-            use gpui_component::divider::Divider;
+            use gpui_component::separator::Separator;
             use gpui_component::form::v_form;
             use gpui_component::v_flex;
             #form_action_import
 
             const CONTEXT: &str = #context_str;
 
+            fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
+                crate::i18n::localize_message(cx, message)
+            }
+
             #[gpui_storybook::story_init]
-            pub fn init(cx: &mut App) {}
+            pub fn init(_cx: &mut App) {}
 
             #[gpui_storybook::story]
             pub struct #form_ident {
@@ -180,14 +183,14 @@ impl FormLayout for StorybookLayout {
             }
 
             impl Focusable for #form_ident {
-                fn focus_handle(&self, cx: &App) -> FocusHandle {
+                fn focus_handle(&self, _cx: &App) -> FocusHandle {
                     self.focus_handle.clone()
                 }
             }
 
             impl gpui_storybook::Story for #form_ident {
-                fn title() -> String {
-                    #struct_name_ident::this_ftl()
+                fn title(cx: &gpui::App) -> String {
+                    crate::i18n::localize_label::<#struct_name_ident>(cx)
                 }
 
                 fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -220,7 +223,7 @@ impl FormLayout for StorybookLayout {
 
             impl Render for #form_ident {
                 fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-                    #validation_binding
+#validation_binding
                     v_flex()
                         .key_context(CONTEXT)
                         .id(#form_id_literal)
@@ -228,13 +231,13 @@ impl FormLayout for StorybookLayout {
                         .p_4()
                         .justify_start()
                         .gap_3()
-                        .child(Divider::horizontal())
+                        .child(Separator::horizontal())
                         .child(
                             v_form()
                                 #render_children
                                 #action_buttons_child
                         )
-                        .child(Divider::horizontal())
+                        .child(Separator::horizontal())
                         #debug_child
                 }
             }
@@ -246,6 +249,16 @@ impl FormLayout for StorybookLayout {
 fn main() {
     let output_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("output");
     fs::create_dir_all(&output_dir).expect("Failed to create output directory");
+    for entry in fs::read_dir(&output_dir).expect("Failed to read output directory") {
+        let entry = entry.expect("Failed to inspect output entry");
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "rs")
+            && path.file_name().is_none_or(|name| name != "mod.rs")
+        {
+            fs::remove_file(&path)
+                .unwrap_or_else(|_| panic!("Failed to remove stale file: {}", path.display()));
+        }
+    }
     println!("Generating forms in: {}", output_dir.display());
 
     let mut modules: BTreeSet<String> = BTreeSet::new();

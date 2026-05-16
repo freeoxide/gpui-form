@@ -7,9 +7,9 @@ file_picker_text-PathsSelected =
         [one] 已选择 1 个路径
        *[other] 已选择 { $count } 个路径
     }
-file_picker_text-SelectAFile = 选择文件
 file_picker_text-SelectADirectory = 选择文件夹
+file_picker_text-SelectAFile = 选择文件
 file_picker_text-SelectAFileOrDirectory = 选择文件或文件夹
-file_picker_text-SelectFile = 选择文件
 file_picker_text-SelectDirectory = 选择文件夹
+file_picker_text-SelectFile = 选择文件
 file_picker_text-SelectFileOrDirectory = 选择文件或文件夹

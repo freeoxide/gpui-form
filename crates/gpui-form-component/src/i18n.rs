@@ -1,11 +1,42 @@
-use es_fluent::EsFluent;
+use es_fluent::{EsFluent, FluentLabel, FluentLocalizer, FluentLocalizerExt, FluentMessage};
+use es_fluent_manager_embedded as i18n_manager;
 
 es_fluent_manager_embedded::define_i18n_module!();
+
+pub use i18n_manager::{EmbeddedI18n, EmbeddedInitError, LocalizationError};
+
+pub type I18n = EmbeddedI18n;
+
+/// Renders a Fluent message through an explicit caller-owned localizer.
+pub fn localize_message<L, T>(localizer: &L, message: &T) -> String
+where
+    L: FluentLocalizer + ?Sized,
+    T: FluentMessage + ?Sized,
+{
+    localizer.localize_message(message)
+}
+
+/// Renders a Fluent type label through an explicit caller-owned localizer.
+pub fn localize_label<L, T>(localizer: &L) -> String
+where
+    L: FluentLocalizer + ?Sized,
+    T: FluentLabel,
+{
+    T::localize_label(localizer)
+}
 
 #[derive(Clone, Debug, EsFluent)]
 #[fluent(namespace = "date_picker")]
 pub(crate) enum DatePickerText {
     SelectDate,
+}
+
+impl DatePickerText {
+    pub(crate) fn default_text(&self) -> String {
+        match self {
+            Self::SelectDate => "Select date".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, EsFluent)]
@@ -22,44 +53,77 @@ pub(crate) enum FilePickerText {
     PathsSelected { count: usize },
 }
 
+impl FilePickerText {
+    pub(crate) fn default_text(&self) -> String {
+        match self {
+            Self::SelectAFile => "Select a file".to_string(),
+            Self::SelectADirectory => "Select a directory".to_string(),
+            Self::SelectAFileOrDirectory => "Select a file or directory".to_string(),
+            Self::SelectFile => "Select file".to_string(),
+            Self::SelectDirectory => "Select directory".to_string(),
+            Self::SelectFileOrDirectory => "Select file or directory".to_string(),
+            Self::Browse => "Browse".to_string(),
+            Self::DialogDropped => {
+                "The file picker dialog closed before returning a result.".to_string()
+            },
+            Self::PathsSelected { count: 1 } => "1 path selected".to_string(),
+            Self::PathsSelected { count } => format!("{count} paths selected"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use es_fluent::ToFluentString as _;
+    use es_fluent::unic_langid::langid;
 
-    use super::{DatePickerText, FilePickerText};
+    use super::*;
+
+    fn strip_fluent_isolates(input: &str) -> String {
+        input
+            .chars()
+            .filter(|ch| !matches!(*ch, '\u{2068}' | '\u{2069}'))
+            .collect()
+    }
 
     #[test]
     fn resolves_runtime_component_messages() {
-        es_fluent_manager_embedded::init_with_language(unic_langid::langid!("en"));
-
-        assert_eq!(DatePickerText::SelectDate.to_fluent_string(), "Select date");
-        assert_eq!(FilePickerText::Browse.to_fluent_string(), "Browse");
+        let i18n = I18n::try_new_with_language(langid!("en")).unwrap();
         assert_eq!(
-            strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
+            i18n.localize_message(&DatePickerText::SelectDate),
+            "Select date"
+        );
+        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "Browse");
+        assert_eq!(
+            strip_fluent_isolates(
+                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
+            ),
             "2 paths selected"
         );
 
-        es_fluent_manager_embedded::select_language(unic_langid::langid!("fr-FR")).unwrap();
+        i18n.select_language(langid!("fr-FR")).unwrap();
         assert_eq!(
-            DatePickerText::SelectDate.to_fluent_string(),
+            i18n.localize_message(&DatePickerText::SelectDate),
             "Sélectionner une date"
         );
-        assert_eq!(FilePickerText::Browse.to_fluent_string(), "Parcourir");
+        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "Parcourir");
         assert_eq!(
-            strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
+            strip_fluent_isolates(
+                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
+            ),
             "2 chemins sélectionnés"
         );
 
-        es_fluent_manager_embedded::select_language(unic_langid::langid!("zh-CN")).unwrap();
-        assert_eq!(DatePickerText::SelectDate.to_fluent_string(), "选择日期");
-        assert_eq!(FilePickerText::Browse.to_fluent_string(), "浏览");
+        i18n.select_language(langid!("zh-CN")).unwrap();
         assert_eq!(
-            strip_fluent_isolates(&FilePickerText::PathsSelected { count: 2 }.to_fluent_string()),
+            i18n.localize_message(&DatePickerText::SelectDate),
+            "选择日期"
+        );
+        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "浏览");
+        assert_eq!(
+            strip_fluent_isolates(
+                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
+            ),
             "已选择 2 个路径"
         );
-    }
-
-    fn strip_fluent_isolates(value: &str) -> String {
-        value.replace(['\u{2068}', '\u{2069}'], "")
     }
 }

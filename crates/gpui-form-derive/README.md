@@ -52,6 +52,7 @@ Supported component forms:
 - `#[gpui_form(component(custom(state = my::State)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
+- `#[gpui_form(component(custom(shape = my::Shape, value_binding)))]`
 
 Supporting field attributes:
 
@@ -79,8 +80,13 @@ Behavior notes:
   `infinite_select`
 - `custom(..., wraps_in_option = false)` keeps the generated value-holder field
   as `T` instead of `Option<T>`
+- `custom(..., value_binding)` records that the custom shape implements
+  `gpui_form::custom::CustomComponentValueAdapter<T>` for generated
+  prototyping subscriptions
 - `type`/`from`/`into` let the generated holder edit a type that differs from
   the original model field
+- `component(input)` prototyping code parses form-side non-`String` values with
+  `FromStr` instead of assigning raw `String`s
 - field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
   onto the generated value holder, which allows validating form-side override
   types without deriving `Koruma` on the original model
@@ -104,7 +110,9 @@ pub enum Country {
 
 Optional attribute:
 
-- `#[select_item(fluent)]` uses `es-fluent` for titles
+- `#[select_item(fluent)]` allows enums that derive `EsFluent` to avoid a
+  `Display` bound, but `SelectItem::title()` has no localizer argument. Render
+  localized select labels in the application layer when localization is needed.
 
 ## `#[derive(CustomComponentState)]`
 

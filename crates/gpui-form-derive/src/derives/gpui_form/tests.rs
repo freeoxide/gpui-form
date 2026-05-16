@@ -14,7 +14,7 @@ mod gpui_form_tests {
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
             struct Test {
-                #[cfg_attr(feature = "validation", koruma(SomeValidator<_>))]
+                #[cfg_attr(feature = "validation", koruma(SomeValidator::<_>::builder()))]
                 field: u32,
             }
         };
@@ -121,11 +121,11 @@ mod gpui_form_tests {
             #[gpui_form(koruma(fluent))]
             struct TestForm {
                 #[gpui_form(component(input))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation<Option<_>>))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation::<Option<_>>::builder()))]
                 name: String,
 
                 #[gpui_form(component(number_input))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation<_>))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation::<_>::builder()))]
                 age: u32,
             }
         };
@@ -345,13 +345,13 @@ mod gpui_form_tests {
     }
 
     #[test]
-    fn test_gpui_form_reemits_argumentless_koruma_validators_as_builder_chain() {
+    fn test_gpui_form_preserves_zero_setter_koruma_builder_chains() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             #[gpui_form(koruma)]
             struct TestForm {
                 #[gpui_form(component(number_input))]
-                #[koruma(koruma_collection::numeric::PositiveValidation<_>)]
+                #[koruma(koruma_collection::numeric::PositiveValidation::<_>::builder())]
                 age: u32,
             }
         };
@@ -370,7 +370,7 @@ mod gpui_form_tests {
             compact.contains(&compact_tokens(
                 "koruma_collection::numeric::PositiveValidation::<_>::builder()"
             )),
-            "Generated value holder should re-emit argumentless koruma validators as builder chains: {compact}"
+            "Generated value holder should preserve zero-setter koruma builder chains: {compact}"
         );
     }
 
@@ -646,7 +646,7 @@ mod gpui_form_tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape, component = crate::ui::BioInput)))]
+                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape, component = crate::ui::BioInput, value_binding)))]
                 bio: String,
             }
         };
@@ -684,6 +684,58 @@ mod gpui_form_tests {
         assert!(
             compact.contains("with_custom_component("),
             "FieldVariant should carry the custom component path: {compact}"
+        );
+        assert!(
+            compact.contains("with_custom_shape(\"crate::shapes::BioInputShape\")"),
+            "FieldVariant should carry the custom shape path: {compact}"
+        );
+        assert!(
+            compact.contains("with_custom_value_binding(true)"),
+            "FieldVariant should record opt-in custom value binding: {compact}"
+        );
+    }
+
+    #[test]
+    fn test_field_variant_metadata_records_form_value_holder_conversion_shape() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    component(input),
+                    type = crate::types::AccountCode,
+                    from = crate::types::AccountCode::new,
+                    into = crate::types::AccountCode::into_string
+                )]
+                account_no: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact
+                .contains("FieldVariant::new(\"account_no\",\"crate::types::AccountCode\",false"),
+            "FieldVariant should store the form-side value type: {compact}"
+        );
+        assert!(
+            compact.contains("with_source_value_type(\"String\")"),
+            "FieldVariant should store the source model value type: {compact}"
+        );
+        assert!(
+            compact.contains("with_wraps_in_option(true)"),
+            "FieldVariant should store generated holder wrapping policy: {compact}"
+        );
+        assert!(
+            compact.contains("with_conversions(Some(\"crate::types::AccountCode::new\"),Some(\"crate::types::AccountCode::into_string\"))"),
+            "FieldVariant should store source/form conversion expressions: {compact}"
         );
     }
 

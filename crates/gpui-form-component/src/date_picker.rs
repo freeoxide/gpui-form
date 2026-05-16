@@ -19,7 +19,6 @@ use jiff::civil::Date as JiffDate;
 
 use crate::calendar::{Calendar, CalendarEvent, CalendarState, Date as CalendarDate};
 use crate::i18n::DatePickerText;
-use es_fluent::ToFluentString as _;
 
 /// Localized date display widths for the runtime date picker.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -496,7 +495,7 @@ impl RenderOnce for DatePicker {
         let placeholder = self
             .placeholder
             .clone()
-            .unwrap_or_else(|| DatePickerText::SelectDate.to_fluent_string().into());
+            .unwrap_or_else(|| DatePickerText::SelectDate.default_text().into());
         let locale = state.display_locale.clone().unwrap_or_else(active_locale);
         let display_title = state
             .date
@@ -621,7 +620,7 @@ impl RenderOnce for DateRangePicker {
         let placeholder = self
             .placeholder
             .clone()
-            .unwrap_or_else(|| DatePickerText::SelectDate.to_fluent_string().into());
+            .unwrap_or_else(|| DatePickerText::SelectDate.default_text().into());
         let locale = state.display_locale.clone().unwrap_or_else(active_locale);
         let display_title = format_display_range(
             state.start_date,

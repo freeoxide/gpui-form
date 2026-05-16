@@ -7,9 +7,9 @@ file_picker_text-PathsSelected =
         [one] 1 path selected
        *[other] { $count } paths selected
     }
-file_picker_text-SelectAFile = Select a file
 file_picker_text-SelectADirectory = Select a directory
+file_picker_text-SelectAFile = Select a file
 file_picker_text-SelectAFileOrDirectory = Select a file or directory
-file_picker_text-SelectFile = Select file
 file_picker_text-SelectDirectory = Select directory
+file_picker_text-SelectFile = Select file
 file_picker_text-SelectFileOrDirectory = Select file or directory

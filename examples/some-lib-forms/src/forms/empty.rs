@@ -1,30 +1,35 @@
-use es_fluent::{ThisFtl as _, ToFluentString as _};
+use es_fluent::FluentMessage;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
-use gpui_component::divider::Divider;
 use gpui_component::form::{field, v_form};
+use gpui_component::separator::Separator;
 use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
 use rust_decimal::Decimal;
 use some_lib::structs::empty::*;
 const CONTEXT: &str = "EmptyForm";
+
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
+}
+
 #[gpui_storybook::story_init]
-pub fn init(cx: &mut App) {}
+pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct EmptyForm {
     fields: EmptyFormFields,
     focus_handle: FocusHandle,
 }
 impl Focusable for EmptyForm {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
 impl gpui_storybook::Story for EmptyForm {
-    fn title() -> String {
-        Empty::this_ftl()
+    fn title(cx: &gpui::App) -> String {
+        crate::i18n::localize_label::<Empty>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -47,8 +52,8 @@ impl Render for EmptyForm {
             .p_4()
             .justify_start()
             .gap_3()
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(v_form())
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
     }
 }

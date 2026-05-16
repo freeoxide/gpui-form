@@ -1,4 +1,4 @@
-use es_fluent::{EsFluentThis, EsFluentVariants};
+use es_fluent::{EsFluentLabel, EsFluentVariants};
 use gpui_form::SelectItem;
 use koruma_collection::{
     collection::NonEmptyValidation,
@@ -42,7 +42,7 @@ pub enum AccountType {
 #[display("{}", value)]
 #[koruma(try_new, newtype)]
 pub struct Age {
-    #[koruma(NonNegativeValidation<_>)]
+    #[koruma(NonNegativeValidation::<_>::builder())]
     pub value: i32,
 }
 
@@ -52,8 +52,8 @@ pub struct Age {
 /// Features required: ui, validation, fluent
 #[cfg_attr(feature = "ui", derive(gpui_form::GpuiForm))]
 #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
-#[cfg_attr(feature = "fluent", derive(EsFluentVariants, EsFluentThis))]
-#[cfg_attr(feature = "fluent", fluent_this(origin, variants))]
+#[cfg_attr(feature = "fluent", derive(EsFluentVariants, EsFluentLabel))]
+#[cfg_attr(feature = "fluent", fluent_label(origin, variants))]
 #[cfg_attr(feature = "fluent", fluent_variants(keys = ["description", "label"]))]
 #[cfg_attr(
     feature = "validation",
@@ -63,12 +63,18 @@ pub struct Age {
 pub struct CfgAttrExample {
     /// Username field with validation wrapped in cfg_attr
     #[cfg_attr(feature = "ui", gpui_form(component(input)))]
-    #[cfg_attr(feature = "validation", koruma(NonEmptyValidation<_>, RequiredValidation<Option<_>>))]
+    #[cfg_attr(
+        feature = "validation",
+        koruma(
+            NonEmptyValidation::<_>::builder(),
+            RequiredValidation::<Option<_>>::builder()
+        )
+    )]
     pub username: Option<String>,
 
     /// Email field with both ui and validation behind cfg_attr
     #[cfg_attr(feature = "ui", gpui_form(component(input)))]
-    #[cfg_attr(feature = "validation", koruma(EmailValidation<_>))]
+    #[cfg_attr(feature = "validation", koruma(EmailValidation::<_>::builder()))]
     pub email: String,
 
     /// Age field with number input component
@@ -78,7 +84,7 @@ pub struct CfgAttrExample {
 
     /// Balance field demonstrating decimal with positive validation
     #[cfg_attr(feature = "ui", gpui_form(component(number_input(as = f64))))]
-    #[cfg_attr(feature = "validation", koruma(PositiveValidation<_>))]
+    #[cfg_attr(feature = "validation", koruma(PositiveValidation::<_>::builder()))]
     pub balance: Decimal,
 
     /// Checkbox component

@@ -159,6 +159,9 @@ pub struct CustomOptions {
     /// Whether the value holder should store this field as `Option<T>`.
     /// Defaults to `true`.
     pub wraps_in_option: bool,
+    /// Whether prototyping code should wire this custom component through
+    /// `CustomComponentValueAdapter`.
+    pub value_binding: bool,
 }
 
 #[derive(Debug, Default, FromMeta)]
@@ -171,6 +174,8 @@ struct CustomOptionsMeta {
     component: Option<syn::Path>,
     #[darling(default = "default_custom_wraps_in_option")]
     wraps_in_option: bool,
+    #[darling(default)]
+    value_binding: bool,
 }
 
 impl CustomOptions {
@@ -180,6 +185,7 @@ impl CustomOptions {
             state,
             component,
             wraps_in_option,
+            value_binding,
         } = meta;
 
         let shape = match (shape, state) {
@@ -200,6 +206,7 @@ impl CustomOptions {
             shape,
             component,
             wraps_in_option,
+            value_binding,
         })
     }
 }
@@ -564,5 +571,24 @@ impl Components {
                 )
             })
         }
+    }
+
+    pub fn custom_shape_tokens(&self) -> Option<TokenStream> {
+        let Self::Custom(options) = self else {
+            return None;
+        };
+
+        let shape = options.shape.to_token_stream().to_string();
+        Some(quote! { .with_custom_shape(#shape) })
+    }
+
+    pub fn custom_value_binding_tokens(&self) -> Option<TokenStream> {
+        let Self::Custom(options) = self else {
+            return None;
+        };
+
+        options
+            .value_binding
+            .then(|| quote! { .with_custom_value_binding(true) })
     }
 }

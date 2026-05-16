@@ -12,6 +12,16 @@ use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, Gpui
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
 
+fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
+    match expr {
+        Some(expr) => {
+            let expr_str = expr.to_token_stream().to_string();
+            quote! { Some(#expr_str) }
+        },
+        None => quote! { None },
+    }
+}
+
 pub fn expand_gpui_form(
     derive_input: DeriveInput,
     options: GpuiFormOptions,
@@ -216,10 +226,15 @@ pub fn expand_gpui_form(
                     .r#type
                     .as_ref()
                     .map(|ty| extract_option_inner_type(&ty.0).1)
-                    .unwrap_or(original_inner_type);
+                    .unwrap_or_else(|| original_inner_type.clone());
+                let wraps_in_option = wrap_in_option_map
+                    .get(&field_name_str)
+                    .copied()
+                    .unwrap_or(false);
 
                 let is_optional = was_optional;
                 let field_type_str = base_type.to_token_stream().to_string();
+                let source_value_type_str = original_inner_type.to_token_stream().to_string();
                 let behaviour_tokens = component_def.behaviour_tokens(&base_type);
                 let mut validation_rules = koruma_validations
                     .get(&field_name_str)
@@ -243,6 +258,10 @@ pub fn expand_gpui_form(
                 });
 
                 let custom_component_tokens = component_def.custom_component_tokens();
+                let custom_shape_tokens = component_def.custom_shape_tokens();
+                let custom_value_binding_tokens = component_def.custom_value_binding_tokens();
+                let from_expr_tokens = option_expr_string_tokens(&field.from);
+                let into_expr_tokens = option_expr_string_tokens(&field.into);
 
                 Some(quote! {
                     ::gpui_form::schema::registry::FieldVariant::new(
@@ -250,11 +269,17 @@ pub fn expand_gpui_form(
                         #field_type_str,
                         #is_optional,
                         #behaviour_tokens
-                    ).with_validations(&[
+                    )
+                    .with_source_value_type(#source_value_type_str)
+                    .with_wraps_in_option(#wraps_in_option)
+                    .with_conversions(#from_expr_tokens, #into_expr_tokens)
+                    .with_validations(&[
                         #( #validation_literals ),*
                     ])
                     #default_expr_tokens
                     #custom_component_tokens
+                    #custom_shape_tokens
+                    #custom_value_binding_tokens
                 })
             } else {
                 None

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use es_fluent::ToFluentString as _;
+use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -15,6 +15,10 @@ use crate::i18n::FilePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
+}
+
 #[gpui_storybook::story]
 pub struct FilePickerStory {
     file_picker: Entity<FilePickerState>,
@@ -25,12 +29,8 @@ pub struct FilePickerStory {
 }
 
 impl gpui_storybook::Story for FilePickerStory {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         "File Picker".into()
-    }
-
-    fn description() -> String {
-        "Native GPUI path prompts rendered with gpui-component controls.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -119,8 +119,8 @@ impl Render for FilePickerStory {
                 "File",
                 "Selects one file using GPUI's native PathPromptOptions.",
                 FilePicker::new(&self.file_picker)
-                    .placeholder(FilePickerComponentText::SourcePlaceholder.to_fluent_string())
-                    .prompt(FilePickerComponentText::SourcePlaceholder.to_fluent_string())
+                    .placeholder(localize(cx, &FilePickerComponentText::SourcePlaceholder))
+                    .prompt(localize(cx, &FilePickerComponentText::SourcePlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
@@ -128,8 +128,8 @@ impl Render for FilePickerStory {
                 "Selects one directory and starts with a programmatic value.",
                 FilePicker::new(&self.directory_picker)
                     .mode(FilePickerMode::Directory)
-                    .placeholder(FilePickerComponentText::OutputPlaceholder.to_fluent_string())
-                    .prompt(FilePickerComponentText::OutputPlaceholder.to_fluent_string())
+                    .placeholder(localize(cx, &FilePickerComponentText::OutputPlaceholder))
+                    .prompt(localize(cx, &FilePickerComponentText::OutputPlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(
@@ -137,7 +137,7 @@ impl Render for FilePickerStory {
                 "Allows selecting multiple files; the state stores the full PathBuf list.",
                 FilePicker::new(&self.multiple_picker)
                     .multiple(true)
-                    .browse_label(FilePickerComponentText::ChooseFiles.to_fluent_string())
+                    .browse_label(localize(cx, &FilePickerComponentText::ChooseFiles))
                     .cleanable(true),
             ));
 

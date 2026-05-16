@@ -26,7 +26,7 @@ const FRAGMENT_IMPORTS: &[ImportItem] = &[
 
 #[cfg(feature = "fluent")]
 const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
-    "es_fluent::ToFluentString",
+    "es_fluent::FluentMessage",
     Alias::Anonymous,
 )];
 
@@ -93,7 +93,7 @@ impl<'a> FormShapeAdapter<'a> {
                 let resolved = ResolvedField::new(field)?;
                 let generator = field_generator(resolved.behaviour());
                 let imports = generator.generate_imports(field);
-                let subscription = if field.behaviour.subscribable() {
+                let subscription = if field.subscribable() {
                     generator.generate_subscription(&resolved, self.shape_data)
                 } else {
                     None
@@ -130,7 +130,7 @@ impl<'a> FormShapeAdapter<'a> {
             .shape_data
             .components
             .iter()
-            .any(|field| field.behaviour.subscribable())
+            .any(|field| field.subscribable())
         {
             set.extend_items(SUBSCRIPTION_IMPORTS);
         }

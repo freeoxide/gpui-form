@@ -1,4 +1,4 @@
-use es_fluent::ToFluentString as _;
+use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -15,6 +15,10 @@ use crate::i18n::DatePickerComponentText;
 
 use super::common::{story_field, story_panel};
 
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+    crate::i18n::localize_message(cx, message)
+}
+
 #[gpui_storybook::story]
 pub struct DatePickerStory {
     range_picker: Entity<DateRangePickerState>,
@@ -25,12 +29,8 @@ pub struct DatePickerStory {
 }
 
 impl gpui_storybook::Story for DatePickerStory {
-    fn title() -> String {
+    fn title(_: &gpui::App) -> String {
         "Date Picker".into()
-    }
-
-    fn description() -> String {
-        "Localized runtime date-picker demo covering range, prefilled, and styled variants.".into()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -129,7 +129,7 @@ impl Render for DatePickerStory {
                 "Range select",
                 "Starts empty, uses the active locale, and selects a start and end date across the default two-month calendar.",
                 DateRangePicker::new(&self.range_picker)
-                    .placeholder(DatePickerComponentText::LaunchPlaceholder.to_fluent_string())
+                    .placeholder(localize(cx, &DatePickerComponentText::LaunchPlaceholder))
                     .cleanable(true),
             ))
             .child(story_field(

@@ -20,7 +20,8 @@ pub mod date_picker;
 /// Runtime helpers for the native file picker component.
 pub mod file_picker;
 
-mod i18n;
+/// Embedded i18n adapter used by runtime components and generated code.
+pub mod i18n;
 
 /// Runtime helpers for the InfiniteSelect component.
 pub mod infinite_select;
