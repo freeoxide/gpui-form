@@ -1,4 +1,3 @@
-pub mod cfg_attr_example;
 pub mod empty;
 pub mod form_action;
 pub mod location;
