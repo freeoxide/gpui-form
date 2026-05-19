@@ -82,7 +82,7 @@ pub struct UserProfile {
 Common patterns:
 
 - For selects, derive `SelectItem` on enum-like values and `EnumIter` when the app needs iteration-backed choices.
-- For cascading or nested selects, derive `InfiniteSelect` on the enum tree and use `#[gpui_form(component(infinite_select))]`.
+- For cascading or nested selects, derive `InfiniteSelect` and `PartialEq` on the enum tree and use `#[gpui_form(component(infinite_select))]`.
 - For custom widgets, derive `CustomComponentState` on a state type or declare a reusable shape with `gpui_form::custom_component_shape!`.
 - For value-bound custom widgets, implement `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use `component(custom(shape = ..., value_binding))`.
 - Keep consumer code focused on app models, form state, rendering, and app-owned components.

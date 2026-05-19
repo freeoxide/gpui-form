@@ -110,7 +110,9 @@ Common field-level helpers:
   and `into` to validate a form-side type.
 
 `component(infinite_select)` expects the field type to implement
-`gpui_form::InfiniteSelect`, usually by deriving it on the enum tree.
+`gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum
+tree must also implement `PartialEq` because the backing `gpui-component`
+select compares selected values.
 Lower-level users can derive the same runtime contract from
 `gpui-form-component` or `gpui-form-component-derive`; the macro resolves
 whichever runtime crate is present, including renamed dependencies.

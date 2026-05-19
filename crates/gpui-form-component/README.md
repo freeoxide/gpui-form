@@ -30,7 +30,7 @@ automatically, so direct users do not need a dependency rename.
 use gpui_form_component::InfiniteSelect;
 use gpui_form_component::infinite_select::{InfiniteSelectPath, build_from_path};
 
-#[derive(Clone, Debug, Default, InfiniteSelect)]
+#[derive(Clone, Debug, Default, InfiniteSelect, PartialEq)]
 pub enum Country {
     #[default]
     USA(USAState),
@@ -92,6 +92,8 @@ for field in location.read(cx).form_fields() {
 
 Derived `InfiniteSelect` enums expose:
 
+- `PartialEq` compatibility with the backing `gpui-component` select value
+  comparison
 - `variant_label()` for user-facing option titles
 - `#[fluent_kv(keys = ["label", "description"], keys_this)]` to emit
   `es-fluent` metadata for application-owned localizers; runtime labels use

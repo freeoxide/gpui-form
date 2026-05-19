@@ -52,6 +52,8 @@ This subsystem provides the runtime half of `gpui_form::InfiniteSelect`.
 Responsibilities:
 
 - represent nested enum variant choices as selectable runtime items
+- require `PartialEq` on `InfiniteSelect` values so the backing
+  `gpui-component` select can compare current and candidate selections
 - track confirmed selection indices with `InfiniteSelectPath`
 - track stable persisted selections with `InfiniteSelectKeyPath`
 - serialize stable key paths to and from strings for persistence

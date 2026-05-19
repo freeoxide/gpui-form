@@ -28,7 +28,7 @@ by cascading selects.
 use gpui_form_component::infinite_select::{InfiniteSelectPath, build_from_path};
 use gpui_form_component_derive::InfiniteSelect;
 
-#[derive(Clone, Debug, Default, InfiniteSelect)]
+#[derive(Clone, Debug, Default, InfiniteSelect, PartialEq)]
 pub enum Country {
     #[default]
     USA(USAState),
@@ -48,6 +48,8 @@ Variant attributes:
 
 Behavior notes:
 
+- derived enums must also implement `PartialEq` because the runtime
+  `gpui-component` select compares selected values
 - derived enums expose stable `variant_key()` values plus `selection_key_path()`
 - custom keys are validated for uniqueness within the enum
 - fluent metadata is emitted for callers that render through their own

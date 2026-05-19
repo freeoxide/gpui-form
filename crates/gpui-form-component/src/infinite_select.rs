@@ -27,7 +27,7 @@ use std::{error::Error, fmt};
 ///
 /// Unlike a simple associated-type approach, this trait supports heterogeneous
 /// inner types: each variant can contain a different inner type.
-pub trait InfiniteSelect: Sized + Clone + Default + 'static {
+pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns all possible variants at this level with default inner values.
     fn variants() -> Vec<Self>;
 

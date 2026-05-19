@@ -204,7 +204,7 @@ impl Render for InfiniteSelectStory {
     }
 }
 
-#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
 #[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
@@ -239,7 +239,7 @@ impl Default for DeploymentTarget {
     }
 }
 
-#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
 #[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
@@ -272,7 +272,7 @@ impl Default for WebRegion {
     }
 }
 
-#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
 #[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
@@ -294,7 +294,7 @@ impl AvailabilityZone {
     }
 }
 
-#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect)]
+#[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
 #[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
