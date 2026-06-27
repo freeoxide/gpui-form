@@ -135,6 +135,14 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_signed_numeric_uses_parse_semantics() {
+        assert!(validate_signed_numeric::<f64>("1.", true));
+        assert!(!validate_signed_numeric::<f64>("1.2.3", true));
+        assert!(!validate_signed_numeric::<f64>("-1.2.3", true));
+        assert!(!validate_signed_numeric::<i32>("1.5", true));
+    }
+
+    #[test]
     fn test_validate_unsigned_numeric() {
         // Valid inputs
         assert!(validate_unsigned_numeric::<u32>("", true));
@@ -153,6 +161,16 @@ mod tests {
         // Invalid: non-digits
         assert!(!validate_unsigned_numeric::<u32>("1.5", true));
         assert!(!validate_unsigned_numeric::<u32>("1a", true));
+    }
+
+    #[test]
+    fn test_validate_unsigned_numeric_uses_parse_semantics() {
+        assert!(validate_unsigned_numeric::<u8>("255", true));
+        assert!(!validate_unsigned_numeric::<u8>("256", true));
+        assert!(!validate_unsigned_numeric::<u8>(
+            "999999999999999999999",
+            true
+        ));
     }
 
     #[test]

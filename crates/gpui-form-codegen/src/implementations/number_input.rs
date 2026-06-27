@@ -20,30 +20,30 @@ impl super::ComponentLayout for NumberInputComponent {
             pub #field_name_ident: ::gpui::Entity<::gpui_component::input::InputState>,
         };
 
-        // Determine if we have an `as` attribute for custom types
-        let has_as_type = options.r#as.is_some();
-
         // Use the `as` option if provided for validation type detection, otherwise use the field type
         let type_str = options
             .r#as
             .as_ref()
             .map(|ty| ty.to_string())
             .unwrap_or_else(|| r#type.to_token_stream().to_string());
+        let validation_type = options
+            .r#as
+            .as_ref()
+            .map(|ty| quote! { #ty })
+            .unwrap_or_else(|| quote! { #r#type });
         // Treat custom types as signed by default; only explicit `u*` types are unsigned.
         let is_unsigned = type_str.starts_with('u');
 
         let validation_logic = if is_unsigned {
-            let require_parse = !has_as_type;
             quote! {
                 .validate(|value, _| {
-                    ::gpui_form::numeric::validate_unsigned_numeric::<#r#type>(value, #require_parse)
+                    ::gpui_form::numeric::validate_unsigned_numeric::<#validation_type>(value, true)
                 })
             }
         } else {
-            let require_parse = !has_as_type;
             quote! {
                 .validate(|value, _| {
-                    ::gpui_form::numeric::validate_signed_numeric::<#r#type>(value, #require_parse)
+                    ::gpui_form::numeric::validate_signed_numeric::<#validation_type>(value, true)
                 })
             }
         };

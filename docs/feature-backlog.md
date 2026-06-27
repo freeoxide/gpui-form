@@ -313,17 +313,15 @@ Candidate metadata:
 This should not require custom components to adopt a heavyweight trait unless
 the extra metadata is needed.
 
-### 17. Numeric validation hardening
+### 17. Numeric validation coverage
 
 Numeric input validation is currently structured around explicit character
 checks plus `FromStr` parsing for normal numeric fields. That is the right
 direction: it is not regex-driven and should stay type-backed.
 
-The weak spot to harden is `number_input(as = ...)`. That option is meant to
-let custom numeric types use a standard numeric family for input semantics, but
-the generated validator currently skips parsing when an `as` override is
-present. The next version should parse against the validation type instead of
-only checking character shape.
+The important invariant is that `number_input(as = ...)` parses against the
+validation type. That option is meant to let custom numeric types use a standard
+numeric family for input semantics without falling back to shape-only checks.
 
 Target behavior:
 
@@ -353,6 +351,17 @@ objects, not integers.
 pub phone_number: Option<String>,
 ```
 
+Dynamic regions should also be supported for forms where country is selected in
+another field:
+
+```rs
+#[gpui_form(component(select))]
+pub country: Country,
+
+#[gpui_form(component(input), validate(phone(region_from = country)))]
+pub phone_number: Option<String>,
+```
+
 This should be a text-validation feature, not a `number_input` feature.
 
 Recommended direction:
@@ -363,6 +372,8 @@ Recommended direction:
   email, URL, slug, and UUID.
 - For phone numbers, prefer a real parser/normalizer such as a libphonenumber
   implementation instead of regex-only validation.
+- Support both static phone regions and dynamic regions derived from typed field
+  paths, after field-path metadata exists.
 - Store normalized output separately from display formatting when possible, for
   example E.164 for phone numbers.
 - Keep application-owned domain types supported through `type`, `from`, and

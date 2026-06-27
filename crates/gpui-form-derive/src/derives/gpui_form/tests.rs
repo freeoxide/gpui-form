@@ -474,14 +474,51 @@ mod gpui_form_tests {
             "FieldVariant should keep the fully-qualified override type in metadata"
         );
         assert!(
-            compact.contains("validate_signed_numeric::<rust_decimal::Decimal>"),
-            "Number input validation should keep the fully-qualified override type"
+            compact.contains("validate_signed_numeric::<f64>(value,true)"),
+            "Number input validation should parse against the validation override type"
         );
         assert!(
             compact.contains(
                 "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"f64\"),kind:::gpui_form::schema::components::NumberInputKind::Float,})"
             ),
             "Number input metadata should preserve the validation override and numeric family"
+        );
+    }
+
+    #[test]
+    fn test_number_input_unsigned_override_drives_validation_family() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = crate::ids::AccountId,
+                    from = crate::ids::AccountId::from_u64,
+                    into = crate::ids::AccountId::into_u64,
+                    component(number_input(as = u64))
+                )]
+                account_id: u64,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("validate_unsigned_numeric::<u64>(value,true)"),
+            "Unsigned validation override should parse against the override type"
+        );
+        assert!(
+            compact.contains(
+                "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"u64\"),kind:::gpui_form::schema::components::NumberInputKind::UnsignedInteger,})"
+            ),
+            "Unsigned validation override should drive number input metadata"
         );
     }
 
