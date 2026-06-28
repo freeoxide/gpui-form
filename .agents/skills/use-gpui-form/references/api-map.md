@@ -39,7 +39,9 @@ Useful facade paths:
 - `gpui_form::file_picker`
 - `gpui_form::infinite_select`
 - `gpui_form::numeric`
+- `gpui_form::path` (pure field-path module from `gpui-form-core`)
 - `gpui_form::state` (pure form-state module from `gpui-form-core`)
+- `gpui_form::FieldPath` (typed field-path primitive; no feature flag)
 - `gpui_form::FormState` (dirty tracking / reset / diff helper)
 - `gpui_form::custom_component_shape!`
 
@@ -103,10 +105,13 @@ For a source struct named `UserProfile`, expect generated types named:
 UserProfileFormFields
 UserProfileFormComponents
 UserProfileFormValueHolder
+UserProfileFormPath
 ```
 
 Use the generated value holder for editable form data, defaults, and conversion
-back into the original model.
+back into the original model. Use `UserProfileFormPath` (one same-named
+constructor per non-skipped field) for typed field naming across validation,
+dirty tracking, focus, analytics, and schema export.
 
 ## Select Pattern
 
@@ -235,6 +240,54 @@ state.sync_baseline();
 ```
 
 Scope: `FormState` stores holder data only (no runtime UI state), dirty/diff is
-boolean-level (field-level diff is backlog #9), a holder with `#[gpui_form(skip)]`
-fields round-trips through serde but cannot fully reconstruct the source struct
-(per-field serde passthrough is backlog #15), and there is no undo/redo.
+boolean-level (field-level diff is backlog #9 and will build on the typed field
+paths below), a holder with `#[gpui_form(skip)]` fields round-trips through serde
+but cannot fully reconstruct the source struct (per-field serde passthrough is
+backlog #15), and there is no undo/redo.
+
+## Typed Field Paths Pattern
+
+Every `#[derive(GpuiForm)]` form emits a `<Name>FormPath` newtype around the
+shared headless primitive `gpui_form::FieldPath`, so every consumer of a form
+(validation, dirty tracking, focus, analytics, schema export) can refer to
+fields through ONE typed value instead of ad-hoc strings. `FieldPath` is
+re-exported unconditionally (no feature flag, no GPUI, no serde).
+
+```rust
+use gpui_form::{FieldPath, GpuiForm};
+
+#[derive(GpuiForm)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+
+    #[gpui_form(skip)]
+    pub internal_id: u32,
+}
+
+// One constructor per non-skipped field, named identically to the field.
+let username = SettingsFormPath::username();
+let age = SettingsFormPath::age();
+assert_eq!(username.to_string(), "username");
+assert_ne!(username, age);
+
+// `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
+// that takes a `&FieldPath` also accepts the typed newtype.
+fn records(path: &FieldPath) -> &[&'static str] { path.segments() }
+assert_eq!(records(username.as_ref()), &["username"]);
+
+// Hand-built multi-segment paths work today (typed nested/list composition
+// arrives with backlog #2/#3).
+let hand_built = SettingsFormPath::new(&["address", "city"]);
+assert_eq!(hand_built.to_string(), "address.city");
+```
+
+Scope (FLAT v1): each constructor names a single flat field; typed nested-path
+and list-item-path constructors arrive with backlog features #2 ("Nested
+forms") and #3 ("Repeated fields"). `#[gpui_form(skip)]` fields have NO
+constructor (they are absent from the holder too). `FieldPath` is the shared
+naming foundation for upcoming field-level validation (#6), field-level diff
+(#9), and schema export (#14).

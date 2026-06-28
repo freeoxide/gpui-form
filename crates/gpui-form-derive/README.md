@@ -93,6 +93,17 @@ Behavior notes:
 - when skipped fields are present, the generated value holder keeps builder
   support and exposes `into_original(...)` instead of an unconditional reverse
   conversion
+- the derive also emits a `<Name>FormPath` type — a strongly-typed newtype
+  around `gpui_form::core::FieldPath` — with one same-named constructor per
+  NON-skipped field (`SettingsFormPath::username()`). Skipped fields have NO
+  constructor (mirroring the holder). `<Name>FormPath` carries no generics,
+  reaches the shared primitive via `Deref`/`AsRef`/`into_path`, and is the
+  typed naming foundation for future field-level validation (#6), field-level
+  diff (#9), schema export (#14), and nested/list paths (#2/#3). FLAT v1: each
+  constructor names a single field; typed nested/list composition arrives with
+  #2/#3 (hand-built multi-segment paths via `new(&["a","b"])` work today).
+  `FieldPath` is unconditional — the path type is emitted without any feature
+  flag
 
 ## `#[derive(SelectItem)]`
 

@@ -13,6 +13,8 @@ Today this crate is intentionally small and focused:
 - `numeric::validate_signed_numeric`
 - `numeric::validate_unsigned_numeric`
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
+- `path::FieldPath` for typed field naming (a headless, GPUI-free, serde-free
+  primitive)
 
 The numeric helpers match the text-entry rules used by `gpui-form` number
 inputs. `FormState` is the pure, GPUI-free side of form-state persistence and
@@ -49,9 +51,49 @@ assert!(!state.is_dirty());
 Construction and the mutating helpers (`reset_to_baseline`, `sync_baseline`)
 require `H: Clone`. `is_dirty()` and `diff_against(&other)` require
 `H: PartialEq`. Dirty/diff is boolean-level — *whether* the value changed, not
-which fields (field-level diff is backlog feature #9). `FormState` stores holder
-data only, never component runtime UI state; it carries no GPUI dependency and
-no new crate dependencies.
+which fields (field-level diff is backlog feature #9, building on the
+[`FieldPath`](#fieldpath) foundation). `FormState` stores holder data only,
+never component runtime UI state; it carries no GPUI dependency and no new
+crate dependencies.
+
+## FieldPath
+
+`FieldPath` is a headless primitive: an ordered sequence of static string
+segments naming a form field, so that every consumer of a form (validation,
+dirty tracking, focus, analytics, schema export) can share ONE typed way to
+refer to fields instead of ad-hoc strings. It is the shared naming foundation
+for the upcoming field-level validation (#6), field-level diff/delta reporting
+(#9), schema export (#14), and nested/list paths (#2/#3).
+
+The derive crate wraps this primitive per form as `<Name>FormPath`, reachable
+through the facade as `gpui_form::FieldPath`; the raw primitive is also
+available directly as `gpui_form_core::FieldPath`.
+
+```rs
+use gpui_form_core::FieldPath;
+use std::collections::HashSet;
+
+let city = FieldPath::new(&["address", "city"]);
+let name = FieldPath::new(&["name"]);
+
+assert_eq!(city.to_string(), "address.city");   // Display joins with "."
+assert_eq!(name.to_string(), "name");
+assert_ne!(city, name);
+
+// Equality and hashing are by segment sequence.
+let mut seen = HashSet::new();
+seen.insert(city.clone());
+assert!(seen.contains(&FieldPath::new(&["address", "city"])));
+assert!(!seen.contains(&name));
+```
+
+Scope of this primitive (FLAT v1): a path is a list of static segments —
+typically a single field name. Typed nested-path and list-item-path
+constructors arrive with backlog features #2 ("Nested forms") and #3
+("Repeated fields"); hand-built multi-segment paths via `FieldPath::new(&["a",
+"b"])` work today, typed composition is later. `FieldPath` is unconditional (no
+feature flag), carries no GPUI dependency, and has no `serde` dependency of its
+own.
 
 ## Example
 
@@ -76,6 +118,9 @@ assert!(!validate_unsigned_numeric::<u32>("-1", true));
   `gpui-component`
 - You want `FormState` dirty/reset/diff logic without the GPUI runtime layer
   (the facade re-exports it as `gpui_form::FormState` for convenience)
+- You want the `FieldPath` naming primitive for analytics, focus tracking, or
+  a custom validation layer (the facade re-exports it as
+  `gpui_form::FieldPath`)
 
 ## Most Users Should Use Instead
 

@@ -28,6 +28,8 @@ This crate exists to:
 - `gpui_form_component::infinite_select`
 - `gpui_form_core` as `gpui_form::core`
 - `gpui_form_core::numeric`
+- `gpui_form_core::path` and `gpui_form_core::FieldPath` for the pure,
+  GPUI-free, serde-free typed field-path primitive (feature #8, FLAT v1)
 - `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
   form-state dirty tracking / reset / diff (feature #1)
 - `gpui_form_schema` as `gpui_form::schema`
@@ -96,6 +98,10 @@ lower crates and is only re-exported here.
 
 - `gpui_form::bon` is re-exported because generated value holders with skipped
   fields derive `::gpui_form::bon::Builder`
+- `gpui_form::FieldPath` and `gpui_form::path` are re-exported because
+  generated `<Name>FormPath` types reach the shared primitive via the facade
+  path `::gpui_form::core::FieldPath`, mirroring how value holders reach
+  `::gpui_form::bon`
 - root-level compatibility modules (`custom`, `date_picker`, `file_picker`,
   `infinite_select`, `numeric`) should not be removed casually
 - if a lower-level crate adds a new public surface that should be first-class

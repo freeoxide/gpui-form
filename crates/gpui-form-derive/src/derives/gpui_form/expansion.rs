@@ -8,6 +8,7 @@ use syn::DeriveInput;
 
 use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
 use crate::derives::gpui_form::components::generate_component_field;
+use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
@@ -50,6 +51,10 @@ pub fn expand_gpui_form(
             enable_koruma,
             enable_koruma_fluent,
         );
+        // Feature #8 (FLAT v1): emit the typed path type even for empty forms
+        // (zero non-skipped fields => no per-field constructors, just the
+        // wrapper with new()/path()/into_path()).
+        let field_path_tokens = generate_field_path(&original_input, &empty_fields);
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::schema::registry::inventory::submit! {
@@ -67,6 +72,7 @@ pub fn expand_gpui_form(
 
         return quote! {
             #value_holder_tokens
+            #field_path_tokens
             pub struct #components_holder_name;
 
             #shape_impl
@@ -209,6 +215,9 @@ pub fn expand_gpui_form(
         effective_enable_koruma,
         enable_koruma_fluent,
     );
+    // Feature #8 (FLAT v1): emit the typed `<Name>FormPath` next to the value
+    // holder. One constructor per non-skipped field; skipped fields are absent.
+    let field_path_tokens = generate_field_path(&original_input, &field_optionality);
 
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
@@ -306,6 +315,7 @@ pub fn expand_gpui_form(
 
     let expanded = quote! {
         #value_holder_tokens
+        #field_path_tokens
         pub struct #components_holder_name {
             #(#field_structure_tokens)*
         }

@@ -12,12 +12,14 @@ At the moment the crate is intentionally narrow:
 
 - numeric text-entry validation for generated `number_input` fields
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
+- `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
 
 ## Modules
 
-- `src/lib.rs`: module export surface (re-exports `FormState` and the `state`
-  module)
+- `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormState`, and
+  the `path`/`state` modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
+- `src/path.rs`: `FieldPath` typed field-path primitive
 - `src/state.rs`: `FormState<H>` form-state helper
 
 ## FormState
@@ -44,10 +46,50 @@ Scope boundaries (documented in rustdoc and user-facing docs):
   runtime UI state (open menus, scroll positions, `InfiniteSelectState`
   snapshots).
 - Dirty/diff is **boolean-level** (`current != baseline` / `current != other`).
-  Field-level patch and delta reporting is backlog feature #9.
+  Field-level patch and delta reporting is backlog feature #9 and will build on
+  the `FieldPath` naming primitive.
 - The holder's serde derives live on the derive crate behind its `serde`
   feature; `FormState` itself is unconditional (no feature gate, no new
   dependencies). The facade re-exports it as `gpui_form::FormState`.
+
+## FieldPath
+
+`path.rs` defines `FieldPath`, the headless, GPUI-free, serde-free typed
+field-path primitive (backlog feature #8, FLAT v1). It is the shared naming
+foundation for the upcoming field-level validation (#6), field-level diff/delta
+reporting (#9), schema export (#14), and nested/list paths (#2/#3).
+
+Representation choice: `Box<[&'static str]>`. Clones perform a single box
+allocation (no per-segment heap work), satisfying the "clones are cheap"
+contract for handing paths to validation, dirty-tracking, analytics, or schema
+code. The implementer is free to switch to a single-segment-optimized enum
+later without changing the public surface, since the representation is private.
+
+Public surface (EXACT per the feature contract):
+
+- `pub fn new(segments: &[&'static str]) -> Self`
+- `pub fn segments(&self) -> &[&'static str]`
+- `pub fn is_empty(&self) -> bool`
+
+Trait impls: `Clone`, `core::fmt::Debug` (debug-list render `["a", "b"]`),
+`Eq`/`PartialEq` (by segment sequence, order matters), `core::hash::Hash`
+(by segment slice), `core::fmt::Display` (segments joined by `.`; empty path
+renders as `""`).
+
+Scope boundaries (documented in rustdoc and user-facing docs):
+
+- FLAT v1: a path is a list of static segments, typically a single field name.
+  Typed nested-path and list-item-path constructors arrive with backlog
+  features #2 ("Nested forms") and #3 ("Repeated fields"). Hand-built
+  multi-segment paths via `FieldPath::new(&["a", "b"])` work today; typed
+  composition is later.
+- The primitive is unconditional (no feature gate). When the derive crate's
+  `serde` feature is on, the generated `<Name>FormPath` newtypes (which wrap
+  this primitive) MAY carry a serialization story; the core primitive itself
+  stays serde-free, mirroring how `FormState` handles serialization.
+- The derive crate wraps this primitive per form as `<Name>FormPath`, reachable
+  via `Deref`/`AsRef`/`into_path` through the facade as
+  `gpui_form::FieldPath`.
 
 ## Numeric Validation Semantics
 
@@ -73,12 +115,15 @@ the text shape or also verifies that the text can parse into `T`.
 1. `gpui-form-codegen` emits `number_input` handlers that call numeric helpers
    through facade paths such as `gpui_form::numeric::*`.
 1. The facade re-exports this crate as `gpui_form::core`, the numeric module as
-   `gpui_form::numeric`, and `FormState` plus the `state` module as
-   `gpui_form::FormState` / `gpui_form::state`.
+   `gpui_form::numeric`, `FormState` plus the `state` module as
+   `gpui_form::FormState` / `gpui_form::state`, and `FieldPath` plus the `path`
+   module as `gpui_form::FieldPath` / `gpui_form::path`.
 1. Generated number-input code uses the helpers during incremental text edits
    before committing parsed values into the holder.
 1. Application code wraps a generated `...FormValueHolder` in `FormState` to
    track edits, reset, or diff against a restored value.
+1. Generated `<Name>FormPath` types wrap `FieldPath` so validation, dirty
+   tracking, analytics, and schema export share ONE typed way to name fields.
 
 ## Boundary
 
@@ -100,3 +145,5 @@ Update this file when:
 - numeric validation semantics change
 - generated `number_input` code starts depending on new core helpers
 - `FormState` API, trait bounds, or scope boundaries change
+- the `FieldPath` public surface, trait impls, representation, or FLAT-v1
+  scope boundary changes

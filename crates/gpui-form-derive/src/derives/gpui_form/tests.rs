@@ -11,6 +11,40 @@ mod gpui_form_tests {
     }
 
     #[test]
+    fn field_path_type_emitted_next_to_value_holder() {
+        // Feature #8 (FLAT v1): the expansion emits a `<Name>FormPath` newtype
+        // alongside the value holder. `<Name>` is the source struct ident, so a
+        // struct named `Profile` gets `ProfileFormPath` (mirroring
+        // `ProfileFormValueHolder`). The constructor name matches the field.
+        use crate::derives::gpui_form::expansion::expand_gpui_form;
+        use crate::derives::gpui_form::structs::GpuiFormOptions;
+
+        let input: DeriveInput = syn::parse_quote! {
+            struct Profile {
+                name: String,
+                email: String,
+            }
+        };
+        let out = expand_gpui_form(input, GpuiFormOptions { generate_shape: false });
+        let s = out.to_string();
+
+        // The path type appears after the value holder (both derive from the
+        // source struct ident).
+        assert!(s.contains("ProfileFormPath"), "no path type in expansion: {s}");
+        assert!(s.contains("ProfileFormValueHolder"), "no value holder: {s}");
+        // Per-field constructors named after the fields. Tokenized output
+        // spaces out `fn name` / `fn email`, so match on the freestanding form.
+        assert!(s.contains("fn name"), "no name ctor: {s}");
+        assert!(s.contains("fn email"), "no email ctor: {s}");
+        // Trait impls are emitted unconditionally (no feature gating).
+        assert!(s.contains("Deref"), "no Deref: {s}");
+        assert!(s.contains("AsRef"), "no AsRef: {s}");
+        assert!(s.contains("Display"), "no Display: {s}");
+        // No generics on the path type (paths are field-name only).
+        assert!(!s.contains("ProfileFormPath <"), "path type must not be generic: {s}");
+    }
+
+    #[test]
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
             struct Test {
@@ -915,3 +949,4 @@ mod gpui_form_tests {
         );
     }
 }
+

@@ -26,6 +26,8 @@ power the rest of the ecosystem.
   codegen layouts
 - `src/derives/gpui_form/value_holder.rs`: generated holder types, defaults,
   conversion logic, and skip-field handling
+- `src/derives/gpui_form/field_path.rs`: generated `<Name>FormPath` typed
+  field-path newtype (backlog feature #8, FLAT v1)
 - `src/derives/gpui_form/koruma.rs`: Koruma metadata mirroring helpers
 - `src/derives/gpui_form/cfg_attr.rs`: `cfg_attr` flattening before parse-time
   inspection
@@ -45,6 +47,7 @@ power the rest of the ecosystem.
    - `FormFields`
    - `FormComponents`
    - `FormValueHolder`
+   - `FormPath` (typed field-path newtype wrapping `::gpui_form::core::FieldPath`)
    - conversions between the original type and the holder
    - optional inventory metadata
 
@@ -92,6 +95,41 @@ its own, but cannot fully reconstruct the source struct via `into_original`
 (skipped values are absent from the holder). This mirrors the existing
 `has_skipped_fields` behavior. Per-field serde passthrough (rename/skip) is
 out of scope here and tracked as backlog feature #15.
+
+### Field Path Generation (feature #8, FLAT v1)
+
+`field_path.rs` owns `generate_field_path(original_input, fields)`, spliced
+into BOTH expansion branches — the empty-form early-return in `expansion.rs`
+AND the main non-empty expansion — so every form emits a path type even with
+zero non-skipped fields. It mirrors how `value_holder.rs` is invoked right
+before it at each call site.
+
+The generated `<Name>FormPath` (`format_ident!("{}FormPath", input.ident)`,
+the same convention as `<Name>FormValueHolder` in `value_holder.rs`):
+
+- is a newtype `pub struct <Name>FormPath(::gpui_form::core::FieldPath)` with
+  a PRIVATE tuple field, reached via `path()`/`into_path()`/`Deref`/`AsRef`
+- derives `Clone, Debug, Eq, PartialEq, ::core::hash::Hash` unconditionally —
+  no `serde` derives, no `#[cfg]` gates (the wrapped primitive is headless
+  and not behind a feature flag)
+- exposes `new(&[&'static str])` plus one same-named `pub fn <field>() -> Self`
+  per NON-skipped field. Skipped fields are excluded by the same
+  `filter(|f| !f.skip)` used for component fields, mirroring how skipped
+  fields are absent from the holder. If a form has zero non-skipped fields,
+  the type is still emitted with `new`/`path`/`into_path` and no per-field ctors
+- carries NO generics, even for generic source structs. A path only names
+  fields — it stores no typed values — so `Display`, `AsRef`, and `Deref`
+  impls likewise take no generics. This diverges from `value_holder.rs`, which
+  threads `split_for_impl()` through the holder struct and its impls
+- reaches the shared primitive via the facade path
+  `::gpui_form::core::FieldPath`, mirroring how `value_holder.rs` reaches
+  `::gpui_form::bon` and how `expansion.rs` reaches `::gpui_form::schema`.
+  Do NOT use `::gpui_form_core` directly in emitted tokens
+
+FLAT v1 scope: each constructor names a single field. Typed nested-path and
+list-item-path constructors arrive with backlog features #2 ("Nested forms")
+and #3 ("Repeated fields"); hand-built multi-segment paths via
+`<Name>FormPath::new(&["a", "b"])` work today.
 
 ## Koruma Integration
 
@@ -155,6 +193,10 @@ change.
   serde round-trip, `Option` fields, skipped-field holder, and `PartialEq`
   comparability). It is gated with `#![cfg(feature = "serde")]`, so it is
   excluded from the default-feature build that proves feature-OFF still compiles.
+- `tests/field_path.rs` exercises the feature-#8 path type end-to-end (per-field
+  ctors, skip exclusion, `Display`/`Deref`/`AsRef`/`into_path`, empty-form
+  branch, distinct types per form). It is NOT gated — `FieldPath` is
+  unconditional.
 
 ## When To Update This Document
 
@@ -166,3 +208,5 @@ Update this file when:
   `serde` feature's `Serialize`/`Deserialize`/`PartialEq`) changes
 - inventory or Koruma emission rules change
 - macro responsibilities move between modules
+- the generated `<Name>FormPath` shape changes (constructors, generics,
+  trait impls, or the facade path convention)
