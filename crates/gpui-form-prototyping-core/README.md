@@ -52,6 +52,17 @@ that hand-written forms use. Generated text inputs use the form-side
 `FieldVariant::value_type` and parse non-`String` values with `FromStr` instead
 of assuming every text field stores `String`.
 
+The adapter also consumes non-rendering layout hints from
+`FieldVariant::layout` (metadata-first, feature #4). It groups consecutive
+fields by `section` (emitting a section heading via the `field()` builder when
+the section changes, order-preserving), prefers `layout.label` over the
+field-name fallback when generating labels and descriptions in the non-fluent
+path, and surfaces `description` where it already emits help text.
+`placeholder` is reachable through `ResolvedField::layout().placeholder` for
+consumers that own a richer input builder; the v1 generator does not render it
+itself. Layout hints on skipped fields are ignored (no `FieldVariant` is
+emitted for them).
+
 Custom fields remain inert by default. If a field's shape opts into
 `value_binding`, the adapter emits generic seed and subscription hooks through
 `gpui_form::custom::CustomComponentValueAdapter<T>`.

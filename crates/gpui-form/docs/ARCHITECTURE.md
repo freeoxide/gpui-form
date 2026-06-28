@@ -33,6 +33,10 @@ This crate exists to:
 - `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
   form-state dirty tracking / reset / diff (feature #1)
 - `gpui_form_schema` as `gpui_form::schema`
+- `gpui_form_schema::LayoutWidth` as `gpui_form::LayoutWidth` (ergonomic root
+  re-export of the width-hint enum; `FieldLayout` itself stays under
+  `gpui_form::schema` alongside `FieldVariant` since it is field-level
+  metadata consumed by generators)
 - `bon` as `gpui_form::bon`
 
 The explicit namespaces (`core`, `runtime`, `schema`) are the preferred public

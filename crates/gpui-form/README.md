@@ -114,6 +114,9 @@ Common field-level helpers:
 - Field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
   onto the generated value holder, including fields that use `type`, `from`,
   and `into` to validate a form-side type.
+- `#[gpui_form(section = ..., label = ..., description = ..., placeholder = ..., width = ...)]`
+  attaches non-rendering layout hints. See
+  [Layout and Section Hints](#layout-and-section-hints).
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum
@@ -129,6 +132,58 @@ Common struct-level helpers:
 - `#[gpui_form(koruma)]` enables Koruma-backed validation wiring.
 - `#[gpui_form(koruma(fluent))]` enables Koruma validation plus fluent error
   rendering.
+
+## Layout and Section Hints
+
+Fields can declare non-rendering layout hints that generated and prototyped
+forms consume. These are **metadata-only** in v1: they describe intent, they do
+not drive any GPUI rendering. Application code and prototyping generators decide
+how (or whether) to render each hint.
+
+```rust
+#[derive(gpui_form::GpuiForm)]
+pub struct AccountSettings {
+    #[gpui_form(section = "Account", label = "Username", component(input))]
+    pub username: String,
+
+    #[gpui_form(
+        label = "Enable experiments",
+        description = "Toggles unreleased features",
+        component(switch)
+    )]
+    pub enable_experimental: bool,
+
+    #[gpui_form(placeholder = "you@example.com", width = half, component(input))]
+    pub email: String,
+}
+```
+
+Supported hints (all optional):
+
+- `section = "<str>"` — groups consecutive fields under a named section.
+- `label = "<str>"` — preferred human-readable label. Defaults to the field
+  name at consumption time when absent.
+- `description = "<str>"` — help text / comment hint shown alongside the field.
+- `placeholder = "<str>"` — placeholder text for inputs that support one.
+- `width = full | half | third` — relative width hint. Accepts the bare ident
+  (`width = half`) or a quoted string (`width = "half"`). This is a **hint, not
+  a layout engine**: consumers may ignore it or map it onto their own grid.
+
+Section grouping is **order-preserving**: consecutive fields with the same
+`section` form one group, and fields are never reordered across the form. This
+is the foundation richer layouts (columns, collapsible sections) can build on
+later.
+
+Layout hints are ignored on `#[gpui_form(skip)]` fields — skipped fields emit no
+form metadata, so their hints never reach the schema. The generated form code
+itself is unchanged; the hints ride along on the field metadata that
+prototyping and tooling consume.
+
+At runtime the hints are reachable through `gpui_form::schema::FieldVariant` as
+a `gpui_form::schema::FieldLayout`, and the width enum is re-exported as
+`gpui_form::LayoutWidth` for ergonomic matching. The prototyping generator
+groups fields by `section`, prefers `label` over the field name, and emits
+`description` where it already produces help text.
 
 ## Infinite Select Runtime
 

@@ -13,13 +13,20 @@ prototyping flows around generated form metadata.
 - `components::SelectBehaviour`
 - `components::InfiniteSelectBehaviour`
 - `components::NumberInputBehaviour`
+- `layout::FieldLayout`
+- `layout::LayoutWidth`
 - `registry::GpuiFormShape`
 - `registry::FieldVariant`
 - `registry::inventory`
 
 `FieldVariant` records both source-model and form-side value types, generated
 value-holder wrapping, conversion expressions, custom component shape paths,
-and opt-in custom value-binding metadata for generators.
+opt-in custom value-binding metadata, and a `FieldLayout` carrying non-rendering
+layout hints (`section`, `label`, `description`, `placeholder`, `width`) for
+generators. `FieldLayout` is metadata-first: it describes intent and leaves
+rendering to the consumer. All string hints are `&'static str` and both
+`FieldLayout` and `LayoutWidth` are `const`-constructible so the derive can
+build them inside `inventory::submit!` blocks.
 
 ## Example
 
@@ -31,6 +38,13 @@ for shape in inventory::iter::<GpuiFormShape>() {
 
     for field in shape.components {
         println!("  {} -> {}", field.field_name, field.behaviour.component_name());
+
+        // Layout hints are metadata-only; consumers decide how to render them.
+        if !field.layout.is_empty() {
+            println!("    section: {:?}", field.layout.section);
+            println!("    label:   {:?}", field.layout.label);
+            println!("    width:   {}", field.layout.width);
+        }
     }
 }
 ```

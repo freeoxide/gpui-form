@@ -450,6 +450,7 @@ impl Render for UserForm {
             .child(Separator::horizontal())
             .child(
                 v_form()
+                    .child(field().label("Account"))
                     .child(
                         field()
                             .label({
@@ -550,6 +551,7 @@ impl Render for UserForm {
                             })
                             .child(Input::new(&self.fields.email_input)),
                     )
+                    .child(field().label("Financial"))
                     .child(
                         field()
                             .label({
@@ -805,6 +807,7 @@ impl Render for UserForm {
                             })
                             .child(Select::new(&self.fields.country_select)),
                     )
+                    .child(field().label("Advanced"))
                     .child(
                         field()
                             .label({

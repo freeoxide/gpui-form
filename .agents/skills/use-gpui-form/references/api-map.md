@@ -74,7 +74,18 @@ Common field attributes:
 #[gpui_form(type = <form_type>)]
 #[gpui_form(from = <expr>)]
 #[gpui_form(into = <expr>)]
+#[gpui_form(section = "<str>")]
+#[gpui_form(label = "<str>")]
+#[gpui_form(description = "<str>")]
+#[gpui_form(placeholder = "<str>")]
+#[gpui_form(width = full | half | third)]
 ```
+
+Layout hints (`section`, `label`, `description`, `placeholder`, `width`) are
+metadata-only: they attach a `gpui_form::schema::FieldLayout` to each field for
+generators/prototyping to consume and do not change generated form rendering.
+`label` defaults to the field name at consumption time; `width` is a hint, not
+a layout engine. The width enum is re-exported as `gpui_form::LayoutWidth`.
 
 Common struct attributes:
 

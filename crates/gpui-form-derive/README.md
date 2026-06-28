@@ -61,6 +61,13 @@ Supporting field attributes:
 - `#[gpui_form(type = <form_type>)]`
 - `#[gpui_form(from = <expr>)]`
 - `#[gpui_form(into = <expr>)]`
+- `#[gpui_form(section = "<str>")]` — non-rendering section grouping hint
+- `#[gpui_form(label = "<str>")]` — preferred display label (defaults to the
+  field name at consumption time when absent)
+- `#[gpui_form(description = "<str>")]` — help text / comment hint
+- `#[gpui_form(placeholder = "<str>")]` — placeholder text for inputs
+- `#[gpui_form(width = full | half | third)]` — relative width hint; accepts a
+  bare ident or a quoted string
 
 Supporting struct attributes:
 
@@ -104,6 +111,14 @@ Behavior notes:
   #2/#3 (hand-built multi-segment paths via `new(&["a","b"])` work today).
   `FieldPath` is unconditional — the path type is emitted without any feature
   flag
+- `section`, `label`, `description`, `placeholder`, and `width` are
+  **metadata-only** layout hints. They do not change generated form rendering;
+  they attach a `FieldLayout` to each emitted `FieldVariant` so downstream
+  tooling (e.g. `gpui-form-prototyping-core`) can consume them. `label`
+  defaults to the field name at consumption time when absent. `width` is a
+  hint, not a layout engine. Hints on `#[gpui_form(skip)]` fields are ignored
+  because no `FieldVariant` is emitted for skipped fields. Section grouping is
+  order-preserving (consecutive same-section fields).
 
 ## `#[derive(SelectItem)]`
 

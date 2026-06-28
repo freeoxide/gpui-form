@@ -95,6 +95,14 @@ Keep the first version conservative:
 
 ### 4. Layout and section metadata
 
+> **Status: shipped (METADATA-FIRST v1).** The `section`, `label`,
+> `description`, `placeholder`, and `width` hints are live. They attach a
+> `gpui_form::schema::FieldLayout` to each `FieldVariant` for generators and
+> prototyping to consume (the prototyping generator groups by `section`,
+> prefers `label`, and emits `description` where it already produces help text).
+> The generated form code itself is unchanged; `width` is a hint, not a layout
+> engine. Richer layout (columns, collapsible sections) builds on this later.
+
 Add non-rendering hints that generated/prototyped forms can consume.
 
 ```rs
@@ -432,7 +440,8 @@ creating a parallel validation system.
 2. Numeric validation hardening.
 3. Typed field paths and field IDs — **shipped (FLAT v1)**; nested/list
    composition expands under #2/#3.
-4. Layout and section metadata.
+4. Layout and section metadata — **shipped (METADATA-FIRST v1)**; richer
+   layout (columns, collapsible sections) builds on this later.
 5. Validation/error metadata improvements.
 6. Patch and delta generation.
 7. Nested forms.

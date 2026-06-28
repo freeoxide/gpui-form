@@ -40,7 +40,10 @@ derives, runtime helpers, and compatibility re-exports:
    `#[gpui_form(skip)]` for model fields that should not render as widgets, and
    `#[gpui_form(type = ..., from = ..., into = ..., component(...))]` when the
    UI edits a form-side type that differs from the model field. Text input
-   prototyping parses non-`String` form-side types with `FromStr`.
+   prototyping parses non-`String` form-side types with `FromStr`. Add
+   non-rendering layout hints (`section`, `label`, `description`,
+   `placeholder`, `width`) to drive generated/prototyped layout decisions —
+   see [Layout and Section Hints](#layout-and-section-hints).
 7. Use paths such as `gpui_form::date_picker`, `gpui_form::file_picker`, and
    `gpui_form::infinite_select` for helper state and facade compatibility modules.
 
@@ -88,6 +91,7 @@ Common patterns:
 - For value-bound custom widgets, implement `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use `component(custom(shape = ..., value_binding))`.
 - For save/restore and dirty tracking, enable the facade `serde` feature and wrap the holder in `gpui_form::FormState`.
 - For typed field naming (validation, dirty tracking, focus, analytics, schema export), use the generated `<Name>FormPath` constructors such as `UserProfileFormPath::username()`; skipped fields have no constructor.
+- For layout intent, attach non-rendering hints with `section`, `label`, `description`, `placeholder`, and `width`; prototyping groups by `section`, prefers `label`, and emits `description` where it already produces help text.
 - Keep consumer code focused on app models, form state, rendering, and app-owned components.
 
 ## Saving, Restoring, and Dirty Tracking
@@ -183,3 +187,59 @@ Scope notes for this feature (FLAT v1):
 - `FieldPath` is the shared naming foundation for the upcoming field-level
   validation (#6), field-level diff/delta reporting (#9), and schema export
   (#14).
+
+## Layout and Section Hints
+
+Fields can declare non-rendering layout hints that generated and prototyped
+forms consume. These are **metadata-only** in v1: they describe intent, they do
+not drive any GPUI rendering. Application code and prototyping generators
+decide how (or whether) to render each hint.
+
+```rust
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct AccountSettings {
+    #[gpui_form(section = "Account", label = "Username", component(input))]
+    pub username: String,
+
+    #[gpui_form(
+        label = "Enable experiments",
+        description = "Toggles unreleased features",
+        component(switch)
+    )]
+    pub enable_experimental: bool,
+
+    #[gpui_form(placeholder = "you@example.com", width = half, component(input))]
+    pub email: String,
+}
+```
+
+Supported hints (all optional):
+
+- `section = "<str>"` — groups consecutive fields under a named section.
+  Order-preserving: consecutive same-section fields form one group and fields
+  are never reordered across the form.
+- `label = "<str>"` — preferred human-readable label. Defaults to the field
+  name at consumption time when absent.
+- `description = "<str>"` — help text / comment hint shown alongside the field.
+- `placeholder = "<str>"` — placeholder text for inputs that support one.
+- `width = full | half | third` — relative width hint. Accepts a bare ident
+  (`width = half`) or a quoted string (`width = "half"`). This is a **hint, not
+  a layout engine**: consumers may ignore it or map it onto their own grid.
+
+Scope notes for this feature (METADATA-FIRST v1):
+
+- The generated form code itself is **unchanged**. Hints ride along on the
+  field metadata that prototyping and tooling consume through
+  `gpui_form::schema::FieldVariant::layout` (`FieldLayout`). The width enum is
+  also re-exported at the facade root as `gpui_form::LayoutWidth`.
+- Hints on `#[gpui_form(skip)]` fields are **ignored** — skipped fields emit no
+  form metadata, so their hints never reach the schema.
+- The prototyping generator groups fields by `section`, prefers `label` over
+  the field name, and emits `description` where it already produces help text.
+  `placeholder` is reachable via `ResolvedField::layout().placeholder` for
+  consumers that own a richer input builder; the v1 generator does not render
+  it itself.
+- This is the foundation richer layout (columns, collapsible sections) can
+  build on later.

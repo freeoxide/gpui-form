@@ -21,7 +21,15 @@ power the rest of the ecosystem.
 ## Module Layout
 
 - `src/derives/gpui_form/mod.rs`: `GpuiForm` entry module
-- `src/derives/gpui_form/expansion.rs`: top-level `GpuiForm` expansion pipeline
+- `src/derives/gpui_form/structs.rs`: `darling` option model for field/struct
+  attributes (`GpuiFormOptions`, `ComponentField`), including the layout hints
+  (`section`/`label`/`description`/`placeholder` as `Option<String>` and
+  `width` via a custom `FromMeta` on `LayoutWidthMeta` that accepts a bare
+  ident `full|half|third` or a quoted string, modeled on `TypeOverride`)
+- `src/derives/gpui_form/expansion.rs`: top-level `GpuiForm` expansion
+  pipeline; also builds the per-field `FieldLayout` tokens and appends them to
+  the emitted `FieldVariant` builder chain via `.with_layout(...)` using the
+  facade path `::gpui_form::schema::layout::...`
 - `src/derives/gpui_form/components.rs`: delegates component fields into
   codegen layouts
 - `src/derives/gpui_form/value_holder.rs`: generated holder types, defaults,
@@ -152,8 +160,13 @@ When the `inventory` feature is enabled:
 1. Each field becomes a `FieldVariant` with behavior metadata from
    `gpui-form-codegen`.
 1. Metadata includes validation rule identifiers, defaults, full value type
-   paths, custom component UI paths, and skipped-field information for
-   downstream generators.
+   paths, custom component UI paths, skipped-field information, and a
+   `FieldLayout` built from the field's layout hints for downstream generators.
+1. The `FieldLayout` is appended to the `FieldVariant` builder chain as
+   `.with_layout(::gpui_form::schema::layout::FieldLayout::new()#section#label#description#placeholder.with_width(...))`.
+   Layout hints on `#[gpui_form(skip)]` fields are ignored: the
+   `FieldVariant`-construction `filter_map` returns `None` for skipped fields
+   before any layout tokens are built, so no variant (and no layout) is emitted.
 
 ## Other Derives
 
@@ -210,3 +223,5 @@ Update this file when:
 - macro responsibilities move between modules
 - the generated `<Name>FormPath` shape changes (constructors, generics,
   trait impls, or the facade path convention)
+- the layout-hint attribute set, `LayoutWidthMeta` parsing, or the emitted
+  `.with_layout(...)` chain changes

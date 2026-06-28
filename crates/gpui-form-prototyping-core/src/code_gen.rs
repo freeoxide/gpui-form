@@ -180,10 +180,38 @@ impl<'a> FormShapeAdapter<'a> {
             .iter()
             .filter_map(|field| field.field_initializer.clone())
             .collect();
-        let render_children: TokenStream = generated_fields
-            .iter()
-            .map(|field| field.render_child.clone())
-            .collect();
+        // METADATA-FIRST v1 — section grouping.
+        //
+        // `layout.section` groups *consecutive* fields (order-preserving): each
+        // time the section name changes between adjacent non-skipped fields we
+        // emit a section heading before that field's render child. The heading
+        // reuses the already-imported `field()` builder (see `FRAGMENT_IMPORTS`)
+        // so no new imports are introduced — important because
+        // `required_imports_only_include_subscription_when_needed` asserts the
+        // import set stays minimal.
+        //
+        // The first field with a declared section also emits a heading (its
+        // "previous section" is `None`). Fields without a section never emit a
+        // heading and reset the tracker so the next declared section re-heading
+        // fires. This is a heading *hint* rendered by the scaffold; it is NOT a
+        // layout engine and carries no column/collapsible semantics yet.
+        let mut render_children_items: Vec<TokenStream> = Vec::with_capacity(generated_fields.len());
+        let mut prev_section: Option<&'static str> = None;
+        for field in &generated_fields {
+            let current_section = field._resolved.layout().section;
+            if current_section.is_some() && current_section != prev_section {
+                let heading = current_section.unwrap_or_default();
+                render_children_items.push(quote! {
+                    .child(
+                        field()
+                            .label(#heading)
+                    )
+                });
+            }
+            prev_section = current_section;
+            render_children_items.push(field.render_child.clone());
+        }
+        let render_children: TokenStream = render_children_items.into_iter().collect();
         let subscription_call_items: Vec<TokenStream> = generated_fields
             .iter()
             .filter_map(|field| field.subscription.as_ref())
@@ -481,8 +509,11 @@ mod tests {
     use crate::error::PrototypingError;
     use gpui_form_schema::{
         components::ComponentsBehaviour,
+        layout::FieldLayout,
         registry::{FieldVariant, GpuiFormShape},
     };
+    #[cfg(not(feature = "fluent"))]
+    use gpui_form_schema::layout::LayoutWidth;
 
     fn compact(input: &str) -> String {
         input.chars().filter(|c| !c.is_whitespace()).collect()
@@ -556,6 +587,154 @@ mod tests {
         assert!(
             !compact.contains("usegpui::Subscription;"),
             "subscription import should be omitted when no generated subscriptions exist: {compact}"
+        );
+    }
+
+    // ── METADATA-FIRST v1: section grouping + label/description hints ────────
+
+    // Helper: a FieldVariant with an Input behaviour and an explicit layout.
+    const fn input_field(name: &'static str, layout: FieldLayout) -> FieldVariant {
+        FieldVariant::new(name, "String", false, ComponentsBehaviour::Input).with_layout(layout)
+    }
+
+    #[test]
+    fn render_children_emits_section_heading_when_section_changes() {
+        const LAYOUT_ACCOUNT: FieldLayout = FieldLayout::new().with_section(Some("Account"));
+        const LAYOUT_PROFILE: FieldLayout = FieldLayout::new().with_section(Some("Profile"));
+        const FIELDS: [FieldVariant; 3] = [
+            input_field("username", LAYOUT_ACCOUNT),
+            input_field("email", LAYOUT_ACCOUNT),
+            input_field("bio", LAYOUT_PROFILE),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let render = parts.render_children.to_string();
+
+        // Two distinct sections => two headings ("Account" then "Profile").
+        // Each heading reuses the existing `field().label(...)` builder.
+        assert!(
+            render.matches("Account").count() >= 1,
+            "Account section heading should be emitted: {render}"
+        );
+        assert!(
+            render.matches("Profile").count() >= 1,
+            "Profile section heading should be emitted: {render}"
+        );
+
+        // The heading appears as a `field().label("Account")` style child, not
+        // just as a bare string literal.
+        let compact = compact(&render);
+        assert!(
+            compact.contains("field().label(\"Account\")"),
+            "section heading should reuse the field() builder: {compact}"
+        );
+    }
+
+    #[test]
+    fn render_children_does_not_repeat_heading_for_consecutive_same_section() {
+        const LAYOUT_ACCOUNT: FieldLayout = FieldLayout::new().with_section(Some("Account"));
+        const FIELDS: [FieldVariant; 2] = [
+            input_field("username", LAYOUT_ACCOUNT),
+            input_field("email", LAYOUT_ACCOUNT),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let render = parts.render_children.to_string();
+
+        // Same section for both fields => exactly one "Account" heading
+        // (emitted only on section change). The field-name label tokens must
+        // not coincidentally match "Account".
+        assert_eq!(
+            render.matches("Account").count(),
+            1,
+            "consecutive same-section fields should emit exactly one heading: {render}"
+        );
+    }
+
+    #[test]
+    fn render_children_omits_heading_when_no_section_declared() {
+        // No layout hints at all — defaults to empty FieldLayout.
+        const FIELDS: [FieldVariant; 2] = [
+            FieldVariant::new("name", "String", false, ComponentsBehaviour::Input),
+            FieldVariant::new("email", "String", false, ComponentsBehaviour::Input),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let compact = compact(&parts.render_children.to_string());
+
+        // No section => no synthetic `field().label(...)` heading tokens beyond
+        // the per-field ones the generators already emit.
+        assert!(
+            !compact.contains("field().label(\"\")"),
+            "no empty section heading should be emitted when section is absent: {compact}"
+        );
+    }
+
+    #[test]
+    fn render_children_heading_re_appears_after_unsectioned_field_resets_tracker() {
+        // Order: [Account, (none), Account] — the middle field has no section,
+        // so the trailing Account field must re-emit a heading because the
+        // tracker resets to None when a field without a section is encountered.
+        const LAYOUT_ACCOUNT: FieldLayout = FieldLayout::new().with_section(Some("Account"));
+        const FIELDS: [FieldVariant; 3] = [
+            input_field("username", LAYOUT_ACCOUNT),
+            FieldVariant::new("nickname", "String", false, ComponentsBehaviour::Input),
+            input_field("recovery_email", LAYOUT_ACCOUNT),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let render = parts.render_children.to_string();
+
+        assert_eq!(
+            render.matches("Account").count(),
+            2,
+            "section heading should re-appear after an intervening unsectioned field resets the tracker: {render}"
+        );
+    }
+
+    // The label override only applies in the non-fluent label branch; the
+    // fluent branch localizes through `es-fluent` keys instead (v1 minimal).
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn layout_label_override_appears_in_render_children() {
+        const LAYOUT: FieldLayout = FieldLayout::new()
+            .with_label(Some("Enable experiments"))
+            .with_width(LayoutWidth::Half);
+        const FIELDS: [FieldVariant; 1] = [input_field("enable_experimental", LAYOUT)];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let render = parts.render_children.to_string();
+
+        assert!(
+            render.contains("Enable experiments"),
+            "layout.label override should be used as the field's display label: {render}"
+        );
+        // The label call itself should carry the override verbatim, while the
+        // description (which has no layout.description hint here) legitimately
+        // falls back to the title-cased field name.
+        assert!(
+            compact(&render).contains("field().label(\"Enableexperiments\")"),
+            "the field() label call should use the override verbatim: {render}"
         );
     }
 }

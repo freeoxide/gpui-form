@@ -2,6 +2,7 @@ use darling::{Error as DarlingError, FromField, FromMeta};
 use gpui_form_codegen::components::Components;
 use koruma_derive_core::ValidationInfo;
 use proc_macro2::TokenStream;
+use quote::ToTokens as _;
 use syn::{Expr, Ident, Lit, Type, TypePath};
 
 #[derive(Clone, Debug)]
@@ -56,6 +57,57 @@ impl FromMeta for DefaultExpr {
             attrs: Vec::new(),
             lit: value.clone(),
         })))
+    }
+}
+
+/// Feature #4 (METADATA-FIRST v1): derive-side mirror of
+/// `gpui_form::schema::layout::LayoutWidth`, used only to parse the
+/// `width = full | half | third` attribute. Accepts both the bare ident form
+/// (`width = half`) and the quoted form (`width = "half"`). Modeled on the
+/// existing `TypeOverride`/`DefaultExpr` custom `FromMeta` impls above: a bare
+/// ident arrives as `Expr::Path`, a quoted string arrives as `Lit::Str`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum LayoutWidthMeta {
+    #[default]
+    Full,
+    Half,
+    Third,
+}
+
+impl FromMeta for LayoutWidthMeta {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        match expr {
+            Expr::Path(expr_path) => match expr_path.path.get_ident() {
+                Some(id) if id == "full" => Ok(Self::Full),
+                Some(id) if id == "half" => Ok(Self::Half),
+                Some(id) if id == "third" => Ok(Self::Third),
+                _ => Err(DarlingError::unknown_value(
+                    &expr_path.path.to_token_stream().to_string(),
+                )),
+            },
+            // darling sometimes wraps the value in invisible grouping; recurse
+            // (mirrors `TypeOverride::from_expr`).
+            Expr::Group(group) => Self::from_expr(&group.expr),
+            Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
+            _ => Err(DarlingError::unexpected_expr_type(expr)),
+        }
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        match value {
+            "full" => Ok(Self::Full),
+            "half" => Ok(Self::Half),
+            "third" => Ok(Self::Third),
+            _ => Err(DarlingError::unknown_value(value)),
+        }
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        if let Lit::Str(v) = value {
+            Self::from_string(&v.value())
+        } else {
+            Err(DarlingError::unexpected_lit_type(value))
+        }
     }
 }
 
@@ -121,6 +173,19 @@ pub struct ComponentField {
     pub component: Option<Components>,
     #[darling(default)]
     pub default: Option<DefaultExpr>,
+    // Feature #4 (METADATA-FIRST v1): non-rendering layout hints. All
+    // optional; absence means the consumer falls back to its own default
+    // (e.g. label defaults to the field name at consumption time).
+    #[darling(default)]
+    pub section: Option<String>,
+    #[darling(default)]
+    pub label: Option<String>,
+    #[darling(default)]
+    pub description: Option<String>,
+    #[darling(default)]
+    pub placeholder: Option<String>,
+    #[darling(default)]
+    pub width: Option<LayoutWidthMeta>,
     #[darling(default)]
     pub skip: bool,
 }

@@ -35,7 +35,13 @@ pub enum EnumCountry {
 #[fluent_variants(keys = ["description", "label"])]
 #[gpui_form(koruma(fluent))]
 pub struct User {
-    #[gpui_form(component(input))]
+    #[gpui_form(
+        section = "Account",
+        label = "Username",
+        placeholder = "Xx...xX",
+        width = half,
+        component(input)
+    )]
     #[koruma(
         NonEmptyValidation::<_>::builder(),
         PrefixValidation::<_>::builder().prefix("Xx"),
@@ -43,26 +49,37 @@ pub struct User {
     )]
     pub username: String,
 
-    #[gpui_form(component(input), default = "test@example.com")]
+    #[gpui_form(
+        section = "Account",
+        label = "Email address",
+        placeholder = "you@example.com",
+        width = half,
+        component(input),
+        default = "test@example.com"
+    )]
     #[koruma(EmailValidation::<_>::builder())]
     pub email: String,
 
-    #[gpui_form(component(number_input))]
+    #[gpui_form(section = "Financial", component(number_input))]
     #[koruma(RangeValidation::<_>::builder().min(18).max(167))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(number_input(as = f64)), default = 67)]
+    #[gpui_form(section = "Financial", component(number_input(as = f64)), default = 67)]
     #[koruma(PositiveValidation::<_>::builder())]
     pub balance: Decimal,
 
-    #[gpui_form(component(number_input(as = f64)))]
+    #[gpui_form(section = "Financial", component(number_input(as = f64)))]
     #[koruma(NegativeValidation::<_>::builder())]
     pub debt: Decimal,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,
 
-    #[gpui_form(component(switch))]
+    #[gpui_form(
+        label = "Enable notifications",
+        description = "Toggles whether we email you product updates",
+        component(switch)
+    )]
     pub enable_notifications: bool,
 
     #[gpui_form(component(select))]
@@ -72,6 +89,8 @@ pub struct User {
     pub country: Option<EnumCountry>,
 
     #[gpui_form(
+        section = "Advanced",
+        width = third,
         type = chrono::NaiveDate,
         from = to_form_datetime,
         into = to_model_timestamp,
@@ -79,7 +98,10 @@ pub struct User {
     )]
     pub birth_date: Option<Timestamp>,
 
-    #[gpui_form(skip)]
+    // Layout hints on a skipped field are ignored: no FieldVariant is emitted
+    // for skipped fields, so `section`/`label`/`width` here never reach the
+    // schema metadata. This field exists to prove that boundary.
+    #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
     #[fluent_variants(skip)]
     pub skip_me: bool,
 }

@@ -272,6 +272,49 @@ pub fn expand_gpui_form(
                 let from_expr_tokens = option_expr_string_tokens(&field.from);
                 let into_expr_tokens = option_expr_string_tokens(&field.into);
 
+                // Feature #4 (METADATA-FIRST v1): emit non-rendering layout
+                // hints. Each string hint contributes a builder call only when
+                // present; width is always emitted (Full when absent, matching
+                // `FieldLayout::new()`'s default).
+                let layout_section = match field.section.as_deref() {
+                    Some(v) => quote! { .with_section(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_label = match field.label.as_deref() {
+                    Some(v) => quote! { .with_label(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_description = match field.description.as_deref() {
+                    Some(v) => quote! { .with_description(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_placeholder = match field.placeholder.as_deref() {
+                    Some(v) => quote! { .with_placeholder(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_width = match field.width {
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Full) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Full }
+                    }
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Half) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Half }
+                    }
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Third) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Third }
+                    }
+                    None => quote! { ::gpui_form::schema::layout::LayoutWidth::Full },
+                };
+                let layout_tokens = quote! {
+                    .with_layout(
+                        ::gpui_form::schema::layout::FieldLayout::new()
+                            #layout_section
+                            #layout_label
+                            #layout_description
+                            #layout_placeholder
+                            .with_width(#layout_width)
+                    )
+                };
+
                 Some(quote! {
                     ::gpui_form::schema::registry::FieldVariant::new(
                         #field_name_str,
@@ -289,6 +332,7 @@ pub fn expand_gpui_form(
                     #custom_component_tokens
                     #custom_shape_tokens
                     #custom_value_binding_tokens
+                    #layout_tokens
                 })
             } else {
                 None
