@@ -12,8 +12,46 @@ Today this crate is intentionally small and focused:
 
 - `numeric::validate_signed_numeric`
 - `numeric::validate_unsigned_numeric`
+- `FormState<H>` for dirty tracking, reset, and diffing of form holder values
 
-These helpers match the text-entry rules used by `gpui-form` number inputs.
+The numeric helpers match the text-entry rules used by `gpui-form` number
+inputs. `FormState` is the pure, GPUI-free side of form-state persistence and
+dirty tracking (feature #1); it is re-exported by the facade as
+`gpui_form::FormState`.
+
+## FormState
+
+`FormState<H>` wraps any cloneable value (typically a generated
+`...FormValueHolder`) and snapshots a *baseline* copy at construction time so
+the caller can answer "did the user edit this form?" without keeping a second
+copy by hand.
+
+```rs
+use gpui_form_core::FormState;
+
+#[derive(Clone, Debug, PartialEq, Default)]
+struct Holder { name: String }
+
+let mut state = FormState::new(Holder { name: "a".into() });
+assert!(!state.is_dirty());
+
+state.current_mut().name = "b".into();
+assert!(state.is_dirty());
+
+state.reset_to_baseline();   // discard edits
+assert!(!state.is_dirty());
+
+state.current_mut().name = "c".into();
+state.sync_baseline();       // mark clean after a save
+assert!(!state.is_dirty());
+```
+
+Construction and the mutating helpers (`reset_to_baseline`, `sync_baseline`)
+require `H: Clone`. `is_dirty()` and `diff_against(&other)` require
+`H: PartialEq`. Dirty/diff is boolean-level — *whether* the value changed, not
+which fields (field-level diff is backlog feature #9). `FormState` stores holder
+data only, never component runtime UI state; it carries no GPUI dependency and
+no new crate dependencies.
 
 ## Example
 
@@ -36,6 +74,8 @@ assert!(!validate_unsigned_numeric::<u32>("-1", true));
   rules as `gpui-form`
 - You want the validation helpers without pulling in `gpui` or
   `gpui-component`
+- You want `FormState` dirty/reset/diff logic without the GPUI runtime layer
+  (the facade re-exports it as `gpui_form::FormState` for convenience)
 
 ## Most Users Should Use Instead
 

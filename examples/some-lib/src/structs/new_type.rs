@@ -19,6 +19,7 @@ use koruma_collection::numeric::NonNegativeValidation;
     derive_more::AsRef,
     derive_more::FromStr,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[display("{}", value)]
 #[koruma(try_new, newtype)]
 pub struct Age {

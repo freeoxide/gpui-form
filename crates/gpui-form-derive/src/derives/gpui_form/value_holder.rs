@@ -505,6 +505,16 @@ pub fn generate_value_holder(
             derives.push(quote! { ::koruma::Koruma });
         }
     }
+    // Feature `serde` (form-state persistence + dirty tracking, feature #1):
+    // make the generated holder (de)serializable and comparable. PartialEq (not
+    // Eq, since `number_input(as = f64)` and similar non-Eq field types would
+    // otherwise fail to compile) is required by `FormState::is_dirty`.
+    #[cfg(feature = "serde")]
+    {
+        derives.push(quote! { ::serde::Serialize });
+        derives.push(quote! { ::serde::Deserialize });
+        derives.push(quote! { ::core::cmp::PartialEq });
+    }
 
     let derive_output = quote! { #[derive(#(#derives),*)] };
     let builder_attr = if has_skipped_fields {

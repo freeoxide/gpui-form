@@ -16,6 +16,7 @@ keywords = [ "gpui", "gpui-component", "form" ]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
+serde = [ "dep:serde", "gpui-form-derive?/serde" ]
 
 [dependencies]
 bon = { workspace = true }
@@ -23,6 +24,7 @@ gpui-form-component = { workspace = true }
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
 gpui-form-schema = { workspace = true }
+serde = { workspace = true, optional = true }
 
 [lints]
 workspace = true

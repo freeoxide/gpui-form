@@ -28,6 +28,8 @@ This crate exists to:
 - `gpui_form_component::infinite_select`
 - `gpui_form_core` as `gpui_form::core`
 - `gpui_form_core::numeric`
+- `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
+  form-state dirty tracking / reset / diff (feature #1)
 - `gpui_form_schema` as `gpui_form::schema`
 - `bon` as `gpui_form::bon`
 
@@ -43,8 +45,16 @@ paths. Root-level module re-exports remain for compatibility.
     proc macro from `gpui-form-component-derive`
 - `inventory`: forwards inventory-enabled `GpuiForm` behavior so
   `#[derive(GpuiForm)]` emits `GpuiFormShape` registrations
+- `serde`: enables form-state persistence and dirty tracking. It pulls in
+  `serde` as a direct optional dependency and forwards
+  `gpui-form-derive/serde`, which adds `Serialize`, `Deserialize`, and
+  `PartialEq` to the generated `...FormValueHolder`. `FormState` itself is
+  re-exported unconditionally (it lives in `gpui-form-core` with no feature
+  gate); only the holder serde derives require this feature.
 
-`inventory` is meaningful only when `derive` is also enabled.
+`inventory` and `serde` forward to `gpui-form-derive` via the optional
+dependency (`gpui-form-derive?/...`) and are therefore meaningful only when
+`derive` is also enabled.
 
 ## Dependency Role
 

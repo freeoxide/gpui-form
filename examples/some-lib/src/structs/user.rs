@@ -12,6 +12,7 @@ use rust_decimal::Decimal;
 use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
 pub enum PreferredLanguage {
     #[default]
@@ -21,6 +22,7 @@ pub enum PreferredLanguage {
 }
 
 #[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
 pub enum EnumCountry {
     UnitedStates,

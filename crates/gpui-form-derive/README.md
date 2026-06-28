@@ -134,6 +134,40 @@ By default, the generated implementation calls `Self::new(window, cx)`.
 ## Feature Flags
 
 - `inventory`: enables `GpuiFormShape` registration for `#[derive(GpuiForm)]`
+- `serde`: adds `Serialize`, `Deserialize`, and `PartialEq` to the generated
+  `...FormValueHolder` so it round-trips through any serde format and can be
+  compared for dirty tracking. `PartialEq` (not `Eq`) is emitted deliberately,
+  because `number_input(as = f64)` and similar non-`Eq` field types would
+  otherwise fail to compile. Most users enable this through the facade's
+  `serde` feature rather than this crate directly.
+
+When the `serde` feature is on, the holder becomes suitable for form-state
+persistence and dirty tracking via `gpui_form::FormState`:
+
+```rs
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+}
+
+let holder = SettingsFormValueHolder::default();
+let json = serde_json::to_string(&holder).expect("serialize");
+let restored: SettingsFormValueHolder =
+    serde_json::from_str(&json).expect("deserialize");
+
+let mut state = FormState::new(restored);
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+```
+
+Scope notes: the holder with `#[gpui_form(skip)]` fields round-trips through
+serde on its own, but cannot fully reconstruct the source struct via
+`into_original` (skipped values are absent from the holder). Per-field serde
+passthrough (rename/skip) is backlog feature #15.
 
 ## Most Users Should Use Instead
 

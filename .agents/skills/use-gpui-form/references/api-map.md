@@ -14,6 +14,16 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component", branch 
 gpui-form = "*"
 ```
 
+Optional feature flags (additive):
+
+```toml
+# inventory registration for prototyping/code generation
+# gpui-form = { version = "*", features = ["inventory"] }
+
+# form-state persistence + dirty tracking (serde + PartialEq on the holder)
+# gpui-form = { version = "*", features = ["serde"] }
+```
+
 ## Facade Imports
 
 Prefer imports from `gpui_form`:
@@ -29,6 +39,8 @@ Useful facade paths:
 - `gpui_form::file_picker`
 - `gpui_form::infinite_select`
 - `gpui_form::numeric`
+- `gpui_form::state` (pure form-state module from `gpui-form-core`)
+- `gpui_form::FormState` (dirty tracking / reset / diff helper)
 - `gpui_form::custom_component_shape!`
 
 ## Supported Component Syntax
@@ -189,3 +201,40 @@ gpui_form::custom_component_shape!(
     component = gpui_component::input::Input,
 );
 ```
+
+## Form-State Persistence and Dirty Tracking Pattern
+
+Enable the `serde` feature to make generated holders saveable/restorable and to
+use `gpui_form::FormState` for dirty tracking. The feature adds `Serialize`,
+`Deserialize`, and `PartialEq` to the generated `...FormValueHolder`. `FormState`
+itself is available unconditionally; only the holder serde derives need the
+feature.
+
+```rust
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+}
+
+// Save.
+let json = serde_json::to_string(&SettingsFormValueHolder::default()).unwrap();
+
+// Restore into a fresh state and track edits.
+let restored: SettingsFormValueHolder = serde_json::from_str(&json).unwrap();
+let mut state = FormState::new(restored);
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+
+// Reset to discard edits, or sync after a save to mark clean.
+state.reset_to_baseline();
+state.sync_baseline();
+```
+
+Scope: `FormState` stores holder data only (no runtime UI state), dirty/diff is
+boolean-level (field-level diff is backlog #9), a holder with `#[gpui_form(skip)]`
+fields round-trips through serde but cannot fully reconstruct the source struct
+(per-field serde passthrough is backlog #15), and there is no undo/redo.

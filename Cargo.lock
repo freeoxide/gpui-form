@@ -3088,6 +3088,7 @@ dependencies = [
  "gpui-form-core",
  "gpui-form-derive",
  "gpui-form-schema",
+ "serde",
 ]
 
 [[package]]
@@ -3180,6 +3181,8 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
+ "serde",
+ "serde_json",
  "syn 2.0.118",
  "syn-cfg-attr",
  "trybuild",
@@ -7550,9 +7553,12 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-form",
+ "gpui-form-derive",
  "koruma",
  "koruma-collection",
  "rust_decimal",
+ "serde",
+ "serde_json",
  "strum 0.28.0",
 ]
 

@@ -85,4 +85,53 @@ Common patterns:
 - For cascading or nested selects, derive `InfiniteSelect` and `PartialEq` on the enum tree and use `#[gpui_form(component(infinite_select))]`.
 - For custom widgets, derive `CustomComponentState` on a state type or declare a reusable shape with `gpui_form::custom_component_shape!`.
 - For value-bound custom widgets, implement `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use `component(custom(shape = ..., value_binding))`.
+- For save/restore and dirty tracking, enable the facade `serde` feature and wrap the holder in `gpui_form::FormState`.
 - Keep consumer code focused on app models, form state, rendering, and app-owned components.
+
+## Saving, Restoring, and Dirty Tracking
+
+When the app needs to persist a form or ask whether the user edited it, enable
+the optional `serde` feature and use `gpui_form::FormState`. The feature is
+additive: it adds `Serialize`, `Deserialize`, and `PartialEq` to the generated
+`...FormValueHolder`, and the facade re-exports `FormState` (pure, GPUI-free
+logic from `gpui-form-core`).
+
+```toml
+gpui-form = { version = "*", features = ["serde"] }
+```
+
+```rust
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+}
+
+// Save.
+let json = serde_json::to_string(&SettingsFormValueHolder::default()).unwrap();
+
+// Restore into a fresh state.
+let restored: SettingsFormValueHolder = serde_json::from_str(&json).unwrap();
+let mut state = FormState::new(restored);
+
+// Track edits, reset, or mark clean after a save.
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+state.sync_baseline();   // mark clean
+assert!(!state.is_dirty());
+```
+
+Scope notes to keep in mind when recommending this feature:
+
+- `FormState` stores holder **data** only, not runtime UI state (open menus,
+  scroll, `InfiniteSelectState` snapshots). No undo/redo in this feature.
+- Dirty/diff is **boolean-level** (`is_dirty()`, `diff_against(&other)`).
+  Field-level diff is backlog feature #9.
+- A holder with `#[gpui_form(skip)]` fields round-trips through serde on its
+  own, but cannot fully reconstruct the source struct via `into_original`.
+  Per-field serde passthrough (rename/skip) is backlog feature #15.
+- `FormState` itself is available unconditionally from `gpui_form::FormState`;
+  only the holder serde derives need the `serde` feature.
