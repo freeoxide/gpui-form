@@ -28,16 +28,20 @@ At the moment the crate is intentionally narrow:
 ## Phone Validation
 
 `phone.rs` is behind the `phone` feature because it pulls in the `phonenumber`
-parser. The module stays UI-neutral: callers provide raw input and a selected
-`country::Id`, and the helper returns `PhoneNumberValidation`.
+parser. The module stays UI-neutral: callers provide raw input and optionally a
+default or selected `country::Id`, and the helper returns
+`PhoneNumberValidation`.
 
-The helper deliberately checks two things:
+The module exposes two validation modes:
 
-- `phonenumber` can parse and validate the number.
-- The parsed number country matches the selected country.
+- `validate_phone_number`: general mode. It accepts any valid parsed phone
+  number. A default country can be supplied for national-format input.
+- `validate_phone_number_for_country_label`: strict country mode. It checks
+  both parser validity and whether the parsed number country matches the
+  selected country.
 
-That second check prevents international input such as `+1 415 550 2222` from
-passing when the UI's country select is set to France.
+Strict mode prevents international input such as `+1 415 550 2222` from passing
+when the UI's country select is set to France.
 
 ## FormState
 

@@ -3,12 +3,15 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::ActiveTheme as _;
+use gpui_component::checkbox::Checkbox;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectItem, SelectState};
 use gpui_component::separator::Separator;
 use gpui_component::v_flex;
-use gpui_form::phone::{PhoneNumberValidation, country, validate_phone_number_for_country_label};
+use gpui_form::phone::{
+    PhoneNumberValidation, country, validate_phone_number, validate_phone_number_for_country_label,
+};
 use strum::IntoEnumIterator as _;
 
 const CONTEXT: &str = "PhoneVerificationForm";
@@ -53,8 +56,16 @@ impl SelectItem for PhoneCountry {
     }
 }
 
-fn validate_phone(country: PhoneCountry, raw: &str) -> PhoneNumberValidation {
-    validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
+fn validate_phone(
+    country: PhoneCountry,
+    raw: &str,
+    require_country_match: bool,
+) -> PhoneNumberValidation {
+    if require_country_match {
+        validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
+    } else {
+        validate_phone_number(raw, Some(country.country_id()))
+    }
 }
 
 #[gpui_storybook::story_init]
@@ -64,6 +75,7 @@ pub fn init(_cx: &mut App) {}
 pub struct PhoneVerificationForm {
     country: PhoneCountry,
     phone: String,
+    require_country_match: bool,
     country_select: Entity<SelectState<Vec<PhoneCountry>>>,
     phone_input: Entity<InputState>,
     focus_handle: FocusHandle,
@@ -107,6 +119,7 @@ impl PhoneVerificationForm {
         Self {
             country,
             phone: String::new(),
+            require_country_match: true,
             country_select,
             phone_input,
             focus_handle: cx.focus_handle(),
@@ -149,7 +162,11 @@ impl PhoneVerificationForm {
 
 impl Render for PhoneVerificationForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let validation = validate_phone(self.country.clone(), &self.phone);
+        let validation = validate_phone(
+            self.country.clone(),
+            &self.phone,
+            self.require_country_match,
+        );
         let status = validation.message();
         let valid = validation.is_valid();
         let status_color = if valid {
@@ -178,9 +195,25 @@ impl Render for PhoneVerificationForm {
                         field()
                             .label("Phone number")
                             .description(
-                                "Try 415 555 2671 for United States, then switch to France.",
+                                "Try +1 415 550 2222 with France selected, then toggle country matching.",
                             )
                             .child(Input::new(&self.phone_input)),
+                    )
+                    .child(
+                        field()
+                            .label("Require selected country match")
+                            .description(
+                                "On: valid numbers must belong to the selected country. Off: any valid global number is accepted.",
+                            )
+                            .child(
+                                Checkbox::new("phone-require-country-match")
+                                    .checked(self.require_country_match)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.require_country_match =
+                                            !this.require_country_match;
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                     .child(
                         field()
@@ -201,11 +234,11 @@ mod tests {
         let number = "415 555 2671";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number),
+            validate_phone(PhoneCountry::UnitedStates, number, true),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number),
+            validate_phone(PhoneCountry::France, number, true),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -215,11 +248,11 @@ mod tests {
         let number = "+1 415 550 2222";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number),
+            validate_phone(PhoneCountry::UnitedStates, number, true),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number),
+            validate_phone(PhoneCountry::France, number, true),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -229,12 +262,22 @@ mod tests {
         let number = "01 42 68 53 00";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number),
+            validate_phone(PhoneCountry::France, number, true),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number),
+            validate_phone(PhoneCountry::UnitedStates, number, true),
             PhoneNumberValidation::Invalid(_)
+        ));
+    }
+
+    #[test]
+    fn general_mode_accepts_valid_number_from_non_selected_country() {
+        let number = "+1 415 550 2222";
+
+        assert!(matches!(
+            validate_phone(PhoneCountry::France, number, false),
+            PhoneNumberValidation::Valid(_)
         ));
     }
 }

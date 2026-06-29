@@ -12,8 +12,9 @@ Today this crate is intentionally small and focused:
 
 - `numeric::validate_signed_numeric`
 - `numeric::validate_unsigned_numeric`
-- `phone::validate_phone_number_for_country_label` behind the optional
-  `phone` feature
+- `phone::validate_phone_number` and
+  `phone::validate_phone_number_for_country_label` behind the optional `phone`
+  feature
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
 - `path::FieldPath` for typed field naming (a headless, GPUI-free, serde-free
   primitive)
@@ -34,8 +35,12 @@ gpui-form-core = { version = "*", features = ["phone"] }
 ```rs
 use gpui_form_core::phone::{
     country,
+    validate_phone_number,
     validate_phone_number_for_country_label,
 };
+
+let general = validate_phone_number("+1 415 550 2222", Some(country::FR));
+assert!(general.is_valid());
 
 let result = validate_phone_number_for_country_label(
     "+1 415 550 2222",

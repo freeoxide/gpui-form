@@ -1,8 +1,8 @@
 //! Phone-number validation helpers.
 //!
-//! These helpers wrap the `phonenumber` parser and add the extra country check
-//! form UIs usually need: a globally valid `+1...` number is not accepted when
-//! the user selected France.
+//! These helpers wrap the `phonenumber` parser for two common form modes:
+//! general validation for any valid global number, and strict validation where
+//! the parsed number must match the selected country.
 
 pub use phonenumber::country;
 
@@ -14,8 +14,7 @@ pub enum PhoneNumberValidation {
     /// Empty input. Treat this separately from invalid input so optional phone
     /// fields can decide whether empty is acceptable.
     Empty,
-    /// The number parsed, passed libphonenumber validity checks, and belongs
-    /// to the selected country.
+    /// The number parsed and passed libphonenumber validity checks.
     Valid(ValidatedPhoneNumber),
     /// The number was non-empty but failed parsing, validity, or country match.
     Invalid(PhoneNumberValidationError),
@@ -45,11 +44,11 @@ impl PhoneNumberValidation {
     }
 }
 
-/// A phone number that passed parser, validity, and selected-country checks.
+/// A phone number that passed parser and validity checks.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedPhoneNumber {
     e164: String,
-    country: country::Id,
+    country: Option<country::Id>,
 }
 
 impl ValidatedPhoneNumber {
@@ -57,7 +56,7 @@ impl ValidatedPhoneNumber {
         &self.e164
     }
 
-    pub fn country(&self) -> country::Id {
+    pub fn country(&self) -> Option<country::Id> {
         self.country
     }
 }
@@ -65,6 +64,13 @@ impl ValidatedPhoneNumber {
 /// Why a non-empty phone number failed validation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PhoneNumberValidationError {
+    Invalid {
+        default_country: Option<country::Id>,
+    },
+    Parse {
+        default_country: Option<country::Id>,
+        message: String,
+    },
     WrongCountry {
         selected_country: country::Id,
         selected_label: String,
@@ -74,7 +80,7 @@ pub enum PhoneNumberValidationError {
         selected_country: country::Id,
         selected_label: String,
     },
-    Parse {
+    ParseForCountry {
         selected_country: country::Id,
         selected_label: String,
         message: String,
@@ -84,6 +90,16 @@ pub enum PhoneNumberValidationError {
 impl core::fmt::Display for PhoneNumberValidationError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::Invalid { default_country } => {
+                write!(f, "Not a valid phone number for {default_country:?}")
+            },
+            Self::Parse {
+                default_country,
+                message,
+            } => write!(
+                f,
+                "Could not parse phone number for {default_country:?}: {message}"
+            ),
             Self::WrongCountry {
                 selected_label,
                 parsed_country,
@@ -95,7 +111,7 @@ impl core::fmt::Display for PhoneNumberValidationError {
             Self::InvalidForCountry { selected_label, .. } => {
                 write!(f, "Not a valid {selected_label} phone number")
             },
-            Self::Parse {
+            Self::ParseForCountry {
                 selected_label,
                 message,
                 ..
@@ -108,6 +124,35 @@ impl core::fmt::Display for PhoneNumberValidationError {
 }
 
 impl std::error::Error for PhoneNumberValidationError {}
+
+/// Validate a phone number without enforcing a selected-country match.
+///
+/// Pass `default_country` when the UI should also accept national-format input
+/// such as `415 555 2671`. International input such as `+1 415 550 2222` can
+/// be validated with `None` because the country code is present in the input.
+pub fn validate_phone_number(
+    raw: &str,
+    default_country: Option<country::Id>,
+) -> PhoneNumberValidation {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return PhoneNumberValidation::Empty;
+    }
+
+    match phonenumber::parse(default_country, trimmed) {
+        Ok(number) if number.is_valid() => PhoneNumberValidation::Valid(ValidatedPhoneNumber {
+            e164: number.format().mode(Mode::E164).to_string(),
+            country: number.country().id(),
+        }),
+        Ok(_) => {
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::Invalid { default_country })
+        },
+        Err(error) => PhoneNumberValidation::Invalid(PhoneNumberValidationError::Parse {
+            default_country,
+            message: error.to_string(),
+        }),
+    }
+}
 
 /// Validate a phone number against a selected country id.
 ///
@@ -145,13 +190,13 @@ pub fn validate_phone_number_for_country_label(
         },
         Ok(number) if number.is_valid() => PhoneNumberValidation::Valid(ValidatedPhoneNumber {
             e164: number.format().mode(Mode::E164).to_string(),
-            country: selected_country,
+            country: Some(selected_country),
         }),
         Ok(_) => PhoneNumberValidation::Invalid(PhoneNumberValidationError::InvalidForCountry {
             selected_country,
             selected_label,
         }),
-        Err(error) => PhoneNumberValidation::Invalid(PhoneNumberValidationError::Parse {
+        Err(error) => PhoneNumberValidation::Invalid(PhoneNumberValidationError::ParseForCountry {
             selected_country,
             selected_label,
             message: error.to_string(),
@@ -190,5 +235,26 @@ mod tests {
     fn validates_french_number_for_france_not_us() {
         assert!(validate_phone_number_for_country("01 42 68 53 00", country::FR).is_valid());
         assert!(!validate_phone_number_for_country("01 42 68 53 00", country::US).is_valid());
+    }
+
+    #[test]
+    fn general_validation_accepts_international_number_from_any_country() {
+        let result = validate_phone_number("+1 415 550 2222", Some(country::FR));
+
+        assert!(result.is_valid());
+        assert_eq!(result.e164(), Some("+14155502222"));
+        assert!(matches!(
+            result,
+            PhoneNumberValidation::Valid(ValidatedPhoneNumber {
+                country: Some(country::US),
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn general_validation_uses_default_country_for_national_numbers() {
+        assert!(validate_phone_number("01 42 68 53 00", Some(country::FR)).is_valid());
+        assert!(!validate_phone_number("01 42 68 53 00", Some(country::US)).is_valid());
     }
 }

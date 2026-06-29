@@ -135,9 +135,15 @@ gpui-form = { version = "*", features = ["phone"] }
 ```rs
 use gpui_form::phone::{
     country,
+    validate_phone_number,
     validate_phone_number_for_country_label,
 };
 
+// General mode: any valid global number is accepted.
+let general = validate_phone_number("+1 415 550 2222", Some(country::FR));
+assert!(general.is_valid());
+
+// Strict mode: the parsed country must match the selected country.
 let result = validate_phone_number_for_country_label(
     "+1 415 550 2222",
     country::FR,
@@ -147,9 +153,10 @@ let result = validate_phone_number_for_country_label(
 assert!(!result.is_valid());
 ```
 
-This intentionally checks both parser validity and selected-country match.
-For example, `+1 415 550 2222` is a valid US number, but it is rejected when
-the selected country is France.
+Use `validate_phone_number` when a field should accept any valid global number.
+Use `validate_phone_number_for_country_label` when the parsed country must match
+the selected country. For example, `+1 415 550 2222` is a valid US number, but
+strict mode rejects it when the selected country is France.
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum

@@ -118,8 +118,12 @@ helper instead of duplicating parser and selected-country checks in every UI:
 ```rust
 use gpui_form::phone::{
     country,
+    validate_phone_number,
     validate_phone_number_for_country_label,
 };
+
+let general = validate_phone_number("+1 415 550 2222", Some(country::FR));
+assert!(general.is_valid());
 
 let result = validate_phone_number_for_country_label(
     "+1 415 550 2222",
