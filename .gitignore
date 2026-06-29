@@ -2,3 +2,4 @@ target/
 .es-fluent/
 .expanded.rs
 .DS_Store
+.commandcode

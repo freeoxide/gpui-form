@@ -15,9 +15,6 @@ use crate::imports::{Alias, ImportItem, ImportSet};
 /// `Divider` belong in the caller's [`FormLayout`] implementation rather than
 /// in the shared form-shape adapter output.
 const FRAGMENT_IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui::InteractiveElement"),
-    ImportItem::aliased("gpui::ParentElement", Alias::Anonymous),
-    ImportItem::path("gpui::Styled"),
     ImportItem::path("gpui::div"),
     ImportItem::aliased("gpui::prelude::FluentBuilder", Alias::Anonymous),
     ImportItem::aliased("gpui_component::ActiveTheme", Alias::Anonymous),
@@ -155,6 +152,7 @@ impl<'a> FormShapeAdapter<'a> {
 
         let struct_name_ident = parse_ident("struct name", data.struct_name)?;
         let form_value_holder_ident = format_ident!("{}FormValueHolder", struct_name_ident);
+        let form_path_ident = format_ident!("{}FormPath", struct_name_ident);
         let form_ident = parse_ident("generated form ident", &format!("{}Form", data.struct_name))?;
         let form_fields_ident = parse_ident(
             "generated form fields ident",
@@ -195,7 +193,8 @@ impl<'a> FormShapeAdapter<'a> {
         // heading and reset the tracker so the next declared section re-heading
         // fires. This is a heading *hint* rendered by the scaffold; it is NOT a
         // layout engine and carries no column/collapsible semantics yet.
-        let mut render_children_items: Vec<TokenStream> = Vec::with_capacity(generated_fields.len());
+        let mut render_children_items: Vec<TokenStream> =
+            Vec::with_capacity(generated_fields.len());
         let mut prev_section: Option<&'static str> = None;
         for field in &generated_fields {
             let current_section = field._resolved.layout().section;
@@ -239,6 +238,13 @@ impl<'a> FormShapeAdapter<'a> {
         let post_subscription_init: TokenStream = generated_fields
             .iter()
             .filter_map(|field| field.post_subscription_initialization.clone())
+            .collect();
+        let field_path_items: Vec<TokenStream> = generated_fields
+            .iter()
+            .map(|field| {
+                let field_ident = field._resolved.field_ident();
+                quote! { #form_path_ident::#field_ident().to_string() }
+            })
             .collect();
 
         let validation_binding = if has_koruma {
@@ -292,6 +298,15 @@ impl<'a> FormShapeAdapter<'a> {
                         },
                     },
                     quote! {
+                        .child({
+                            let mut form_state = ::gpui_form::FormState::new(#form_value_holder_ident::default());
+                            form_state.replace_current(self.current_data.clone());
+                            format!("form_state.is_dirty: {}", form_state.is_dirty())
+                        })
+                        .child(format!(
+                            "field_paths: {}",
+                            vec![#(#field_path_items),*].join(", ")
+                        ))
                         .child(format!("value_holder: {:?}", self.current_data))
                         #into_original_debug_child
                     },
@@ -507,13 +522,13 @@ fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
 mod tests {
     use super::FormShapeAdapter;
     use crate::error::PrototypingError;
+    #[cfg(not(feature = "fluent"))]
+    use gpui_form_schema::layout::LayoutWidth;
     use gpui_form_schema::{
         components::ComponentsBehaviour,
         layout::FieldLayout,
         registry::{FieldVariant, GpuiFormShape},
     };
-    #[cfg(not(feature = "fluent"))]
-    use gpui_form_schema::layout::LayoutWidth;
 
     fn compact(input: &str) -> String {
         input.chars().filter(|c| !c.is_whitespace()).collect()
@@ -587,6 +602,45 @@ mod tests {
         assert!(
             !compact.contains("usegpui::Subscription;"),
             "subscription import should be omitted when no generated subscriptions exist: {compact}"
+        );
+    }
+
+    #[test]
+    fn debug_child_exercises_form_state_and_typed_paths() {
+        const FIELDS: [FieldVariant; 2] = [
+            FieldVariant::new("username", "String", false, ComponentsBehaviour::Input),
+            FieldVariant::new(
+                "age",
+                "u32",
+                false,
+                ComponentsBehaviour::NumberInput(
+                    gpui_form_schema::components::NumberInputBehaviour {
+                        validation_type: None,
+                        kind: gpui_form_schema::components::NumberInputKind::UnsignedInteger,
+                    },
+                ),
+            ),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let compact = compact(&parts.debug_child.to_string());
+
+        assert!(
+            compact.contains("::gpui_form::FormState::new(DemoFormValueHolder::default())"),
+            "debug output should exercise FormState over the generated holder: {compact}"
+        );
+        assert!(
+            compact.contains("form_state.replace_current(self.current_data.clone())"),
+            "debug output should compare the current holder against the default baseline: {compact}"
+        );
+        assert!(
+            compact.contains("DemoFormPath::username().to_string()")
+                && compact.contains("DemoFormPath::age().to_string()"),
+            "debug output should list generated typed field paths: {compact}"
         );
     }
 

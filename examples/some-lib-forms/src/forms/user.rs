@@ -1,28 +1,29 @@
-use es_fluent::FluentMessage;
+use es_fluent::FluentMessage as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement as _, Render, Styled, Subscription, Window, div,
+    ParentElement as _, Render, Styled, Window,
 };
+use gpui::{Subscription, div};
+use gpui_component::ActiveTheme as _;
+use gpui_component::Disableable as _;
 use gpui_component::checkbox::Checkbox;
-use gpui_component::form::{field, v_form};
+use gpui_component::form::field;
+use gpui_component::form::v_form;
 use gpui_component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::separator::Separator;
 use gpui_component::switch::Switch;
-use gpui_component::{ActiveTheme as _, Disableable as _, v_flex};
+use gpui_component::v_flex;
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use rust_decimal::Decimal;
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::user::*;
 const CONTEXT: &str = "UserForm";
-
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
     crate::i18n::localize_message(cx, message)
 }
-
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
@@ -59,7 +60,7 @@ impl UserForm {
                 self.current_data.username = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             },
             _ => {},
@@ -78,7 +79,7 @@ impl UserForm {
                 self.current_data.email = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             },
             _ => {},
@@ -135,7 +136,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.balance = text.parse::<Decimal>().ok();
+                self.current_data.balance = text.parse::<rust_decimal::Decimal>().ok();
             },
             _ => {},
         }
@@ -184,7 +185,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.debt = text.parse::<Decimal>().ok();
+                self.current_data.debt = text.parse::<rust_decimal::Decimal>().ok();
             },
             _ => {},
         }
@@ -261,7 +262,7 @@ impl UserForm {
         match event {
             DatePickerEvent::Change(date) => {
                 self.current_data.birth_date =
-                    date.and_then(gpui_form::runtime::date_picker::parse_form_date);
+                    date.and_then(::gpui_form::runtime::date_picker::parse_form_date);
             },
         }
     }
@@ -400,11 +401,18 @@ impl Render for UserForm {
             .child(Separator::horizontal())
             .child(
                 v_form()
+                    .child(field().label("Account"))
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Username))
+                            .label({
+                                let message = UserLabelVariants::Username;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Username);
+                                let description = {
+                                    let message = UserDescriptionVariants::Username;
+                                    localize(cx, &message)
+                                };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.username().all();
@@ -440,9 +448,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Email))
+                            .label({
+                                let message = UserLabelVariants::Email;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Email);
+                                let description = {
+                                    let message = UserDescriptionVariants::Email;
+                                    localize(cx, &message)
+                                };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.email().all();
@@ -476,11 +490,18 @@ impl Render for UserForm {
                             })
                             .child(Input::new(&self.fields.email_input)),
                     )
+                    .child(field().label("Financial"))
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Age))
+                            .label({
+                                let message = UserLabelVariants::Age;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Age);
+                                let description = {
+                                    let message = UserDescriptionVariants::Age;
+                                    localize(cx, &message)
+                                };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.age().all();
@@ -516,9 +537,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Balance))
+                            .label({
+                                let message = UserLabelVariants::Balance;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Balance);
+                                let description = {
+                                    let message = UserDescriptionVariants::Balance;
+                                    localize(cx, &message)
+                                };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.balance().all();
@@ -554,9 +581,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Debt))
+                            .label({
+                                let message = UserLabelVariants::Debt;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Debt);
+                                let description = {
+                                    let message = UserDescriptionVariants::Debt;
+                                    localize(cx, &message)
+                                };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.debt().all();
@@ -592,10 +625,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::SubscribeNewsletter))
+                            .label({
+                                let message = UserLabelVariants::SubscribeNewsletter;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description =
-                                    localize(cx, &UserDescriptionVariants::SubscribeNewsletter);
+                                let description = {
+                                    let message = UserDescriptionVariants::SubscribeNewsletter;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -615,10 +653,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::EnableNotifications))
+                            .label({
+                                let message = UserLabelVariants::EnableNotifications;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description =
-                                    localize(cx, &UserDescriptionVariants::EnableNotifications);
+                                let description = {
+                                    let message = UserDescriptionVariants::EnableNotifications;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -638,9 +681,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Preferred))
+                            .label({
+                                let message = UserLabelVariants::Preferred;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Preferred);
+                                let description = {
+                                    let message = UserDescriptionVariants::Preferred;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -653,9 +702,15 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::Country))
+                            .label({
+                                let message = UserLabelVariants::Country;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::Country);
+                                let description = {
+                                    let message = UserDescriptionVariants::Country;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -666,11 +721,18 @@ impl Render for UserForm {
                             })
                             .child(Select::new(&self.fields.country_select)),
                     )
+                    .child(field().label("Advanced"))
                     .child(
                         field()
-                            .label(localize(cx, &UserLabelVariants::BirthDate))
+                            .label({
+                                let message = UserLabelVariants::BirthDate;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description = localize(cx, &UserDescriptionVariants::BirthDate);
+                                let description = {
+                                    let message = UserDescriptionVariants::BirthDate;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -689,6 +751,27 @@ impl Render for UserForm {
                     ))),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state = ::gpui_form::FormState::new(UserFormValueHolder::default());
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(format!(
+                "field_paths: {}",
+                vec![
+                    UserFormPath::username().to_string(),
+                    UserFormPath::email().to_string(),
+                    UserFormPath::age().to_string(),
+                    UserFormPath::balance().to_string(),
+                    UserFormPath::debt().to_string(),
+                    UserFormPath::subscribe_newsletter().to_string(),
+                    UserFormPath::enable_notifications().to_string(),
+                    UserFormPath::preferred().to_string(),
+                    UserFormPath::country().to_string(),
+                    UserFormPath::birth_date().to_string()
+                ]
+                .join(", ")
+            ))
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: incomplete; present_fields_json: {}",
