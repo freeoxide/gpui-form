@@ -17,6 +17,7 @@ default = [ "derive" ]
 derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
 serde = [ "dep:serde", "gpui-form-derive?/serde" ]
+phone = [ "gpui-form-core/phone" ]
 
 [dependencies]
 bon = { workspace = true }

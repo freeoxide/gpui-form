@@ -36,7 +36,8 @@ debug data, and pointers to the generated User story for layout sections and
 `number_input(as = f64)`.
 It also includes a manual `Phone Verification` story that proves dynamic
 country-driven phone validation in the UI with the `phonenumber` parser rather
-than regex-only checks.
+than regex-only checks. The story uses the shared `gpui_form::phone` helper
+instead of local phone-validation boilerplate.
 
 Run it with:
 

@@ -3197,6 +3197,9 @@ dependencies = [
 [[package]]
 name = "gpui-form-core"
 version = "0.5.1"
+dependencies = [
+ "phonenumber",
+]
 
 [[package]]
 name = "gpui-form-derive"
@@ -7709,7 +7712,6 @@ dependencies = [
  "gpui-storybook",
  "gpui-storybook-core",
  "gpui_platform",
- "phonenumber",
  "rust_decimal",
  "some-lib",
  "strum 0.28.0",

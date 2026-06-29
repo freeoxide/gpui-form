@@ -36,6 +36,9 @@ gpui-form = "*"
 
 # Optional: form-state persistence + dirty tracking (serde on the holder)
 # gpui-form = { version = "*", features = ["serde"] }
+
+# Optional: parser-backed phone-number validation helpers
+# gpui-form = { version = "*", features = ["phone"] }
 ```
 
 ## Quick Start
@@ -117,6 +120,36 @@ Common field-level helpers:
 - `#[gpui_form(section = ..., label = ..., description = ..., placeholder = ..., width = ...)]`
   attaches non-rendering layout hints. See
   [Layout and Section Hints](#layout-and-section-hints).
+
+## Phone Number Validation
+
+Enable the optional `phone` feature when a form needs parser-backed phone
+validation. The helper is headless: it does not render a phone input, but it
+centralizes the strict validation logic so every phone field uses the same
+rules.
+
+```toml
+gpui-form = { version = "*", features = ["phone"] }
+```
+
+```rs
+use gpui_form::phone::{
+    country,
+    validate_phone_number_for_country_label,
+};
+
+let result = validate_phone_number_for_country_label(
+    "+1 415 550 2222",
+    country::FR,
+    "France",
+);
+
+assert!(!result.is_valid());
+```
+
+This intentionally checks both parser validity and selected-country match.
+For example, `+1 415 550 2222` is a valid US number, but it is rejected when
+the selected country is France.
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum

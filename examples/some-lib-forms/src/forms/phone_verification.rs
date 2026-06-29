@@ -8,7 +8,7 @@ use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectItem, SelectState};
 use gpui_component::separator::Separator;
 use gpui_component::v_flex;
-use phonenumber::{Mode, country};
+use gpui_form::phone::{PhoneNumberValidation, country, validate_phone_number_for_country_label};
 use strum::IntoEnumIterator as _;
 
 const CONTEXT: &str = "PhoneVerificationForm";
@@ -53,35 +53,8 @@ impl SelectItem for PhoneCountry {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum PhoneValidation {
-    Empty,
-    Valid { e164: String },
-    Invalid { reason: String },
-}
-
-fn validate_phone(country: PhoneCountry, raw: &str) -> PhoneValidation {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return PhoneValidation::Empty;
-    }
-
-    match phonenumber::parse(Some(country.country_id()), trimmed) {
-        Ok(number) if number.country().id() != Some(country.country_id()) => {
-            PhoneValidation::Invalid {
-                reason: format!("Phone number country does not match selected country: {country}"),
-            }
-        },
-        Ok(number) if number.is_valid() => PhoneValidation::Valid {
-            e164: number.format().mode(Mode::E164).to_string(),
-        },
-        Ok(_) => PhoneValidation::Invalid {
-            reason: format!("Not a valid {} phone number", country),
-        },
-        Err(error) => PhoneValidation::Invalid {
-            reason: format!("Could not parse as {} phone number: {error}", country),
-        },
-    }
+fn validate_phone(country: PhoneCountry, raw: &str) -> PhoneNumberValidation {
+    validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
 }
 
 #[gpui_storybook::story_init]
@@ -177,12 +150,8 @@ impl PhoneVerificationForm {
 impl Render for PhoneVerificationForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let validation = validate_phone(self.country.clone(), &self.phone);
-        let status = match &validation {
-            PhoneValidation::Empty => "Enter a phone number".to_string(),
-            PhoneValidation::Valid { e164 } => format!("Valid. E.164: {e164}"),
-            PhoneValidation::Invalid { reason } => reason.clone(),
-        };
-        let valid = matches!(validation, PhoneValidation::Valid { .. });
+        let status = validation.message();
+        let valid = validation.is_valid();
         let status_color = if valid {
             cx.theme().success
         } else {
@@ -233,11 +202,11 @@ mod tests {
 
         assert!(matches!(
             validate_phone(PhoneCountry::UnitedStates, number),
-            PhoneValidation::Valid { .. }
+            PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
             validate_phone(PhoneCountry::France, number),
-            PhoneValidation::Invalid { .. }
+            PhoneNumberValidation::Invalid(_)
         ));
     }
 
@@ -247,11 +216,11 @@ mod tests {
 
         assert!(matches!(
             validate_phone(PhoneCountry::UnitedStates, number),
-            PhoneValidation::Valid { .. }
+            PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
             validate_phone(PhoneCountry::France, number),
-            PhoneValidation::Invalid { .. }
+            PhoneNumberValidation::Invalid(_)
         ));
     }
 
@@ -261,11 +230,11 @@ mod tests {
 
         assert!(matches!(
             validate_phone(PhoneCountry::France, number),
-            PhoneValidation::Valid { .. }
+            PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
             validate_phone(PhoneCountry::UnitedStates, number),
-            PhoneValidation::Invalid { .. }
+            PhoneNumberValidation::Invalid(_)
         ));
     }
 }

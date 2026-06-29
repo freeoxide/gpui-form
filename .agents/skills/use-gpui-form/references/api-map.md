@@ -22,6 +22,9 @@ Optional feature flags (additive):
 
 # form-state persistence + dirty tracking (serde + PartialEq on the holder)
 # gpui-form = { version = "*", features = ["serde"] }
+
+# parser-backed phone-number validation helpers
+# gpui-form = { version = "*", features = ["phone"] }
 ```
 
 ## Facade Imports
@@ -40,6 +43,7 @@ Useful facade paths:
 - `gpui_form::infinite_select`
 - `gpui_form::numeric`
 - `gpui_form::path` (pure field-path module from `gpui-form-core`)
+- `gpui_form::phone` (parser-backed phone validation helpers; `phone` feature)
 - `gpui_form::state` (pure form-state module from `gpui-form-core`)
 - `gpui_form::FieldPath` (typed field-path primitive; no feature flag)
 - `gpui_form::FormState` (dirty tracking / reset / diff helper)
@@ -107,6 +111,24 @@ Common struct attributes:
 - Use `date_picker` for single-date editing.
 - Use `file_picker` for native path selection.
 - Use `custom(...)` when the app owns the state/widget contract.
+
+For country-aware phone inputs, enable the `phone` feature and use the shared
+helper instead of duplicating parser and selected-country checks in every UI:
+
+```rust
+use gpui_form::phone::{
+    country,
+    validate_phone_number_for_country_label,
+};
+
+let result = validate_phone_number_for_country_label(
+    "+1 415 550 2222",
+    country::FR,
+    "France",
+);
+
+assert!(!result.is_valid());
+```
 
 ## Generated Names
 

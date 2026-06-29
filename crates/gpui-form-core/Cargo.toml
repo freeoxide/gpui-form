@@ -13,3 +13,10 @@ readme = "README.md"
 
 [lints]
 workspace = true
+
+[features]
+default = []
+phone = [ "dep:phonenumber" ]
+
+[dependencies]
+phonenumber = { optional = true, workspace = true }

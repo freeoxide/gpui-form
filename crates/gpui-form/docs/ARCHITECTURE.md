@@ -57,10 +57,12 @@ paths. Root-level module re-exports remain for compatibility.
   `PartialEq` to the generated `...FormValueHolder`. `FormState` itself is
   re-exported unconditionally (it lives in `gpui-form-core` with no feature
   gate); only the holder serde derives require this feature.
+- `phone`: forwards `gpui-form-core/phone` and exposes parser-backed,
+  country-matching phone validation helpers at `gpui_form::phone`.
 
 `inventory` and `serde` forward to `gpui-form-derive` via the optional
 dependency (`gpui-form-derive?/...`) and are therefore meaningful only when
-`derive` is also enabled.
+`derive` is also enabled. `phone` is independent of `derive`.
 
 ## Dependency Role
 

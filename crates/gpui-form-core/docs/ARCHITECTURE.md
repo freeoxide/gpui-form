@@ -11,6 +11,7 @@ pulling in runtime UI dependencies.
 At the moment the crate is intentionally narrow:
 
 - numeric text-entry validation for generated `number_input` fields
+- optional phone-number parsing and selected-country validation helpers
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
 - `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
 
@@ -19,8 +20,24 @@ At the moment the crate is intentionally narrow:
 - `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormState`, and
   the `path`/`state` modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
+- `src/phone.rs`: optional parser-backed phone validation helpers behind the
+  `phone` feature
 - `src/path.rs`: `FieldPath` typed field-path primitive
 - `src/state.rs`: `FormState<H>` form-state helper
+
+## Phone Validation
+
+`phone.rs` is behind the `phone` feature because it pulls in the `phonenumber`
+parser. The module stays UI-neutral: callers provide raw input and a selected
+`country::Id`, and the helper returns `PhoneNumberValidation`.
+
+The helper deliberately checks two things:
+
+- `phonenumber` can parse and validate the number.
+- The parsed number country matches the selected country.
+
+That second check prevents international input such as `+1 415 550 2222` from
+passing when the UI's country select is set to France.
 
 ## FormState
 

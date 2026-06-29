@@ -14,11 +14,10 @@ es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-es-fluent = { workspace = true }
-gpui-form = { workspace = true }
+gpui-form = { features = [ "phone" ], workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
 gpui-storybook-core = { workspace = true }
 gpui_platform = { workspace = true }
-phonenumber = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }
 strum = { workspace = true }

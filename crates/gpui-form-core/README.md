@@ -12,6 +12,8 @@ Today this crate is intentionally small and focused:
 
 - `numeric::validate_signed_numeric`
 - `numeric::validate_unsigned_numeric`
+- `phone::validate_phone_number_for_country_label` behind the optional
+  `phone` feature
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
 - `path::FieldPath` for typed field naming (a headless, GPUI-free, serde-free
   primitive)
@@ -20,6 +22,29 @@ The numeric helpers match the text-entry rules used by `gpui-form` number
 inputs. `FormState` is the pure, GPUI-free side of form-state persistence and
 dirty tracking (feature #1); it is re-exported by the facade as
 `gpui_form::FormState`.
+
+The phone helpers wrap the `phonenumber` parser and add selected-country
+matching. This avoids repeating the same boilerplate in every UI that has a
+country select plus phone input.
+
+```toml
+gpui-form-core = { version = "*", features = ["phone"] }
+```
+
+```rs
+use gpui_form_core::phone::{
+    country,
+    validate_phone_number_for_country_label,
+};
+
+let result = validate_phone_number_for_country_label(
+    "+1 415 550 2222",
+    country::FR,
+    "France",
+);
+
+assert!(!result.is_valid());
+```
 
 ## FormState
 
@@ -114,7 +139,7 @@ assert!(!validate_unsigned_numeric::<u32>("-1", true));
 
 - You are building your own numeric input wrapper and want the same text-entry
   rules as `gpui-form`
-- You want the validation helpers without pulling in `gpui` or
+- You want the numeric or phone validation helpers without pulling in `gpui` or
   `gpui-component`
 - You want `FormState` dirty/reset/diff logic without the GPUI runtime layer
   (the facade re-exports it as `gpui_form::FormState` for convenience)

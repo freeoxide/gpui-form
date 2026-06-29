@@ -16,6 +16,8 @@ pub use gpui_form_core::FieldPath;
 pub use gpui_form_core::FormState;
 pub use gpui_form_core::numeric;
 pub use gpui_form_core::path;
+#[cfg(feature = "phone")]
+pub use gpui_form_core::phone;
 pub use gpui_form_core::state;
 pub use gpui_form_schema as schema;
 // Ergonomic root re-export of the width hint enum. `FieldLayout` itself stays
