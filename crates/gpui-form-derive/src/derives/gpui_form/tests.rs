@@ -25,12 +25,20 @@ mod gpui_form_tests {
                 email: String,
             }
         };
-        let out = expand_gpui_form(input, GpuiFormOptions { generate_shape: false });
+        let out = expand_gpui_form(
+            input,
+            GpuiFormOptions {
+                generate_shape: false,
+            },
+        );
         let s = out.to_string();
 
         // The path type appears after the value holder (both derive from the
         // source struct ident).
-        assert!(s.contains("ProfileFormPath"), "no path type in expansion: {s}");
+        assert!(
+            s.contains("ProfileFormPath"),
+            "no path type in expansion: {s}"
+        );
         assert!(s.contains("ProfileFormValueHolder"), "no value holder: {s}");
         // Per-field constructors named after the fields. Tokenized output
         // spaces out `fn name` / `fn email`, so match on the freestanding form.
@@ -41,7 +49,10 @@ mod gpui_form_tests {
         assert!(s.contains("AsRef"), "no AsRef: {s}");
         assert!(s.contains("Display"), "no Display: {s}");
         // No generics on the path type (paths are field-name only).
-        assert!(!s.contains("ProfileFormPath <"), "path type must not be generic: {s}");
+        assert!(
+            !s.contains("ProfileFormPath <"),
+            "path type must not be generic: {s}"
+        );
     }
 
     #[test]
@@ -69,15 +80,15 @@ mod gpui_form_tests {
                         "SomeValidator",
                         "Should extract correct validator name"
                     );
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -101,15 +112,15 @@ mod gpui_form_tests {
             match result {
                 ParseFieldResult::Valid(info) => {
                     assert!(info.is_newtype(), "Should detect newtype in cfg_attr");
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for newtype"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -133,15 +144,15 @@ mod gpui_form_tests {
             match result {
                 ParseFieldResult::Valid(info) => {
                     assert!(info.is_nested(), "Should detect nested in cfg_attr");
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for nested"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -187,13 +198,13 @@ mod gpui_form_tests {
                             "Field {} should have named validators",
                             idx
                         );
-                    }
+                    },
                     ParseFieldResult::Skip => {
                         panic!("Field {} should have validators, got Skip", idx);
-                    }
+                    },
                     ParseFieldResult::Error(e) => {
                         panic!("Field {} parsing failed: {}", idx, e);
-                    }
+                    },
                 }
             }
         }
@@ -254,13 +265,13 @@ mod gpui_form_tests {
                     for (idx, v) in info.validation.field_validators.iter().enumerate() {
                         eprintln!("    validator[{}]: {}", idx, v.name());
                     }
-                }
+                },
                 ParseFieldResult::Skip => {
                     eprintln!("  Result: Skip");
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     eprintln!("  Result: Error({})", e);
-                }
+                },
             }
 
             match result {
@@ -269,15 +280,15 @@ mod gpui_form_tests {
                         info.is_newtype(),
                         "Should detect newtype validation in nested cfg_attr"
                     );
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "koruma_derive_core returned Skip for field with koruma(newtype) - cfg_attr not being handled!"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("koruma_derive_core returned Error: {}", e);
-                }
+                },
             }
         }
 
@@ -1175,4 +1186,3 @@ mod gpui_form_tests {
         tokens.split_whitespace().collect::<String>()
     }
 }
-

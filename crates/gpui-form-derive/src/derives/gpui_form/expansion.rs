@@ -18,7 +18,7 @@ fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
         Some(expr) => {
             let expr_str = expr.to_token_stream().to_string();
             quote! { Some(#expr_str) }
-        }
+        },
         None => quote! { None },
     }
 }
@@ -295,13 +295,13 @@ pub fn expand_gpui_form(
                 let layout_width = match field.width {
                     Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Full) => {
                         quote! { ::gpui_form::schema::layout::LayoutWidth::Full }
-                    }
+                    },
                     Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Half) => {
                         quote! { ::gpui_form::schema::layout::LayoutWidth::Half }
-                    }
+                    },
                     Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Third) => {
                         quote! { ::gpui_form::schema::layout::LayoutWidth::Third }
-                    }
+                    },
                     None => quote! { ::gpui_form::schema::layout::LayoutWidth::Full },
                 };
                 let layout_tokens = quote! {

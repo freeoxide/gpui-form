@@ -41,7 +41,10 @@ use crate::derives::gpui_form::structs::FieldOptionality;
 /// The returned tokens are spliced into the final derive output next to the
 /// value-holder tokens. They always emit a path type — even for a form with
 /// zero non-skipped fields — per the feature #8 contract.
-pub fn generate_field_path(original_input: &DeriveInput, fields: &[FieldOptionality]) -> TokenStream {
+pub fn generate_field_path(
+    original_input: &DeriveInput,
+    fields: &[FieldOptionality],
+) -> TokenStream {
     let form_path_ident = format_ident!("{}FormPath", original_input.ident);
 
     // One freestanding `pub fn <field>() -> Self` constructor per non-skipped
