@@ -30,6 +30,10 @@ Storybook-style GPUI app that renders generated forms around the example types.
 The checked-in `location_form` example shows the runtime-owned
 `InfiniteSelectState` flow with `form_fields()` instead of manual child-select
 rebuilding.
+It includes a manual `Feature Audit` story for the recent headless additions:
+`FormState` dirty tracking/reset, generated typed field paths, generated holder
+debug data, and pointers to the generated User story for layout sections and
+`number_input(as = f64)`.
 It also includes a manual `Phone Verification` story that proves dynamic
 country-driven phone validation in the UI with the `phonenumber` parser rather
 than regex-only checks.
@@ -39,6 +43,16 @@ Run it with:
 ```sh
 cargo run -p some-lib-forms
 ```
+
+To open the feature audit screen directly:
+
+```sh
+cargo run -p some-lib-forms -- "Feature Audit"
+```
+
+Type in the username field to see `FormState::is_dirty` flip, then use
+`Reset to baseline` and `Mark current clean`. Open the generated `User` story
+to test the layout sections plus `number_input(as = f64)` balance/debt fields.
 
 To open the phone validation story directly:
 
