@@ -67,6 +67,11 @@ fn validate_phone(country: PhoneCountry, raw: &str) -> PhoneValidation {
     }
 
     match phonenumber::parse(Some(country.country_id()), trimmed) {
+        Ok(number) if number.country().id() != Some(country.country_id()) => {
+            PhoneValidation::Invalid {
+                reason: format!("Phone number country does not match selected country: {country}"),
+            }
+        },
         Ok(number) if number.is_valid() => PhoneValidation::Valid {
             e164: number.format().mode(Mode::E164).to_string(),
         },
@@ -225,6 +230,20 @@ mod tests {
     #[test]
     fn us_number_validates_for_us_not_france() {
         let number = "415 555 2671";
+
+        assert!(matches!(
+            validate_phone(PhoneCountry::UnitedStates, number),
+            PhoneValidation::Valid { .. }
+        ));
+        assert!(matches!(
+            validate_phone(PhoneCountry::France, number),
+            PhoneValidation::Invalid { .. }
+        ));
+    }
+
+    #[test]
+    fn international_us_number_does_not_validate_when_france_is_selected() {
+        let number = "+1 415 550 2222";
 
         assert!(matches!(
             validate_phone(PhoneCountry::UnitedStates, number),
