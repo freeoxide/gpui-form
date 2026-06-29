@@ -3,7 +3,6 @@ use gpui::{
     ParentElement as _, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::ActiveTheme as _;
-use gpui_component::checkbox::Checkbox;
 use gpui_component::form::{field, v_form};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::select::{Select, SelectEvent, SelectItem, SelectState};
@@ -56,16 +55,12 @@ impl SelectItem for PhoneCountry {
     }
 }
 
-fn validate_phone(
-    country: PhoneCountry,
-    raw: &str,
-    require_country_match: bool,
-) -> PhoneNumberValidation {
-    if require_country_match {
-        validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
-    } else {
-        validate_phone_number(raw, Some(country.country_id()))
-    }
+fn validate_country_phone(country: PhoneCountry, raw: &str) -> PhoneNumberValidation {
+    validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
+}
+
+fn validate_global_phone(raw: &str) -> PhoneNumberValidation {
+    validate_phone_number(raw, None)
 }
 
 #[gpui_storybook::story_init]
@@ -74,10 +69,11 @@ pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
 pub struct PhoneVerificationForm {
     country: PhoneCountry,
-    phone: String,
-    require_country_match: bool,
+    country_phone: String,
+    global_phone: String,
     country_select: Entity<SelectState<Vec<PhoneCountry>>>,
-    phone_input: Entity<InputState>,
+    country_phone_input: Entity<InputState>,
+    global_phone_input: Entity<InputState>,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -109,19 +105,30 @@ impl PhoneVerificationForm {
                 cx,
             )
         });
-        let phone_input = cx.new(|cx| InputState::new(window, cx));
+        let country_phone_input = cx.new(|cx| InputState::new(window, cx));
+        let global_phone_input = cx.new(|cx| InputState::new(window, cx));
 
         let _subscriptions = vec![
             cx.subscribe_in(&country_select, window, Self::on_country_select_event),
-            cx.subscribe_in(&phone_input, window, Self::on_phone_input_event),
+            cx.subscribe_in(
+                &country_phone_input,
+                window,
+                Self::on_country_phone_input_event,
+            ),
+            cx.subscribe_in(
+                &global_phone_input,
+                window,
+                Self::on_global_phone_input_event,
+            ),
         ];
 
         Self {
             country,
-            phone: String::new(),
-            require_country_match: true,
+            country_phone: String::new(),
+            global_phone: String::new(),
             country_select,
-            phone_input,
+            country_phone_input,
+            global_phone_input,
             focus_handle: cx.focus_handle(),
             _subscriptions,
         }
@@ -143,7 +150,7 @@ impl PhoneVerificationForm {
         }
     }
 
-    fn on_phone_input_event(
+    fn on_country_phone_input_event(
         &mut self,
         state: &Entity<InputState>,
         event: &InputEvent,
@@ -152,7 +159,23 @@ impl PhoneVerificationForm {
     ) {
         match event {
             InputEvent::Change => {
-                self.phone = state.read(cx).value().to_string();
+                self.country_phone = state.read(cx).value().to_string();
+                cx.notify();
+            },
+            _ => {},
+        }
+    }
+
+    fn on_global_phone_input_event(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                self.global_phone = state.read(cx).value().to_string();
                 cx.notify();
             },
             _ => {},
@@ -162,14 +185,17 @@ impl PhoneVerificationForm {
 
 impl Render for PhoneVerificationForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let validation = validate_phone(
-            self.country.clone(),
-            &self.phone,
-            self.require_country_match,
-        );
-        let status = validation.message();
-        let valid = validation.is_valid();
-        let status_color = if valid {
+        let country_validation = validate_country_phone(self.country.clone(), &self.country_phone);
+        let country_status = country_validation.message();
+        let country_status_color = if country_validation.is_valid() {
+            cx.theme().success
+        } else {
+            cx.theme().danger
+        };
+
+        let global_validation = validate_global_phone(&self.global_phone);
+        let global_status = global_validation.message();
+        let global_status_color = if global_validation.is_valid() {
             cx.theme().success
         } else {
             cx.theme().danger
@@ -188,37 +214,42 @@ impl Render for PhoneVerificationForm {
                     .child(
                         field()
                             .label("Country")
-                            .description("Changing this revalidates the current phone text.")
+                            .description(
+                                "Only the country-bound phone field uses this selection.",
+                            )
                             .child(Select::new(&self.country_select)),
                     )
                     .child(
                         field()
-                            .label("Phone number")
+                            .label("Country-bound phone number")
                             .description(
-                                "Try +1 415 550 2222 with France selected, then toggle country matching.",
+                                "Must match the selected country. Try +1 415 550 2222 with France selected.",
                             )
-                            .child(Input::new(&self.phone_input)),
+                            .child(Input::new(&self.country_phone_input)),
                     )
                     .child(
                         field()
-                            .label("Require selected country match")
-                            .description(
-                                "On: valid numbers must belong to the selected country. Off: any valid global number is accepted.",
-                            )
-                            .child(
-                                Checkbox::new("phone-require-country-match")
-                                    .checked(self.require_country_match)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.require_country_match =
-                                            !this.require_country_match;
-                                        cx.notify();
-                                    })),
-                            ),
+                            .label("Country-bound validation")
+                            .child(div().text_color(country_status_color).child(country_status)),
                     )
                     .child(
                         field()
-                            .label("Parser-backed validation")
-                            .child(div().text_color(status_color).child(status)),
+                            .label("Global phone validation")
+                            .description("This field is independent of the selected country.")
+                            .child(div()),
+                    )
+                    .child(
+                        field()
+                            .label("Global phone number")
+                            .description(
+                                "No country match required. International numbers like +1 415 550 2222 are accepted if globally valid.",
+                            )
+                            .child(Input::new(&self.global_phone_input)),
+                    )
+                    .child(
+                        field()
+                            .label("Global validation")
+                            .child(div().text_color(global_status_color).child(global_status)),
                     ),
             )
             .child(Separator::horizontal())
@@ -234,11 +265,11 @@ mod tests {
         let number = "415 555 2671";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number, true),
+            validate_country_phone(PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number, true),
+            validate_country_phone(PhoneCountry::France, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -248,11 +279,11 @@ mod tests {
         let number = "+1 415 550 2222";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number, true),
+            validate_country_phone(PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number, true),
+            validate_country_phone(PhoneCountry::France, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -262,11 +293,11 @@ mod tests {
         let number = "01 42 68 53 00";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number, true),
+            validate_country_phone(PhoneCountry::France, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_phone(PhoneCountry::UnitedStates, number, true),
+            validate_country_phone(PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -276,7 +307,7 @@ mod tests {
         let number = "+1 415 550 2222";
 
         assert!(matches!(
-            validate_phone(PhoneCountry::France, number, false),
+            validate_global_phone(number),
             PhoneNumberValidation::Valid(_)
         ));
     }
