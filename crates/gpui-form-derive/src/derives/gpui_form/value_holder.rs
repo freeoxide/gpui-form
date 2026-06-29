@@ -218,7 +218,7 @@ fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name
                 }
             }
-        }
+        },
         FieldStorage::WrappedOption => {
             if let Some(default_expr) = &field.default_expr {
                 let default_original = default_expr_for_original(default_expr);
@@ -262,13 +262,13 @@ fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: Some(from.#field_name)
                 }
             }
-        }
+        },
         FieldStorage::Plain => {
             let converted = apply_from_conversion(field, quote! { from.#field_name });
             quote! {
                 #field_name: #converted
             }
-        }
+        },
     }
 }
 
@@ -287,7 +287,7 @@ fn generate_from_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name
                 }
             }
-        }
+        },
         FieldStorage::WrappedOption => {
             if let Some(default_expr) = &field.default_expr {
                 let default_original = default_expr_for_original(default_expr);
@@ -315,13 +315,13 @@ fn generate_from_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name.unwrap_or_default()
                 }
             }
-        }
+        },
         FieldStorage::Plain => {
             let converted = apply_into_conversion(field, quote! { from.#field_name });
             quote! {
                 #field_name: #converted
             }
-        }
+        },
     }
 }
 
@@ -354,7 +354,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     }
                 }
             }
-        }
+        },
         FieldStorage::WrappedOption => {
             if needs_into_conversion(field) {
                 let converted = apply_into_conversion(field, quote! { value });
@@ -379,7 +379,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     }
                 }
             }
-        }
+        },
         FieldStorage::Plain => {
             if needs_into_conversion(field) {
                 let converted = apply_into_conversion(field, quote! { value });
@@ -401,7 +401,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     ));
                 }
             }
-        }
+        },
     }
 }
 
@@ -505,15 +505,19 @@ pub fn generate_value_holder(
             derives.push(quote! { ::koruma::Koruma });
         }
     }
-    // Feature `serde` (form-state persistence + dirty tracking, feature #1):
-    // make the generated holder (de)serializable and comparable. PartialEq (not
-    // Eq, since `number_input(as = f64)` and similar non-Eq field types would
-    // otherwise fail to compile) is required by `FormState::is_dirty`.
+    // Always derive `PartialEq` on the generated holder (not `Eq`, since
+    // `number_input(as = f64)` and similar non-Eq field types would otherwise
+    // fail to compile). `FormState::is_dirty` / `diff_against` require
+    // `H: PartialEq` and are exported unconditionally, so the holder must
+    // implement `PartialEq` on default features too — otherwise `is_dirty`
+    // would not compile without the `serde` feature.
+    derives.push(quote! { ::core::cmp::PartialEq });
+    // Feature `serde` (form-state persistence, feature #1): make the generated
+    // holder (de)serializable. Serialization is opt-in; comparison is not.
     #[cfg(feature = "serde")]
     {
         derives.push(quote! { ::serde::Serialize });
         derives.push(quote! { ::serde::Deserialize });
-        derives.push(quote! { ::core::cmp::PartialEq });
     }
 
     let derive_output = quote! { #[derive(#(#derives),*)] };

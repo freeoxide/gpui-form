@@ -78,25 +78,27 @@ Important behaviors:
 - reverse conversion becomes explicit `into_original(...)` when skipped fields
   prevent a fully automatic round trip
 
-### Feature `serde` (form-state persistence + dirty tracking)
+### Feature `serde` (form-state persistence)
 
 The holder's `#[derive(...)]` list is built in `value_holder.rs` and starts from
 `Clone, Debug` (plus `Default`, the `bon::Builder` when skipped fields are
-present, and the relevant `Koruma` derives). Under `#[cfg(feature = "serde")]`
-the block additionally pushes `::serde::Serialize`, `::serde::Deserialize`, and
-`::core::cmp::PartialEq` onto that list.
+present, and the relevant `Koruma` derives). `::core::cmp::PartialEq` is ALWAYS
+pushed onto that list, regardless of features. Under `#[cfg(feature = "serde")]`
+the block additionally pushes `::serde::Serialize` and `::serde::Deserialize`.
 
 Rationale:
 
+- `PartialEq` (not `Eq`) is emitted unconditionally and deliberately.
+  `number_input(as = f64)` and other non-`Eq` field types would break
+  compilation under `Eq`, and `PartialEq` is the exact bound required by
+  `gpui_form_core::FormState::is_dirty` / `diff_against` — both of which are
+  exported unconditionally. Gating `PartialEq` behind `serde` would mean
+  `is_dirty` fails to compile on default features, so the holder must derive
+  `PartialEq` even when serialization is off.
 - The facade forwards its `serde` feature to `gpui-form-derive/serde`, so any
   expansion produced while the derive crate is built with the feature inherits
-  these derives.
-- `PartialEq` (not `Eq`) is emitted deliberately. `number_input(as = f64)` and
-  other non-`Eq` field types would break compilation under `Eq`, and
-  `PartialEq` is the exact bound required by `gpui_form_core::FormState::is_dirty`.
-- Bundling serde + `PartialEq` under one feature is coherent because feature #1
-  is "persistence AND dirty tracking": the same flag that makes the holder
-  (de)serializable also makes it comparable for dirty detection.
+  the `Serialize`/`Deserialize` derives. Serialization is opt-in; comparison
+  is not.
 
 A holder carrying `#[gpui_form(skip)]` fields still round-trips through serde on
 its own, but cannot fully reconstruct the source struct via `into_original`
@@ -206,6 +208,10 @@ change.
   serde round-trip, `Option` fields, skipped-field holder, and `PartialEq`
   comparability). It is gated with `#![cfg(feature = "serde")]`, so it is
   excluded from the default-feature build that proves feature-OFF still compiles.
+- `tests/form_state_dirty_without_serde.rs` is the UNGATED regression test that
+  proves `FormState::is_dirty` compiles and behaves under DEFAULT features
+  (no `serde`). It locks in the unconditional `PartialEq` derive on the holder;
+  if `PartialEq` ever gets re-gated behind `serde`, this test stops compiling.
 - `tests/field_path.rs` exercises the feature-#8 path type end-to-end (per-field
   ctors, skip exclusion, `Display`/`Deref`/`AsRef`/`into_path`, empty-form
   branch, distinct types per form). It is NOT gated — `FieldPath` is
@@ -217,8 +223,9 @@ Update this file when:
 
 - the expansion pipeline changes
 - holder conversion behavior changes
-- the holder derive list (`Clone`/`Debug`/`Default`/`Builder`/`Koruma`, plus the
-  `serde` feature's `Serialize`/`Deserialize`/`PartialEq`) changes
+- the holder derive list (`Clone`/`Debug`/`Default`/`Builder`/`Koruma` plus the
+  unconditional `PartialEq`, plus the `serde` feature's
+  `Serialize`/`Deserialize`) changes
 - inventory or Koruma emission rules change
 - macro responsibilities move between modules
 - the generated `<Name>FormPath` shape changes (constructors, generics,

@@ -1,6 +1,6 @@
 # Feature backlog
 
-Status: **proposed** — candidate features for future `gpui-form` work.
+Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline.
 
 ## Scope boundary
 
@@ -25,6 +25,10 @@ runtime primitives or thin mappings to existing `gpui-component` widgets.
 
 ### 1. Form-state persistence and dirty tracking
 
+> **Status: shipped (feature #1).** Opt-in `serde` (de)serialization of the generated holder plus
+> the pure, GPUI-free `gpui_form::core::FormState<H>` wrapper (is_dirty / reset_to_baseline /
+> diff_against) are live. See `form-state-persistence.md`.
+
 See [`form-state-persistence.md`](form-state-persistence.md).
 
 Generated forms should support save/restore workflows and know whether the user
@@ -39,7 +43,7 @@ let state = gpui_form::core::FormState::new(initial_holder);
 
 state.is_dirty();
 state.reset_to_baseline();
-state.diff();
+state.diff_against(&initial_holder);
 ```
 
 ### 2. Nested forms
@@ -436,7 +440,7 @@ creating a parallel validation system.
 
 ## Suggested order
 
-1. Form-state persistence and dirty tracking.
+1. Form-state persistence and dirty tracking — **shipped (feature #1)**.
 2. Numeric validation hardening.
 3. Typed field paths and field IDs — **shipped (FLAT v1)**; nested/list
    composition expands under #2/#3.

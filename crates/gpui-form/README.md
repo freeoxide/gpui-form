@@ -285,11 +285,13 @@ the app know whether the user edited them. It is additive and opt-in.
 gpui-form = { version = "*", features = ["serde"] }
 ```
 
-With the feature on, `#[derive(GpuiForm)]` adds `Serialize`, `Deserialize`, and
-`PartialEq` to the generated `...FormValueHolder`, so the holder round-trips
-through any serde format. The facade also re-exports `gpui_form::FormState`
-(from `gpui-form-core`) for dirty tracking, reset, and diffing — pure logic with
-no GPUI dependency.
+With the feature on, `#[derive(GpuiForm)]` adds `Serialize` and `Deserialize`
+to the generated `...FormValueHolder`, so the holder round-trips through any
+serde format. The holder always derives `PartialEq` (not `Eq`, since field
+types like `number_input(as = f64)` are not `Eq`), so `FormState`'s dirty
+tracking works on default features too. The facade also re-exports
+`gpui_form::FormState` (from `gpui-form-core`) for dirty tracking, reset, and
+diffing — pure logic with no GPUI dependency.
 
 ```rs
 use gpui_form::{FormState, GpuiForm};

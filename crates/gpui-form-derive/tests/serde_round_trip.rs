@@ -94,8 +94,9 @@ fn skipped_field_holder_round_trips() {
 #[test]
 fn holder_is_partial_eq_comparable() {
     // Confirms the generated holder derives PartialEq (required by
-    // FormState::is_dirty). This compiles only because the derive emits
-    // PartialEq under the serde feature.
+    // FormState::is_dirty). PartialEq is derived unconditionally — not just
+    // under the serde feature — so dirty tracking works on default features;
+    // this test exercises it under the serde build where this file compiles.
     let a = ContactFormFormValueHolder::from(ContactForm {
         name: "x".to_string(),
         nickname: None,

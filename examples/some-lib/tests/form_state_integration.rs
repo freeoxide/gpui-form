@@ -67,9 +67,12 @@ fn form_state_over_real_user_holder_tracks_edits_and_resets() {
 #[test]
 fn real_user_holder_round_trips_through_serde() {
     // Check 3: Option<T>-wrapped fields (age, country, birth_date) and the
-    // non-Eq `number_input(as = f64)` Decimal fields all round-trip. This
-    // also proves the holder derives PartialEq (needed for the assert_eq)
-    // WITHOUT deriving Eq — Decimal is f64-backed and non-Eq.
+    // fixed-precision Decimal fields all round-trip. This also proves the
+    // holder derives PartialEq (needed for the assert_eq) WITHOUT deriving
+    // Eq. Note rust_decimal::Decimal DOES implement Eq (it is a fixed 128-bit
+    // type with no NaN); the holder stays PartialEq-only for other genuinely
+    // non-Eq field types like `number_input(as = f64)`, which is why the
+    // derive emits `PartialEq` rather than `Eq`.
     let holder = UserHolder::from(sample_user());
 
     let json = serde_json::to_string(&holder).expect("serialize");
