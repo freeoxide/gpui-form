@@ -30,12 +30,25 @@ Storybook-style GPUI app that renders generated forms around the example types.
 The checked-in `location_form` example shows the runtime-owned
 `InfiniteSelectState` flow with `form_fields()` instead of manual child-select
 rebuilding.
+It also includes a manual `Phone Verification` story that proves dynamic
+country-driven phone validation in the UI with the `phonenumber` parser rather
+than regex-only checks.
 
 Run it with:
 
 ```sh
 cargo run -p some-lib-forms
 ```
+
+To open the phone validation story directly:
+
+```sh
+cargo run -p some-lib-forms -- "Phone Verification"
+```
+
+Try `415 555 2671` with `United States`, then switch the country to `France`.
+Try `01 42 68 53 00` with `France`, then switch the country to
+`United States`.
 
 ## gpui-form-component-story
 
