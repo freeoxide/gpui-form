@@ -3105,7 +3105,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-es-fluent"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "es-fluent",
  "es-fluent-manager-embedded",
@@ -3117,7 +3117,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -3129,7 +3129,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-codegen"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "derive_more",
@@ -3142,7 +3142,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "chrono",
  "es-fluent",
@@ -3162,7 +3162,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "proc-macro-crate 3.5.0",
@@ -3174,7 +3174,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component-story"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -3196,14 +3196,14 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "phonenumber",
 ]
 
 [[package]]
 name = "gpui-form-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "es-fluent",
@@ -3229,7 +3229,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-prototyping-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "gpui-form-schema",
  "heck 0.5.0",
@@ -3240,7 +3240,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-schema"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "heck 0.5.0",
  "inventory",
@@ -3249,7 +3249,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "gpui",
  "gpui-storybook-core",
@@ -3261,7 +3261,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-components"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "gpui",
  "gpui-component",
@@ -3269,7 +3269,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "es-fluent",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-macros"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "heck 0.5.0",
  "insta",
@@ -3302,7 +3302,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-storybook-toml"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
  "toml 1.1.2+spec-1.1.0",
