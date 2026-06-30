@@ -18,3 +18,6 @@ test:
 
 test-publish:
     cargo publish --workspace --dry-run --allow-dirty
+
+clean:
+    cargo clean
