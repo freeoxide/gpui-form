@@ -1,6 +1,7 @@
-# Next feature: form-state persistence
+# Form-state persistence
 
-Status: **proposed** — the next feature to implement.
+Status: **shipped** (commit 51ed490, "Add form-state persistence and dirty
+tracking").
 
 ## Summary
 
@@ -14,7 +15,7 @@ This feature adds:
 
 1. Opt-in `serde` (de)serialization of the generated value holder (JSON, with
    TOML as a follow-on).
-2. Pure, GPUI-free helpers for `is_dirty`, `reset_to_defaults`, and diffing two
+2. Pure, GPUI-free helpers for `is_dirty`, `reset_to_baseline`, and diffing two
    holders.
 
 ## Why this is next
@@ -30,32 +31,52 @@ It is the highest-value genuine gap in the workspace:
 ## Current state
 
 The generated holder is plain data with conversions to/from the source struct,
-but it is not serializable:
+and it is (de)serializable behind the `serde` feature:
 
-- The holder derive list is `Clone`, `Debug`, optionally `Default`,
-  `bon::Builder`, and `koruma::Koruma` — **no** `Serialize`/`Deserialize`
-  (`crates/gpui-form-derive/src/derives/gpui_form/value_holder.rs:493-507`).
-- `gpui-form-derive` declares **no** `serde` dependency
-  (`crates/gpui-form-derive/Cargo.toml`).
-- The only JSON output is `present_fields_json`, a non-invertible `Debug` dump
-  that exists only for forms with skipped fields
-  (`value_holder.rs:600`). It cannot round-trip.
-- There is **no dirty-tracking / reset / diff** API. Field defaults are consumed
-  at macro-expansion time and are not retained on the runtime holder, so there
-  is no baseline to compare against.
+- The always-derived holder derive list is `Clone`, `Debug`, optionally
+  `Default`, `bon::Builder` (when any field is skipped), `koruma::Koruma`, and
+  `::core::cmp::PartialEq`
+  (`crates/gpui-form-derive/src/derives/gpui_form/value_holder.rs:493-514`).
+  `PartialEq` (not `Eq`) is emitted **unconditionally** because
+  `FormState::is_dirty` / `diff_against` are exported unconditionally and
+  require `H: PartialEq`, yet `serde` is not in `default` — so the holder must
+  be comparable on default features too. It is `PartialEq` rather than `Eq`
+  because `number_input(as = f64)` and similar non-`Eq` field types must still
+  compile.
+- Under `#[cfg(feature = "serde")]` only, `::serde::Serialize` and
+  `::serde::Deserialize` are added to the derive list (`value_holder.rs:517-521`).
+- `gpui-form-derive` declares `serde = { workspace = true, optional = true }`
+  and the `serde = ["dep:serde"]` feature
+  (`crates/gpui-form-derive/Cargo.toml`); the `dep:serde` form is required
+  precisely because the dependency is optional.
+- `present_fields_json`, a non-invertible `Debug` dump that exists only for
+  forms with skipped fields (`value_holder.rs:614`), still cannot round-trip —
+  but with the `serde` feature the holder itself now can.
+- Dirty-tracking / reset / diff **is** live in `gpui-form-core` as
+  `FormState<H>` (`crates/gpui-form-core/src/state.rs`): `is_dirty`,
+  `reset_to_baseline`, `sync_baseline`, `diff_against`, plus
+  `current`/`baseline`/`current_mut`/`replace_current`/`into_current`. It
+  snapshots a `baseline` at construction and compares against it; there is no
+  field-level patch/delta (that is backlog feature #9).
 - The `From<Original> for Holder` and `From<Holder> for Original` / `try_from`
-  conversions already exist (`value_holder.rs:639-657`, `:669-677`), so the
+  conversions already exist (`value_holder.rs:641-657`, `:664-677`), so the
   holder is the natural serialization boundary.
 
 ## Design
 
 ### 1. A `serde` feature on the facade
 
-- `gpui-form/Cargo.toml`: add `serde = ["dep:serde", "gpui-form-derive/serde"]`.
-- `gpui-form-derive/Cargo.toml`: add `serde = { workspace = true }` and a
-  `serde = []` feature.
-- `value_holder.rs`: when the feature is enabled, push `::serde::Serialize` and
-  `::serde::Deserialize` onto the `derives` vector built at line 493.
+- `gpui-form/Cargo.toml`: `serde = ["dep:serde", "gpui-form-derive?/serde"]`
+  (the `?` is required because `gpui-form-derive` is declared
+  `optional = true`).
+- `gpui-form-derive/Cargo.toml`: `serde = { workspace = true, optional = true }`
+  plus `serde = ["dep:serde"]` — the feature **must** list `dep:serde` (not
+  `serde = []`) because the dependency is optional.
+- `value_holder.rs`: push `::core::cmp::PartialEq` onto the `derives` vector
+  built at line 493 **unconditionally**, and under `#[cfg(feature = "serde")]`
+  also push `::serde::Serialize` and `::serde::Deserialize`. `PartialEq` is
+  unconditional because `FormState::is_dirty` / `diff_against` are exported
+  unconditionally (see §2) and `serde` is not in `default`.
 
 `serde`'s derive generates the correct `T: Serialize` / `T: Deserialize` bounds
 from the holder's generics automatically, so monomorphized generic forms keep
@@ -64,16 +85,21 @@ working without manual bound bookkeeping.
 ### 2. Dirty-tracking and reset helpers in `gpui-form-core`
 
 These are pure logic with no GPUI coupling, so they belong in `gpui-form-core`
-next to the existing numeric helpers. The core obstacle is the **baseline**: to
-compute "dirty" the form must remember the state it started from, and
-`default_expr` is currently parse-time only.
+next to the existing numeric helpers. The core obstacle was the **baseline**: to
+compute "dirty" the form must remember the state it started from, but
+`default_expr` is parse-time only and is not retained on the runtime holder. The
+shipped solution sidesteps this by snapshotting the actual passed-in holder at
+construction time rather than reconstructing it from defaults.
 
 Recommended approach: a `FormState<H>` wrapper (in `core`) that owns a
 `baseline: H` and a `current: H`, exposing:
 
-- `is_dirty()` — compares `current` to `baseline` (requires `H: PartialEq`).
-- `reset_to_defaults()` — restores `current` from `baseline`.
-- `diff_against(&H)` — field-level comparison against another holder.
+- `is_dirty()` — whole-value equality (`current != baseline`; requires
+  `H: PartialEq`).
+- `reset_to_baseline()` — restores `current` from a clone of `baseline`.
+- `sync_baseline()` — snapshots `current` into `baseline` (call after a save).
+- `diff_against(&H)` — whole-value boolean comparison (`current != other`);
+  field-level patch/delta is backlog feature #9.
 
 The application constructs it from the initial holder. This keeps the holder
 itself a plain data struct and centralizes the baseline problem in one place
@@ -92,7 +118,7 @@ heavier for everyone and couples a runtime concern into generated code).
   work is required. Field-level `#[serde(...)]` passthrough (rename/skip) may be
   wanted later.
 - **Custom defaults vs `Default`.** `Default` is not derived when the form has
-  custom default expressions (`value_holder.rs:494`). `reset_to_defaults` must
+  custom default expressions (`value_holder.rs:494`). `reset_to_baseline` must
   therefore not assume `Holder: Default`; the `FormState` baseline avoids that
   dependency.
 
@@ -111,7 +137,7 @@ Out of scope:
 
 1. Add the `serde` feature plumbing to `gpui-form` and `gpui-form-derive`; emit
    `Serialize`/`Deserialize` on the holder when enabled.
-2. Add `FormState<H>` with `is_dirty` / `reset_to_defaults` / `diff_against` to
+2. Add `FormState<H>` with `is_dirty` / `reset_to_baseline` / `diff_against` to
    `gpui-form-core`; re-export from the facade.
 3. Tests: a derive test that round-trips a holder through `serde_json`; a `core`
    test for the dirty/reset/diff helpers.

@@ -1,6 +1,7 @@
 pub mod cfg_attr;
 pub mod components;
 pub mod expansion;
+pub mod field_path;
 pub mod koruma;
 pub mod structs;
 pub mod tests;

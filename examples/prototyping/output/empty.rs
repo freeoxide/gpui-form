@@ -1,6 +1,7 @@
 use some_lib::structs::empty::*;
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Window,
 };
 use gpui_component::Disableable as _;
 use gpui_component::separator::Separator;

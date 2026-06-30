@@ -39,6 +39,8 @@ Supported component forms:
 - `#[gpui_form(component(input))]`
 - `#[gpui_form(component(number_input))]`
 - `#[gpui_form(component(number_input(as = f64)))]`
+- `#[gpui_form(component(phone_input))]` (requires the `gpui-form` `phone` feature)
+- `#[gpui_form(component(phone_input(country = <field>)))]` (requires the `gpui-form` `phone` feature)
 - `#[gpui_form(component(checkbox))]`
 - `#[gpui_form(component(switch))]`
 - `#[gpui_form(component(select))]`
@@ -61,6 +63,13 @@ Supporting field attributes:
 - `#[gpui_form(type = <form_type>)]`
 - `#[gpui_form(from = <expr>)]`
 - `#[gpui_form(into = <expr>)]`
+- `#[gpui_form(section = "<str>")]` — non-rendering section grouping hint
+- `#[gpui_form(label = "<str>")]` — preferred display label (defaults to the
+  field name at consumption time when absent)
+- `#[gpui_form(description = "<str>")]` — help text / comment hint
+- `#[gpui_form(placeholder = "<str>")]` — placeholder text for inputs
+- `#[gpui_form(width = full | half | third)]` — relative width hint; accepts a
+  bare ident or a quoted string
 
 Supporting struct attributes:
 
@@ -93,6 +102,25 @@ Behavior notes:
 - when skipped fields are present, the generated value holder keeps builder
   support and exposes `into_original(...)` instead of an unconditional reverse
   conversion
+- the derive also emits a `<Name>FormPath` type — a strongly-typed newtype
+  around `gpui_form::core::FieldPath` — with one same-named constructor per
+  NON-skipped field (`SettingsFormPath::username()`). Skipped fields have NO
+  constructor (mirroring the holder). `<Name>FormPath` carries no generics,
+  reaches the shared primitive via `Deref`/`AsRef`/`into_path`, and is the
+  typed naming foundation for future field-level validation (#6), field-level
+  diff (#9), schema export (#14), and nested/list paths (#2/#3). FLAT v1: each
+  constructor names a single field; typed nested/list composition arrives with
+  #2/#3 (hand-built multi-segment paths via `new(&["a","b"])` work today).
+  `FieldPath` is unconditional — the path type is emitted without any feature
+  flag
+- `section`, `label`, `description`, `placeholder`, and `width` are
+  **metadata-only** layout hints. They do not change generated form rendering;
+  they attach a `FieldLayout` to each emitted `FieldVariant` so downstream
+  tooling (e.g. `gpui-form-prototyping-core`) can consume them. `label`
+  defaults to the field name at consumption time when absent. `width` is a
+  hint, not a layout engine. Hints on `#[gpui_form(skip)]` fields are ignored
+  because no `FieldVariant` is emitted for skipped fields. Section grouping is
+  order-preserving (consecutive same-section fields).
 
 ## `#[derive(SelectItem)]`
 
@@ -134,6 +162,40 @@ By default, the generated implementation calls `Self::new(window, cx)`.
 ## Feature Flags
 
 - `inventory`: enables `GpuiFormShape` registration for `#[derive(GpuiForm)]`
+- `serde`: adds `Serialize`, `Deserialize`, and `PartialEq` to the generated
+  `...FormValueHolder` so it round-trips through any serde format and can be
+  compared for dirty tracking. `PartialEq` (not `Eq`) is emitted deliberately,
+  because `number_input(as = f64)` and similar non-`Eq` field types would
+  otherwise fail to compile. Most users enable this through the facade's
+  `serde` feature rather than this crate directly.
+
+When the `serde` feature is on, the holder becomes suitable for form-state
+persistence and dirty tracking via `gpui_form::FormState`:
+
+```rs
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+}
+
+let holder = SettingsFormValueHolder::default();
+let json = serde_json::to_string(&holder).expect("serialize");
+let restored: SettingsFormValueHolder =
+    serde_json::from_str(&json).expect("deserialize");
+
+let mut state = FormState::new(restored);
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+```
+
+Scope notes: the holder with `#[gpui_form(skip)]` fields round-trips through
+serde on its own, but cannot fully reconstruct the source struct via
+`into_original` (skipped values are absent from the holder). Per-field serde
+passthrough (rename/skip) is backlog feature #15.
 
 ## Most Users Should Use Instead
 

@@ -13,6 +13,18 @@ use super::{
 
 pub struct NumberInputCodeGenerator;
 
+fn number_input_step_kind(type_str: &str) -> NumberInputKind {
+    if type_str.starts_with('f') {
+        NumberInputKind::Float
+    } else if type_str.starts_with('u') {
+        NumberInputKind::UnsignedInteger
+    } else if type_str.starts_with('i') {
+        NumberInputKind::SignedInteger
+    } else {
+        NumberInputKind::Custom
+    }
+}
+
 const IMPORTS: &[ImportItem] = &[
     ImportItem::path("gpui_component::input::InputEvent"),
     ImportItem::path("gpui_component::input::InputState"),
@@ -108,12 +120,14 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         handlers.push(on_input_event_handler);
 
         // Generate increment/decrement logic - value holder always wraps numeric fields in Option
-        let behaviour = match field.behaviour() {
-            ComponentsBehaviour::NumberInput(behaviour) => behaviour,
+        match field.behaviour() {
+            ComponentsBehaviour::NumberInput(_) => {},
             _ => panic!("Expected NumberInput behaviour"),
-        };
+        }
 
-        let (decrement_logic, increment_logic) = match behaviour.kind {
+        let step_kind = number_input_step_kind(field.raw().value_type);
+
+        let (decrement_logic, increment_logic) = match step_kind {
             NumberInputKind::Float => (
                 quote! {
                     let new_value = self.current_data.#field_name_ident.unwrap_or_default() - 1.0;
@@ -180,7 +194,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::NumberInputCodeGenerator;
+    use super::{NumberInputCodeGenerator, number_input_step_kind};
     use crate::implementations::FieldCodeGenerator as _;
     use gpui_form_schema::{
         components::{ComponentsBehaviour, NumberInputBehaviour, NumberInputKind},
@@ -222,6 +236,41 @@ mod tests {
         assert!(
             !compact.contains("ifletInputEvent::Change=event"),
             "number input text-change handlers should not collapse to if let: {compact}"
+        );
+    }
+
+    #[test]
+    fn number_input_as_float_keeps_custom_value_step_logic() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "balance",
+            "rust_decimal::Decimal",
+            false,
+            ComponentsBehaviour::NumberInput(NumberInputBehaviour {
+                kind: NumberInputKind::Float,
+                validation_type: Some("f64"),
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = NumberInputCodeGenerator;
+        let field = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&field, &SHAPE)
+            .expect("number input fields should generate subscriptions");
+        let compact = compact(&generated.handlers[1].to_string());
+
+        assert_eq!(
+            number_input_step_kind(FIELDS[0].value_type),
+            NumberInputKind::Custom
+        );
+        assert!(
+            compact.contains("saturating_sub(1u8.into())")
+                && compact.contains("saturating_add(1u8.into())"),
+            "`as = f64` should drive validation metadata, not Decimal step arithmetic: {compact}"
+        );
+        assert!(
+            !compact.contains("-1.0") && !compact.contains("+1.0"),
+            "custom value step logic should not emit float arithmetic: {compact}"
         );
     }
 }

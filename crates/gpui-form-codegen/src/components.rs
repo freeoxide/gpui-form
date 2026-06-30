@@ -133,6 +133,36 @@ impl FromMeta for NumberInputOptions {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct PhoneInputOptions {
+    /// Optional sibling field whose selected country the number must match
+    /// (`phone_input(country = <field>)`). When absent, any globally valid
+    /// number is accepted.
+    pub country: Option<syn::Ident>,
+}
+
+impl FromMeta for PhoneInputOptions {
+    fn from_word() -> darling::Result<Self> {
+        Ok(Self::default())
+    }
+
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        let mut country = None;
+
+        for item in items {
+            if let darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv)) = item
+                && nv.path.is_ident("country")
+                && let syn::Expr::Path(expr_path) = &nv.value
+                && let Some(ident) = expr_path.path.get_ident()
+            {
+                country = Some(ident.clone());
+            }
+        }
+
+        Ok(Self { country })
+    }
+}
+
 #[derive(Clone, Debug, FromMeta)]
 pub struct CheckboxOptions;
 
@@ -275,6 +305,7 @@ impl_component_option!(
     SelectOptions,
     InputOptions,
     NumberInputOptions,
+    PhoneInputOptions,
     CheckboxOptions,
     SwitchOptions,
     DatePickerOptions,
@@ -289,6 +320,7 @@ impl_component_option!(
 pub enum Components {
     Input,
     NumberInput(NumberInputOptions),
+    PhoneInput(PhoneInputOptions),
     Checkbox,
     Switch,
     Select(SelectOptions),
@@ -300,6 +332,7 @@ pub enum Components {
 
 define_component_definition!(InputComponent, InputOptions, Input);
 define_component_definition!(NumberInputComponent, NumberInputOptions, NumberInput);
+define_component_definition!(PhoneInputComponent, PhoneInputOptions, PhoneInput);
 define_component_definition!(CheckboxComponent, CheckboxOptions, Checkbox);
 define_component_definition!(SwitchComponent, SwitchOptions, Switch);
 define_component_definition!(SelectComponent, SelectOptions, Select);
@@ -367,6 +400,7 @@ impl Components {
         match self {
             Self::Input => ComponentKind::Input,
             Self::NumberInput(_) => ComponentKind::NumberInput,
+            Self::PhoneInput(_) => ComponentKind::PhoneInput,
             Self::Checkbox => ComponentKind::Checkbox,
             Self::Switch => ComponentKind::Switch,
             Self::Select(_) => ComponentKind::Select,
@@ -404,6 +438,17 @@ impl Components {
             }
             Self::NumberInput(options) => {
                 let component = NumberInputComponent(FieldInformation::new(
+                    options.clone(),
+                    field_name,
+                    field_type,
+                ));
+                component.field_tokens(
+                    &mut field_structure_tokens,
+                    &mut field_base_declarations_tokens,
+                );
+            }
+            Self::PhoneInput(options) => {
+                let component = PhoneInputComponent(FieldInformation::new(
                     options.clone(),
                     field_name,
                     field_type,
@@ -507,6 +552,22 @@ impl Components {
                 quote! {
                     ::gpui_form::schema::components::ComponentsBehaviour::NumberInput(
                         #behaviour
+                    )
+                }
+            }
+            Self::PhoneInput(options) => {
+                let country_field = match options.country.as_ref() {
+                    Some(ident) => {
+                        let name = ident.to_string();
+                        quote! { Some(#name) }
+                    }
+                    None => quote! { None },
+                };
+                quote! {
+                    ::gpui_form::schema::components::ComponentsBehaviour::PhoneInput(
+                        ::gpui_form::schema::components::PhoneInputBehaviour {
+                            country_field: #country_field,
+                        }
                     )
                 }
             }

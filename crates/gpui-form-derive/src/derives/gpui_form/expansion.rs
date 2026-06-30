@@ -8,6 +8,7 @@ use syn::DeriveInput;
 
 use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
 use crate::derives::gpui_form::components::generate_component_field;
+use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
@@ -17,7 +18,7 @@ fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
         Some(expr) => {
             let expr_str = expr.to_token_stream().to_string();
             quote! { Some(#expr_str) }
-        }
+        },
         None => quote! { None },
     }
 }
@@ -50,6 +51,10 @@ pub fn expand_gpui_form(
             enable_koruma,
             enable_koruma_fluent,
         );
+        // Feature #8 (FLAT v1): emit the typed path type even for empty forms
+        // (zero non-skipped fields => no per-field constructors, just the
+        // wrapper with new()/path()/into_path()).
+        let field_path_tokens = generate_field_path(&original_input, &empty_fields);
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::schema::registry::inventory::submit! {
@@ -67,6 +72,7 @@ pub fn expand_gpui_form(
 
         return quote! {
             #value_holder_tokens
+            #field_path_tokens
             pub struct #components_holder_name;
 
             #shape_impl
@@ -209,6 +215,9 @@ pub fn expand_gpui_form(
         effective_enable_koruma,
         enable_koruma_fluent,
     );
+    // Feature #8 (FLAT v1): emit the typed `<Name>FormPath` next to the value
+    // holder. One constructor per non-skipped field; skipped fields are absent.
+    let field_path_tokens = generate_field_path(&original_input, &field_optionality);
 
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
@@ -263,6 +272,49 @@ pub fn expand_gpui_form(
                 let from_expr_tokens = option_expr_string_tokens(&field.from);
                 let into_expr_tokens = option_expr_string_tokens(&field.into);
 
+                // Feature #4 (METADATA-FIRST v1): emit non-rendering layout
+                // hints. Each string hint contributes a builder call only when
+                // present; width is always emitted (Full when absent, matching
+                // `FieldLayout::new()`'s default).
+                let layout_section = match field.section.as_deref() {
+                    Some(v) => quote! { .with_section(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_label = match field.label.as_deref() {
+                    Some(v) => quote! { .with_label(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_description = match field.description.as_deref() {
+                    Some(v) => quote! { .with_description(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_placeholder = match field.placeholder.as_deref() {
+                    Some(v) => quote! { .with_placeholder(Some(#v)) },
+                    None => quote! {},
+                };
+                let layout_width = match field.width {
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Full) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Full }
+                    },
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Half) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Half }
+                    },
+                    Some(crate::derives::gpui_form::structs::LayoutWidthMeta::Third) => {
+                        quote! { ::gpui_form::schema::layout::LayoutWidth::Third }
+                    },
+                    None => quote! { ::gpui_form::schema::layout::LayoutWidth::Full },
+                };
+                let layout_tokens = quote! {
+                    .with_layout(
+                        ::gpui_form::schema::layout::FieldLayout::new()
+                            #layout_section
+                            #layout_label
+                            #layout_description
+                            #layout_placeholder
+                            .with_width(#layout_width)
+                    )
+                };
+
                 Some(quote! {
                     ::gpui_form::schema::registry::FieldVariant::new(
                         #field_name_str,
@@ -280,6 +332,7 @@ pub fn expand_gpui_form(
                     #custom_component_tokens
                     #custom_shape_tokens
                     #custom_value_binding_tokens
+                    #layout_tokens
                 })
             } else {
                 None
@@ -306,6 +359,7 @@ pub fn expand_gpui_form(
 
     let expanded = quote! {
         #value_holder_tokens
+        #field_path_tokens
         pub struct #components_holder_name {
             #(#field_structure_tokens)*
         }

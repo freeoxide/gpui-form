@@ -14,6 +14,19 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component", branch 
 gpui-form = "*"
 ```
 
+Optional feature flags (additive):
+
+```toml
+# inventory registration for prototyping/code generation
+# gpui-form = { version = "*", features = ["inventory"] }
+
+# form-state persistence + dirty tracking (serde + PartialEq on the holder)
+# gpui-form = { version = "*", features = ["serde"] }
+
+# parser-backed phone-number validation helpers
+# gpui-form = { version = "*", features = ["phone"] }
+```
+
 ## Facade Imports
 
 Prefer imports from `gpui_form`:
@@ -29,6 +42,11 @@ Useful facade paths:
 - `gpui_form::file_picker`
 - `gpui_form::infinite_select`
 - `gpui_form::numeric`
+- `gpui_form::path` (pure field-path module from `gpui-form-core`)
+- `gpui_form::phone` (parser-backed phone validation helpers; `phone` feature)
+- `gpui_form::state` (pure form-state module from `gpui-form-core`)
+- `gpui_form::FieldPath` (typed field-path primitive; no feature flag)
+- `gpui_form::FormState` (dirty tracking / reset / diff helper)
 - `gpui_form::custom_component_shape!`
 
 ## Supported Component Syntax
@@ -37,6 +55,8 @@ Useful facade paths:
 #[gpui_form(component(input))]
 #[gpui_form(component(number_input))]
 #[gpui_form(component(number_input(as = f64)))]
+#[gpui_form(component(phone_input))] // requires the `phone` feature
+#[gpui_form(component(phone_input(country = region)))] // requires the `phone` feature
 #[gpui_form(component(checkbox))]
 #[gpui_form(component(switch))]
 #[gpui_form(component(select))]
@@ -60,7 +80,18 @@ Common field attributes:
 #[gpui_form(type = <form_type>)]
 #[gpui_form(from = <expr>)]
 #[gpui_form(into = <expr>)]
+#[gpui_form(section = "<str>")]
+#[gpui_form(label = "<str>")]
+#[gpui_form(description = "<str>")]
+#[gpui_form(placeholder = "<str>")]
+#[gpui_form(width = full | half | third)]
 ```
+
+Layout hints (`section`, `label`, `description`, `placeholder`, `width`) are
+metadata-only: they attach a `gpui_form::schema::FieldLayout` to each field for
+generators/prototyping to consume and do not change generated form rendering.
+`label` defaults to the field name at consumption time; `width` is a hint, not
+a layout engine. The width enum is re-exported as `gpui_form::LayoutWidth`.
 
 Common struct attributes:
 
@@ -83,6 +114,28 @@ Common struct attributes:
 - Use `file_picker` for native path selection.
 - Use `custom(...)` when the app owns the state/widget contract.
 
+For country-aware phone inputs, enable the `phone` feature and use the shared
+helper instead of duplicating parser and selected-country checks in every UI:
+
+```rust
+use gpui_form::phone::{
+    country,
+    validate_phone_number,
+    validate_phone_number_for_country_label,
+};
+
+let general = validate_phone_number("+1 415 550 2222", Some(country::FR));
+assert!(general.is_valid());
+
+let result = validate_phone_number_for_country_label(
+    "+1 415 550 2222",
+    country::FR,
+    "France",
+);
+
+assert!(!result.is_valid());
+```
+
 ## Generated Names
 
 For a source struct named `UserProfile`, expect generated types named:
@@ -91,10 +144,13 @@ For a source struct named `UserProfile`, expect generated types named:
 UserProfileFormFields
 UserProfileFormComponents
 UserProfileFormValueHolder
+UserProfileFormPath
 ```
 
 Use the generated value holder for editable form data, defaults, and conversion
-back into the original model.
+back into the original model. Use `UserProfileFormPath` (one same-named
+constructor per non-skipped field) for typed field naming across validation,
+dirty tracking, focus, analytics, and schema export.
 
 ## Select Pattern
 
@@ -189,3 +245,88 @@ gpui_form::custom_component_shape!(
     component = gpui_component::input::Input,
 );
 ```
+
+## Form-State Persistence and Dirty Tracking Pattern
+
+Enable the `serde` feature to make generated holders saveable/restorable and to
+use `gpui_form::FormState` for dirty tracking. The feature adds `Serialize`,
+`Deserialize`, and `PartialEq` to the generated `...FormValueHolder`. `FormState`
+itself is available unconditionally; only the holder serde derives need the
+feature.
+
+```rust
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+}
+
+// Save.
+let json = serde_json::to_string(&SettingsFormValueHolder::default()).unwrap();
+
+// Restore into a fresh state and track edits.
+let restored: SettingsFormValueHolder = serde_json::from_str(&json).unwrap();
+let mut state = FormState::new(restored);
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+
+// Reset to discard edits, or sync after a save to mark clean.
+state.reset_to_baseline();
+state.sync_baseline();
+```
+
+Scope: `FormState` stores holder data only (no runtime UI state), dirty/diff is
+boolean-level (field-level diff is backlog #9 and will build on the typed field
+paths below), a holder with `#[gpui_form(skip)]` fields round-trips through serde
+but cannot fully reconstruct the source struct (per-field serde passthrough is
+backlog #15), and there is no undo/redo.
+
+## Typed Field Paths Pattern
+
+Every `#[derive(GpuiForm)]` form emits a `<Name>FormPath` newtype around the
+shared headless primitive `gpui_form::FieldPath`, so every consumer of a form
+(validation, dirty tracking, focus, analytics, schema export) can refer to
+fields through ONE typed value instead of ad-hoc strings. `FieldPath` is
+re-exported unconditionally (no feature flag, no GPUI, no serde).
+
+```rust
+use gpui_form::{FieldPath, GpuiForm};
+
+#[derive(GpuiForm)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+
+    #[gpui_form(skip)]
+    pub internal_id: u32,
+}
+
+// One constructor per non-skipped field, named identically to the field.
+let username = SettingsFormPath::username();
+let age = SettingsFormPath::age();
+assert_eq!(username.to_string(), "username");
+assert_ne!(username, age);
+
+// `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
+// that takes a `&FieldPath` also accepts the typed newtype.
+fn records(path: &FieldPath) -> &[&'static str] { path.segments() }
+assert_eq!(records(username.as_ref()), &["username"]);
+
+// Hand-built multi-segment paths work today (typed nested/list composition
+// arrives with backlog #2/#3).
+let hand_built = SettingsFormPath::new(&["address", "city"]);
+assert_eq!(hand_built.to_string(), "address.city");
+```
+
+Scope (FLAT v1): each constructor names a single flat field; typed nested-path
+and list-item-path constructors arrive with backlog features #2 ("Nested
+forms") and #3 ("Repeated fields"). `#[gpui_form(skip)]` fields have NO
+constructor (they are absent from the holder too). `FieldPath` is the shared
+naming foundation for upcoming field-level validation (#6), field-level diff
+(#9), and schema export (#14).

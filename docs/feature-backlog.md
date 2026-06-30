@@ -1,6 +1,6 @@
 # Feature backlog
 
-Status: **proposed** — candidate features for future `gpui-form` work.
+Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline.
 
 ## Scope boundary
 
@@ -25,6 +25,10 @@ runtime primitives or thin mappings to existing `gpui-component` widgets.
 
 ### 1. Form-state persistence and dirty tracking
 
+> **Status: shipped (feature #1).** Opt-in `serde` (de)serialization of the generated holder plus
+> the pure, GPUI-free `gpui_form::core::FormState<H>` wrapper (is_dirty / reset_to_baseline /
+> diff_against) are live. See `form-state-persistence.md`.
+
 See [`form-state-persistence.md`](form-state-persistence.md).
 
 Generated forms should support save/restore workflows and know whether the user
@@ -39,7 +43,7 @@ let state = gpui_form::core::FormState::new(initial_holder);
 
 state.is_dirty();
 state.reset_to_baseline();
-state.diff();
+state.diff_against(&initial_holder);
 ```
 
 ### 2. Nested forms
@@ -94,6 +98,14 @@ Keep the first version conservative:
 - Scalar item components before nested item forms.
 
 ### 4. Layout and section metadata
+
+> **Status: shipped (METADATA-FIRST v1).** The `section`, `label`,
+> `description`, `placeholder`, and `width` hints are live. They attach a
+> `gpui_form::schema::FieldLayout` to each `FieldVariant` for generators and
+> prototyping to consume (the prototyping generator groups by `section`,
+> prefers `label`, and emits `description` where it already produces help text).
+> The generated form code itself is unchanged; `width` is a hint, not a layout
+> engine. Richer layout (columns, collapsible sections) builds on this later.
 
 Add non-rendering hints that generated/prototyped forms can consume.
 
@@ -170,19 +182,30 @@ should remain plain data.
 
 ### 8. Typed field paths and field IDs
 
+> **Status: shipped (FLAT v1).** The shared primitive
+> `gpui_form_core::FieldPath` (re-exported as `gpui_form::FieldPath`) and the
+> generated `<Name>FormPath` newtype per form are live. Flat fields only:
+> typed nested-path and list-item-path constructors remain, tracked under
+> backlog #2 ("Nested forms") and #3 ("Repeated fields").
+
 Expose stable generated identifiers for every field.
 
 ```rs
 UserProfileFormPath::username();
-UserProfileFormPath::new(["address", "city"]);
+UserProfileFormPath::new(&["address", "city"]);
 ```
 
-This becomes more important once nested forms and repeated fields exist. Typed
-paths would give validation, dirty tracking, focus management, analytics, and
-schema export one shared way to name fields without ad hoc strings.
+The generated `<Name>FormPath` is a newtype over the headless, GPUI-free,
+serde-free `FieldPath`, giving validation, dirty tracking, focus management,
+analytics, and schema export one shared way to name fields without ad hoc
+strings. It ships with one same-named constructor per non-skipped field (no
+generics, even on generic source structs) and is the naming foundation for the
+upcoming field-level validation (#6), field-level diff (#9), schema export
+(#14), and nested/list paths (#2/#3).
 
-The first version can cover flat fields only, then expand to nested paths and
-list item paths.
+The FLAT v1 surface covers single-field constructors; hand-built multi-segment
+paths via `<Name>FormPath::new(&["a", "b"])` work today, and typed nested/list
+composition expands under #2/#3.
 
 ### 9. Patch and delta generation
 
@@ -341,6 +364,18 @@ pub price: rust_decimal::Decimal,
 
 ### 18. Phone, email, URL, and typed text validation
 
+> **Status: phone shipped.** Phone numbers are a first-class component:
+> `component(phone_input)` accepts any globally valid number and
+> `component(phone_input(country = <field>))` records the sibling country field
+> as `PhoneInputBehaviour::country_field` metadata. The control renders as a
+> text `Input` storing `Option<String>`, validated through the headless
+> `gpui_form::phone` helpers (`validate_phone_number`,
+> `validate_phone_number_for_country_label`, the `validate_optional_*` /
+> `validate_required_*` variants, `validate_phone_number_for`, and the
+> `PhoneCountry` mapping trait), behind the optional `phone` feature.
+> Cross-field, selected-country enforcement at the value layer and the other
+> text domains (email, URL, slug, UUID) remain open.
+
 Some values look simple but should not use numeric components. Phone numbers are
 the clearest example: they can contain `+`, spaces, punctuation, extensions,
 country-specific rules, and leading zeros. Treat them as strings or domain value
@@ -417,10 +452,12 @@ creating a parallel validation system.
 
 ## Suggested order
 
-1. Form-state persistence and dirty tracking.
+1. Form-state persistence and dirty tracking — **shipped (feature #1)**.
 2. Numeric validation hardening.
-3. Typed field paths and field IDs.
-4. Layout and section metadata.
+3. Typed field paths and field IDs — **shipped (FLAT v1)**; nested/list
+   composition expands under #2/#3.
+4. Layout and section metadata — **shipped (METADATA-FIRST v1)**; richer
+   layout (columns, collapsible sections) builds on this later.
 5. Validation/error metadata improvements.
 6. Patch and delta generation.
 7. Nested forms.

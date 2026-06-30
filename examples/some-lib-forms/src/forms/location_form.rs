@@ -1,8 +1,10 @@
 use es_fluent::FluentMessage as _;
-use es_fluent::FluentMessage;
 use gpui::prelude::FluentBuilder as _;
-use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
-use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement as _, Render, Styled, Window,
+};
+use gpui::{Subscription, div};
 use gpui_component::ActiveTheme as _;
 use gpui_component::Disableable as _;
 use gpui_component::form::field;
@@ -14,11 +16,9 @@ use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::location::*;
 const CONTEXT: &str = "LocationFormForm";
-
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
+fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
     crate::i18n::localize_message(cx, message)
 }
-
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
@@ -55,7 +55,7 @@ impl LocationFormForm {
                 self.current_data.name = if text.is_empty() {
                     None
                 } else {
-                    Some(text.to_string())
+                    text.parse::<String>().ok()
                 };
             },
             _ => {},
@@ -161,10 +161,15 @@ impl Render for LocationFormForm {
                 v_form()
                     .child(
                         field()
-                            .label(localize(cx, &LocationFormLabelVariants::Name))
+                            .label({
+                                let message = LocationFormLabelVariants::Name;
+                                localize(cx, &message)
+                            })
                             .description_fn({
-                                let description =
-                                    localize(cx, &LocationFormDescriptionVariants::Name);
+                                let description = {
+                                    let message = LocationFormDescriptionVariants::Name;
+                                    localize(cx, &message)
+                                };
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -184,6 +189,20 @@ impl Render for LocationFormForm {
                     ))),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state =
+                    ::gpui_form::FormState::new(LocationFormFormValueHolder::default());
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(format!(
+                "field_paths: {}",
+                vec![
+                    LocationFormFormPath::name().to_string(),
+                    LocationFormFormPath::location().to_string()
+                ]
+                .join(", ")
+            ))
             .child(format!("value_holder: {:?}", self.current_data))
             .child(format!(
                 "into_original: {:?}",

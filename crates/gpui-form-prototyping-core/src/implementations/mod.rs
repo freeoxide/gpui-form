@@ -5,11 +5,13 @@ pub mod file_picker;
 pub mod infinite_select;
 pub mod input;
 pub mod number_input;
+pub mod phone_input;
 pub mod select;
 pub mod switch;
 
 use gpui_form_schema::{
     components::ComponentsBehaviour,
+    layout::FieldLayout,
     registry::{FieldVariant, GpuiFormShape},
 };
 use heck::{ToPascalCase as _, ToSnakeCase as _};
@@ -25,6 +27,8 @@ use crate::{
 static INPUT_GENERATOR: input::InputCodeGenerator = input::InputCodeGenerator;
 static NUMBER_INPUT_GENERATOR: number_input::NumberInputCodeGenerator =
     number_input::NumberInputCodeGenerator;
+static PHONE_INPUT_GENERATOR: phone_input::PhoneInputCodeGenerator =
+    phone_input::PhoneInputCodeGenerator;
 static CHECKBOX_GENERATOR: checkbox::CheckboxCodeGenerator = checkbox::CheckboxCodeGenerator;
 static SWITCH_GENERATOR: switch::SwitchCodeGenerator = switch::SwitchCodeGenerator;
 static SELECT_GENERATOR: select::SelectCodeGenerator = select::SelectCodeGenerator;
@@ -40,6 +44,7 @@ pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCod
     match behaviour {
         ComponentsBehaviour::Input => &INPUT_GENERATOR,
         ComponentsBehaviour::NumberInput(_) => &NUMBER_INPUT_GENERATOR,
+        ComponentsBehaviour::PhoneInput(_) => &PHONE_INPUT_GENERATOR,
         ComponentsBehaviour::Checkbox => &CHECKBOX_GENERATOR,
         ComponentsBehaviour::Switch => &SWITCH_GENERATOR,
         ComponentsBehaviour::Select(_) => &SELECT_GENERATOR,
@@ -113,6 +118,16 @@ impl<'a> ResolvedField<'a> {
 
     pub fn behaviour(&self) -> &ComponentsBehaviour {
         &self.field.behaviour
+    }
+
+    /// Non-rendering layout hints attached to this field (METADATA-FIRST v1).
+    ///
+    /// Mirrors [`ResolvedField::raw`] / [`ResolvedField::behaviour`]: a thin
+    /// accessor over the underlying [`FieldVariant::layout`]. Consumers use this
+    /// to read `section` / `label` / `description` / `placeholder` / `width`
+    /// hints when emitting scaffolds. See [`FieldLayout`] for the v1 contract.
+    pub fn layout(&self) -> &FieldLayout {
+        &self.field.layout
     }
 
     pub fn field_name(&self) -> &'a str {
@@ -385,9 +400,17 @@ pub fn generate_label_tokens(
     }
     #[cfg(not(feature = "fluent"))]
     {
-        use heck::ToTitleCase;
-        let title = field.field_name().to_title_case();
-        quote! { #title }
+        // METADATA-FIRST v1: prefer an explicit `layout.label` hint when the
+        // field declared one. Fall back to a title-cased field name otherwise.
+        // (label defaults to the field name at consumption time per the v1
+        // contract — see `gpui_form_schema::layout`.)
+        if let Some(label) = field.layout().label {
+            quote! { #label }
+        } else {
+            use heck::ToTitleCase as _;
+            let title = field.field_name().to_title_case();
+            quote! { #title }
+        }
     }
 }
 
@@ -408,9 +431,15 @@ pub fn generate_description_fn_tokens(
     };
     #[cfg(not(feature = "fluent"))]
     let description_tokens = {
-        use heck::ToTitleCase;
-        let title = field.field_name().to_title_case();
-        quote! { #title }
+        // METADATA-FIRST v1: prefer an explicit `layout.description` hint when
+        // present, falling back to the title-cased field name.
+        if let Some(description) = field.layout().description {
+            quote! { #description }
+        } else {
+            use heck::ToTitleCase as _;
+            let title = field.field_name().to_title_case();
+            quote! { #title }
+        }
     };
 
     let field_has_validations = !field.validation_rules().is_empty() && component.has_koruma();
@@ -500,13 +529,126 @@ pub fn generate_description_fn_tokens(
 #[cfg(test)]
 mod tests {
     use super::{ResolvedField, generate_description_fn_tokens};
+    // `generate_label_tokens` is only exercised by the non-fluent label tests;
+    // the fluent label branch localizes through `es-fluent` keys instead.
+    #[cfg(not(feature = "fluent"))]
+    use super::generate_label_tokens;
     use gpui_form_schema::{
         components::ComponentsBehaviour,
+        layout::{FieldLayout, LayoutWidth},
         registry::{FieldVariant, GpuiFormShape},
     };
 
     fn compact(input: &str) -> String {
         input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    // ── METADATA-FIRST v1: layout.label / layout.description consumption ──────
+    // The non-fluent label/description branches consume `layout.label` /
+    // `layout.description`. The fluent branches localize through
+    // `es-fluent` keys instead (v1 minimal scope — fluent policy is deferred),
+    // so these assertions are only meaningful without the `fluent` feature.
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn label_uses_layout_label_when_present() {
+        const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Enable experiments"));
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_label_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable experiments"),
+            "explicit layout.label should be used as the label: {tokens}"
+        );
+        assert!(
+            !tokens.contains("Enable Experimental"),
+            "title-cased fallback must not be used when layout.label is set: {tokens}"
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn label_falls_back_to_field_name_title_case_when_absent() {
+        // Empty layout (no label) — defaults via FieldLayout::new().
+        const FIELDS: [FieldVariant; 1] = [
+            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_label_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable Experimental"),
+            "field name should be title-cased as the fallback label: {tokens}"
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn description_uses_layout_description_when_present() {
+        const LAYOUT: FieldLayout =
+            FieldLayout::new().with_description(Some("Toggles unreleased features"));
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_description_fn_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Toggles unreleased features"),
+            "explicit layout.description should be used as the description hint: {tokens}"
+        );
+        assert!(
+            !tokens.contains("Enable Experimental"),
+            "title-cased fallback must not be used when layout.description is set: {tokens}"
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn description_falls_back_to_field_name_title_case_when_absent() {
+        const FIELDS: [FieldVariant; 1] = [
+            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_description_fn_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable Experimental"),
+            "field name should be title-cased as the fallback description: {tokens}"
+        );
+    }
+
+    #[test]
+    fn resolved_field_layout_accessor_returns_field_layout() {
+        // Guards the public accessor the code_gen section-grouping loop reads.
+        const LAYOUT: FieldLayout = FieldLayout::new()
+            .with_section(Some("Account"))
+            .with_label(Some("Username"))
+            .with_width(LayoutWidth::Half);
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let _ = SHAPE;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let layout = field.layout();
+
+        assert_eq!(layout.section, Some("Account"));
+        assert_eq!(layout.label, Some("Username"));
+        assert_eq!(layout.width, LayoutWidth::Half);
+        assert!(!layout.is_empty());
     }
 
     #[test]

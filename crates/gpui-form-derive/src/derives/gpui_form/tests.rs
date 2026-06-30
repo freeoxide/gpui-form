@@ -11,6 +11,51 @@ mod gpui_form_tests {
     }
 
     #[test]
+    fn field_path_type_emitted_next_to_value_holder() {
+        // Feature #8 (FLAT v1): the expansion emits a `<Name>FormPath` newtype
+        // alongside the value holder. `<Name>` is the source struct ident, so a
+        // struct named `Profile` gets `ProfileFormPath` (mirroring
+        // `ProfileFormValueHolder`). The constructor name matches the field.
+        use crate::derives::gpui_form::expansion::expand_gpui_form;
+        use crate::derives::gpui_form::structs::GpuiFormOptions;
+
+        let input: DeriveInput = syn::parse_quote! {
+            struct Profile {
+                name: String,
+                email: String,
+            }
+        };
+        let out = expand_gpui_form(
+            input,
+            GpuiFormOptions {
+                generate_shape: false,
+            },
+        );
+        let s = out.to_string();
+
+        // The path type appears after the value holder (both derive from the
+        // source struct ident).
+        assert!(
+            s.contains("ProfileFormPath"),
+            "no path type in expansion: {s}"
+        );
+        assert!(s.contains("ProfileFormValueHolder"), "no value holder: {s}");
+        // Per-field constructors named after the fields. Tokenized output
+        // spaces out `fn name` / `fn email`, so match on the freestanding form.
+        assert!(s.contains("fn name"), "no name ctor: {s}");
+        assert!(s.contains("fn email"), "no email ctor: {s}");
+        // Trait impls are emitted unconditionally (no feature gating).
+        assert!(s.contains("Deref"), "no Deref: {s}");
+        assert!(s.contains("AsRef"), "no AsRef: {s}");
+        assert!(s.contains("Display"), "no Display: {s}");
+        // No generics on the path type (paths are field-name only).
+        assert!(
+            !s.contains("ProfileFormPath <"),
+            "path type must not be generic: {s}"
+        );
+    }
+
+    #[test]
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
             struct Test {
@@ -35,15 +80,15 @@ mod gpui_form_tests {
                         "SomeValidator",
                         "Should extract correct validator name"
                     );
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -67,15 +112,15 @@ mod gpui_form_tests {
             match result {
                 ParseFieldResult::Valid(info) => {
                     assert!(info.is_newtype(), "Should detect newtype in cfg_attr");
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for newtype"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -99,15 +144,15 @@ mod gpui_form_tests {
             match result {
                 ParseFieldResult::Valid(info) => {
                     assert!(info.is_nested(), "Should detect nested in cfg_attr");
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for nested"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("parse_field returned Error: {}", e);
-                }
+                },
             }
         } else {
             panic!("Expected struct data");
@@ -153,13 +198,13 @@ mod gpui_form_tests {
                             "Field {} should have named validators",
                             idx
                         );
-                    }
+                    },
                     ParseFieldResult::Skip => {
                         panic!("Field {} should have validators, got Skip", idx);
-                    }
+                    },
                     ParseFieldResult::Error(e) => {
                         panic!("Field {} parsing failed: {}", idx, e);
-                    }
+                    },
                 }
             }
         }
@@ -220,13 +265,13 @@ mod gpui_form_tests {
                     for (idx, v) in info.validation.field_validators.iter().enumerate() {
                         eprintln!("    validator[{}]: {}", idx, v.name());
                     }
-                }
+                },
                 ParseFieldResult::Skip => {
                     eprintln!("  Result: Skip");
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     eprintln!("  Result: Error({})", e);
-                }
+                },
             }
 
             match result {
@@ -235,15 +280,15 @@ mod gpui_form_tests {
                         info.is_newtype(),
                         "Should detect newtype validation in nested cfg_attr"
                     );
-                }
+                },
                 ParseFieldResult::Skip => {
                     panic!(
                         "koruma_derive_core returned Skip for field with koruma(newtype) - cfg_attr not being handled!"
                     );
-                }
+                },
                 ParseFieldResult::Error(e) => {
                     panic!("koruma_derive_core returned Error: {}", e);
-                }
+                },
             }
         }
 
@@ -913,5 +958,231 @@ mod gpui_form_tests {
                 && compact.contains(".max_depth(2"),
             "InfiniteSelect initialization should forward max_depth into the runtime options"
         );
+    }
+
+    // ------------------------------------------------------------------
+    // Feature #4 (METADATA-FIRST v1): layout & section metadata.
+    //
+    // These tests drive `expand_gpui_form` directly and inspect the tokenized
+    // output. The shape (inventory submission) is what carries the
+    // `FieldVariant` chain, so `generate_shape: true` is used throughout and we
+    // assert the emitted `.with_layout(...)` / `.with_section(...)` /
+    // `.with_width(...)` fragments resolve against the facade path
+    // `::gpui_form::schema::layout::...`.
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn layout_all_five_hints_plus_width_bare_ident_emit_chain() {
+        // A field exercising every v1 hint, including the bare-ident width.
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Signup {
+                #[gpui_form(
+                    section = "Account",
+                    label = "Username",
+                    description = "Shown publicly",
+                    placeholder = "pick a name",
+                    width = half,
+                    component(input)
+                )]
+                username: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokenish(&expanded.to_string());
+
+        // The facade path the derive is contracted to emit.
+        assert!(
+            compact.contains("::gpui_form::schema::layout::FieldLayout::new()"),
+            "expected FieldLayout::new() via facade path: {compact}"
+        );
+        assert!(
+            compact.contains(".with_section(Some(\"Account\"))"),
+            "section hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_label(Some(\"Username\"))"),
+            "label hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_description(Some(\"Shownpublicly\"))")
+                || compact.contains(".with_description(Some(\"Shown publicly\"))"),
+            "description hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_placeholder(Some(\"pickaname\"))")
+                || compact.contains(".with_placeholder(Some(\"pick a name\"))"),
+            "placeholder hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Half)"),
+            "bare-ident width=half must map to LayoutWidth::Half: {compact}"
+        );
+        // The layout chain is appended to the FieldVariant construction.
+        assert!(
+            compact.contains(".with_layout("),
+            "with_layout call missing: {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_quoted_width_and_third_variant_map_correctly() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(width = "third", component(input))]
+                a: String,
+                #[gpui_form(width = full, component(input))]
+                b: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokenish(&expanded.to_string());
+
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Third)"),
+            "quoted width=\"third\" must map to LayoutWidth::Third: {compact}"
+        );
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Full)"),
+            "bare width=full must map to LayoutWidth::Full: {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_absent_hints_default_to_full_and_no_string_builders() {
+        // No layout hints at all: width still defaults to Full (unconditional
+        // builder), but none of the string `.with_*` builders appear.
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Full)"),
+            "absent width must default to Full: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_section("),
+            "absent section must not emit with_section: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_label("),
+            "absent label must not emit with_label: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_description("),
+            "absent description must not emit with_description: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_placeholder("),
+            "absent placeholder must not emit with_placeholder: {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_on_skipped_field_is_ignored() {
+        // A skipped field with layout hints: NO FieldVariant is emitted for it,
+        // so the layout hints must not appear anywhere in the expansion. The
+        // non-skipped field's width still defaults to Full.
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Mixed {
+                #[gpui_form(component(input))]
+                visible: String,
+
+                #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
+                #[allow(dead_code)]
+                secret: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        // The skipped field's hints must NOT reach the FieldVariant chain.
+        assert!(
+            !compact.contains("\"Secret\""),
+            "skipped field section leaked into expansion: {compact}"
+        );
+        assert!(
+            !compact.contains("\"Hidden\""),
+            "skipped field label leaked into expansion: {compact}"
+        );
+        assert!(
+            !compact.contains("LayoutWidth::Half"),
+            "skipped field width leaked into expansion: {compact}"
+        );
+        // Only ONE FieldVariant (the visible field), so exactly one with_layout
+        // call and one with_width(Full).
+        let layout_count = compact.matches(".with_layout(").count();
+        assert_eq!(
+            layout_count, 1,
+            "expected exactly one FieldVariant (visible only): {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_width_unknown_variant_is_rejected() {
+        // An invalid width value should fail to parse (darling error), not
+        // silently default. We exercise this through the full derive-input path
+        // because that is where darling runs `FromMeta`.
+        use darling::FromDeriveInput as _;
+        let tokens = quote! {
+            struct Form {
+                #[gpui_form(width = bogus, component(input))]
+                a: String,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result =
+            crate::derives::gpui_form::structs::ComponentStruct::from_derive_input(&derive_input);
+        assert!(
+            result.is_err(),
+            "unknown width value must be rejected by the attribute parser"
+        );
+    }
+
+    /// Like `compact_tokens` but keeps whitespace-to-single-space so string
+    /// literals with spaces survive intact while still normalizing the token
+    /// stream for substring matching.
+    fn compact_tokenish(tokens: &str) -> String {
+        tokens.split_whitespace().collect::<String>()
     }
 }

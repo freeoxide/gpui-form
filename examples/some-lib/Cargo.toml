@@ -13,11 +13,16 @@ es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
-gpui-form = { features = [ "derive" ], workspace = true }
+gpui-form = { features = [ "derive", "phone" ], workspace = true }
 koruma = { features = [ "fluent" ], workspace = true }
 koruma-collection = { features = [ "rust_decimal", "email", "fluent" ], workspace = true }
 rust_decimal = { workspace = true }
+serde = { features = [ "derive" ], optional = true, workspace = true }
 strum = { workspace = true }
+
+[dev-dependencies]
+gpui-form-derive = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 es-fluent-build = { workspace = true }
@@ -25,6 +30,14 @@ es-fluent-build = { workspace = true }
 [features]
 default = [ "fluent", "ui", "validation" ]
 fluent = [  ]
+# Opt into form-state persistence: derives serde + the gpui-form serde feature,
+# and enables the serde representations the example domain types rely on.
+serde = [
+    "dep:serde",
+    "gpui-form/serde",
+    "chrono/serde",
+    "rust_decimal/serde",
+]
 ui = [  ]
 validation = [  ]
 

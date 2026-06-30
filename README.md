@@ -33,6 +33,12 @@ gpui-form = "*"
 
 # Optional: inventory registration for prototyping/code generation
 # gpui-form = { version = "*", features = ["inventory"] }
+
+# Optional: form-state persistence + dirty tracking (serde on the holder)
+# gpui-form = { version = "*", features = ["serde"] }
+
+# Optional: parser-backed phone-number validation helpers
+# gpui-form = { version = "*", features = ["phone"] }
 ```
 
 ## Quick Start
@@ -71,6 +77,9 @@ pub struct UserProfile {
 - `UserProfileFormComponents` constructors for those fields
 - `UserProfileFormValueHolder` for typed editing, defaults, validation, and
   conversion back into the original model
+- `UserProfileFormPath` typed field paths so validation, dirty tracking,
+  focus, analytics, and schema export share ONE typed way to name fields
+  (see [Typed Field Paths](#typed-field-paths))
 
 ## Component Syntax
 
@@ -79,6 +88,8 @@ These component forms are currently supported:
 - `#[gpui_form(component(input))]`
 - `#[gpui_form(component(number_input))]`
 - `#[gpui_form(component(number_input(as = f64)))]`
+- `#[gpui_form(component(phone_input))]` (requires the `phone` feature)
+- `#[gpui_form(component(phone_input(country = <field>)))]` (requires the `phone` feature)
 - `#[gpui_form(component(checkbox))]`
 - `#[gpui_form(component(switch))]`
 - `#[gpui_form(component(select))]`
@@ -108,6 +119,127 @@ Common field-level helpers:
 - Field-level `#[koruma(...)]` attributes are accepted by `GpuiForm` and copied
   onto the generated value holder, including fields that use `type`, `from`,
   and `into` to validate a form-side type.
+- `#[gpui_form(section = ..., label = ..., description = ..., placeholder = ..., width = ...)]`
+  attaches non-rendering layout hints. See
+  [Layout and Section Hints](#layout-and-section-hints).
+
+## Phone Number Validation
+
+Enable the optional `phone` feature when a form needs parser-backed phone
+validation. It provides both a first-class `component(phone_input)` derive
+field and headless validation helpers that centralize the strict validation
+logic so every phone field uses the same rules.
+
+```toml
+gpui-form = { version = "*", features = ["derive", "phone"] }
+```
+
+### As a generated form field
+
+`component(phone_input)` renders a text input wired to the phone validator.
+Use the bare form for a globally valid number, and `phone_input(country =
+<field>)` to bind a phone field to a sibling country-select field:
+
+```rs
+use gpui_form::{GpuiForm, SelectItem};
+
+#[derive(Clone, Debug, Default, PartialEq, SelectItem, strum::EnumIter)]
+enum Region {
+    #[default]
+    UnitedStates,
+    France,
+}
+
+#[derive(Clone, Debug, Default, GpuiForm)]
+struct Contact {
+    #[gpui_form(component(select))]
+    region: Region,
+
+    // Global phone: any globally valid number is accepted.
+    #[gpui_form(component(phone_input))]
+    mobile_number: Option<String>,
+
+    // Country-bound phone: the `country` binding records the sibling field
+    // whose selection the number should match.
+    #[gpui_form(component(phone_input(country = region)))]
+    local_number: Option<String>,
+}
+```
+
+The phone value is stored as `Option<String>` in the generated value holder
+(the same storage as `component(input)`), and the generated input control
+accepts empty input so a partially typed field is not flagged mid-entry.
+
+### As headless helpers
+
+```rs
+use gpui_form::phone::{
+    country,
+    validate_phone_number,
+    validate_phone_number_for_country_label,
+};
+
+// General mode: any valid global number is accepted.
+let general = validate_phone_number("+1 415 550 2222", Some(country::FR));
+assert!(general.is_valid());
+
+// Strict mode: the parsed country must match the selected country.
+let result = validate_phone_number_for_country_label(
+    "+1 415 550 2222",
+    country::FR,
+    "France",
+);
+
+assert!(!result.is_valid());
+
+// Inspect the parsed result separately.
+let valid = validate_phone_number("415 555 2671", Some(country::US));
+assert_eq!(valid.country(), Some(country::US));
+assert_eq!(valid.e164(), Some("+14155552671"));
+```
+
+Use `validate_phone_number` when a field should accept any valid global number.
+Use `validate_phone_number_for_country_label` when the parsed country must match
+the selected country. For example, `+1 415 550 2222` is a valid US number, but
+strict mode rejects it when the selected country is France.
+
+### Empty handling and the `PhoneCountry` trait
+
+`validate_optional_phone_number` treats empty input as acceptable (pair it with
+`PhoneNumberValidation::is_valid_or_empty` for live input gating), while
+`validate_required_phone_number` rejects empty input with
+`PhoneNumberValidationError::Required`. Both have `_for_country_label` variants.
+
+Implement the `PhoneCountry` trait on an application country enum to map it to a
+`country::Id` and label once, then validate with `validate_phone_number_for`:
+
+```rs
+use gpui_form::phone::{country, validate_phone_number_for, PhoneCountry};
+
+enum Region {
+    UnitedStates,
+    France,
+}
+
+impl PhoneCountry for Region {
+    fn phone_country_id(&self) -> country::Id {
+        match self {
+            Self::UnitedStates => country::US,
+            Self::France => country::FR,
+        }
+    }
+
+    fn phone_country_label(&self) -> String {
+        match self {
+            Self::UnitedStates => "United States".to_string(),
+            Self::France => "France".to_string(),
+        }
+    }
+}
+
+let result = validate_phone_number_for("415 555 2671", &Region::UnitedStates);
+assert!(result.is_valid());
+```
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum
@@ -123,6 +255,58 @@ Common struct-level helpers:
 - `#[gpui_form(koruma)]` enables Koruma-backed validation wiring.
 - `#[gpui_form(koruma(fluent))]` enables Koruma validation plus fluent error
   rendering.
+
+## Layout and Section Hints
+
+Fields can declare non-rendering layout hints that generated and prototyped
+forms consume. These are **metadata-only** in v1: they describe intent, they do
+not drive any GPUI rendering. Application code and prototyping generators decide
+how (or whether) to render each hint.
+
+```rust
+#[derive(gpui_form::GpuiForm)]
+pub struct AccountSettings {
+    #[gpui_form(section = "Account", label = "Username", component(input))]
+    pub username: String,
+
+    #[gpui_form(
+        label = "Enable experiments",
+        description = "Toggles unreleased features",
+        component(switch)
+    )]
+    pub enable_experimental: bool,
+
+    #[gpui_form(placeholder = "you@example.com", width = half, component(input))]
+    pub email: String,
+}
+```
+
+Supported hints (all optional):
+
+- `section = "<str>"` — groups consecutive fields under a named section.
+- `label = "<str>"` — preferred human-readable label. Defaults to the field
+  name at consumption time when absent.
+- `description = "<str>"` — help text / comment hint shown alongside the field.
+- `placeholder = "<str>"` — placeholder text for inputs that support one.
+- `width = full | half | third` — relative width hint. Accepts the bare ident
+  (`width = half`) or a quoted string (`width = "half"`). This is a **hint, not
+  a layout engine**: consumers may ignore it or map it onto their own grid.
+
+Section grouping is **order-preserving**: consecutive fields with the same
+`section` form one group, and fields are never reordered across the form. This
+is the foundation richer layouts (columns, collapsible sections) can build on
+later.
+
+Layout hints are ignored on `#[gpui_form(skip)]` fields — skipped fields emit no
+form metadata, so their hints never reach the schema. The generated form code
+itself is unchanged; the hints ride along on the field metadata that
+prototyping and tooling consume.
+
+At runtime the hints are reachable through `gpui_form::schema::FieldVariant` as
+a `gpui_form::schema::FieldLayout`, and the width enum is re-exported as
+`gpui_form::LayoutWidth` for ergonomic matching. The prototyping generator
+groups fields by `section`, prefers `label` over the field name, and emits
+`description` where it already produces help text.
 
 ## Infinite Select Runtime
 
@@ -214,6 +398,127 @@ When validation is enabled:
 - builder-chain Koruma attrs are mirrored
 - generated value-holder validation uses the same validator set as the source
   struct
+
+## Saving, Restoring, and Dirty Tracking
+
+Enable the optional `serde` feature to make generated forms saveable/restorable
+and to know whether the user edited them. The feature is additive and opt-in.
+
+```toml
+gpui-form = { version = "*", features = ["serde"] }
+```
+
+With the feature on, `#[derive(GpuiForm)]` adds `Serialize` and `Deserialize`
+to the generated `...FormValueHolder`, so the holder round-trips through any
+serde format. The holder always derives `PartialEq` (not `Eq`, since field
+types like `number_input(as = f64)` are not `Eq`), so `FormState`'s dirty
+tracking works on default features too. Separately, the facade re-exports
+`gpui_form::FormState` (from `gpui-form-core`) for dirty tracking, reset, and
+diffing — pure logic with no GPUI dependency.
+
+```rs
+use gpui_form::{FormState, GpuiForm};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: Option<String>,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+}
+
+// Save: serialize the live holder.
+let holder = SettingsFormValueHolder::default();
+let json = serde_json::to_string(&holder).expect("serialize");
+
+// Restore: deserialize into a fresh FormState.
+let restored: SettingsFormValueHolder =
+    serde_json::from_str(&json).expect("deserialize");
+let mut state = FormState::new(restored);
+assert!(!state.is_dirty());
+
+// Edit, then ask whether the user changed anything.
+state.current_mut().username = Some("ada".into());
+assert!(state.is_dirty());
+
+// Reset to discard edits, or sync after a save to mark clean.
+state.reset_to_baseline();
+assert!(!state.is_dirty());
+```
+
+Scope of this feature:
+
+- `FormState` stores holder **data** only — not component runtime UI state such
+  as open menus, scroll positions, or `InfiniteSelectState` snapshots.
+- Dirty/diff is **boolean-level**: `is_dirty()` and `diff_against(&other)` tell
+  you *whether* the holder changed, not which fields. Field-level diff is
+  backlog feature #9 and will build on the [typed field paths](#typed-field-paths)
+  foundation shipped as FLAT v1.
+- A holder carrying `#[gpui_form(skip)]` fields round-trips through serde on its
+  own, but cannot fully reconstruct the source struct via `into_original`, since
+  skipped values are not on the holder. This mirrors the existing
+  `has_skipped_fields` behavior. Per-field serde passthrough (rename/skip) is
+  backlog feature #15.
+- No undo/redo in this feature.
+
+`FormState` is available unconditionally from `gpui_form::FormState` (or
+`gpui-form-core` directly); only the holder serde derives require the `serde`
+feature.
+
+## Typed Field Paths
+
+Every `#[derive(GpuiForm)]` form also emits a `<Name>FormPath` type — a
+strongly-typed newtype around the shared headless primitive
+`gpui_form::FieldPath` — so every consumer of a form (validation, dirty
+tracking, focus, analytics, schema export) can refer to fields through ONE
+typed value instead of ad-hoc strings.
+
+```rs
+use gpui_form::{FieldPath, GpuiForm};
+
+#[derive(GpuiForm)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+
+    #[gpui_form(skip)]
+    pub internal_id: u32,
+}
+
+// One constructor per non-skipped field, named identically to the field.
+let username = SettingsFormPath::username();
+let age = SettingsFormPath::age();
+assert_eq!(username.to_string(), "username");
+assert_ne!(username, age);
+
+// `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
+// that takes a `&FieldPath` (the upcoming validation/diff/schema surfaces)
+// also accepts the typed newtype.
+fn records(path: &FieldPath) -> &[&'static str] {
+    path.segments()
+}
+assert_eq!(records(username.as_ref()), &["username"]);
+```
+
+Scope of this feature (FLAT v1):
+
+- Each constructor names a single flat field. Typed nested-path and
+  list-item-path constructors arrive with backlog features #2 ("Nested forms")
+  and #3 ("Repeated fields"). Hand-built multi-segment paths via
+  `SettingsFormPath::new(&["a", "b"])` work today; typed composition is later.
+- `#[gpui_form(skip)]` fields have NO constructor — they are absent from the
+  holder too.
+- `FieldPath` is a headless primitive: no GPUI, no `serde`, no feature flag.
+  It is the shared naming foundation for the upcoming field-level validation
+  (#6), field-level diff/delta reporting (#9), and schema export (#14).
+
+`FieldPath` is available unconditionally from `gpui_form::FieldPath` (or
+`gpui-form-core` directly).
 
 ## Custom Components
 

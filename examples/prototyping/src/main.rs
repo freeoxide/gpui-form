@@ -158,7 +158,7 @@ impl FormLayout for StorybookLayout {
 
         syn::parse2(quote! {
             #imports
-            use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window};
+            use gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, Styled, Window};
             use gpui_component::Disableable as _;
             use gpui_component::separator::Separator;
             use gpui_component::form::v_form;

@@ -1,4 +1,5 @@
 use crate::components::ComponentsBehaviour;
+use crate::layout::FieldLayout;
 use heck::{ToKebabCase as _, ToPascalCase as _};
 
 inventory::collect!(GpuiFormShape);
@@ -95,6 +96,11 @@ pub struct FieldVariant {
     /// Whether the custom component opted into
     /// `gpui_form::custom::CustomComponentValueAdapter` generation.
     pub custom_value_binding: bool,
+    /// Non-rendering layout hints (section/label/description/placeholder/width).
+    ///
+    /// Metadata-only (METADATA-FIRST v1): consumers decide how to render.
+    /// Defaults to an empty [`FieldLayout`] (all hints absent, width full).
+    pub layout: FieldLayout,
 }
 
 impl FieldVariant {
@@ -118,6 +124,7 @@ impl FieldVariant {
             custom_shape: None,
             custom_component: None,
             custom_value_binding: false,
+            layout: FieldLayout::new(),
         }
     }
 
@@ -175,6 +182,13 @@ impl FieldVariant {
     /// Marks this custom component as value-bound for generated prototyping code.
     pub const fn with_custom_value_binding(mut self, enabled: bool) -> Self {
         self.custom_value_binding = enabled;
+        self
+    }
+
+    /// Attach non-rendering layout hints (section/label/description/placeholder/
+    /// width) to this field metadata. See [`crate::layout::FieldLayout`].
+    pub const fn with_layout(mut self, layout: FieldLayout) -> Self {
+        self.layout = layout;
         self
     }
 

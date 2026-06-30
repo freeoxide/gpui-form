@@ -27,6 +27,8 @@ This crate exists to:
 1. A caller iterates `inventory::iter::<GpuiFormShape>()`.
 1. The caller constructs `FormShapeAdapter::new(shape)`.
 1. The adapter validates and resolves the raw shape into typed field analysis.
+   Each field is wrapped in a `ResolvedField` that exposes `layout()` reaching
+   `FieldVariant::layout` (feature #4 metadata).
 1. Component-specific generators produce cached render fragments, event
    handlers, imports, subscriptions, and initialization code.
    Infinite-select fields are generated against one runtime
@@ -37,6 +39,8 @@ This crate exists to:
    `FilePicker`, and store the first selected path in the form value holder.
    Text input fields parse the form-side value type from `FieldVariant`
    metadata instead of assuming `String`.
+   Non-fluent label/description generation prefers `layout.label` /
+   `layout.description` over the title-cased field-name fallback.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`
@@ -55,6 +59,14 @@ It contains:
 - render fragments
 - debug helpers
 - flags such as `is_empty`, `has_koruma`, and `has_skipped_fields`
+
+The `render_children` fragment is assembled with order-preserving section
+grouping: when a field's `layout.section` is `Some` and differs from the
+previous field's section, a section heading (`.child(field().label(<heading>))`)
+is prepended before that field's render child. Unsectioned fields emit no
+heading and reset the tracker. This is the consumption point for the
+metadata-first `section` hint (feature #4); `label`/`description` flow through
+the existing label/description token generators.
 
 This allows callers to define different layout styles without reimplementing
 field analysis.
@@ -112,3 +124,5 @@ Update this file when:
 - `FormParts` fields change meaning
 - custom component generation behavior changes
 - import handling or field-resolution strategy changes
+- section-grouping, label-override, or description-override consumption of
+  `FieldVariant::layout` changes

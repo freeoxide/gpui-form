@@ -1,6 +1,6 @@
 use some_lib::structs::user::*;
 use es_fluent::FluentMessage as _;
-use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
+use gpui::{Subscription, div};
 use gpui::prelude::FluentBuilder as _;
 use gpui_component::ActiveTheme as _;
 use gpui_component::checkbox::Checkbox;
@@ -12,7 +12,8 @@ use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::switch::Switch;
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Window,
 };
 use gpui_component::Disableable as _;
 use gpui_component::separator::Separator;
@@ -154,7 +155,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.balance = text.parse::<Decimal>().ok();
+                self.current_data.balance = text.parse::<rust_decimal::Decimal>().ok();
             }
             _ => {}
         }
@@ -170,9 +171,12 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            - 1.0;
-                        self.current_data.balance = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .balance
+                            .unwrap_or_default()
+                            .saturating_sub(1u8.into());
+                        self.current_data.balance = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -181,9 +185,12 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self.current_data.balance.unwrap_or_default()
-                            + 1.0;
-                        self.current_data.balance = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .balance
+                            .unwrap_or_default()
+                            .saturating_add(1u8.into());
+                        self.current_data.balance = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -205,7 +212,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.debt = text.parse::<Decimal>().ok();
+                self.current_data.debt = text.parse::<rust_decimal::Decimal>().ok();
             }
             _ => {}
         }
@@ -221,8 +228,12 @@ impl UserForm {
             NumberInputEvent::Step(step_action) => {
                 match step_action {
                     StepAction::Decrement => {
-                        let new_value = self.current_data.debt.unwrap_or_default() - 1.0;
-                        self.current_data.debt = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .debt
+                            .unwrap_or_default()
+                            .saturating_sub(1u8.into());
+                        self.current_data.debt = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -231,8 +242,12 @@ impl UserForm {
                         );
                     }
                     StepAction::Increment => {
-                        let new_value = self.current_data.debt.unwrap_or_default() + 1.0;
-                        self.current_data.debt = Some(new_value);
+                        let new_value = self
+                            .current_data
+                            .debt
+                            .unwrap_or_default()
+                            .saturating_add(1u8.into());
+                        self.current_data.debt = Some(new_value.into());
                         this.update(
                             cx,
                             |input, cx| {
@@ -450,6 +465,7 @@ impl Render for UserForm {
             .child(Separator::horizontal())
             .child(
                 v_form()
+                    .child(field().label("Account"))
                     .child(
                         field()
                             .label({
@@ -550,6 +566,7 @@ impl Render for UserForm {
                             })
                             .child(Input::new(&self.fields.email_input)),
                     )
+                    .child(field().label("Financial"))
                     .child(
                         field()
                             .label({
@@ -805,6 +822,7 @@ impl Render for UserForm {
                             })
                             .child(Select::new(&self.fields.country_select)),
                     )
+                    .child(field().label("Advanced"))
                     .child(
                         field()
                             .label({
@@ -841,6 +859,24 @@ impl Render for UserForm {
                     ),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state = ::gpui_form::FormState::new(
+                    UserFormValueHolder::default(),
+                );
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(
+                format!(
+                    "field_paths: {}", vec![UserFormPath::username().to_string(),
+                    UserFormPath::email().to_string(), UserFormPath::age().to_string(),
+                    UserFormPath::balance().to_string(), UserFormPath::debt()
+                    .to_string(), UserFormPath::subscribe_newsletter().to_string(),
+                    UserFormPath::enable_notifications().to_string(),
+                    UserFormPath::preferred().to_string(), UserFormPath::country()
+                    .to_string(), UserFormPath::birth_date().to_string()] .join(", ")
+                ),
+            )
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(

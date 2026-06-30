@@ -28,7 +28,15 @@ This crate exists to:
 - `gpui_form_component::infinite_select`
 - `gpui_form_core` as `gpui_form::core`
 - `gpui_form_core::numeric`
+- `gpui_form_core::path` and `gpui_form_core::FieldPath` for the pure,
+  GPUI-free, serde-free typed field-path primitive (feature #8, FLAT v1)
+- `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
+  form-state dirty tracking / reset / diff (feature #1)
 - `gpui_form_schema` as `gpui_form::schema`
+- `gpui_form_schema::LayoutWidth` as `gpui_form::LayoutWidth` (ergonomic root
+  re-export of the width-hint enum; `FieldLayout` itself stays under
+  `gpui_form::schema` alongside `FieldVariant` since it is field-level
+  metadata consumed by generators)
 - `bon` as `gpui_form::bon`
 
 The explicit namespaces (`core`, `runtime`, `schema`) are the preferred public
@@ -43,8 +51,18 @@ paths. Root-level module re-exports remain for compatibility.
     proc macro from `gpui-form-component-derive`
 - `inventory`: forwards inventory-enabled `GpuiForm` behavior so
   `#[derive(GpuiForm)]` emits `GpuiFormShape` registrations
+- `serde`: enables form-state persistence and dirty tracking. It pulls in
+  `serde` as a direct optional dependency and forwards
+  `gpui-form-derive/serde`, which adds `Serialize`, `Deserialize`, and
+  `PartialEq` to the generated `...FormValueHolder`. `FormState` itself is
+  re-exported unconditionally (it lives in `gpui-form-core` with no feature
+  gate); only the holder serde derives require this feature.
+- `phone`: forwards `gpui-form-core/phone` and exposes parser-backed,
+  country-matching phone validation helpers at `gpui_form::phone`.
 
-`inventory` is meaningful only when `derive` is also enabled.
+`inventory` and `serde` forward to `gpui-form-derive` via the optional
+dependency (`gpui-form-derive?/...`) and are therefore meaningful only when
+`derive` is also enabled. `phone` is independent of `derive`.
 
 ## Dependency Role
 
@@ -86,6 +104,10 @@ lower crates and is only re-exported here.
 
 - `gpui_form::bon` is re-exported because generated value holders with skipped
   fields derive `::gpui_form::bon::Builder`
+- `gpui_form::FieldPath` and `gpui_form::path` are re-exported because
+  generated `<Name>FormPath` types reach the shared primitive via the facade
+  path `::gpui_form::core::FieldPath`, mirroring how value holders reach
+  `::gpui_form::bon`
 - root-level compatibility modules (`custom`, `date_picker`, `file_picker`,
   `infinite_select`, `numeric`) should not be removed casually
 - if a lower-level crate adds a new public surface that should be first-class

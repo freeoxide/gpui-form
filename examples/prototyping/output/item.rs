@@ -1,6 +1,6 @@
 use some_lib::structs::new_type::*;
 use es_fluent::FluentMessage as _;
-use gpui::{InteractiveElement, ParentElement as _, Styled, Subscription, div};
+use gpui::{Subscription, div};
 use gpui::prelude::FluentBuilder as _;
 use gpui_component::ActiveTheme as _;
 use gpui_component::form::field;
@@ -8,7 +8,8 @@ use gpui_component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Window,
 };
 use gpui_component::Disableable as _;
 use gpui_component::separator::Separator;
@@ -267,6 +268,19 @@ impl Render for ItemForm {
                     ),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state = ::gpui_form::FormState::new(
+                    ItemFormValueHolder::default(),
+                );
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(
+                format!(
+                    "field_paths: {}", vec![ItemFormPath::index().to_string()]
+                    .join(", ")
+                ),
+            )
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(
