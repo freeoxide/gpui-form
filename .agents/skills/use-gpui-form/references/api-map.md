@@ -55,6 +55,8 @@ Useful facade paths:
 #[gpui_form(component(input))]
 #[gpui_form(component(number_input))]
 #[gpui_form(component(number_input(as = f64)))]
+#[gpui_form(component(phone_input))] // requires the `phone` feature
+#[gpui_form(component(phone_input(country = region)))] // requires the `phone` feature
 #[gpui_form(component(checkbox))]
 #[gpui_form(component(switch))]
 #[gpui_form(component(select))]

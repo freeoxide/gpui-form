@@ -364,6 +364,18 @@ pub price: rust_decimal::Decimal,
 
 ### 18. Phone, email, URL, and typed text validation
 
+> **Status: phone shipped.** Phone numbers are a first-class component:
+> `component(phone_input)` accepts any globally valid number and
+> `component(phone_input(country = <field>))` records the sibling country field
+> as `PhoneInputBehaviour::country_field` metadata. The control renders as a
+> text `Input` storing `Option<String>`, validated through the headless
+> `gpui_form::phone` helpers (`validate_phone_number`,
+> `validate_phone_number_for_country_label`, the `validate_optional_*` /
+> `validate_required_*` variants, `validate_phone_number_for`, and the
+> `PhoneCountry` mapping trait), behind the optional `phone` feature.
+> Cross-field, selected-country enforcement at the value layer and the other
+> text domains (email, URL, slug, UUID) remain open.
+
 Some values look simple but should not use numeric components. Phone numbers are
 the clearest example: they can contain `+`, spaces, punctuation, extensions,
 country-specific rules, and leading zeros. Treat them as strings or domain value

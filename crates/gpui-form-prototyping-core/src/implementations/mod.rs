@@ -5,6 +5,7 @@ pub mod file_picker;
 pub mod infinite_select;
 pub mod input;
 pub mod number_input;
+pub mod phone_input;
 pub mod select;
 pub mod switch;
 
@@ -26,6 +27,8 @@ use crate::{
 static INPUT_GENERATOR: input::InputCodeGenerator = input::InputCodeGenerator;
 static NUMBER_INPUT_GENERATOR: number_input::NumberInputCodeGenerator =
     number_input::NumberInputCodeGenerator;
+static PHONE_INPUT_GENERATOR: phone_input::PhoneInputCodeGenerator =
+    phone_input::PhoneInputCodeGenerator;
 static CHECKBOX_GENERATOR: checkbox::CheckboxCodeGenerator = checkbox::CheckboxCodeGenerator;
 static SWITCH_GENERATOR: switch::SwitchCodeGenerator = switch::SwitchCodeGenerator;
 static SELECT_GENERATOR: select::SelectCodeGenerator = select::SelectCodeGenerator;
@@ -41,6 +44,7 @@ pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCod
     match behaviour {
         ComponentsBehaviour::Input => &INPUT_GENERATOR,
         ComponentsBehaviour::NumberInput(_) => &NUMBER_INPUT_GENERATOR,
+        ComponentsBehaviour::PhoneInput(_) => &PHONE_INPUT_GENERATOR,
         ComponentsBehaviour::Checkbox => &CHECKBOX_GENERATOR,
         ComponentsBehaviour::Switch => &SWITCH_GENERATOR,
         ComponentsBehaviour::Select(_) => &SELECT_GENERATOR,

@@ -88,6 +88,8 @@ These component forms are currently supported:
 - `#[gpui_form(component(input))]`
 - `#[gpui_form(component(number_input))]`
 - `#[gpui_form(component(number_input(as = f64)))]`
+- `#[gpui_form(component(phone_input))]` (requires the `phone` feature)
+- `#[gpui_form(component(phone_input(country = <field>)))]` (requires the `phone` feature)
 - `#[gpui_form(component(checkbox))]`
 - `#[gpui_form(component(switch))]`
 - `#[gpui_form(component(select))]`
@@ -124,13 +126,51 @@ Common field-level helpers:
 ## Phone Number Validation
 
 Enable the optional `phone` feature when a form needs parser-backed phone
-validation. The helper is headless: it does not render a phone input, but it
-centralizes the strict validation logic so every phone field uses the same
-rules.
+validation. It provides both a first-class `component(phone_input)` derive
+field and headless validation helpers that centralize the strict validation
+logic so every phone field uses the same rules.
 
 ```toml
-gpui-form = { version = "*", features = ["phone"] }
+gpui-form = { version = "*", features = ["derive", "phone"] }
 ```
+
+### As a generated form field
+
+`component(phone_input)` renders a text input wired to the phone validator.
+Use the bare form for a globally valid number, and `phone_input(country =
+<field>)` to bind a phone field to a sibling country-select field:
+
+```rs
+use gpui_form::{GpuiForm, SelectItem};
+
+#[derive(Clone, Debug, Default, PartialEq, SelectItem, strum::EnumIter)]
+enum Region {
+    #[default]
+    UnitedStates,
+    France,
+}
+
+#[derive(Clone, Debug, Default, GpuiForm)]
+struct Contact {
+    #[gpui_form(component(select))]
+    region: Region,
+
+    // Global phone: any globally valid number is accepted.
+    #[gpui_form(component(phone_input))]
+    mobile_number: Option<String>,
+
+    // Country-bound phone: the `country` binding records the sibling field
+    // whose selection the number should match.
+    #[gpui_form(component(phone_input(country = region)))]
+    local_number: Option<String>,
+}
+```
+
+The phone value is stored as `Option<String>` in the generated value holder
+(the same storage as `component(input)`), and the generated input control
+accepts empty input so a partially typed field is not flagged mid-entry.
+
+### As headless helpers
 
 ```rs
 use gpui_form::phone::{
@@ -151,12 +191,55 @@ let result = validate_phone_number_for_country_label(
 );
 
 assert!(!result.is_valid());
+
+// Inspect the parsed result separately.
+let valid = validate_phone_number("415 555 2671", Some(country::US));
+assert_eq!(valid.country(), Some(country::US));
+assert_eq!(valid.e164(), Some("+14155552671"));
 ```
 
 Use `validate_phone_number` when a field should accept any valid global number.
 Use `validate_phone_number_for_country_label` when the parsed country must match
 the selected country. For example, `+1 415 550 2222` is a valid US number, but
 strict mode rejects it when the selected country is France.
+
+### Empty handling and the `PhoneCountry` trait
+
+`validate_optional_phone_number` treats empty input as acceptable (pair it with
+`PhoneNumberValidation::is_valid_or_empty` for live input gating), while
+`validate_required_phone_number` rejects empty input with
+`PhoneNumberValidationError::Required`. Both have `_for_country_label` variants.
+
+Implement the `PhoneCountry` trait on an application country enum to map it to a
+`country::Id` and label once, then validate with `validate_phone_number_for`:
+
+```rs
+use gpui_form::phone::{country, validate_phone_number_for, PhoneCountry};
+
+enum Region {
+    UnitedStates,
+    France,
+}
+
+impl PhoneCountry for Region {
+    fn phone_country_id(&self) -> country::Id {
+        match self {
+            Self::UnitedStates => country::US,
+            Self::France => country::FR,
+        }
+    }
+
+    fn phone_country_label(&self) -> String {
+        match self {
+            Self::UnitedStates => "United States".to_string(),
+            Self::France => "France".to_string(),
+        }
+    }
+}
+
+let result = validate_phone_number_for("415 555 2671", &Region::UnitedStates);
+assert!(result.is_valid());
+```
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum

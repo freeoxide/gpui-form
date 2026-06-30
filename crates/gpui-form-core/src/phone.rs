@@ -26,6 +26,31 @@ impl PhoneNumberValidation {
         matches!(self, Self::Valid(_))
     }
 
+    /// Whether the input was empty.
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+
+    /// Whether the result is acceptable for an *optional* field: either a valid
+    /// number or empty input. Use this for live input gating where a partially
+    /// typed or cleared field should not be flagged as invalid.
+    pub fn is_valid_or_empty(&self) -> bool {
+        matches!(self, Self::Valid(_) | Self::Empty)
+    }
+
+    /// The validated number when valid.
+    pub fn validated(&self) -> Option<&ValidatedPhoneNumber> {
+        match self {
+            Self::Valid(number) => Some(number),
+            Self::Empty | Self::Invalid(_) => None,
+        }
+    }
+
+    /// The parsed country id when valid.
+    pub fn country(&self) -> Option<country::Id> {
+        self.validated().and_then(ValidatedPhoneNumber::country)
+    }
+
     /// The parsed E.164 representation when valid.
     pub fn e164(&self) -> Option<&str> {
         match self {
@@ -61,9 +86,51 @@ impl ValidatedPhoneNumber {
     }
 }
 
+/// A type that maps onto a libphonenumber country.
+///
+/// Implement this for an application's own country enum so helper and UI code
+/// can map to a [`country::Id`] and a user-facing label without repeating a
+/// `match` at every call site. The blanket helpers
+/// [`validate_phone_number_for_country_label`] and friends accept the resulting
+/// id and label directly.
+///
+/// ```
+/// use gpui_form_core::phone::{country, PhoneCountry};
+///
+/// enum Country {
+///     UnitedStates,
+///     France,
+/// }
+///
+/// impl PhoneCountry for Country {
+///     fn phone_country_id(&self) -> country::Id {
+///         match self {
+///             Self::UnitedStates => country::US,
+///             Self::France => country::FR,
+///         }
+///     }
+///
+///     fn phone_country_label(&self) -> String {
+///         match self {
+///             Self::UnitedStates => "United States".to_string(),
+///             Self::France => "France".to_string(),
+///         }
+///     }
+/// }
+/// ```
+pub trait PhoneCountry {
+    /// The libphonenumber country id for this value.
+    fn phone_country_id(&self) -> country::Id;
+
+    /// A user-facing label for this country, used in validation messages.
+    fn phone_country_label(&self) -> String;
+}
+
 /// Why a non-empty phone number failed validation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PhoneNumberValidationError {
+    /// A required phone field was left empty.
+    Required,
     Invalid {
         default_country: Option<country::Id>,
     },
@@ -90,6 +157,7 @@ pub enum PhoneNumberValidationError {
 impl core::fmt::Display for PhoneNumberValidationError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::Required => write!(f, "Phone number is required"),
             Self::Invalid { default_country } => {
                 write!(f, "Not a valid phone number for {default_country:?}")
             },
@@ -204,6 +272,74 @@ pub fn validate_phone_number_for_country_label(
     }
 }
 
+/// Validate a phone number using a [`PhoneCountry`] for both the country id and
+/// the user-facing label. This is the ergonomic entry point for application
+/// country enums that implement [`PhoneCountry`].
+pub fn validate_phone_number_for(raw: &str, country: &impl PhoneCountry) -> PhoneNumberValidation {
+    validate_phone_number_for_country_label(
+        raw,
+        country.phone_country_id(),
+        country.phone_country_label(),
+    )
+}
+
+/// Validate an *optional* phone number without country matching.
+///
+/// Empty input is treated as acceptable and returns
+/// [`PhoneNumberValidation::Empty`]; combine with
+/// [`PhoneNumberValidation::is_valid_or_empty`] to gate live input. This is the
+/// same as [`validate_phone_number`] but names the intent explicitly so apps no
+/// longer have to decide what empty means.
+pub fn validate_optional_phone_number(
+    raw: &str,
+    default_country: Option<country::Id>,
+) -> PhoneNumberValidation {
+    validate_phone_number(raw, default_country)
+}
+
+/// Validate a *required* phone number without country matching.
+///
+/// Empty input is rejected with [`PhoneNumberValidationError::Required`].
+pub fn validate_required_phone_number(
+    raw: &str,
+    default_country: Option<country::Id>,
+) -> PhoneNumberValidation {
+    match validate_phone_number(raw, default_country) {
+        PhoneNumberValidation::Empty => {
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::Required)
+        },
+        other => other,
+    }
+}
+
+/// Validate an *optional* phone number against a selected country.
+///
+/// Empty input is treated as acceptable and returns
+/// [`PhoneNumberValidation::Empty`].
+pub fn validate_optional_phone_number_for_country_label(
+    raw: &str,
+    selected_country: country::Id,
+    selected_label: impl Into<String>,
+) -> PhoneNumberValidation {
+    validate_phone_number_for_country_label(raw, selected_country, selected_label)
+}
+
+/// Validate a *required* phone number against a selected country.
+///
+/// Empty input is rejected with [`PhoneNumberValidationError::Required`].
+pub fn validate_required_phone_number_for_country_label(
+    raw: &str,
+    selected_country: country::Id,
+    selected_label: impl Into<String>,
+) -> PhoneNumberValidation {
+    match validate_phone_number_for_country_label(raw, selected_country, selected_label) {
+        PhoneNumberValidation::Empty => {
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::Required)
+        },
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -256,5 +392,60 @@ mod tests {
     fn general_validation_uses_default_country_for_national_numbers() {
         assert!(validate_phone_number("01 42 68 53 00", Some(country::FR)).is_valid());
         assert!(!validate_phone_number("01 42 68 53 00", Some(country::US)).is_valid());
+    }
+
+    struct DemoCountry(country::Id, &'static str);
+
+    impl PhoneCountry for DemoCountry {
+        fn phone_country_id(&self) -> country::Id {
+            self.0
+        }
+
+        fn phone_country_label(&self) -> String {
+            self.1.to_string()
+        }
+    }
+
+    #[test]
+    fn validate_phone_number_for_uses_phone_country_trait() {
+        let france = DemoCountry(country::FR, "France");
+
+        assert!(validate_phone_number_for("01 42 68 53 00", &france).is_valid());
+        assert!(matches!(
+            validate_phone_number_for("+1 415 550 2222", &france),
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::WrongCountry { .. })
+        ));
+    }
+
+    #[test]
+    fn optional_validation_accepts_empty_input() {
+        let result = validate_optional_phone_number("", None);
+
+        assert!(result.is_empty());
+        assert!(result.is_valid_or_empty());
+        assert!(!result.is_valid());
+    }
+
+    #[test]
+    fn required_validation_rejects_empty_input() {
+        let result = validate_required_phone_number("   ", None);
+
+        assert!(matches!(
+            result,
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::Required)
+        ));
+        assert!(!result.is_valid_or_empty());
+    }
+
+    #[test]
+    fn required_country_validation_rejects_empty_but_accepts_valid() {
+        assert!(matches!(
+            validate_required_phone_number_for_country_label("", country::US, "United States"),
+            PhoneNumberValidation::Invalid(PhoneNumberValidationError::Required)
+        ));
+        let ok =
+            validate_required_phone_number_for_country_label("415 555 2671", country::US, "US");
+        assert!(ok.is_valid());
+        assert_eq!(ok.country(), Some(country::US));
     }
 }

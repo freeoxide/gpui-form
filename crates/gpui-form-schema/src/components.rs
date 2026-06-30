@@ -5,6 +5,7 @@ use strum::{Display, EnumString, IntoStaticStr};
 pub enum ComponentKind {
     Input,
     NumberInput,
+    PhoneInput,
     Checkbox,
     Switch,
     Select,
@@ -32,6 +33,7 @@ impl ComponentKind {
             self,
             Self::Input
                 | Self::NumberInput
+                | Self::PhoneInput
                 | Self::Select
                 | Self::InfiniteSelect
                 | Self::DatePicker
@@ -44,6 +46,7 @@ impl ComponentKind {
             self,
             Self::Input
                 | Self::NumberInput
+                | Self::PhoneInput
                 | Self::Select
                 | Self::InfiniteSelect
                 | Self::FilePicker
@@ -51,7 +54,10 @@ impl ComponentKind {
     }
 
     pub const fn default_wraps_in_option(self) -> bool {
-        matches!(self, Self::Input | Self::NumberInput | Self::FilePicker)
+        matches!(
+            self,
+            Self::Input | Self::NumberInput | Self::PhoneInput | Self::FilePicker
+        )
     }
 }
 
@@ -89,11 +95,23 @@ pub struct NumberInputBehaviour {
     pub kind: NumberInputKind,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PhoneInputBehaviour {
+    /// When set, the phone number must match the country selected by this sibling
+    /// field (`phone_input(country = <field>)`). When `None`, the field accepts
+    /// any globally valid number. The reference is the snake_case source field
+    /// name; cross-field, selected-country enforcement is wired at the
+    /// application/render layer, while the generated input control validates a
+    /// globally parseable number as a baseline.
+    pub country_field: Option<&'static str>,
+}
+
 #[derive(Clone, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
 #[strum(serialize_all = "snake_case")]
 pub enum ComponentsBehaviour {
     Input,
     NumberInput(NumberInputBehaviour),
+    PhoneInput(PhoneInputBehaviour),
     Checkbox,
     Switch,
     Select(SelectBehaviour),
@@ -108,6 +126,7 @@ impl ComponentsBehaviour {
         match self {
             Self::Input => ComponentKind::Input,
             Self::NumberInput(_) => ComponentKind::NumberInput,
+            Self::PhoneInput(_) => ComponentKind::PhoneInput,
             Self::Checkbox => ComponentKind::Checkbox,
             Self::Switch => ComponentKind::Switch,
             Self::Select(_) => ComponentKind::Select,

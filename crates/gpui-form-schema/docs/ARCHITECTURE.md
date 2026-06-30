@@ -41,6 +41,8 @@ Per-field runtime behavior metadata with payloads for:
 - select behavior
 - infinite-select behavior
 - number-input behavior
+- phone-input behavior (`PhoneInputBehaviour`, carrying the optional
+  `country_field` reference for `phone_input(country = ...)`)
 - file-picker behavior
 
 This is the metadata level that downstream consumers use; derive/codegen

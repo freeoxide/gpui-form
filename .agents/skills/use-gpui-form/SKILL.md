@@ -90,11 +90,17 @@ Common patterns:
 - For custom widgets, derive `CustomComponentState` on a state type or declare a reusable shape with `gpui_form::custom_component_shape!`.
 - For value-bound custom widgets, implement `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use `component(custom(shape = ..., value_binding))`.
 - For save/restore and dirty tracking, enable the facade `serde` feature and wrap the holder in `gpui_form::FormState`.
-- For country-aware phone inputs, enable the facade `phone` feature and use
-  `gpui_form::phone::validate_phone_number` for general validation, or
-  `gpui_form::phone::validate_phone_number_for_country_label` when the parsed
-  number must match the selected country. Do not duplicate parser and
-  country-matching logic in each UI.
+- For phone inputs, enable the facade `phone` feature. Use the generated
+  `component(phone_input)` field for a globally valid number, or
+  `component(phone_input(country = <field>))` to bind it to a sibling
+  country-select field. For headless validation, use
+  `gpui_form::phone::validate_phone_number` (general),
+  `gpui_form::phone::validate_phone_number_for_country_label` (parsed number
+  must match the selected country), or the `validate_optional_phone_number` /
+  `validate_required_phone_number` variants for explicit empty handling.
+  Implement `gpui_form::phone::PhoneCountry` on an app country enum to map it to
+  a `country::Id` and label once. Do not duplicate parser and country-matching
+  logic in each UI.
 - For typed field naming (validation, dirty tracking, focus, analytics, schema export), use the generated `<Name>FormPath` constructors such as `UserProfileFormPath::username()`; skipped fields have no constructor.
 - For layout intent, attach non-rendering hints with `section`, `label`, `description`, `placeholder`, and `width`; prototyping groups by `section`, prefers `label`, and emits `description` where it already produces help text.
 - Keep consumer code focused on app models, form state, rendering, and app-owned components.

@@ -14,7 +14,9 @@ Today this crate is intentionally small and focused:
 - `numeric::validate_unsigned_numeric`
 - `phone::validate_phone_number` and
   `phone::validate_phone_number_for_country_label` behind the optional `phone`
-  feature
+  feature, plus `validate_optional_phone_number` / `validate_required_phone_number`
+  (and `_for_country_label` variants) for explicit empty-handling, the
+  `validate_phone_number_for` helper, and the `PhoneCountry` mapping trait
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
 - `path::FieldPath` for typed field naming (a headless, GPUI-free, serde-free
   primitive)
@@ -49,6 +51,35 @@ let result = validate_phone_number_for_country_label(
 );
 
 assert!(!result.is_valid());
+```
+
+Apps that want explicit empty semantics can use
+`validate_optional_phone_number` (empty input is acceptable) or
+`validate_required_phone_number` (empty input is rejected with
+`PhoneNumberValidationError::Required`). Implement `PhoneCountry` on an
+application enum to map it to a `country::Id` and label once, then validate with
+`validate_phone_number_for`:
+
+```rs
+use gpui_form_core::phone::{country, validate_phone_number_for, PhoneCountry};
+
+enum Region {
+    UnitedStates,
+}
+
+impl PhoneCountry for Region {
+    fn phone_country_id(&self) -> country::Id {
+        match self {
+            Self::UnitedStates => country::US,
+        }
+    }
+
+    fn phone_country_label(&self) -> String {
+        "United States".to_string()
+    }
+}
+
+assert!(validate_phone_number_for("415 555 2671", &Region::UnitedStates).is_valid());
 ```
 
 ## FormState

@@ -32,6 +32,7 @@ crate.
 
 - `InputOptions`
 - `NumberInputOptions`
+- `PhoneInputOptions`
 - `CheckboxOptions`
 - `SwitchOptions`
 - `SelectOptions`
@@ -43,6 +44,10 @@ crate.
 Important parse-time responsibilities:
 
 - `number_input(as = ...)` stores validation-type overrides
+- `phone_input(country = ...)` stores the sibling country field as
+  `PhoneInputBehaviour::country_field` metadata; its `ComponentLayout`
+  implementation emits an `InputState` validated through the headless
+  `gpui_form::phone` helpers (so generated forms need the facade `phone` feature)
 - `select(...)` and `infinite_select(...)` store behavior options plus field
   defaults
 - `custom(...)` validates that exactly one of `shape = ...` or `state = ...` is

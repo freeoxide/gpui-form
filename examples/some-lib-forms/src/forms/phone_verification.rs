@@ -9,7 +9,8 @@ use gpui_component::select::{Select, SelectEvent, SelectItem, SelectState};
 use gpui_component::separator::Separator;
 use gpui_component::v_flex;
 use gpui_form::phone::{
-    PhoneNumberValidation, country, validate_phone_number, validate_phone_number_for_country_label,
+    PhoneCountry as PhoneCountryExt, PhoneNumberValidation, country, validate_phone_number_for,
+    validate_optional_phone_number,
 };
 use strum::IntoEnumIterator as _;
 
@@ -23,13 +24,20 @@ enum PhoneCountry {
     China,
 }
 
-impl PhoneCountry {
-    fn country_id(&self) -> country::Id {
+// Implement the library's `PhoneCountry` trait so the validation helpers can map
+// the example enum to a libphonenumber id and label without an ad hoc `match` at
+// each call site.
+impl PhoneCountryExt for PhoneCountry {
+    fn phone_country_id(&self) -> country::Id {
         match self {
             Self::UnitedStates => country::US,
             Self::France => country::FR,
             Self::China => country::CN,
         }
+    }
+
+    fn phone_country_label(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -55,12 +63,43 @@ impl SelectItem for PhoneCountry {
     }
 }
 
-fn validate_country_phone(country: PhoneCountry, raw: &str) -> PhoneNumberValidation {
-    validate_phone_number_for_country_label(raw, country.country_id(), country.to_string())
+/// A parsed breakdown of a phone validation result for separate, polished
+/// display: a status line, the parsed country, and the normalized E.164 form.
+struct PhoneBreakdown {
+    is_valid: bool,
+    status: String,
+    parsed_country: String,
+    e164: String,
+}
+
+impl PhoneBreakdown {
+    fn from_validation(validation: &PhoneNumberValidation) -> Self {
+        let status = match validation {
+            PhoneNumberValidation::Empty => "Waiting for input".to_string(),
+            PhoneNumberValidation::Valid(_) => "Valid".to_string(),
+            PhoneNumberValidation::Invalid(error) => error.to_string(),
+        };
+        let parsed_country = validation
+            .country()
+            .map(|id| format!("{id:?}"))
+            .unwrap_or_else(|| "—".to_string());
+        let e164 = validation.e164().map(str::to_string).unwrap_or_else(|| "—".to_string());
+
+        Self {
+            is_valid: validation.is_valid(),
+            status,
+            parsed_country,
+            e164,
+        }
+    }
+}
+
+fn validate_country_phone(country: &PhoneCountry, raw: &str) -> PhoneNumberValidation {
+    validate_phone_number_for(raw, country)
 }
 
 fn validate_global_phone(raw: &str) -> PhoneNumberValidation {
-    validate_phone_number(raw, None)
+    validate_optional_phone_number(raw, None)
 }
 
 #[gpui_storybook::story_init]
@@ -183,23 +222,44 @@ impl PhoneVerificationForm {
     }
 }
 
+impl PhoneVerificationForm {
+    /// Render a validation breakdown as three separate rows — status, parsed
+    /// country, and normalized E.164 — instead of a single status string.
+    fn render_breakdown(breakdown: &PhoneBreakdown, cx: &Context<Self>) -> impl IntoElement {
+        let status_color = if breakdown.is_valid {
+            cx.theme().success
+        } else {
+            cx.theme().danger
+        };
+        let muted = cx.theme().muted_foreground;
+
+        v_flex()
+            .gap_1()
+            .child(
+                div()
+                    .text_color(status_color)
+                    .child(format!("Status: {}", breakdown.status)),
+            )
+            .child(
+                div()
+                    .text_color(muted)
+                    .child(format!("Parsed country: {}", breakdown.parsed_country)),
+            )
+            .child(
+                div()
+                    .text_color(muted)
+                    .child(format!("E.164: {}", breakdown.e164)),
+            )
+    }
+}
+
 impl Render for PhoneVerificationForm {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let country_validation = validate_country_phone(self.country.clone(), &self.country_phone);
-        let country_status = country_validation.message();
-        let country_status_color = if country_validation.is_valid() {
-            cx.theme().success
-        } else {
-            cx.theme().danger
-        };
+        let country_validation = validate_country_phone(&self.country, &self.country_phone);
+        let country_breakdown = PhoneBreakdown::from_validation(&country_validation);
 
         let global_validation = validate_global_phone(&self.global_phone);
-        let global_status = global_validation.message();
-        let global_status_color = if global_validation.is_valid() {
-            cx.theme().success
-        } else {
-            cx.theme().danger
-        };
+        let global_breakdown = PhoneBreakdown::from_validation(&global_validation);
 
         v_flex()
             .key_context(CONTEXT)
@@ -230,13 +290,7 @@ impl Render for PhoneVerificationForm {
                     .child(
                         field()
                             .label("Country-bound validation")
-                            .child(div().text_color(country_status_color).child(country_status)),
-                    )
-                    .child(
-                        field()
-                            .label("Global phone validation")
-                            .description("This field is independent of the selected country.")
-                            .child(div()),
+                            .child(Self::render_breakdown(&country_breakdown, cx)),
                     )
                     .child(
                         field()
@@ -249,7 +303,7 @@ impl Render for PhoneVerificationForm {
                     .child(
                         field()
                             .label("Global validation")
-                            .child(div().text_color(global_status_color).child(global_status)),
+                            .child(Self::render_breakdown(&global_breakdown, cx)),
                     ),
             )
             .child(Separator::horizontal())
@@ -265,11 +319,11 @@ mod tests {
         let number = "415 555 2671";
 
         assert!(matches!(
-            validate_country_phone(PhoneCountry::UnitedStates, number),
+            validate_country_phone(&PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_country_phone(PhoneCountry::France, number),
+            validate_country_phone(&PhoneCountry::France, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -279,11 +333,11 @@ mod tests {
         let number = "+1 415 550 2222";
 
         assert!(matches!(
-            validate_country_phone(PhoneCountry::UnitedStates, number),
+            validate_country_phone(&PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_country_phone(PhoneCountry::France, number),
+            validate_country_phone(&PhoneCountry::France, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
@@ -293,11 +347,11 @@ mod tests {
         let number = "01 42 68 53 00";
 
         assert!(matches!(
-            validate_country_phone(PhoneCountry::France, number),
+            validate_country_phone(&PhoneCountry::France, number),
             PhoneNumberValidation::Valid(_)
         ));
         assert!(matches!(
-            validate_country_phone(PhoneCountry::UnitedStates, number),
+            validate_country_phone(&PhoneCountry::UnitedStates, number),
             PhoneNumberValidation::Invalid(_)
         ));
     }
