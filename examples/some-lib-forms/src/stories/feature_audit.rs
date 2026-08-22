@@ -16,6 +16,7 @@ const CONTEXT: &str = "FeatureAuditForm";
 pub fn init(_cx: &mut App) {}
 
 #[gpui_storybook::story]
+#[derive(gpui_storybook::StoryControls)]
 pub struct FeatureAuditForm {
     form_state: FormState<UserFormValueHolder>,
     username_input: Entity<InputState>,
@@ -34,7 +35,7 @@ impl gpui_storybook::Story for FeatureAuditForm {
         "Feature Audit".into()
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 }
@@ -44,9 +45,7 @@ impl FeatureAuditForm {
         let holder = UserFormValueHolder::default();
         let username_input = cx.new(|cx| {
             let mut input = InputState::new(window, cx);
-            if let Some(username) = &holder.username {
-                input.set_value(username.clone(), window, cx);
-            }
+            input.set_value(holder.username.clone(), window, cx);
             input
         });
 
@@ -70,22 +69,13 @@ impl FeatureAuditForm {
     ) {
         if matches!(event, InputEvent::Change) {
             let value = state.read(cx).value();
-            self.form_state.current_mut().username = if value.is_empty() {
-                None
-            } else {
-                Some(value.to_string())
-            };
+            self.form_state.current_mut().username = value.to_string();
             cx.notify();
         }
     }
 
     fn sync_username_input(&self, window: &mut Window, cx: &mut Context<Self>) {
-        let value = self
-            .form_state
-            .current()
-            .username
-            .clone()
-            .unwrap_or_default();
+        let value = self.form_state.current().username.clone();
         self.username_input
             .update(cx, |input, cx| input.set_value(value, window, cx));
     }
@@ -189,10 +179,10 @@ impl Render for FeatureAuditForm {
                         field()
                             .label("Generated User form coverage")
                             .description(
-                                "Open the User story to test layout sections and number_input(as = f64) for balance and debt.",
+                                "Open the User story to see the full generated surface: fields, holder, typed paths, and validation.",
                             )
                             .child(
-                                "The User story also renders form_state.is_dirty, field_paths, value_holder, and present_fields_json.",
+                                "The User story exercises shape-backed inputs, selects, pickers, and NumberInput typing for balance and debt.",
                             ),
                     )
                     .child(
@@ -222,7 +212,7 @@ mod tests {
         assert_eq!(UserFormPath::balance().to_string(), "balance");
         assert!(!form_state.is_dirty());
 
-        form_state.current_mut().username = Some("audit-user".into());
+        form_state.current_mut().username = "audit-user".into();
         assert!(form_state.is_dirty());
 
         form_state.reset_to_baseline();

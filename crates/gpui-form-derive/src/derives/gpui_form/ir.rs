@@ -67,11 +67,29 @@ impl FieldContext {
     }
 }
 
+/// Non-rendering layout width hint accepted by `#[gpui_form(width = ...)]`.
+///
+/// Mirrors `gpui_form_schema::registry::LayoutWidth`; the expansion maps this
+/// onto the schema enum's variants.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LayoutWidth {
+    #[default]
+    Full,
+    Half,
+    Third,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct FieldMetadata {
     pub label: Option<String>,
     pub description: Option<String>,
     pub examples: Vec<String>,
+    /// Optional section name for grouping consecutive fields.
+    pub section: Option<String>,
+    /// Optional placeholder text for inputs that support one.
+    pub placeholder: Option<String>,
+    /// Relative width hint; `None` means the schema default (`Full`).
+    pub width: Option<LayoutWidth>,
 }
 
 #[derive(Clone, Debug)]

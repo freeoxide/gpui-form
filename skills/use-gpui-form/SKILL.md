@@ -39,7 +39,9 @@ for proc-macro internals, generators, releases, or repository maintenance.
 - Use `gpui_form::GpuiForm`. Generated component code resolves runtime
   contracts through `gpui_form::runtime::shape`.
 - For `Profile`, expect `ProfileFormField`, `ProfileFormFields`,
-  `ProfileFormComponents`, and `ProfileFormValueHolder`.
+  `ProfileFormComponents`, `ProfileFormValueHolder`, and (fork extension)
+  `ProfileFormPath` — a typed field-path newtype with one constructor per
+  component field and `from_form_field(ProfileFormField)` bridging the enum.
 - Use `hidden` for holder values without widgets. Use `skip` for source values
   the form does not own; pass skipped values to `into_original(...)`.
 - In `value(type = T, ...)`, write the base form-side type `T` rather than
@@ -79,6 +81,9 @@ pub struct Profile {
 | Generated GPUI wiring | Enable `inventory` and use `gpui-form-prototyping-core` |
 | Structured form tools | Enable `mcp` and use `#[gpui_form(mcp)]` plus an application-owned submit path |
 | App-owned widget or external state wrapper | Switch to `use-gpui-form-component-shapes` |
+| Phone number field (fork, `phone` feature) | Use `gpui_form_collection::phone_input::PhoneInput` and validate via `gpui_form::phone` helpers |
+| Dirty tracking, reset, persistence (fork) | Wrap the holder in `gpui_form::FormState`; enable `serde` for round-trips |
+| Grouping fields / width hints in generated forms (fork) | Add `section = "..."`, `placeholder = "..."`, `width = half` field hints |
 
 ## MCP guardrails
 

@@ -28,6 +28,7 @@ gpui-form = { features = [ "phone" ], workspace = true }
 gpui-form-collection = { workspace = true }
 gpui-form-component = { workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
+strum = { workspace = true }
 gpui_platform = { workspace = true }
 rust_decimal = { workspace = true }
 some-lib = { path = "../some-lib" }

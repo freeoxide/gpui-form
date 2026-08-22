@@ -3,7 +3,7 @@ use component_shape::{
     ComponentPrototyping as ShapeComponentPrototyping, ComponentShapeUse,
 };
 use heck::{ToKebabCase as _, ToPascalCase as _};
-use strum::IntoStaticStr;
+use strum::{Display, EnumString, IntoStaticStr};
 
 pub use component_shape::{
     ComponentFieldName, RenderCapability, RustExpr, RustPath, RustSyntaxError, RustSyntaxKind,
@@ -433,12 +433,47 @@ impl FieldValueSpec {
     }
 }
 
+/// Relative width hint for generators that lay fields out on a grid.
+///
+/// This is a **hint**, not a layout engine. Consumers are free to ignore it or
+/// map it onto whatever grid/column system they use. Serialized as the
+/// snake-case identifier (`full`, `half`, `third`) to match the bare-ident
+/// attribute syntax in `#[gpui_form(width = half)]`.
+#[derive(Clone, Copy, Debug, Default, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub enum LayoutWidth {
+    /// Full available width (the default).
+    #[default]
+    Full,
+    /// Half of the available width (e.g. one of two columns).
+    Half,
+    /// A third of the available width (e.g. one of three columns).
+    Third,
+}
+
+impl LayoutWidth {
+    /// String form used by the `#[gpui_form(width = ...)]` attribute.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Half => "half",
+            Self::Third => "third",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FieldVariant {
     field_name: ComponentFieldName<'static>,
     label: Option<&'static str>,
     description: Option<&'static str>,
     examples: &'static [&'static str],
+    /// Optional section name for grouping consecutive fields. Order-preserving.
+    section: Option<&'static str>,
+    /// Optional placeholder text for inputs that support one.
+    placeholder: Option<&'static str>,
+    /// Relative width hint for generators that lay fields out on a grid.
+    width: LayoutWidth,
     /// Rust type path for the field's value type.
     ///
     /// This is the form-side base value type, not including any generated
@@ -498,6 +533,9 @@ impl FieldVariant {
             label: None,
             description: None,
             examples: &[],
+            section: None,
+            placeholder: None,
+            width: LayoutWidth::Full,
             value_type: value.value_type,
             source_value_type: value.source_value_type,
             value_presence: value.value_presence,
@@ -528,6 +566,24 @@ impl FieldVariant {
         self
     }
 
+    /// Attaches a section name for grouping consecutive fields.
+    pub const fn with_section(mut self, section: Option<&'static str>) -> Self {
+        self.section = section;
+        self
+    }
+
+    /// Attaches placeholder text for inputs that support one.
+    pub const fn with_placeholder(mut self, placeholder: Option<&'static str>) -> Self {
+        self.placeholder = placeholder;
+        self
+    }
+
+    /// Attaches a relative width hint.
+    pub const fn with_width(mut self, width: LayoutWidth) -> Self {
+        self.width = width;
+        self
+    }
+
     pub const fn explicit_label(&self) -> Option<&'static str> {
         self.label
     }
@@ -538,6 +594,21 @@ impl FieldVariant {
 
     pub const fn examples(&self) -> &'static [&'static str] {
         self.examples
+    }
+
+    /// Returns the section name this field is grouped under, if any.
+    pub const fn section(&self) -> Option<&'static str> {
+        self.section
+    }
+
+    /// Returns the placeholder text for inputs that support one, if any.
+    pub const fn placeholder(&self) -> Option<&'static str> {
+        self.placeholder
+    }
+
+    /// Returns the relative width hint for this field.
+    pub const fn width(&self) -> LayoutWidth {
+        self.width
     }
 
     /// Returns the serialized form-side value type.

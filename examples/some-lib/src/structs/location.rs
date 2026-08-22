@@ -14,6 +14,7 @@ use strum::EnumIter;
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CaliforniaCity {
     #[default]
     LosAngeles,
@@ -26,6 +27,7 @@ pub enum CaliforniaCity {
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TexasCity {
     #[default]
     Houston,
@@ -38,6 +40,7 @@ pub enum TexasCity {
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NewYorkCity {
     #[default]
     NewYorkCity,
@@ -50,6 +53,7 @@ pub enum NewYorkCity {
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum OntarioCity {
     #[default]
     Toronto,
@@ -62,6 +66,7 @@ pub enum OntarioCity {
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QuebecCity {
     #[default]
     Montreal,
@@ -74,6 +79,7 @@ pub enum QuebecCity {
 #[derive(
     Clone, Debug, Default, EnumIter, EsFluent, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BritishColumbiaCity {
     #[default]
     Vancouver,
@@ -91,6 +97,7 @@ pub enum BritishColumbiaCity {
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
 #[fluent_variants(keys = ["description", "label"])]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum USAState {
     California(CaliforniaCity),
     Texas(TexasCity),
@@ -107,6 +114,7 @@ impl Default for USAState {
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
 #[fluent_variants(keys = ["description", "label"])]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CanadaProvince {
     Ontario(OntarioCity),
     Quebec(QuebecCity),
@@ -127,6 +135,7 @@ impl Default for CanadaProvince {
     Clone, Debug, EnumIter, EsFluent, EsFluentVariants, EsFluentLabel, InfiniteSelect, Eq, PartialEq,
 )]
 #[fluent_variants(keys = ["description", "label"])]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Country {
     USA(USAState),
     Canada { province: CanadaProvince },

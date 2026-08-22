@@ -357,10 +357,37 @@ impl<'a> FormShapeAdapter<'a> {
             .iter()
             .map(quote::ToTokens::to_token_stream)
             .collect();
-        let render_children: TokenStream = generated_fields
-            .iter()
-            .map(|field| field.render_child.to_token_stream())
-            .collect();
+        // METADATA-FIRST v1 — section grouping.
+        //
+        // `section` groups *consecutive* fields (order-preserving): each time
+        // the section name changes between adjacent fields we emit a section
+        // heading before that field's render child. The heading reuses the
+        // already-imported `field()` builder (see `FIELD_FRAGMENT_IMPORTS`)
+        // so no new imports are introduced.
+        //
+        // The first field with a declared section also emits a heading (its
+        // "previous section" is `None`). Fields without a section never emit a
+        // heading and reset the tracker so the next declared section
+        // re-heading fires. This is a heading *hint* rendered by the scaffold;
+        // it is NOT a layout engine.
+        let mut render_children_items: Vec<TokenStream> =
+            Vec::with_capacity(generated_fields.len());
+        let mut prev_section: Option<&'static str> = None;
+        for field in &generated_fields {
+            let current_section = field._resolved.raw().section();
+            if current_section.is_some() && current_section != prev_section {
+                let heading = current_section.unwrap_or_default();
+                render_children_items.push(quote! {
+                    .child(
+                        field()
+                            .label(#heading)
+                    )
+                });
+            }
+            prev_section = current_section;
+            render_children_items.push(field.render_child.to_token_stream());
+        }
+        let render_children: TokenStream = render_children_items.into_iter().collect();
         let subscription_calls = SubscriptionPlan::new(
             generated_fields
                 .iter()

@@ -2,3 +2,5 @@
 
 pub mod registry;
 pub mod resolved;
+
+pub use registry::LayoutWidth;

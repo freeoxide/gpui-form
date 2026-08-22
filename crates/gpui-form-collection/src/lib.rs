@@ -25,6 +25,8 @@ pub mod date_picker;
 pub mod input;
 pub mod number_input;
 pub mod otp_input;
+#[cfg(feature = "phone")]
+pub mod phone_input;
 pub mod select;
 pub mod slider;
 pub mod switch;

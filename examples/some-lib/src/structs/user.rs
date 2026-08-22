@@ -13,6 +13,7 @@ use strum::EnumIter;
 
 #[derive(Clone, Debug, Default, EnumIter, Eq, EsFluent, PartialEq, SelectItem)]
 #[select_item(fluent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PreferredLanguage {
     #[default]
     English,
@@ -22,6 +23,7 @@ pub enum PreferredLanguage {
 
 #[derive(Clone, Debug, Default, EnumIter, Eq, EsFluent, PartialEq, SelectItem)]
 #[select_item(fluent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EnumCountry {
     #[default]
     UnitedStates,
@@ -31,9 +33,14 @@ pub enum EnumCountry {
 
 #[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
 #[fluent_variants(keys = ["description", "label"])]
-#[gpui_form(koruma(fluent))]
+#[gpui_form(koruma(fluent), partial_eq)]
 pub struct User {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(
+        component(gpui_form_collection::input::Input::<_>),
+        section = "Account",
+        placeholder = "Xx...xX",
+        width = half
+    )]
     #[koruma(
         NonEmptyValidation::<_>,
         PrefixValidation::<_>.prefix("Xx"),
@@ -44,7 +51,7 @@ pub struct User {
     #[gpui_form(component(
         gpui_form_collection::input::Input::<_>,
         default = "test@example.com"
-    ))]
+    ), section = "Account", width = half)]
     #[koruma(EmailValidation::<_>)]
     pub email: String,
 

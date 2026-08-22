@@ -816,6 +816,47 @@ fn generate_clone_impl(
     })
 }
 
+/// Generates a where-bounded `PartialEq` impl for the holder (opt-in via
+/// `#[gpui_form(partial_eq)]`).
+///
+/// Feature #1/#5 (form-state persistence + dirty tracking):
+/// `FormState::is_dirty` / `diff_against` require `H: PartialEq`. Generating
+/// the impl unconditionally would break forms whose storage types do not
+/// implement `PartialEq` (rustc eagerly rejects provably-unsatisfiable bounds
+/// on concrete types), so it is opt-in: forms whose field types are all
+/// `PartialEq` get a working `is_dirty`; a form that opts in despite a
+/// non-`PartialEq` field gets a precise bound error pointing at that field.
+fn generate_partial_eq_impl(
+    context: &DeriveContext,
+    fields: &[&HolderFieldIr],
+    struct_name: &syn::Ident,
+    impl_generics: TokenStream,
+    ty_generics: TokenStream,
+    where_clause: Option<syn::WhereClause>,
+) -> ValueHolderResult<TokenStream> {
+    let eq_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|field| {
+            let field_name = field.field_name();
+            quote! { self.#field_name == other.#field_name }
+        })
+        .collect();
+    let where_clause = add_field_trait_bounds(
+        context,
+        where_clause,
+        fields,
+        syn::parse_quote!(::core::cmp::PartialEq),
+    )?;
+
+    Ok(quote! {
+        impl #impl_generics ::core::cmp::PartialEq for #struct_name #ty_generics #where_clause {
+            fn eq(&self, other: &Self) -> bool {
+                true #(&& #eq_fields)*
+            }
+        }
+    })
+}
+
 fn generate_debug_impl(
     context: &DeriveContext,
     fields: &[&HolderFieldIr],
@@ -1140,6 +1181,7 @@ pub(super) fn generate_value_holder(
     enable_koruma: bool,
     enable_koruma_fluent: bool,
     generate_mcp: bool,
+    generate_partial_eq: bool,
 ) -> ValueHolderResult<TokenStream> {
     let has_skipped_fields = holder_plan.has_skipped_fields();
     let rendered_field_plans = holder_plan.rendered_fields();
@@ -1241,13 +1283,10 @@ pub(super) fn generate_value_holder(
             derives.push(quote! { ::koruma::Koruma });
         }
     }
-    // Always derive `PartialEq` on the generated holder (not `Eq`, since
-    // `number_input(as = f64)` and similar non-Eq field types would otherwise
-    // fail to compile). `FormState::is_dirty` / `diff_against` require
-    // `H: PartialEq` and are exported unconditionally, so the holder must
-    // implement `PartialEq` on default features too — otherwise `is_dirty`
-    // would not compile without the `serde` feature.
-    derives.push(quote! { ::core::cmp::PartialEq });
+    // `PartialEq` is emitted as a where-bounded manual impl (see
+    // `generate_partial_eq_impl`) instead of a blanket derive, so forms with
+    // non-`PartialEq` storage types still compile.
+    //
     // Feature `serde` (form-state persistence, feature #1): make the generated
     // holder (de)serializable. Serialization is opt-in; comparison is not.
     #[cfg(feature = "serde")]
@@ -1595,12 +1634,32 @@ pub(super) fn generate_value_holder(
         &storage_ident,
         quote! { #holder_impl_generics },
         quote! { #holder_ty_generics },
-        holder_where_clause,
+        holder_where_clause.clone(),
     )?;
-    tokens = quote! {
-        #tokens
-        #clone_impl
-        #debug_impl
+    let partial_eq_impl = generate_partial_eq
+        .then(|| {
+            generate_partial_eq_impl(
+                context,
+                &rendered_fields,
+                &storage_ident,
+                quote! { #holder_impl_generics },
+                quote! { #holder_ty_generics },
+                holder_where_clause,
+            )
+        })
+        .transpose()?;
+    tokens = match partial_eq_impl {
+        Some(partial_eq_impl) => quote! {
+            #tokens
+            #clone_impl
+            #debug_impl
+            #partial_eq_impl
+        },
+        None => quote! {
+            #tokens
+            #clone_impl
+            #debug_impl
+        },
     };
 
     Ok(tokens)

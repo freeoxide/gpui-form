@@ -18,7 +18,13 @@ pub use gpui_form_mcp as mcp;
 #[cfg(feature = "runtime")]
 pub use gpui_form_runtime as runtime;
 pub use gpui_form_schema as schema;
+
+// Ergonomic root re-export of the width hint enum. `LayoutWidth` is the simple
+// enum an application reaches for when building layouts by hand; the per-field
+// hints (`section`/`placeholder`/`width`) live on
+// `gpui_form::schema::registry::FieldVariant`.
 pub use bon;
+pub use gpui_form_schema::LayoutWidth;
 #[cfg(feature = "derive")]
 #[doc(hidden)]
 pub use strum;

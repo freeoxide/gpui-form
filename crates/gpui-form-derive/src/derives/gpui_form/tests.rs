@@ -1302,4 +1302,124 @@ mod gpui_form_tests {
             "mcp attribute should reject generic forms: {compact}"
         );
     }
+    #[test]
+    fn generated_layout_metadata_reaches_field_variants() {
+        let derive_input: DeriveInput = syn::parse_quote! {
+            #[derive(GpuiForm)]
+            struct Profile {
+                #[gpui_form(
+                    component(crate::Input),
+                    section = "Account",
+                    placeholder = "Xx...xX",
+                    width = half
+                )]
+                username: String,
+            }
+        };
+
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+                generate_mcp: false,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+        assert!(
+            compact.contains(".with_section(Some(\"Account\"))"),
+            "section hint should reach the schema field variant: {compact}"
+        );
+        assert!(
+            compact.contains(".with_placeholder(Some(\"Xx...xX\"))"),
+            "placeholder hint should reach the schema field variant: {compact}"
+        );
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::registry::LayoutWidth::Half)"),
+            "width hint should reach the schema field variant: {compact}"
+        );
+    }
+
+    #[test]
+    fn quoted_width_and_defaults_are_accepted() {
+        let derive_input: DeriveInput = syn::parse_quote! {
+            #[derive(GpuiForm)]
+            struct Profile {
+                #[gpui_form(component(crate::Input), width = "third")]
+                username: String,
+                #[gpui_form(component(crate::Input))]
+                email: String,
+            }
+        };
+
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+                generate_mcp: false,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::registry::LayoutWidth::Third)"),
+            "quoted width form should parse: {compact}"
+        );
+        // Fields without a width hint emit no with_width call (schema default
+        // is `Full`).
+        assert_eq!(
+            compact.matches(".with_width(").count(),
+            1,
+            "only the annotated field carries a width hint: {compact}"
+        );
+    }
+
+    #[test]
+    fn generated_form_path_wraps_shared_field_path() {
+        let derive_input: DeriveInput = syn::parse_quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(no_inventory)]
+            struct Profile {
+                #[gpui_form(component(crate::Input))]
+                username: String,
+                #[gpui_form(skip)]
+                database_id: u64,
+            }
+        };
+
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: false,
+                generate_mcp: false,
+            },
+        );
+
+        let file = syn::parse2::<syn::File>(expanded.clone()).expect("expansion should parse");
+        let form_path = file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                syn::Item::Struct(item) if item.ident == "ProfileFormPath" => Some(item),
+                _ => None,
+            })
+            .expect("generated form path type");
+
+        // The tuple field wraps the shared core primitive.
+        assert_eq!(form_path.fields.len(), 1);
+
+        let compact = compact_tokens(&expanded.to_string());
+        assert!(
+            compact.contains("pubfnusername()->Self{Self(::gpui_form::core::FieldPath::new(&[stringify!(username)]))}"),
+            "per-field constructors should wrap the shared FieldPath: {compact}"
+        );
+        assert!(
+            compact.contains("pubfnfrom_form_field(field:ProfileFormField)->Self"),
+            "the FormField enum should bridge into the path type: {compact}"
+        );
+        assert!(
+            !compact.contains("database_id()->Self"),
+            "skipped fields must not get path constructors: {compact}"
+        );
+    }
 }

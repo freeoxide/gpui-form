@@ -2,6 +2,7 @@ pub mod attrs;
 pub mod cfg_attr;
 pub mod components;
 pub mod expansion;
+pub mod field_path;
 pub mod holder_plan;
 pub mod intent;
 pub mod ir;

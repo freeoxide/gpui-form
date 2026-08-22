@@ -23,9 +23,12 @@ mod kw {
     syn::custom_keyword!(into_source);
     syn::custom_keyword!(koruma_newtype);
     syn::custom_keyword!(label);
+    syn::custom_keyword!(placeholder);
+    syn::custom_keyword!(section);
     syn::custom_keyword!(skip);
     syn::custom_keyword!(try_into_source);
     syn::custom_keyword!(value);
+    syn::custom_keyword!(width);
 }
 
 #[derive(Clone, Debug)]
@@ -41,6 +44,18 @@ impl FromMeta for EmptyForm {
 pub struct NoInventory;
 
 impl FromMeta for NoInventory {
+    fn from_word() -> darling::Result<Self> {
+        Ok(Self)
+    }
+}
+
+/// Fork extension: `#[gpui_form(partial_eq)]` opts the generated value holder
+/// into `PartialEq` (a where-bounded manual impl over the field storage
+/// types), enabling `gpui_form::FormState` dirty tracking out of the box.
+#[derive(Clone, Debug)]
+pub struct PartialEqHolder;
+
+impl FromMeta for PartialEqHolder {
     fn from_word() -> darling::Result<Self> {
         Ok(Self)
     }
@@ -554,6 +569,18 @@ pub(super) enum GpuiFormFieldOption {
     Example {
         value: String,
     },
+    Section {
+        span: Span,
+        value: String,
+    },
+    Placeholder {
+        span: Span,
+        value: String,
+    },
+    Width {
+        span: Span,
+        value: crate::derives::gpui_form::ir::LayoutWidth,
+    },
     Skip {
         span: Span,
     },
@@ -593,6 +620,34 @@ impl Parse for GpuiFormFieldOption {
             input.parse::<Token![=]>()?;
             return Ok(Self::Example {
                 value: parse_metadata_string(input, "example")?,
+            });
+        }
+
+        if input.peek(kw::section) {
+            let key = input.parse::<kw::section>()?;
+            input.parse::<Token![=]>()?;
+            return Ok(Self::Section {
+                span: key.span,
+                value: parse_metadata_string(input, "section")?,
+            });
+        }
+
+        if input.peek(kw::placeholder) {
+            let key = input.parse::<kw::placeholder>()?;
+            input.parse::<Token![=]>()?;
+            return Ok(Self::Placeholder {
+                span: key.span,
+                value: parse_metadata_string(input, "placeholder")?,
+            });
+        }
+
+        if input.peek(kw::width) {
+            let key = input.parse::<kw::width>()?;
+            input.parse::<Token![=]>()?;
+            let value = parse_layout_width(input)?;
+            return Ok(Self::Width {
+                span: key.span,
+                value,
             });
         }
 
@@ -656,6 +711,29 @@ fn parse_metadata_string(input: ParseStream<'_>, field: &str) -> syn::Result<Str
     component_shape::validate_mcp_tool_metadata_text(field, &value)
         .map_err(|error| input.error(error.to_string()))?;
     Ok(value)
+}
+
+/// Parses a `width = ...` layout hint: a bare identifier (`width = half`) or a
+/// quoted string (`width = "half"`), matching the fork's attribute syntax.
+fn parse_layout_width(
+    input: ParseStream<'_>,
+) -> syn::Result<crate::derives::gpui_form::ir::LayoutWidth> {
+    use crate::derives::gpui_form::ir::LayoutWidth;
+
+    let text = if input.peek(syn::Ident) {
+        let ident: syn::Ident = input.parse()?;
+        ident.to_string()
+    } else {
+        input.parse::<syn::LitStr>()?.value()
+    };
+    match text.as_str() {
+        "full" => Ok(LayoutWidth::Full),
+        "half" => Ok(LayoutWidth::Half),
+        "third" => Ok(LayoutWidth::Third),
+        _ => {
+            Err(input.error("unknown gpui_form layout width; expected `full`, `half`, or `third`"))
+        },
+    }
 }
 
 fn parse_structured_field_options(

@@ -71,6 +71,17 @@ optionality determines optional holder storage.
 Field metadata for MCP uses separate `label`, `description`, and repeatable
 `example` attributes. Descriptions fall back to field rustdoc.
 
+Layout hints (fork extension, feature #4 metadata-first v1) are
+non-rendering metadata carried on the schema `FieldVariant`:
+
+```rust
+#[gpui_form(component(..., section = "Account", placeholder = "Xx...xX", width = half))]
+```
+
+`width` accepts `full` (default), `half`, or `third`, bare or quoted. The
+prototyping generator groups consecutive fields under `section` headings;
+`placeholder` and `width` are hints for consumers.
+
 Common struct attributes are:
 
 ```rust
@@ -109,6 +120,12 @@ A hand-wired view:
 Generated field and constructor names use the source field identifier.
 Prototyping-only helper names use the shape's field suffix.
 
+Fork extension: the derive also emits `<Name>FormPath`, a typed newtype over
+`gpui_form::core::FieldPath` with one constructor per component field
+(`UserProfileFormPath::display_name()`), `new(&[...])` for hand-built
+multi-segment paths, and `from_form_field(<Name>FormField)` bridging the
+field enum. Skipped fields get no constructor.
+
 ## Shape selection
 
 | Value or behavior | Shape |
@@ -125,6 +142,7 @@ Prototyping-only helper names use the shape's field suffix.
 | OTP value | `otp_input::OtpInput::<_>` |
 | Localized date or date pair | Component `DatePicker` or `DateRangePicker` |
 | `Vec<PathBuf>` | `gpui_form_component::file_picker::FilePicker` |
+| Phone number text (fork, `phone` feature) | `gpui_form_collection::phone_input::PhoneInput` |
 | Cascading enum tree | `gpui_form_component::infinite_select::InfiniteSelect::<_>` |
 
 Select values normally derive `SelectItem` and `EnumIter`. Cascading enum trees
@@ -249,3 +267,38 @@ Switch to `use-gpui-form-component-shapes` when the task:
 
 That skill routes generic declaration and rendering details to
 `use-component-shape` and `use-component-shape-gpui`.
+
+## Fork extensions
+
+### Form-state persistence and dirty tracking
+
+`gpui_form::FormState<H>` snapshots a baseline of any cloneable holder:
+
+```rust
+let mut state = FormState::new(UserFormValueHolder::from(user));
+state.current_mut().username = "edited".into();
+state.is_dirty();            // true
+state.reset_to_baseline();   // restore
+state.sync_baseline();       // mark current clean
+state.diff_against(&other);  // boolean diff
+```
+
+The generated holder implements `PartialEq` whenever all field storage types
+do (where-bounded manual impl). The `serde` feature (on `gpui-form` and
+`gpui-form-derive`) derives `Serialize`/`Deserialize` on holders for
+persistence round-trips.
+
+### Phone validation helpers
+
+Behind the `phone` feature, `gpui_form::phone` wraps `libphonenumber`:
+
+- `validate_optional_phone_number(raw, None)` / `validate_required_phone_number`
+  plus `_for_country_label` variants and `validate_phone_number_for(raw,
+  &impl PhoneCountry)`.
+- `PhoneNumberValidation` (`Valid(ValidatedPhoneNumber)` / `Invalid` / `Empty`)
+  with `is_valid`, `is_valid_or_empty`, `validated`, `country`, `e164`.
+- Implement `PhoneCountry` on an app country enum to map to a libphonenumber
+  country id and label.
+
+The `PhoneInput` shape validates syntax at the widget level; country matching
+and typed conversion happen at the validation layer through these helpers.

@@ -3,6 +3,7 @@ use gpui_storybook::{ConsumerId, Gallery, StorybookOptions};
 use some_lib::i18n::{self, Languages};
 
 pub mod forms;
+pub mod stories;
 
 const CONSUMER_ID: &str = "gpui-form-some-lib-forms";
 
@@ -95,8 +96,10 @@ mod tests {
             story_keys,
             [
                 "some-lib-forms-EmptyForm",
+                "some-lib-forms-FeatureAuditForm",
                 "some-lib-forms-ItemForm",
                 "some-lib-forms-LocationFormForm",
+                "some-lib-forms-PhoneVerificationForm",
                 "some-lib-forms-UserForm",
             ]
         );

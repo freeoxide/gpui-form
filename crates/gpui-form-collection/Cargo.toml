@@ -18,8 +18,13 @@ component-shape = { workspace = true }
 component-shape-gpui = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
+gpui-form-core = { optional = true, workspace = true }
 gpui-form-runtime = { workspace = true }
 strum = { workspace = true }
+
+[features]
+default = []
+phone = ["gpui-form-core/phone"]
 
 [dev-dependencies]
 gpui = { features = [ "test-support" ], workspace = true }

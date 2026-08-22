@@ -6,7 +6,7 @@ use strum::IntoStaticStr;
 use syn::{parse::Parser as _, punctuated::Punctuated};
 
 use crate::derives::gpui_form::attrs::{
-    EmptyForm, GpuiFormFieldOption, McpToolOptions, NoInventory,
+    EmptyForm, GpuiFormFieldOption, McpToolOptions, NoInventory, PartialEqHolder,
 };
 use crate::derives::gpui_form::ir::{
     DefaultExpr, FieldAttrContext, FieldContext, FieldMetadata, RenderedFieldIntent,
@@ -178,6 +178,9 @@ impl FromField for ComponentField {
                 label: None,
                 description: doc_description(&field.attrs),
                 examples: Vec::new(),
+                section: None,
+                placeholder: None,
+                width: None,
             },
             explicit_description: false,
         };
@@ -276,6 +279,22 @@ fn parse_gpui_form_item(
         },
         GpuiFormFieldOption::Example { value, .. } => {
             field.metadata.examples.push(value);
+            Ok(())
+        },
+        GpuiFormFieldOption::Section { span, value } => {
+            assign_field_metadata_once("section", &mut field.metadata.section, value, span)
+        },
+        GpuiFormFieldOption::Placeholder { span, value } => {
+            assign_field_metadata_once("placeholder", &mut field.metadata.placeholder, value, span)
+        },
+        GpuiFormFieldOption::Width { span, value } => {
+            if field.metadata.width.is_some() {
+                return Err(DarlingError::from(syn::Error::new(
+                    span,
+                    "duplicate gpui_form field metadata `width`",
+                )));
+            }
+            field.metadata.width = Some(value);
             Ok(())
         },
         GpuiFormFieldOption::Skip { span } => set_attr(field, FieldAttr::Skipped, span),
@@ -395,6 +414,8 @@ pub struct ComponentStruct {
     pub empty: Option<EmptyForm>,
     #[darling(default)]
     pub no_inventory: Option<NoInventory>,
+    #[darling(default)]
+    pub partial_eq: Option<PartialEqHolder>,
     #[darling(default)]
     pub koruma: Option<KorumaField>,
     #[darling(default)]

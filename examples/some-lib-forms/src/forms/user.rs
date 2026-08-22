@@ -710,6 +710,7 @@ impl Render for UserForm {
             .child(Separator::horizontal())
             .child(
                 v_form()
+                    .child(field().label("Account"))
                     .child(
                         field()
                             .label({

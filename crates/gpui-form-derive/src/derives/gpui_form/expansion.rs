@@ -10,6 +10,7 @@ use syn::DeriveInput;
 use syn::GenericParam;
 
 use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
+use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::holder_plan::ValueHolderPlan;
 use crate::derives::gpui_form::intent::ComponentStruct;
 use crate::derives::gpui_form::ir::{
@@ -267,6 +268,7 @@ pub fn expand_gpui_form(
             enable_koruma,
             enable_koruma_fluent,
             generate_mcp,
+            parsed.partial_eq.is_some(),
         ) {
             Ok(value_holder_tokens) => value_holder_tokens,
             Err(error) => return error.to_compile_error(),
@@ -317,8 +319,11 @@ pub fn expand_gpui_form(
             }
         };
 
+        let form_path_tokens = generate_field_path(&context, &[]);
         return quote! {
             #value_holder_tokens
+
+            #form_path_tokens
 
             #shape_impl
 
@@ -364,6 +369,7 @@ pub fn expand_gpui_form(
         Ok(tokens) => tokens,
         Err(error) => return error.to_compile_error(),
     };
+    let form_path_tokens = generate_field_path(&context, &component_field_names);
 
     let field_structure_tokens: Vec<TokenStream> = form_plan
         .component_fields()
@@ -379,6 +385,7 @@ pub fn expand_gpui_form(
         Err(error) => return error.to_compile_error(),
     };
 
+    let generate_partial_eq = parsed.partial_eq.is_some();
     let value_holder_tokens = match generate_value_holder(
         &context,
         &original_input,
@@ -386,6 +393,7 @@ pub fn expand_gpui_form(
         effective_enable_koruma,
         enable_koruma_fluent,
         generate_mcp,
+        generate_partial_eq,
     ) {
         Ok(value_holder_tokens) => value_holder_tokens,
         Err(error) => return error.to_compile_error(),
@@ -535,12 +543,35 @@ pub fn expand_gpui_form(
                         .collect::<Vec<_>>();
                     quote! { .with_examples(&[#(#examples),*]) }
                 });
+                let section_tokens = shared.metadata.section.as_ref().map(|section| {
+                    let section = syn::LitStr::new(section, shared.field_name().span());
+                    quote! { .with_section(Some(#section)) }
+                });
+                let placeholder_tokens =
+                    shared.metadata.placeholder.as_ref().map(|placeholder| {
+                        let placeholder =
+                            syn::LitStr::new(placeholder, shared.field_name().span());
+                        quote! { .with_placeholder(Some(#placeholder)) }
+                    });
+                let width_tokens = shared.metadata.width.map(|width| {
+                    let variant = match width {
+                        crate::derives::gpui_form::ir::LayoutWidth::Full => quote! { Full },
+                        crate::derives::gpui_form::ir::LayoutWidth::Half => quote! { Half },
+                        crate::derives::gpui_form::ir::LayoutWidth::Third => quote! { Third },
+                    };
+                    quote! {
+                        .with_width(#facade_crate::schema::registry::LayoutWidth::#variant)
+                    }
+                });
 
                 Some(quote! {
                     #field_variant_constructor_tokens
                     #label_tokens
                     #description_tokens
                     #examples_tokens
+                    #section_tokens
+                    #placeholder_tokens
+                    #width_tokens
                 })
         })
         .collect();
@@ -633,6 +664,8 @@ pub fn expand_gpui_form(
         #value_holder_tokens
 
         #form_field_enum
+
+        #form_path_tokens
 
         pub struct #components_holder_name #declaration_generics #where_clause {
             #(#field_structure_tokens)*

@@ -55,3 +55,9 @@ fn gpui_form_compiles_koruma_direct_attrs_end_to_end() {
     let tests = trybuild::TestCases::new();
     tests.pass("tests/ui/koruma_direct_attrs_pass.rs");
 }
+
+#[test]
+fn gpui_form_field_paths_do_not_mix() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/form_path_types_do_not_mix.rs");
+}
