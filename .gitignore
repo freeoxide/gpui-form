@@ -1,5 +1,6 @@
 target/
 .es-fluent/
+.rumdl_cache/
 .expanded.rs
 .DS_Store
 .commandcode

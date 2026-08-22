@@ -8,7 +8,7 @@ use gpui_component::form::v_form;
 
 use gpui_form_component::InfiniteSelect;
 use gpui_form_component::infinite_select::{
-    InfiniteSelect as _, InfiniteSelectEvent, InfiniteSelectItem, InfiniteSelectState,
+    InfiniteSelectEvent, InfiniteSelectItem, InfiniteSelectState, InfiniteSelectValue as _,
     build_from_key_path, build_from_path, to_select_items,
 };
 
@@ -44,7 +44,7 @@ fn refresh_select_labels(
     };
 
     master_select.update(cx, |select, cx| {
-        select.set_items(to_select_items::<DeploymentTarget>(), window, cx);
+        select.set_items(to_select_items::<DeploymentTarget>(cx), window, cx);
         select.set_selected_index(path.get(0).and_then(selected_index), window, cx);
     });
 
@@ -67,17 +67,17 @@ fn refresh_select_labels(
 fn child_items_for_level(
     current_value: &DeploymentTarget,
     level: usize,
-    _cx: &impl std::borrow::Borrow<App>,
+    cx: &impl std::borrow::Borrow<App>,
 ) -> Vec<InfiniteSelectItem<DeploymentTarget>> {
     let (has_more, child_labels) = if level == 0 {
         (
             current_value.has_inner(),
-            current_value.child_variant_labels(),
+            current_value.child_variant_labels(cx),
         )
     } else {
         (
             current_value.inner_has_inner(),
-            current_value.inner_child_variant_labels(),
+            current_value.inner_child_variant_labels(cx),
         )
     };
 
@@ -100,6 +100,7 @@ fn child_items_for_level(
 }
 
 #[gpui_storybook::story]
+#[derive(gpui_storybook::StoryControls)]
 pub struct InfiniteSelectStory {
     select_state: Entity<DeploymentSelectState>,
     last_changed_depth: Option<usize>,
@@ -112,7 +113,7 @@ impl gpui_storybook::Story for InfiniteSelectStory {
         "Infinite Select".into()
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 }
@@ -153,7 +154,7 @@ impl Render for InfiniteSelectStory {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         refresh_select_labels(&self.select_state, window, cx);
 
-        let snapshot = self.select_state.read(cx).snapshot();
+        let snapshot = self.select_state.read(cx).snapshot(cx);
         let path = snapshot.path().clone();
         let key_path = snapshot.key_path().clone();
 
@@ -206,7 +207,6 @@ impl Render for InfiniteSelectStory {
 
 #[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum DeploymentTarget {
@@ -241,7 +241,6 @@ impl Default for DeploymentTarget {
 
 #[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum WebRegion {
@@ -274,7 +273,6 @@ impl Default for WebRegion {
 
 #[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum AvailabilityZone {
@@ -296,7 +294,6 @@ impl AvailabilityZone {
 
 #[derive(Clone, Debug, Default, EsFluentLabel, EsFluentVariants, InfiniteSelect, PartialEq)]
 #[fluent(namespace = "infinite_select")]
-#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
 #[fluent_kv(keys = ["description", "label"], keys_this)]
 enum DesktopPlatform {
@@ -321,6 +318,7 @@ mod tests {
     use crate::i18n::{DatePickerComponentText, FilePickerComponentText};
 
     use es_fluent::FluentLabel as _;
+    use gpui_form_component::infinite_select::InfiniteSelectValue as _;
 
     use super::{DeploymentTarget, DeploymentTargetLabelVariants, WebRegionLabelVariants};
 
@@ -401,5 +399,27 @@ mod tests {
             i18n.localize_message(&DatePickerComponentText::LaunchPlaceholder),
             "选择发布日期"
         );
+    }
+
+    #[gpui::test]
+    fn infinite_select_runtime_uses_strict_fluent_labels(cx: &mut gpui::TestAppContext) {
+        cx.update(|cx| {
+            crate::i18n::apply_locale(crate::i18n::Languages::default(), cx)
+                .expect("story Fluent resources should initialize");
+
+            let target = DeploymentTarget::default();
+            assert_eq!(target.variant_label(cx).as_ref(), "Web");
+            assert_eq!(target.type_label(cx).as_ref(), "Deployment Target");
+            assert_eq!(target.child_variant_labels(cx)[0].as_ref(), "US East");
+
+            crate::i18n::change_locale(cx, unic_langid::langid!("fr-FR"))
+                .expect("French story resources should be selectable");
+            assert_eq!(target.variant_label(cx).as_ref(), "Web");
+            assert_eq!(target.type_label(cx).as_ref(), "Cible de déploiement");
+            assert_eq!(
+                target.child_variant_labels(cx)[0].as_ref(),
+                "Est des États-Unis"
+            );
+        });
     }
 }
