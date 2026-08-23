@@ -1,0 +1,57 @@
+use es_fluent::EsFluent;
+use gpui::*;
+use gpui_component::StyledExt as _;
+
+#[derive(EsFluent)]
+enum StoryItems {
+    Hi,
+    Title,
+}
+
+#[gpui_storybook::story("aaaaaaaaaaa")]
+pub struct HelloWorld {
+    focus_handle: FocusHandle,
+}
+
+impl Focusable for HelloWorld {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
+}
+
+impl gpui_storybook::Story for HelloWorld {
+    fn title(cx: &App) -> String {
+        gpui_storybook::localize_message(cx, &StoryItems::Title).unwrap_or_else(|| "Title".into())
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+        Self::view(window, cx)
+    }
+}
+
+impl HelloWorld {
+    pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
+        cx.new(|cx| Self::new(window, cx))
+    }
+    pub fn new(_window: &mut Window, cx: &mut App) -> Self {
+        Self {
+            focus_handle: cx.focus_handle(),
+        }
+    }
+}
+
+impl Render for HelloWorld {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .v_flex()
+            .gap_2()
+            .size_full()
+            .items_center()
+            .justify_center()
+            .text_center()
+            .child(
+                gpui_storybook::localize_message(cx, &StoryItems::Hi)
+                    .unwrap_or_else(|| "Hi".into()),
+            )
+    }
+}

@@ -1,6 +1,5 @@
-//! Schema and resolved metadata types emitted by `gpui-form` derives.
-
+pub mod components;
+pub mod layout;
 pub mod registry;
-pub mod resolved;
 
-pub use registry::LayoutWidth;
+pub use layout::{FieldLayout, LayoutWidth};

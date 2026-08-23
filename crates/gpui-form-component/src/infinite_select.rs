@@ -1,18 +1,17 @@
 //! Infinite-select runtime support for nested enum trees.
 //!
 //! This module exposes both the low-level trait and path helpers used by
-//! generated code and a higher-level `Select` entity that owns the
+//! generated code and a higher-level `InfiniteSelectState` entity that owns the
 //! cascading `SelectState`s for a field.
 
 use gpui::{
     App, AppContext as _, Context, Empty, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement as _, Render, RenderOnce, SharedString, Styled as _, Subscription,
-    Window, div,
+    IntoElement, ParentElement as _, Render, SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_component::{
     IndexPath,
     form::{Field, field},
-    select::{Select as GpuiSelect, SelectDelegate, SelectEvent, SelectItem, SelectState},
+    select::{SearchableVec, Select, SelectDelegate, SelectEvent, SelectItem, SelectState},
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
 use std::str::FromStr;
@@ -28,7 +27,7 @@ use std::{error::Error, fmt};
 ///
 /// Unlike a simple associated-type approach, this trait supports heterogeneous
 /// inner types: each variant can contain a different inner type.
-pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
+pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns all possible variants at this level with default inner values.
     fn variants() -> Vec<Self>;
 
@@ -42,7 +41,7 @@ pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
     fn variant_key(&self) -> &'static str;
 
     /// Returns the localized label for this specific variant.
-    fn variant_label(&self, cx: &impl std::borrow::Borrow<App>) -> SharedString;
+    fn variant_label(&self) -> SharedString;
 
     /// Returns true if this variant contains an inner value.
     fn has_inner(&self) -> bool;
@@ -55,7 +54,7 @@ pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
     fn child_variant_keys(&self) -> Vec<&'static str>;
 
     /// Returns the localized labels of the children for this specific variant.
-    fn child_variant_labels(&self, cx: &impl std::borrow::Borrow<App>) -> Vec<SharedString>;
+    fn child_variant_labels(&self) -> Vec<SharedString>;
 
     /// Creates a new instance with the child at the given index.
     /// Returns None if the variant doesn't have children or the index is out of bounds.
@@ -93,7 +92,7 @@ pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
     fn inner_child_variant_keys(&self) -> Vec<&'static str>;
 
     /// Returns the localized labels of the inner value's children.
-    fn inner_child_variant_labels(&self, cx: &impl std::borrow::Borrow<App>) -> Vec<SharedString>;
+    fn inner_child_variant_labels(&self) -> Vec<SharedString>;
 
     /// Sets a child on the inner value and wraps it back.
     fn inner_set_child_by_index(&self, index: usize) -> Option<Self>;
@@ -105,39 +104,23 @@ pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
     fn inner_has_inner(&self) -> bool;
 
     /// Returns the localized label for this type (level).
-    fn type_label(&self, cx: &impl std::borrow::Borrow<App>) -> SharedString;
+    fn type_label(&self) -> SharedString;
 
     /// Returns the localized description for this type (level).
-    fn type_description(&self, cx: &impl std::borrow::Borrow<App>) -> SharedString;
+    fn type_description(&self) -> SharedString;
 
     /// Returns the localized label for the child at the given depth relative to this node.
     /// `depth = 0` is the immediate child.
-    fn child_label_at_depth(
-        &self,
-        depth: usize,
-        cx: &impl std::borrow::Borrow<App>,
-    ) -> Option<SharedString>;
+    fn child_label_at_depth(&self, depth: usize) -> Option<SharedString>;
 
     /// Returns the localized description for the child at the given depth.
-    fn child_description_at_depth(
-        &self,
-        depth: usize,
-        cx: &impl std::borrow::Borrow<App>,
-    ) -> Option<SharedString>;
+    fn child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 
     /// Internal method to delegate label lookup to the inner value.
-    fn inner_child_label_at_depth(
-        &self,
-        depth: usize,
-        cx: &impl std::borrow::Borrow<App>,
-    ) -> Option<SharedString>;
+    fn inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString>;
 
     /// Internal method to delegate description lookup to the inner value.
-    fn inner_child_description_at_depth(
-        &self,
-        depth: usize,
-        cx: &impl std::borrow::Borrow<App>,
-    ) -> Option<SharedString>;
+    fn inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 }
 
 /// A wrapper for infinite-select enum variants that implements `SelectItem`.
@@ -145,12 +128,12 @@ pub trait InfiniteSelectValue: Sized + Clone + Default + PartialEq + 'static {
 /// This allows infinite-select enum variants to be displayed in a select dropdown
 /// while preserving access to the nested value.
 #[derive(Clone)]
-pub struct InfiniteSelectItem<T: InfiniteSelectValue> {
+pub struct InfiniteSelectItem<T: InfiniteSelect> {
     value: T,
     title: SharedString,
 }
 
-impl<T: InfiniteSelectValue> InfiniteSelectItem<T> {
+impl<T: InfiniteSelect> InfiniteSelectItem<T> {
     /// Creates a new item with a custom title.
     pub fn new(value: T, title: impl Into<SharedString>) -> Self {
         Self {
@@ -159,9 +142,9 @@ impl<T: InfiniteSelectValue> InfiniteSelectItem<T> {
         }
     }
 
-    /// Creates an item using `variant_label(cx)` as the title.
-    pub fn from_variant(value: T, cx: &impl std::borrow::Borrow<App>) -> Self {
-        let title = value.variant_label(cx);
+    /// Creates an item using `variant_label()` as the title.
+    pub fn from_variant(value: T) -> Self {
+        let title = value.variant_label();
         Self { value, title }
     }
 
@@ -191,20 +174,20 @@ impl<T: InfiniteSelectValue> InfiniteSelectItem<T> {
     }
 
     /// Returns the child variant labels if the wrapped value has children.
-    pub fn child_variant_labels(&self, cx: &impl std::borrow::Borrow<App>) -> Vec<SharedString> {
-        self.value.child_variant_labels(cx)
+    pub fn child_variant_labels(&self) -> Vec<SharedString> {
+        self.value.child_variant_labels()
     }
 
     /// Returns a new item with a child selected at the given index.
-    pub fn with_child_at(&self, index: usize, cx: &impl std::borrow::Borrow<App>) -> Option<Self> {
-        let title = self.value.child_variant_labels(cx).get(index).cloned()?;
+    pub fn with_child_at(&self, index: usize) -> Option<Self> {
+        let title = self.value.child_variant_labels().get(index).cloned()?;
         self.value
             .set_child_by_index(index)
             .map(|value| Self::new(value, title))
     }
 }
 
-impl<T: InfiniteSelectValue> SelectItem for InfiniteSelectItem<T> {
+impl<T: InfiniteSelect> SelectItem for InfiniteSelectItem<T> {
     type Value = T;
 
     fn title(&self) -> SharedString {
@@ -217,13 +200,13 @@ impl<T: InfiniteSelectValue> SelectItem for InfiniteSelectItem<T> {
 }
 
 /// Creates root select items from `T::variants()`.
-pub fn to_select_items<T>(cx: &impl std::borrow::Borrow<App>) -> Vec<InfiniteSelectItem<T>>
+pub fn to_select_items<T>() -> Vec<InfiniteSelectItem<T>>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
 {
     T::variants()
         .into_iter()
-        .map(|value| InfiniteSelectItem::from_variant(value, cx))
+        .map(InfiniteSelectItem::from_variant)
         .collect()
 }
 
@@ -392,7 +375,7 @@ impl fmt::Display for InfiniteSelectKeyPathParseError {
                     "infinite-select key path {:?} ends with an incomplete escape sequence",
                     self.input
                 )
-            },
+            }
         }
     }
 }
@@ -428,7 +411,7 @@ impl FromStr for InfiniteSelectKeyPath {
                 '\\' => escaped = true,
                 '/' => {
                     keys.push(std::mem::take(&mut current));
-                },
+                }
                 _ => current.push(ch),
             }
         }
@@ -462,12 +445,12 @@ impl<'de> Deserialize<'de> for InfiniteSelectKeyPath {
 }
 
 /// Returns the current selection path for a concrete infinite-select value.
-pub fn path_from_value<T: InfiniteSelectValue>(value: &T) -> InfiniteSelectPath {
+pub fn path_from_value<T: InfiniteSelect>(value: &T) -> InfiniteSelectPath {
     value.selection_path()
 }
 
 /// Returns the current key path for a concrete infinite-select value.
-pub fn key_path_from_value<T: InfiniteSelectValue>(value: &T) -> InfiniteSelectKeyPath {
+pub fn key_path_from_value<T: InfiniteSelect>(value: &T) -> InfiniteSelectKeyPath {
     value.selection_key_path()
 }
 
@@ -556,6 +539,11 @@ impl InfiniteSelectPathError {
         self.segment.as_ref()
     }
 
+    /// Alias for `segment()` when callers think in terms of key-or-index input.
+    pub fn key_or_index(&self) -> Option<&InfiniteSelectPathSegment> {
+        self.segment()
+    }
+
     /// Returns the typed failure reason.
     pub fn reason(&self) -> &InfiniteSelectPathErrorReason {
         &self.reason
@@ -567,7 +555,7 @@ impl fmt::Display for InfiniteSelectPathError {
         match (&self.segment, &self.reason) {
             (None, InfiniteSelectPathErrorReason::EmptyPath) => {
                 write!(f, "infinite-select path is empty")
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Index(index)),
                 InfiniteSelectPathErrorReason::MissingSelectionOptions,
@@ -577,7 +565,7 @@ impl fmt::Display for InfiniteSelectPathError {
                     "no selectable options exist at depth {} for index {}",
                     self.depth, index
                 )
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Key(key)),
                 InfiniteSelectPathErrorReason::MissingSelectionOptions,
@@ -587,7 +575,7 @@ impl fmt::Display for InfiniteSelectPathError {
                     "no selectable options exist at depth {} for key {:?}",
                     self.depth, key
                 )
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Index(index)),
                 InfiniteSelectPathErrorReason::InvalidIndex { option_count },
@@ -612,7 +600,7 @@ impl fmt::Display for InfiniteSelectPathError {
 impl Error for InfiniteSelectPathError {}
 
 /// Rebuilds a value from an index-based selection path.
-pub fn build_from_path<T: InfiniteSelectValue>(
+pub fn build_from_path<T: InfiniteSelect>(
     path: &InfiniteSelectPath,
 ) -> Result<T, InfiniteSelectPathError> {
     if path.is_empty() {
@@ -635,31 +623,31 @@ pub fn build_from_path<T: InfiniteSelectValue>(
         let index = path
             .get(depth)
             .expect("path length guarantees a selection at each iterated depth");
-        let values = child_values_for_level(&current_value, depth - 1);
+        let items = child_items_for_level(&current_value, depth - 1);
 
-        if values.is_empty() {
+        if items.is_empty() {
             return Err(InfiniteSelectPathError::missing_selection_options(
                 depth,
                 InfiniteSelectPathSegment::Index(index),
             ));
         }
 
-        let Some(value) = values.get(index) else {
+        let Some(item) = items.get(index) else {
             return Err(InfiniteSelectPathError::invalid_index(
                 depth,
                 index,
-                values.len(),
+                items.len(),
             ));
         };
 
-        current_value = value.clone();
+        current_value = item.get_value().clone();
     }
 
     Ok(current_value)
 }
 
 /// Rebuilds a value from a key-based selection path.
-pub fn build_from_key_path<T: InfiniteSelectValue>(
+pub fn build_from_key_path<T: InfiniteSelect>(
     path: &InfiniteSelectKeyPath,
 ) -> Result<T, InfiniteSelectPathError> {
     if path.is_empty() {
@@ -689,22 +677,27 @@ pub fn build_from_key_path<T: InfiniteSelectValue>(
         let key = path
             .get(depth)
             .expect("path length guarantees a selection at each iterated depth");
-        let values = child_values_for_level(&current_value, depth - 1);
+        let items = child_items_for_level(&current_value, depth - 1);
 
-        if values.is_empty() {
+        if items.is_empty() {
             return Err(InfiniteSelectPathError::missing_selection_options(
                 depth,
                 InfiniteSelectPathSegment::Key(key.to_string()),
             ));
         }
 
-        let available_keys: Vec<String> = values
+        let available_keys: Vec<String> = items
             .iter()
-            .filter_map(|value| value.selection_key_path().get(depth).map(str::to_string))
+            .filter_map(|item| {
+                item.get_value()
+                    .selection_key_path()
+                    .get(depth)
+                    .map(str::to_string)
+            })
             .collect();
 
-        let Some(value) = values.iter().find(|value| {
-            value
+        let Some(item) = items.iter().find(|item| {
+            item.get_value()
                 .selection_key_path()
                 .get(depth)
                 .is_some_and(|candidate| candidate == key)
@@ -716,34 +709,38 @@ pub fn build_from_key_path<T: InfiniteSelectValue>(
             ));
         };
 
-        current_value = value.clone();
+        current_value = item.get_value().clone();
     }
 
     Ok(current_value)
 }
 
-/// Options for the runtime `Select`.
+/// Options for the runtime `InfiniteSelectState`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "component-shape", derive(bon::Builder))]
-pub struct InfiniteSelectOptions {
-    #[cfg_attr(feature = "component-shape", builder(default))]
+pub struct InfiniteSelectStateOptions {
     searchable: bool,
     max_depth: Option<usize>,
 }
 
-impl InfiniteSelectOptions {
-    /// Creates runtime options for `Select`.
-    pub const fn new(searchable: bool, max_depth: Option<usize>) -> Self {
-        Self {
-            searchable,
-            max_depth,
-        }
+impl InfiniteSelectStateOptions {
+    /// Enables or disables search on the backing select widgets.
+    pub fn searchable(mut self, searchable: bool) -> Self {
+        self.searchable = searchable;
+        self
+    }
+
+    /// Limits how many levels the state will render.
+    ///
+    /// The stored value and selection paths still preserve deeper default selections.
+    pub fn max_depth(mut self, max_depth: usize) -> Self {
+        self.max_depth = Some(max_depth);
+        self
     }
 }
 
-/// Event emitted by `Select` whenever the selection changes.
+/// Event emitted by `InfiniteSelectState` whenever the selection changes.
 #[derive(Clone)]
-pub struct InfiniteSelectEvent<T: InfiniteSelectValue> {
+pub struct InfiniteSelectEvent<T: InfiniteSelect> {
     previous_value: T,
     previous_path: InfiniteSelectPath,
     previous_key_path: InfiniteSelectKeyPath,
@@ -753,7 +750,7 @@ pub struct InfiniteSelectEvent<T: InfiniteSelectValue> {
     changed_depth: usize,
 }
 
-impl<T: InfiniteSelectValue> InfiniteSelectEvent<T> {
+impl<T: InfiniteSelect> InfiniteSelectEvent<T> {
     /// Returns the concrete selection value before this change.
     pub fn previous_value(&self) -> &T {
         &self.previous_value
@@ -863,7 +860,7 @@ where
                     .gap_1()
                     .child(div().child(description.clone()))
             })
-            .child(GpuiSelect::new(&select))
+            .child(Select::new(&select))
     }
 }
 
@@ -881,7 +878,7 @@ where
 
 impl<T, D> InfiniteSelectSnapshot<T, D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate + 'static,
 {
     /// Returns the concrete selected value.
@@ -921,7 +918,7 @@ where
 /// Runtime state for a cascading infinite-select field.
 pub struct InfiniteSelectState<T, D = Vec<InfiniteSelectItem<T>>>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     value: T,
@@ -929,14 +926,18 @@ where
     key_path: InfiniteSelectKeyPath,
     master_select: Entity<SelectState<D>>,
     child_selects: Vec<Entity<SelectState<D>>>,
-    options: InfiniteSelectOptions,
+    options: InfiniteSelectStateOptions,
     _master_subscription: Subscription,
     _child_subscriptions: Vec<Subscription>,
 }
 
+/// Search-enabled state alias for `component(infinite_select(searchable))`.
+pub type SearchableInfiniteSelectState<T> =
+    InfiniteSelectState<T, SearchableVec<InfiniteSelectItem<T>>>;
+
 impl<T, D> Focusable for InfiniteSelectState<T, D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     fn focus_handle(&self, cx: &App) -> FocusHandle {
@@ -946,30 +947,30 @@ where
 
 impl<T, D> EventEmitter<InfiniteSelectEvent<T>> for InfiniteSelectState<T, D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
 }
 
 impl<T, D> InfiniteSelectState<T, D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
-    /// Creates a new state from `T::default()`.
-    pub fn new_default(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self::new(T::default(), window, cx)
-    }
-
     /// Creates a new state from the given initial value.
     pub fn new(initial_value: T, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self::new_with_options(initial_value, InfiniteSelectOptions::default(), window, cx)
+        Self::new_with_options(
+            initial_value,
+            InfiniteSelectStateOptions::default(),
+            window,
+            cx,
+        )
     }
 
     /// Creates a new state with explicit options.
     pub fn new_with_options(
         initial_value: T,
-        options: InfiniteSelectOptions,
+        options: InfiniteSelectStateOptions,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -978,7 +979,7 @@ where
         let root_selected = path.get(0);
         let master_select = cx.new(|cx| {
             build_select_state::<T, D>(
-                to_select_items::<T>(cx),
+                to_select_items::<T>(),
                 root_selected,
                 options.searchable,
                 window,
@@ -1027,30 +1028,29 @@ where
     }
 
     /// Returns the current rendered select levels in root-to-leaf order.
-    pub fn levels(&self, cx: &impl std::borrow::Borrow<App>) -> Vec<InfiniteSelectLevel<D>> {
+    pub fn levels(&self) -> Vec<InfiniteSelectLevel<D>> {
         build_levels(
             &self.value,
             &self.path,
             &self.key_path,
             &self.master_select,
             &self.child_selects,
-            cx,
         )
     }
 
     /// Returns an owned snapshot of the value, paths, and rendered levels.
-    pub fn snapshot(&self, cx: &impl std::borrow::Borrow<App>) -> InfiniteSelectSnapshot<T, D> {
+    pub fn snapshot(&self) -> InfiniteSelectSnapshot<T, D> {
         InfiniteSelectSnapshot {
             value: self.value.clone(),
             path: self.path.clone(),
             key_path: self.key_path.clone(),
-            levels: self.levels(cx),
+            levels: self.levels(),
         }
     }
 
     /// Returns render-ready GPUI form fields for each visible select level.
-    pub fn form_fields(&self, cx: &impl std::borrow::Borrow<App>) -> Vec<Field> {
-        self.levels(cx)
+    pub fn form_fields(&self) -> Vec<Field> {
+        self.levels()
             .into_iter()
             .map(|level| level.to_form_field())
             .collect()
@@ -1136,7 +1136,7 @@ where
         self.set_key_path(&key_path, window, cx)
     }
 
-    fn resolved_max_depth(&self) -> usize {
+    fn max_depth(&self) -> usize {
         match self.options.max_depth {
             Some(max_depth) => max_depth.clamp(1, T::depth()),
             None => T::depth(),
@@ -1218,7 +1218,7 @@ where
         let child_selects = build_child_selects::<T, D>(
             &self.value,
             &self.path,
-            self.resolved_max_depth(),
+            self.max_depth(),
             self.options.searchable,
             window,
             cx,
@@ -1232,119 +1232,9 @@ where
     }
 }
 
-/// Render wrapper used by generated form code for infinite-select fields.
-#[cfg_attr(
-    feature = "component-shape",
-    derive(component_shape_gpui::GpuiComponentShape)
-)]
-#[cfg_attr(
-    feature = "component-shape",
-    gpui_component_shape(
-        state = InfiniteSelectState<T, D>,
-        new = InfiniteSelectState::<T, D>::new_default,
-        value = T,
-        field_suffix = "infinite_select",
-        value_binding
-    )
-)]
-#[derive(IntoElement)]
-pub struct InfiniteSelect<T, D = Vec<InfiniteSelectItem<T>>>
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    state: Entity<InfiniteSelectState<T, D>>,
-}
-
-#[cfg(feature = "component-shape")]
-impl<T, D> gpui_form_runtime::shape::GpuiFormComponentShapePolicy for InfiniteSelect<T, D>
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    type ValueStoragePolicy = gpui_form_runtime::shape::DirectValueStorage;
-}
-
-impl<T, D> InfiniteSelect<T, D>
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    #[cfg(feature = "component-shape")]
-    pub fn searchable(searchable: bool) -> InfiniteSelectOptions {
-        InfiniteSelectOptions::builder()
-            .searchable(searchable)
-            .build()
-    }
-
-    #[cfg(feature = "component-shape")]
-    pub fn from(options: InfiniteSelectOptions) -> InfiniteSelectOptions {
-        options
-    }
-
-    pub fn new(state: &Entity<InfiniteSelectState<T, D>>) -> Self {
-        Self {
-            state: state.clone(),
-        }
-    }
-}
-
-#[cfg(feature = "component-shape")]
-impl<T, D> component_shape_gpui::GpuiComponentShapeBuilder<InfiniteSelect<T, D>>
-    for InfiniteSelectOptions
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    fn build(
-        self,
-        window: &mut Window,
-        cx: &mut Context<'_, InfiniteSelectState<T, D>>,
-    ) -> InfiniteSelectState<T, D> {
-        InfiniteSelectState::<T, D>::new_with_options(T::default(), self, window, cx)
-    }
-}
-
-impl<T, D> RenderOnce for InfiniteSelect<T, D>
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        div().children(self.state.read(cx).form_fields(cx))
-    }
-}
-
-#[cfg(feature = "component-shape")]
-impl<T, D> gpui_form_runtime::shape::GpuiComponentStateValueBinding<T> for InfiniteSelectState<T, D>
-where
-    T: InfiniteSelectValue,
-    D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
-{
-    type Event = InfiniteSelectEvent<T>;
-
-    fn seed_value_binding_state(
-        state: &mut Self,
-        value: Option<&T>,
-        window: &mut Window,
-        cx: &mut Context<'_, Self>,
-    ) {
-        if let Some(value) = value {
-            state.set_value(value.clone(), window, cx);
-        }
-    }
-
-    fn value_change(
-        _state: &Self,
-        event: &Self::Event,
-    ) -> gpui_form_runtime::shape::ValueChange<T> {
-        gpui_form_runtime::shape::ValueChange::Set(event.value().clone())
-    }
-}
-
 impl<T, D> Render for InfiniteSelectState<T, D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
@@ -1361,14 +1251,14 @@ fn build_child_selects<T, D>(
     cx: &mut Context<InfiniteSelectState<T, D>>,
 ) -> Vec<Entity<SelectState<D>>>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     let mut current_value = parent.clone();
     let mut selects = Vec::new();
 
     for level in 0..max_depth.saturating_sub(1) {
-        let items = child_items_for_level(&current_value, level, cx);
+        let items = child_items_for_level(&current_value, level);
         if items.is_empty() {
             break;
         }
@@ -1390,17 +1280,16 @@ fn build_levels<T, D>(
     key_path: &InfiniteSelectKeyPath,
     master_select: &Entity<SelectState<D>>,
     child_selects: &[Entity<SelectState<D>>],
-    cx: &impl std::borrow::Borrow<App>,
 ) -> Vec<InfiniteSelectLevel<D>>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate + 'static,
 {
     let mut levels = Vec::with_capacity(child_selects.len() + 1);
     levels.push(InfiniteSelectLevel {
         depth: 0,
-        label: value.type_label(cx),
-        description: value.type_description(cx),
+        label: value.type_label(),
+        description: value.type_description(),
         select: master_select.clone(),
         selected_index: path.get(0),
         selected_key: key_path.get(0).map(str::to_string),
@@ -1410,14 +1299,12 @@ where
         let depth = index + 1;
         InfiniteSelectLevel {
             depth,
-            label: value.child_label_at_depth(index, cx).unwrap_or_else(|| {
-                panic!("missing infinite-select label metadata at depth {depth}")
-            }),
+            label: value
+                .child_label_at_depth(index)
+                .unwrap_or_else(|| "".into()),
             description: value
-                .child_description_at_depth(index, cx)
-                .unwrap_or_else(|| {
-                    panic!("missing infinite-select description metadata at depth {depth}")
-                }),
+                .child_description_at_depth(index)
+                .unwrap_or_else(|| "".into()),
             select: select.clone(),
             selected_index: path.get(depth),
             selected_key: key_path.get(depth).map(str::to_string),
@@ -1427,38 +1314,19 @@ where
     levels
 }
 
-fn child_values_for_level<T: InfiniteSelectValue>(current_value: &T, level: usize) -> Vec<T> {
-    let option_count = if level == 0 {
-        current_value.child_variant_keys().len()
-    } else {
-        current_value.inner_child_variant_keys().len()
-    };
-
-    (0..option_count)
-        .filter_map(|index| {
-            if level == 0 {
-                current_value.set_child_by_index(index)
-            } else {
-                current_value.inner_set_child_by_index(index)
-            }
-        })
-        .collect()
-}
-
-fn child_items_for_level<T: InfiniteSelectValue>(
+fn child_items_for_level<T: InfiniteSelect>(
     current_value: &T,
     level: usize,
-    cx: &impl std::borrow::Borrow<App>,
 ) -> Vec<InfiniteSelectItem<T>> {
     let (has_more, child_labels) = if level == 0 {
         (
             current_value.has_inner(),
-            current_value.child_variant_labels(cx),
+            current_value.child_variant_labels(),
         )
     } else {
         (
             current_value.inner_has_inner(),
-            current_value.inner_child_variant_labels(cx),
+            current_value.inner_child_variant_labels(),
         )
     };
 
@@ -1488,7 +1356,7 @@ fn build_select_state<T, D>(
     cx: &mut Context<SelectState<D>>,
 ) -> SelectState<D>
 where
-    T: InfiniteSelectValue,
+    T: InfiniteSelect,
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     let mut state = SelectState::new(

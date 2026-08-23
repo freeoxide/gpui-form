@@ -1,285 +1,228 @@
-pub mod shape;
+pub mod checkbox;
+pub mod custom;
+pub mod date_picker;
+pub mod file_picker;
+pub mod infinite_select;
+pub mod input;
+pub mod number_input;
+pub mod phone_input;
+pub mod select;
+pub mod switch;
 
-use gpui_form_schema::{registry::GpuiFormShape, resolved::ResolvedField};
-use heck::ToSnakeCase as _;
+use gpui_form_schema::{
+    components::ComponentsBehaviour,
+    layout::FieldLayout,
+    registry::{FieldVariant, GpuiFormShape},
+};
+use heck::{ToPascalCase as _, ToSnakeCase as _};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::visit_mut::VisitMut as _;
+use syn::{Ident, Path, Type};
 
-use crate::error::{PrototypingError, PrototypingResult};
-use crate::imports::ImportItem;
+use crate::{
+    error::{PrototypingError, PrototypingResult},
+    imports::ImportItem,
+};
 
-static SHAPE_GENERATOR: shape::ShapeCodeGenerator = shape::ShapeCodeGenerator;
+static INPUT_GENERATOR: input::InputCodeGenerator = input::InputCodeGenerator;
+static NUMBER_INPUT_GENERATOR: number_input::NumberInputCodeGenerator =
+    number_input::NumberInputCodeGenerator;
+static PHONE_INPUT_GENERATOR: phone_input::PhoneInputCodeGenerator =
+    phone_input::PhoneInputCodeGenerator;
+static CHECKBOX_GENERATOR: checkbox::CheckboxCodeGenerator = checkbox::CheckboxCodeGenerator;
+static SWITCH_GENERATOR: switch::SwitchCodeGenerator = switch::SwitchCodeGenerator;
+static SELECT_GENERATOR: select::SelectCodeGenerator = select::SelectCodeGenerator;
+static INFINITE_SELECT_GENERATOR: infinite_select::InfiniteSelectCodeGenerator =
+    infinite_select::InfiniteSelectCodeGenerator;
+static CUSTOM_GENERATOR: custom::CustomCodeGenerator = custom::CustomCodeGenerator;
+static DATE_PICKER_GENERATOR: date_picker::DatePickerCodeGenerator =
+    date_picker::DatePickerCodeGenerator;
+static FILE_PICKER_GENERATOR: file_picker::FilePickerCodeGenerator =
+    file_picker::FilePickerCodeGenerator;
 
-pub fn field_generator() -> &'static dyn FieldCodeGenerator {
-    &SHAPE_GENERATOR
-}
-
-#[derive(Clone, Copy, Default)]
-pub struct FieldCodegenOptions<'a> {
-    pub path_remapper: Option<&'a dyn Fn(&syn::Path) -> Option<syn::Path>>,
-    pub validation_message_renderer: Option<&'a dyn Fn(TokenStream) -> TokenStream>,
-    pub validation_visibility_renderer: Option<&'a ValidationVisibilityRenderer<'a>>,
-    pub additional_validation_message_renderer: Option<&'a AdditionalValidationMessageRenderer<'a>>,
-    pub field_change_renderer: Option<&'a FieldChangeRenderer<'a>>,
-    pub render_child_renderer: Option<&'a RenderChildRenderer<'a>>,
-}
-
-impl FieldCodegenOptions<'_> {
-    pub fn remap_path(&self, path: &syn::Path) -> syn::Path {
-        self.path_remapper
-            .and_then(|remapper| remapper(path))
-            .unwrap_or_else(|| path.clone())
-    }
-
-    pub fn render_validation_message(&self, value_tokens: TokenStream) -> TokenStream {
-        self.validation_message_renderer
-            .map(|renderer| renderer(value_tokens.clone()))
-            .unwrap_or_else(|| default_validation_message_tokens(value_tokens))
-    }
-
-    pub fn validation_messages_visible(&self, field: &ResolvedField<'_>) -> TokenStream {
-        self.validation_visibility_renderer
-            .map(|renderer| renderer(field))
-            .unwrap_or_else(|| quote! { true })
-    }
-
-    pub fn additional_validation_message(&self, field: &ResolvedField<'_>) -> TokenStream {
-        self.additional_validation_message_renderer
-            .map(|renderer| renderer(field))
-            .unwrap_or_else(|| quote! { None })
-    }
-
-    pub fn has_additional_validation_message(&self) -> bool {
-        self.additional_validation_message_renderer.is_some()
-    }
-
-    pub fn after_field_change(
-        &self,
-        field: &ResolvedField<'_>,
-        previous_value: TokenStream,
-    ) -> TokenStream {
-        self.field_change_renderer
-            .map(|renderer| renderer(field, previous_value))
-            .unwrap_or_default()
-    }
-
-    pub fn has_after_field_change(&self) -> bool {
-        self.field_change_renderer.is_some()
-    }
-
-    pub fn render_child(
-        &self,
-        field: &ResolvedField<'_>,
-        component: &GpuiFormShape,
-    ) -> Option<TokenStream> {
-        self.render_child_renderer
-            .and_then(|renderer| renderer(field, component, self))
-    }
-
-    pub fn remap_type(&self, ty: &syn::Type) -> syn::Type {
-        let mut ty = ty.clone();
-        PathRemapVisitor { options: self }.visit_type_mut(&mut ty);
-        ty
-    }
-
-    pub fn remap_expr(&self, expr: &syn::Expr) -> syn::Expr {
-        let mut expr = expr.clone();
-        PathRemapVisitor { options: self }.visit_expr_mut(&mut expr);
-        expr
+pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCodeGenerator {
+    match behaviour {
+        ComponentsBehaviour::Input => &INPUT_GENERATOR,
+        ComponentsBehaviour::NumberInput(_) => &NUMBER_INPUT_GENERATOR,
+        ComponentsBehaviour::PhoneInput(_) => &PHONE_INPUT_GENERATOR,
+        ComponentsBehaviour::Checkbox => &CHECKBOX_GENERATOR,
+        ComponentsBehaviour::Switch => &SWITCH_GENERATOR,
+        ComponentsBehaviour::Select(_) => &SELECT_GENERATOR,
+        ComponentsBehaviour::InfiniteSelect(_) => &INFINITE_SELECT_GENERATOR,
+        ComponentsBehaviour::Custom => &CUSTOM_GENERATOR,
+        ComponentsBehaviour::DatePicker => &DATE_PICKER_GENERATOR,
+        ComponentsBehaviour::FilePicker => &FILE_PICKER_GENERATOR,
     }
 }
 
-pub type RenderChildRenderer<'a> = dyn for<'field, 'options> Fn(
-        &ResolvedField<'field>,
-        &GpuiFormShape,
-        &FieldCodegenOptions<'options>,
-    ) -> Option<TokenStream>
-    + 'a;
-
-pub type ValidationVisibilityRenderer<'a> =
-    dyn for<'field> Fn(&ResolvedField<'field>) -> TokenStream + 'a;
-
-pub type AdditionalValidationMessageRenderer<'a> =
-    dyn for<'field> Fn(&ResolvedField<'field>) -> TokenStream + 'a;
-
-pub type FieldChangeRenderer<'a> =
-    dyn for<'field> Fn(&ResolvedField<'field>, TokenStream) -> TokenStream + 'a;
-
-struct PathRemapVisitor<'a, 'b> {
-    options: &'a FieldCodegenOptions<'b>,
+pub struct ResolvedField<'a> {
+    field: &'a FieldVariant,
+    field_ident: Ident,
+    field_ident_pascal: Ident,
+    field_ident_with_behaviour: Ident,
+    value_type: Type,
+    component_ident: Ident,
+    custom_shape_path: Option<Path>,
+    custom_component_path: Option<Path>,
 }
 
-impl syn::visit_mut::VisitMut for PathRemapVisitor<'_, '_> {
-    fn visit_path_mut(&mut self, path: &mut syn::Path) {
-        if let Some(remapped) = self
-            .options
-            .path_remapper
-            .and_then(|remapper| remapper(path))
-        {
-            *path = remapped;
-        } else {
-            syn::visit_mut::visit_path_mut(self, path);
-        }
+impl<'a> ResolvedField<'a> {
+    pub fn new(field: &'a FieldVariant) -> PrototypingResult<Self> {
+        let value_type = syn::parse_str::<Type>(field.value_type).map_err(|error| {
+            PrototypingError::InvalidType {
+                field_name: field.field_name.to_string(),
+                value: field.value_type.to_string(),
+                error: error.to_string(),
+            }
+        })?;
+
+        let custom_component_path = match field.custom_component {
+            Some(component_path) => {
+                Some(syn::parse_str::<Path>(component_path).map_err(|error| {
+                    PrototypingError::InvalidPath {
+                        kind: "custom component path",
+                        value: component_path.to_string(),
+                        error: error.to_string(),
+                    }
+                })?)
+            },
+            None => None,
+        };
+
+        let custom_shape_path = match field.custom_shape {
+            Some(shape_path) => Some(syn::parse_str::<Path>(shape_path).map_err(|error| {
+                PrototypingError::InvalidPath {
+                    kind: "custom component shape path",
+                    value: shape_path.to_string(),
+                    error: error.to_string(),
+                }
+            })?),
+            None => None,
+        };
+
+        Ok(Self {
+            field,
+            field_ident: format_ident!("{}", field.field_name),
+            field_ident_pascal: format_ident!("{}", field.field_name_pascal()),
+            field_ident_with_behaviour: format_ident!("{}", field.field_name_with_behaviour()),
+            value_type,
+            component_ident: format_ident!("{}", field.behaviour.component_name().to_pascal_case()),
+            custom_shape_path,
+            custom_component_path,
+        })
+    }
+
+    pub fn raw(&self) -> &FieldVariant {
+        self.field
+    }
+
+    pub fn behaviour(&self) -> &ComponentsBehaviour {
+        &self.field.behaviour
+    }
+
+    /// Non-rendering layout hints attached to this field (METADATA-FIRST v1).
+    ///
+    /// Mirrors [`ResolvedField::raw`] / [`ResolvedField::behaviour`]: a thin
+    /// accessor over the underlying [`FieldVariant::layout`]. Consumers use this
+    /// to read `section` / `label` / `description` / `placeholder` / `width`
+    /// hints when emitting scaffolds. See [`FieldLayout`] for the v1 contract.
+    pub fn layout(&self) -> &FieldLayout {
+        &self.field.layout
+    }
+
+    pub fn field_name(&self) -> &'a str {
+        self.field.field_name
+    }
+
+    pub fn field_ident(&self) -> &Ident {
+        &self.field_ident
+    }
+
+    pub fn field_ident_pascal(&self) -> &Ident {
+        &self.field_ident_pascal
+    }
+
+    pub fn field_ident_with_behaviour(&self) -> &Ident {
+        &self.field_ident_with_behaviour
+    }
+
+    pub fn value_type(&self) -> &Type {
+        &self.value_type
+    }
+
+    pub fn component_ident(&self) -> &Ident {
+        &self.component_ident
+    }
+
+    pub fn optional(&self) -> bool {
+        self.field.optional
+    }
+
+    pub fn value_holder_wraps_in_option(&self) -> bool {
+        self.field.value_holder_wraps_in_option()
+    }
+
+    pub fn custom_value_binding(&self) -> bool {
+        self.field.custom_value_binding
+    }
+
+    pub fn custom_component(&self) -> Option<&'a str> {
+        self.field.custom_component
+    }
+
+    pub fn custom_shape_path(&self) -> Option<&Path> {
+        self.custom_shape_path.as_ref()
+    }
+
+    pub fn custom_component_path(&self) -> Option<&Path> {
+        self.custom_component_path.as_ref()
+    }
+
+    pub fn kebab_id(&self) -> String {
+        self.field.kebab_id()
+    }
+
+    pub fn validation_rules(&self) -> &'static [&'static str] {
+        self.field.validation_rules()
+    }
+
+    pub fn has_validation_rule(&self, rule: &str) -> bool {
+        self.validation_rules().contains(&rule)
+    }
+
+    pub fn uses_optional_inner_validation_errors(&self) -> bool {
+        self.optional()
+            && (self.has_validation_rule("NewtypeValidation")
+                || self.has_validation_rule("NestedValidation"))
+    }
+
+    pub fn suffixed_ident(&self, suffix: &str) -> Ident {
+        format_ident!("{}_{}", self.field.field_name, suffix)
+    }
+
+    pub fn prefixed_ident(&self, prefix: &str) -> Ident {
+        format_ident!("{}_{}", prefix, self.field.field_name)
+    }
+
+    pub fn event_handler_ident(&self, suffix: &str) -> Ident {
+        format_ident!("on_{}_{}", self.field.field_name, suffix)
     }
 }
 
 #[derive(Default)]
 pub struct GeneratedSubscription {
-    pub bindings: Vec<SubscriptionBinding>,
-    pub handlers: Vec<EventHandler>,
+    pub calls: Vec<TokenStream>,
+    pub handlers: Vec<TokenStream>,
 }
 
 impl GeneratedSubscription {
     pub fn is_empty(&self) -> bool {
-        self.bindings.is_empty() && self.handlers.is_empty()
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ComponentCreation {
-    entity_ident: syn::Ident,
-    components_struct_ident: syn::Ident,
-}
-
-impl ComponentCreation {
-    pub fn new(entity_ident: syn::Ident, components_struct_ident: syn::Ident) -> Self {
-        Self {
-            entity_ident,
-            components_struct_ident,
-        }
-    }
-
-    pub fn entity_ident(&self) -> &syn::Ident {
-        &self.entity_ident
-    }
-
-    pub fn components_struct_ident(&self) -> &syn::Ident {
-        &self.components_struct_ident
-    }
-}
-
-impl quote::ToTokens for ComponentCreation {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let entity_ident = &self.entity_ident;
-        let components_struct_ident = &self.components_struct_ident;
-        tokens.extend(quote! {
-            let #entity_ident =
-                cx.new(|cx| #components_struct_ident::#entity_ident(window, cx));
-        });
-    }
-}
-
-impl std::fmt::Display for ComponentCreation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", quote::ToTokens::to_token_stream(self))
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FieldInitializer {
-    field_ident: syn::Ident,
-}
-
-impl FieldInitializer {
-    pub fn new(field_ident: syn::Ident) -> Self {
-        Self { field_ident }
-    }
-
-    pub fn field_ident(&self) -> &syn::Ident {
-        &self.field_ident
-    }
-}
-
-impl quote::ToTokens for FieldInitializer {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let field_ident = &self.field_ident;
-        tokens.extend(quote! { #field_ident, });
-    }
-}
-
-impl std::fmt::Display for FieldInitializer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", quote::ToTokens::to_token_stream(self))
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SubscriptionBinding {
-    entity_ident: syn::Ident,
-    handler_ident: syn::Ident,
-}
-
-impl SubscriptionBinding {
-    pub fn new(entity_ident: syn::Ident, handler_ident: syn::Ident) -> Self {
-        Self {
-            entity_ident,
-            handler_ident,
-        }
-    }
-
-    pub fn entity_ident(&self) -> &syn::Ident {
-        &self.entity_ident
-    }
-
-    pub fn handler_ident(&self) -> &syn::Ident {
-        &self.handler_ident
-    }
-}
-
-impl quote::ToTokens for SubscriptionBinding {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let entity_ident = &self.entity_ident;
-        let handler_ident = &self.handler_ident;
-        tokens.extend(quote! {
-            cx.subscribe_in(&#entity_ident, window, Self::#handler_ident)
-        });
-    }
-}
-
-impl std::fmt::Display for SubscriptionBinding {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", quote::ToTokens::to_token_stream(self))
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct EventHandler {
-    handler_ident: syn::Ident,
-    tokens: TokenStream,
-}
-
-impl EventHandler {
-    pub fn new(handler_ident: syn::Ident, tokens: TokenStream) -> Self {
-        Self {
-            handler_ident,
-            tokens,
-        }
-    }
-
-    pub fn handler_ident(&self) -> &syn::Ident {
-        &self.handler_ident
-    }
-
-    pub fn to_token_stream(&self) -> TokenStream {
-        self.tokens.clone()
-    }
-}
-
-impl quote::ToTokens for EventHandler {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.tokens.clone());
-    }
-}
-
-impl std::fmt::Display for EventHandler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.tokens)
+        self.calls.is_empty() && self.handlers.is_empty()
     }
 }
 
 pub trait FieldCodeGenerator {
-    fn generate_imports(&self, _field: &ResolvedField<'_>) -> Vec<ImportItem> {
+    fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
         vec![]
     }
 
@@ -287,47 +230,38 @@ pub trait FieldCodeGenerator {
         &self,
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
-    ) -> PrototypingResult<ComponentCreation>;
+    ) -> Option<TokenStream>;
 
     fn generate_field_initializers(
         &self,
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
-    ) -> PrototypingResult<FieldInitializer>;
+    ) -> Option<TokenStream>;
 
     fn generate_render_child(
         &self,
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
-        options: &FieldCodegenOptions<'_>,
-    ) -> PrototypingResult<TokenStream>;
+    ) -> TokenStream;
+
+    fn generate_focusable_cycle(
+        &self,
+        field: &ResolvedField<'_>,
+        component: &GpuiFormShape,
+    ) -> Option<TokenStream>;
 
     fn generate_subscription(
         &self,
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
-        options: &FieldCodegenOptions<'_>,
-    ) -> PrototypingResult<GeneratedSubscription>;
+    ) -> Option<GeneratedSubscription>;
 
     fn generate_post_subscription_initialization(
         &self,
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
-        _options: &FieldCodegenOptions<'_>,
-    ) -> PrototypingResult<TokenStream> {
-        Ok(TokenStream::new())
-    }
-}
-
-pub fn missing_component_capability(
-    component: &GpuiFormShape,
-    field: &ResolvedField<'_>,
-    capability: &'static str,
-) -> PrototypingError {
-    PrototypingError::MissingComponentCapability {
-        struct_name: component.struct_name.to_string(),
-        field_name: field.field_name().to_string(),
-        capability,
+    ) -> Option<TokenStream> {
+        None
     }
 }
 
@@ -372,25 +306,56 @@ impl ShapeIdentities for GpuiFormShape {
 pub fn generate_entity_creation(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
-) -> ComponentCreation {
+) -> TokenStream {
     let form_components_struct_ident = component.struct_form_components_ident();
-    let component_ident = field.field_ident().clone();
+    let var_name_ident = field.field_ident_with_behaviour().clone();
+    let fn_name_ident = var_name_ident.clone();
 
-    ComponentCreation::new(component_ident, form_components_struct_ident)
+    quote! {
+        let #var_name_ident =
+            cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
+    }
 }
 
-pub fn generate_entity_field_initializer(field: &ResolvedField<'_>) -> FieldInitializer {
-    let field_var_name_ident = field.field_ident();
-    FieldInitializer::new(field_var_name_ident.clone())
+pub fn generate_entity_field_initializer(field: &ResolvedField<'_>) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    quote! { #field_var_name_ident, }
+}
+
+pub fn generate_entity_focus(field: &ResolvedField<'_>) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    quote! {
+        self.fields.#field_var_name_ident.focus_handle(cx),
+    }
+}
+
+pub fn generate_text_value_prefill(field: &ResolvedField<'_>) -> TokenStream {
+    let field_var_name_ident = field.field_ident_with_behaviour();
+    let field_name_ident = field.field_ident();
+
+    if field.value_holder_wraps_in_option() {
+        quote! {
+            if let Some(value) = current_data.#field_name_ident.as_ref() {
+                #field_var_name_ident.update(cx, |state, cx| {
+                    state.set_value(value.to_string(), window, cx);
+                });
+            }
+        }
+    } else {
+        quote! {
+            #field_var_name_ident.update(cx, |state, cx| {
+                state.set_value(current_data.#field_name_ident.to_string(), window, cx);
+            });
+        }
+    }
 }
 
 pub fn render_standard_field(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
     child_tokens: TokenStream,
-    options: &FieldCodegenOptions<'_>,
 ) -> TokenStream {
-    let description_fn_tokens = generate_description_fn_tokens(field, component, options);
+    let description_fn_tokens = generate_description_fn_tokens(field, component);
     let label_tokens = generate_label_tokens(field, component);
 
     quote! {
@@ -403,19 +368,18 @@ pub fn render_standard_field(
     }
 }
 
-fn default_validation_message_tokens(value_tokens: TokenStream) -> TokenStream {
-    #[cfg(feature = "fluent")]
-    {
-        quote! {
-            gpui_es_fluent::localize_message(cx, &#value_tokens)
-        }
-    }
-    #[cfg(not(feature = "fluent"))]
-    {
-        quote! {
-            ::std::string::ToString::to_string(&#value_tokens)
-        }
-    }
+pub fn render_component_entity_field(
+    field: &ResolvedField<'_>,
+    component: &GpuiFormShape,
+) -> TokenStream {
+    let component_gpui_type = field.component_ident();
+    let field_in_struct_name_ident = field.field_ident_with_behaviour();
+
+    render_standard_field(
+        field,
+        component,
+        quote! { #component_gpui_type::new(&self.fields.#field_in_struct_name_ident) },
+    )
 }
 
 pub fn generate_label_tokens(
@@ -431,21 +395,28 @@ pub fn generate_label_tokens(
         let field_name_pascal_case_ident = field.field_ident_pascal();
         quote! {{
             let message = #ftl_label_ident::#field_name_pascal_case_ident;
-            gpui_es_fluent::localize_message(cx, &message)
+            localize(cx, &message)
         }}
     }
     #[cfg(not(feature = "fluent"))]
     {
-        use heck::ToTitleCase;
-        let title = field.field_name().as_str().to_title_case();
-        quote! { #title }
+        // METADATA-FIRST v1: prefer an explicit `layout.label` hint when the
+        // field declared one. Fall back to a title-cased field name otherwise.
+        // (label defaults to the field name at consumption time per the v1
+        // contract — see `gpui_form_schema::layout`.)
+        if let Some(label) = field.layout().label {
+            quote! { #label }
+        } else {
+            use heck::ToTitleCase as _;
+            let title = field.field_name().to_title_case();
+            quote! { #title }
+        }
     }
 }
 
 pub fn generate_description_fn_tokens(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
-    options: &FieldCodegenOptions<'_>,
 ) -> proc_macro2::TokenStream {
     let field_name_ident = field.field_ident();
 
@@ -455,70 +426,69 @@ pub fn generate_description_fn_tokens(
         let field_name_pascal_case_ident = field.field_ident_pascal();
         quote! {{
             let message = #ftl_description_ident::#field_name_pascal_case_ident;
-            gpui_es_fluent::localize_message(cx, &message)
+            localize(cx, &message)
         }}
     };
     #[cfg(not(feature = "fluent"))]
     let description_tokens = {
-        use heck::ToTitleCase;
-        let title = field.field_name().as_str().to_title_case();
-        quote! { #title }
+        // METADATA-FIRST v1: prefer an explicit `layout.description` hint when
+        // present, falling back to the title-cased field name.
+        if let Some(description) = field.layout().description {
+            quote! { #description }
+        } else {
+            use heck::ToTitleCase as _;
+            let title = field.field_name().to_title_case();
+            quote! { #title }
+        }
     };
 
     let field_has_validations = !field.validation_rules().is_empty() && component.has_koruma();
     let uses_optional_inner_validation_errors = field.uses_optional_inner_validation_errors();
     let error_tokens = if field_has_validations {
-        let conversion_tokens = options.render_validation_message(quote! { v });
-        let validation_visible = options.validation_messages_visible(field);
+        #[cfg(feature = "fluent")]
+        let conversion_tokens = quote! {
+            localize(cx, v)
+        };
+        #[cfg(not(feature = "fluent"))]
+        let conversion_tokens = quote! { v.to_string() };
 
         if uses_optional_inner_validation_errors {
             quote! {
-                if #validation_visible {
-                    validation_errors
-                        .as_ref()
-                        .and_then(|e| e.#field_name_ident())
-                        .and_then(|inner_error| {
-                            let errors = inner_error
-                                .all()
-                                .map(|v| #conversion_tokens)
-                                .collect::<Vec<_>>();
-                            if errors.is_empty() {
-                                None
-                            } else {
-                                Some(errors.join("\n"))
-                            }
-                        })
-                } else {
-                    None
-                }
+                validation_errors
+                    .as_ref()
+                    .and_then(|e| e.#field_name_ident())
+                    .map(|inner_error| inner_error.all())
+                    .filter(|errs| !errs.is_empty())
+                    .map(|errs| {
+                        errs.iter()
+                            .map(|v| #conversion_tokens)
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    })
             }
         } else {
             quote! {{
-                if #validation_visible {
-                    validation_errors.as_ref().and_then(|e| {
-                        let errors = e
-                            .#field_name_ident()
-                            .all()
-                            .map(|v| #conversion_tokens)
-                            .collect::<Vec<_>>();
-                        if errors.is_empty() {
-                            None
-                        } else {
-                            Some(errors.join("\n"))
-                        }
-                    })
-                } else {
-                    None
-                }
+                validation_errors.as_ref().and_then(|e| {
+                    let errs = e.#field_name_ident().all();
+                    if errs.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            errs.iter()
+                                .map(|v| #conversion_tokens)
+                                .collect::<Vec<_>>()
+                            .join("\n"),
+                        )
+                    }
+                })
             }}
         }
     } else {
         quote! {{ None }}
     };
-    let additional_error_tokens = options.additional_validation_message(field);
     let error_color_tokens = quote! { cx.theme().danger };
 
-    if !field_has_validations && !options.has_additional_validation_message() {
+    if !field_has_validations {
         quote! {
             .description_fn({
                 let description = #description_tokens;
@@ -532,11 +502,6 @@ pub fn generate_description_fn_tokens(
             })
         }
     } else {
-        let error_tokens = if options.has_additional_validation_message() {
-            quote! { (#error_tokens).or_else(|| #additional_error_tokens) }
-        } else {
-            error_tokens
-        };
         quote! {
             .description_fn({
                 let description = #description_tokens;
@@ -563,66 +528,144 @@ pub fn generate_description_fn_tokens(
 
 #[cfg(test)]
 mod tests {
-    use super::{FieldCodegenOptions, ResolvedField, generate_description_fn_tokens};
-    use gpui_form_schema::registry::{
-        ComponentFieldName, FieldValuePresence, FieldValueSpec, FieldVariant, GpuiFormShape,
-        RustPath, RustType, ValidationRuleId,
+    use super::{ResolvedField, generate_description_fn_tokens};
+    // `generate_label_tokens` is only exercised by the non-fluent label tests;
+    // the fluent label branch localizes through `es-fluent` keys instead.
+    #[cfg(not(feature = "fluent"))]
+    use super::generate_label_tokens;
+    use gpui_form_schema::{
+        components::ComponentsBehaviour,
+        layout::{FieldLayout, LayoutWidth},
+        registry::{FieldVariant, GpuiFormShape},
     };
 
     fn compact(input: &str) -> String {
         input.chars().filter(|c| !c.is_whitespace()).collect()
     }
 
-    #[cfg(feature = "fluent")]
-    fn validation_message_conversion() -> &'static str {
-        "gpui_es_fluent::localize_message(cx,&v)"
-    }
+    // ── METADATA-FIRST v1: layout.label / layout.description consumption ──────
+    // The non-fluent label/description branches consume `layout.label` /
+    // `layout.description`. The fluent branches localize through
+    // `es-fluent` keys instead (v1 minimal scope — fluent policy is deferred),
+    // so these assertions are only meaningful without the `fluent` feature.
 
+    #[test]
     #[cfg(not(feature = "fluent"))]
-    fn validation_message_conversion() -> &'static str {
-        "::std::string::ToString::to_string(&v)"
+    fn label_uses_layout_label_when_present() {
+        const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Enable experiments"));
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_label_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable experiments"),
+            "explicit layout.label should be used as the label: {tokens}"
+        );
+        assert!(
+            !tokens.contains("Enable Experimental"),
+            "title-cased fallback must not be used when layout.label is set: {tokens}"
+        );
     }
 
-    const fn hidden_field_with_validations(
-        field_name: &'static str,
-        value_type: &'static str,
-        value_presence: FieldValuePresence,
-        validations: &'static [ValidationRuleId],
-    ) -> FieldVariant {
-        let value_type = RustType::from_macro_tokens_unchecked(value_type);
-        FieldVariant::hidden(
-            ComponentFieldName::new(field_name),
-            FieldValueSpec::new(value_type, value_type, value_presence)
-                .with_validations(validations),
-        )
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn label_falls_back_to_field_name_title_case_when_absent() {
+        // Empty layout (no label) — defaults via FieldLayout::new().
+        const FIELDS: [FieldVariant; 1] = [
+            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_label_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable Experimental"),
+            "field name should be title-cased as the fallback label: {tokens}"
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn description_uses_layout_description_when_present() {
+        const LAYOUT: FieldLayout =
+            FieldLayout::new().with_description(Some("Toggles unreleased features"));
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_description_fn_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Toggles unreleased features"),
+            "explicit layout.description should be used as the description hint: {tokens}"
+        );
+        assert!(
+            !tokens.contains("Enable Experimental"),
+            "title-cased fallback must not be used when layout.description is set: {tokens}"
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "fluent"))]
+    fn description_falls_back_to_field_name_title_case_when_absent() {
+        const FIELDS: [FieldVariant; 1] = [
+            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_description_fn_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains("Enable Experimental"),
+            "field name should be title-cased as the fallback description: {tokens}"
+        );
+    }
+
+    #[test]
+    fn resolved_field_layout_accessor_returns_field_layout() {
+        // Guards the public accessor the code_gen section-grouping loop reads.
+        const LAYOUT: FieldLayout = FieldLayout::new()
+            .with_section(Some("Account"))
+            .with_label(Some("Username"))
+            .with_width(LayoutWidth::Half);
+        const FIELDS: [FieldVariant; 1] =
+            [FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
+                .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let _ = SHAPE;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let layout = field.layout();
+
+        assert_eq!(layout.section, Some("Account"));
+        assert_eq!(layout.label, Some("Username"));
+        assert_eq!(layout.width, LayoutWidth::Half);
+        assert!(!layout.is_empty());
     }
 
     #[test]
     fn description_uses_direct_all_for_non_optional_newtype_errors() {
-        const VALIDATIONS: &[ValidationRuleId] = &[ValidationRuleId::Newtype];
-        const FIELDS: [FieldVariant; 1] = [hidden_field_with_validations(
-            "index",
-            "Age",
-            FieldValuePresence::RequiresValue,
-            VALIDATIONS,
-        )];
-        const SHAPE: GpuiFormShape = GpuiFormShape::new(
-            "Demo",
-            &FIELDS,
-            RustPath::from_macro_tokens_unchecked("demo"),
-            true,
-        );
+        const VALIDATIONS: &[&str] = &["NewtypeValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("index", "Age", false, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
-        let options = FieldCodegenOptions::default();
-        let compact =
-            compact(&generate_description_fn_tokens(&field, &SHAPE, &options).to_string());
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
 
         assert!(
-            compact.contains(&format!(
-                "leterrors=e.index().all().map(|v|{}).collect::<Vec<_>>();",
-                validation_message_conversion(),
-            )),
+            compact.contains("leterrs=e.index().all();"),
             "non-optional newtype errors should keep direct .all() access: {compact}"
         );
         assert!(
@@ -633,103 +676,43 @@ mod tests {
 
     #[test]
     fn description_unwraps_optional_newtype_inner_errors_before_all() {
-        const VALIDATIONS: &[ValidationRuleId] = &[ValidationRuleId::Newtype];
-        const FIELDS: [FieldVariant; 1] = [hidden_field_with_validations(
-            "age",
-            "Age",
-            FieldValuePresence::Optional,
-            VALIDATIONS,
-        )];
-        const SHAPE: GpuiFormShape = GpuiFormShape::new(
-            "Demo",
-            &FIELDS,
-            RustPath::from_macro_tokens_unchecked("demo"),
-            true,
-        );
+        const VALIDATIONS: &[&str] = &["NewtypeValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("age", "Age", true, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
-        let options = FieldCodegenOptions::default();
-        let compact =
-            compact(&generate_description_fn_tokens(&field, &SHAPE, &options).to_string());
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
 
         assert!(
-            compact.contains(&format!(
-                "validation_errors.as_ref().and_then(|e|e.age()).and_then(|inner_error|{{leterrors=inner_error.all().map(|v|{}).collect::<Vec<_>>();",
-                validation_message_conversion(),
-            )),
+            compact.contains(
+                "validation_errors.as_ref().and_then(|e|e.age()).map(|inner_error|inner_error.all()).filter(|errs|!errs.is_empty()).map(|errs|{"
+            ),
             "optional newtype errors should map/filter the inner errors before rendering: {compact}"
         );
     }
 
     #[test]
     fn description_unwraps_optional_nested_inner_errors_before_all() {
-        const VALIDATIONS: &[ValidationRuleId] = &[ValidationRuleId::Nested];
-        const FIELDS: [FieldVariant; 1] = [hidden_field_with_validations(
-            "address",
-            "Address",
-            FieldValuePresence::Optional,
-            VALIDATIONS,
-        )];
-        const SHAPE: GpuiFormShape = GpuiFormShape::new(
-            "Demo",
-            &FIELDS,
-            RustPath::from_macro_tokens_unchecked("demo"),
-            true,
-        );
+        const VALIDATIONS: &[&str] = &["NestedValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("address", "Address", true, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
-        let options = FieldCodegenOptions::default();
-        let compact =
-            compact(&generate_description_fn_tokens(&field, &SHAPE, &options).to_string());
-
-        assert!(
-            compact.contains(&format!(
-                "validation_errors.as_ref().and_then(|e|e.address()).and_then(|inner_error|{{leterrors=inner_error.all().map(|v|{}).collect::<Vec<_>>();",
-                validation_message_conversion(),
-            )),
-            "optional nested errors should map/filter the inner errors before rendering: {compact}"
-        );
-    }
-
-    #[test]
-    fn description_uses_custom_validation_message_renderer() {
-        const VALIDATIONS: &[ValidationRuleId] = &[ValidationRuleId::Newtype];
-        const FIELDS: [FieldVariant; 1] = [hidden_field_with_validations(
-            "index",
-            "Age",
-            FieldValuePresence::RequiresValue,
-            VALIDATIONS,
-        )];
-        const SHAPE: GpuiFormShape = GpuiFormShape::new(
-            "Demo",
-            &FIELDS,
-            RustPath::from_macro_tokens_unchecked("demo"),
-            true,
-        );
-
-        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
-        let options = FieldCodegenOptions {
-            validation_message_renderer: Some(&|value| {
-                quote::quote! { crate::i18n::localize_validation_debug(&#value) }
-            }),
-            validation_visibility_renderer: Some(&|field| {
-                let field_name = field.field_name().as_str();
-                quote::quote! { self.validation.should_show(#field_name) }
-            }),
-            ..FieldCodegenOptions::default()
-        };
-        let compact =
-            compact(&generate_description_fn_tokens(&field, &SHAPE, &options).to_string());
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
 
         assert!(
             compact.contains(
-                "leterrors=e.index().all().map(|v|crate::i18n::localize_validation_debug(&v)).collect::<Vec<_>>();"
+                "validation_errors.as_ref().and_then(|e|e.address()).map(|inner_error|inner_error.all()).filter(|errs|!errs.is_empty()).map(|errs|{"
             ),
-            "custom validation renderers should control validation message formatting: {compact}"
-        );
-        assert!(
-            compact.contains("ifself.validation.should_show(\"index\")"),
-            "custom validation visibility should guard field errors: {compact}"
+            "optional nested errors should map/filter the inner errors before rendering: {compact}"
         );
     }
 }

@@ -1,24 +1,31 @@
-use gpui::prelude::FluentBuilder as _;
-use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
-};
-use gpui::{InteractiveElement as _, ParentElement as _, Styled as _, Subscription, div};
-use gpui_component::ActiveTheme as _;
-use gpui_component::Disableable as _;
-use gpui_component::form::field;
-use gpui_component::form::v_form;
-use gpui_component::separator::Separator;
-use gpui_component::v_flex;
-use gpui_form::runtime::shape::{
-    GpuiComponentEventOf, GpuiComponentStateOf, ValueChange, seed_value_binding_state, value_change,
-};
-use some_lib::structs::form_action::FormAction;
 use some_lib::structs::new_type::*;
+use es_fluent::FluentMessage as _;
+use gpui::{Subscription, div};
+use gpui::prelude::FluentBuilder as _;
+use gpui_component::ActiveTheme as _;
+use gpui_component::form::field;
+use gpui_component::input::{
+    InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
+};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Window,
+};
+use gpui_component::Disableable as _;
+use gpui_component::separator::Separator;
+use gpui_component::form::v_form;
+use gpui_component::v_flex;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "ItemForm";
+fn localize(
+    cx: &impl std::borrow::Borrow<App>,
+    message: &impl es_fluent::FluentMessage,
+) -> String {
+    crate::i18n::localize_message(cx, message)
+}
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
-#[derive(gpui_storybook::StoryControls)]
 pub struct ItemForm {
     current_data: ItemFormValueHolder,
     fields: ItemFormFields,
@@ -32,53 +39,93 @@ impl Focusable for ItemForm {
 }
 impl gpui_storybook::Story for ItemForm {
     fn title(cx: &gpui::App) -> String {
-        gpui_es_fluent::localize_label::<Item>(cx)
+        crate::i18n::localize_label::<Item>(cx)
     }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<Self> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
     }
 }
 impl ItemForm {
     fn on_index_input_event(
         &mut self,
-        state: &Entity<GpuiComponentStateOf<gpui_form_collection::input::Input<Age>>>,
-        event: &GpuiComponentEventOf<gpui_form_collection::input::Input<Age>, Age>,
+        state: &Entity<InputState>,
+        event: &InputEvent,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        let form_change = {
-            let state = state.read(_cx);
-            value_change::<gpui_form_collection::input::Input<Age>, Age>(state, event)
-        };
-        match form_change {
-            ValueChange::Set(value) => {
-                self.current_data.index = value;
-            },
-            ValueChange::Clear => {
-                self.current_data.index = <<gpui_form_collection::input::Input<
-                    Age,
-                > as gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicy as gpui_form::runtime::shape::DefaultValueStorage<
-                    Age,
-                >>::default_storage();
-            },
-            ValueChange::Unchanged => {},
+        match event {
+            InputEvent::Change => {
+                let text = state.read(_cx).value();
+                self.current_data.index = text.parse::<Age>().ok();
+            }
+            _ => {}
+        }
+    }
+    fn on_index_number_input_event(
+        &mut self,
+        this: &Entity<InputState>,
+        event: &NumberInputEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            NumberInputEvent::Step(step_action) => {
+                match step_action {
+                    StepAction::Decrement => {
+                        let new_value = self
+                            .current_data
+                            .index
+                            .unwrap_or_default()
+                            .saturating_sub(1u8.into());
+                        self.current_data.index = Some(new_value.into());
+                        this.update(
+                            cx,
+                            |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            },
+                        );
+                    }
+                    StepAction::Increment => {
+                        let new_value = self
+                            .current_data
+                            .index
+                            .unwrap_or_default()
+                            .saturating_add(1u8.into());
+                        self.current_data.index = Some(new_value.into());
+                        this.update(
+                            cx,
+                            |input, cx| {
+                                input.set_value(new_value.to_string(), window, cx);
+                            },
+                        );
+                    }
+                }
+            }
         }
     }
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = ItemFormValueHolder::default();
-        let index = cx.new(|cx| ItemFormComponents::index(window, cx));
-        let mut _subscriptions = vec![cx.subscribe_in(&index, window, Self::on_index_input_event)];
-        index.update(cx, |state, cx| {
-            seed_value_binding_state::<gpui_form_collection::input::Input<Age>, Age>(
-                state,
-                Some(&current_data.index),
-                window,
-                cx,
-            );
-        });
+        let index_number_input = cx
+            .new(|cx| ItemFormComponents::index_number_input(window, cx));
+        let mut _subscriptions = vec![
+            cx.subscribe_in(& index_number_input, window, Self::on_index_input_event), cx
+            .subscribe_in(& index_number_input, window,
+            Self::on_index_number_input_event)
+        ];
+        if let Some(value) = current_data.index.as_ref() {
+            index_number_input
+                .update(
+                    cx,
+                    |state, cx| {
+                        state.set_value(value.to_string(), window, cx);
+                    },
+                );
+        }
         Self {
             current_data,
-            fields: ItemFormFields { index },
+            fields: ItemFormFields {
+                index_number_input,
+            },
             focus_handle: cx.focus_handle(),
             _subscriptions,
         }
@@ -89,7 +136,7 @@ impl ItemForm {
     }
     fn submit_payload(&self) -> Result<Option<Item>, String> {
         match self.current_data.validate() {
-            Ok(_) => Ok(self.current_data.clone().try_into_original().ok()),
+            Ok(_) => Ok(ItemFormValueHolder::try_from(self.current_data.clone()).ok()),
             Err(error) => Err(format!("{error:?}")),
         }
     }
@@ -97,14 +144,21 @@ impl ItemForm {
         &self,
         cx: &mut Context<Self>,
         label: impl Into<gpui::SharedString>,
-        on_submit: impl Fn(Result<Option<Item>, String>, &mut Window, &mut Context<Self>) + 'static,
+        on_submit: impl Fn(
+            Result<Option<Item>, String>,
+            &mut Window,
+            &mut Context<Self>,
+        ) + 'static,
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-submit-button", "item-form"))
             .label(label)
             .disabled(self.current_data.validate().is_err())
-            .on_click(cx.listener(move |this, _, window, cx| {
-                on_submit(this.submit_payload(), window, cx);
-            }))
+            .on_click(
+                cx
+                    .listener(move |this, _, window, cx| {
+                        on_submit(this.submit_payload(), window, cx);
+                    }),
+            )
     }
     fn reset_button(
         &self,
@@ -113,24 +167,27 @@ impl ItemForm {
     ) -> gpui_component::button::Button {
         gpui_component::button::Button::new(format!("{}-reset-button", "item-form"))
             .label(label)
-            .on_click(cx.listener(|this, _, window, cx| {
-                this.reset_form(window, cx);
-            }))
+            .on_click(
+                cx
+                    .listener(|this, _, window, cx| {
+                        this.reset_form(window, cx);
+                    }),
+            )
     }
     fn action_buttons(
         &self,
         cx: &mut Context<Self>,
-        on_submit: impl Fn(Result<Option<Item>, String>, &mut Window, &mut Context<Self>) + 'static,
+        on_submit: impl Fn(
+            Result<Option<Item>, String>,
+            &mut Window,
+            &mut Context<Self>,
+        ) + 'static,
     ) -> impl IntoElement {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(
-                cx,
-                gpui_es_fluent::localize_message(cx, &FormAction::Submit),
-                on_submit,
-            ))
-            .child(self.reset_button(cx, gpui_es_fluent::localize_message(cx, &FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for ItemForm {
@@ -150,32 +207,30 @@ impl Render for ItemForm {
                         field()
                             .label({
                                 let message = ItemLabelVariants::Index;
-                                gpui_es_fluent::localize_message(cx, &message)
+                                localize(cx, &message)
                             })
                             .description_fn({
                                 let description = {
                                     let message = ItemDescriptionVariants::Index;
-                                    gpui_es_fluent::localize_message(cx, &message)
+                                    localize(cx, &message)
                                 };
                                 let error = {
-                                    if true {
-                                        validation_errors
-                                            .as_ref()
-                                            .and_then(|e| {
-                                                let errors = e
-                                                    .index()
-                                                    .all()
-                                                    .map(|v| gpui_es_fluent::localize_message(cx, &v))
-                                                    .collect::<Vec<_>>();
-                                                if errors.is_empty() {
-                                                    None
-                                                } else {
-                                                    Some(errors.join("\n"))
-                                                }
-                                            })
-                                    } else {
-                                        None
-                                    }
+                                    validation_errors
+                                        .as_ref()
+                                        .and_then(|e| {
+                                            let errs = e.index().all();
+                                            if errs.is_empty() {
+                                                None
+                                            } else {
+                                                Some(
+                                                    errs
+                                                        .iter()
+                                                        .map(|v| localize(cx, v))
+                                                        .collect::<Vec<_>>()
+                                                        .join("\n"),
+                                                )
+                                            }
+                                        })
                                 };
                                 let error_color = cx.theme().danger;
                                 move |_, _| {
@@ -196,15 +251,7 @@ impl Render for ItemForm {
                                         )
                                 }
                             })
-                            .child(
-                                <<gpui_form_collection::input::Input<
-                                    Age,
-                                > as gpui_form::runtime::shape::GpuiComponentShape>::RenderComponent as gpui_form::runtime::shape::GpuiComponentRender<
-                                    <gpui_form_collection::input::Input<
-                                        Age,
-                                    > as gpui_form::runtime::shape::GpuiComponentShape>::State,
-                                >>::new(&self.fields.index),
-                            ),
+                            .child(NumberInput::new(&self.fields.index_number_input)),
                     )
                     .child(
                         field()
@@ -221,11 +268,24 @@ impl Render for ItemForm {
                     ),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state = ::gpui_form::FormState::new(
+                    ItemFormValueHolder::default(),
+                );
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(
+                format!(
+                    "field_paths: {}", vec![ItemFormPath::index().to_string()]
+                    .join(", ")
+                ),
+            )
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(
-                    "try_into_original: {:?}", self.current_data.clone()
-                    .try_into_original()
+                    "into_original: {:?}", ItemFormValueHolder::try_from(self
+                    .current_data.clone())
                 ),
             )
     }

@@ -1,22 +1,30 @@
-use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Window,
-};
-use gpui::{InteractiveElement as _, ParentElement as _, Styled as _, Subscription, div};
-use gpui_component::Disableable as _;
-use gpui_component::form::field;
-use gpui_component::form::v_form;
-use gpui_component::separator::Separator;
-use gpui_component::v_flex;
-use gpui_form::runtime::shape::{
-    GpuiComponentEventOf, GpuiComponentStateOf, ValueChange, seed_value_binding_state, value_change,
-};
-use some_lib::structs::form_action::FormAction;
 use some_lib::structs::location::*;
+use es_fluent::FluentMessage as _;
+use gpui::{Subscription, div};
+use gpui::prelude::FluentBuilder as _;
+use gpui_component::ActiveTheme as _;
+use gpui_component::form::field;
+use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement as _, Render, Styled, Window,
+};
+use gpui_component::Disableable as _;
+use gpui_component::separator::Separator;
+use gpui_component::form::v_form;
+use gpui_component::v_flex;
+use some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "LocationFormForm";
+fn localize(
+    cx: &impl std::borrow::Borrow<App>,
+    message: &impl es_fluent::FluentMessage,
+) -> String {
+    crate::i18n::localize_message(cx, message)
+}
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
 #[gpui_storybook::story]
-#[derive(gpui_storybook::StoryControls)]
 pub struct LocationFormForm {
     current_data: LocationFormFormValueHolder,
     fields: LocationFormFormFields,
@@ -30,95 +38,76 @@ impl Focusable for LocationFormForm {
 }
 impl gpui_storybook::Story for LocationFormForm {
     fn title(cx: &gpui::App) -> String {
-        gpui_es_fluent::localize_label::<LocationForm>(cx)
+        crate::i18n::localize_label::<LocationForm>(cx)
     }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<Self> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
     }
 }
 impl LocationFormForm {
     fn on_name_input_event(
         &mut self,
-        state: &Entity<GpuiComponentStateOf<gpui_form_collection::input::Input<String>>>,
-        event: &GpuiComponentEventOf<gpui_form_collection::input::Input<String>, String>,
+        state: &Entity<InputState>,
+        event: &InputEvent,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        let form_change = {
-            let state = state.read(_cx);
-            value_change::<gpui_form_collection::input::Input<String>, String>(state, event)
-        };
-        match form_change {
-            ValueChange::Set(value) => {
-                self.current_data.name = value;
-            },
-            ValueChange::Clear => {
-                self.current_data.name = <<gpui_form_collection::input::Input<
-                    String,
-                > as gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicy as gpui_form::runtime::shape::DefaultValueStorage<
-                    String,
-                >>::default_storage();
-            },
-            ValueChange::Unchanged => {},
+        match event {
+            InputEvent::Change => {
+                let text = state.read(_cx).value();
+                self.current_data.name = if text.is_empty() {
+                    None
+                } else {
+                    text.parse::<String>().ok()
+                };
+            }
+            _ => {}
         }
     }
     fn on_location_infinite_select_event(
         &mut self,
-        state: &Entity<
-            GpuiComponentStateOf<gpui_form_component::infinite_select::InfiniteSelect<Country>>,
-        >,
-        event: &GpuiComponentEventOf<
-            gpui_form_component::infinite_select::InfiniteSelect<Country>,
-            Country,
-        >,
+        _this: &Entity<InfiniteSelectState<Country>>,
+        event: &InfiniteSelectEvent<Country>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        let form_change = {
-            let state = state.read(_cx);
-            value_change::<gpui_form_component::infinite_select::InfiniteSelect<Country>, Country>(
-                state, event,
-            )
-        };
-        match form_change {
-            ValueChange::Set(value) => {
-                self.current_data.location = value;
-            },
-            ValueChange::Clear => {
-                self.current_data.location = <<gpui_form_component::infinite_select::InfiniteSelect<
-                    Country,
-                > as gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicy as gpui_form::runtime::shape::DefaultValueStorage<
-                    Country,
-                >>::default_storage();
-            },
-            ValueChange::Unchanged => {},
-        }
+        self.current_data.location = event.value().clone();
     }
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = LocationFormFormValueHolder::default();
-        let name = cx.new(|cx| LocationFormFormComponents::name(window, cx));
-        let location = cx.new(|cx| LocationFormFormComponents::location(window, cx));
+        let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
+        let location_infinite_select = cx
+            .new(|cx| {
+                InfiniteSelectState::<
+                    Country,
+                >::new_with_options(
+                    current_data.location.clone(),
+                    gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+                        .searchable(false),
+                    window,
+                    cx,
+                )
+            });
         let mut _subscriptions = vec![
-            cx.subscribe_in(&name, window, Self::on_name_input_event),
-            cx.subscribe_in(&location, window, Self::on_location_infinite_select_event),
+            cx.subscribe_in(& name_input, window, Self::on_name_input_event), cx
+            .subscribe_in(& location_infinite_select, window,
+            Self::on_location_infinite_select_event)
         ];
-        name.update(cx, |state, cx| {
-            seed_value_binding_state::<gpui_form_collection::input::Input<String>, String>(
-                state,
-                Some(&current_data.name),
-                window,
-                cx,
-            );
-        });
-        location.update(cx, |state, cx| {
-            seed_value_binding_state::<
-                gpui_form_component::infinite_select::InfiniteSelect<Country>,
-                Country,
-            >(state, Some(&current_data.location), window, cx);
-        });
+        if let Some(value) = current_data.name.as_ref() {
+            name_input
+                .update(
+                    cx,
+                    |state, cx| {
+                        state.set_value(value.to_string(), window, cx);
+                    },
+                );
+        }
         Self {
             current_data,
-            fields: LocationFormFormFields { name, location },
+            fields: LocationFormFormFields {
+                name_input,
+                location_infinite_select,
+            },
             focus_handle: cx.focus_handle(),
             _subscriptions,
         }
@@ -127,47 +116,53 @@ impl LocationFormForm {
         *self = Self::new(window, cx);
         cx.notify();
     }
-    fn submit_payload(&self) -> Option<LocationForm> {
-        self.current_data.clone().try_into_original().ok()
+    fn submit_payload(&self) -> LocationForm {
+        self.current_data.clone().into()
     }
     fn submit_button(
         &self,
         cx: &mut Context<Self>,
         label: impl Into<gpui::SharedString>,
-        on_submit: impl Fn(Option<LocationForm>, &mut Window, &mut Context<Self>) + 'static,
+        on_submit: impl Fn(LocationForm, &mut Window, &mut Context<Self>) + 'static,
     ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-submit-button", "location_form-form"))
+        gpui_component::button::Button::new(
+                format!("{}-submit-button", "location_form-form"),
+            )
             .label(label)
             .disabled(false)
-            .on_click(cx.listener(move |this, _, window, cx| {
-                on_submit(this.submit_payload(), window, cx);
-            }))
+            .on_click(
+                cx
+                    .listener(move |this, _, window, cx| {
+                        on_submit(this.submit_payload(), window, cx);
+                    }),
+            )
     }
     fn reset_button(
         &self,
         cx: &mut Context<Self>,
         label: impl Into<gpui::SharedString>,
     ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-reset-button", "location_form-form"))
+        gpui_component::button::Button::new(
+                format!("{}-reset-button", "location_form-form"),
+            )
             .label(label)
-            .on_click(cx.listener(|this, _, window, cx| {
-                this.reset_form(window, cx);
-            }))
+            .on_click(
+                cx
+                    .listener(|this, _, window, cx| {
+                        this.reset_form(window, cx);
+                    }),
+            )
     }
     fn action_buttons(
         &self,
         cx: &mut Context<Self>,
-        on_submit: impl Fn(Option<LocationForm>, &mut Window, &mut Context<Self>) + 'static,
+        on_submit: impl Fn(LocationForm, &mut Window, &mut Context<Self>) + 'static,
     ) -> impl IntoElement {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(
-                cx,
-                gpui_es_fluent::localize_message(cx, &FormAction::Submit),
-                on_submit,
-            ))
-            .child(self.reset_button(cx, gpui_es_fluent::localize_message(cx, &FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
+            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
     }
 }
 impl Render for LocationFormForm {
@@ -186,12 +181,12 @@ impl Render for LocationFormForm {
                         field()
                             .label({
                                 let message = LocationFormLabelVariants::Name;
-                                gpui_es_fluent::localize_message(cx, &message)
+                                localize(cx, &message)
                             })
                             .description_fn({
                                 let description = {
                                     let message = LocationFormDescriptionVariants::Name;
-                                    gpui_es_fluent::localize_message(cx, &message)
+                                    localize(cx, &message)
                                 };
                                 move |_, _| {
                                     div()
@@ -201,44 +196,10 @@ impl Render for LocationFormForm {
                                         .child(div().child(description.clone()))
                                 }
                             })
-                            .child(
-                                <<gpui_form_collection::input::Input<
-                                    String,
-                                > as gpui_form::runtime::shape::GpuiComponentShape>::RenderComponent as gpui_form::runtime::shape::GpuiComponentRender<
-                                    <gpui_form_collection::input::Input<
-                                        String,
-                                    > as gpui_form::runtime::shape::GpuiComponentShape>::State,
-                                >>::new(&self.fields.name),
-                            ),
+                            .child(Input::new(&self.fields.name_input)),
                     )
-                    .child(
-                        field()
-                            .label({
-                                let message = LocationFormLabelVariants::Location;
-                                gpui_es_fluent::localize_message(cx, &message)
-                            })
-                            .description_fn({
-                                let description = {
-                                    let message = LocationFormDescriptionVariants::Location;
-                                    gpui_es_fluent::localize_message(cx, &message)
-                                };
-                                move |_, _| {
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .gap_1()
-                                        .child(div().child(description.clone()))
-                                }
-                            })
-                            .child(
-                                <<gpui_form_component::infinite_select::InfiniteSelect<
-                                    Country,
-                                > as gpui_form::runtime::shape::GpuiComponentShape>::RenderComponent as gpui_form::runtime::shape::GpuiComponentRender<
-                                    <gpui_form_component::infinite_select::InfiniteSelect<
-                                        Country,
-                                    > as gpui_form::runtime::shape::GpuiComponentShape>::State,
-                                >>::new(&self.fields.location),
-                            ),
+                    .children(
+                        self.fields.location_infinite_select.read(cx).form_fields(),
                     )
                     .child(
                         field()
@@ -255,11 +216,24 @@ impl Render for LocationFormForm {
                     ),
             )
             .child(Separator::horizontal())
+            .child({
+                let mut form_state = ::gpui_form::FormState::new(
+                    LocationFormFormValueHolder::default(),
+                );
+                form_state.replace_current(self.current_data.clone());
+                format!("form_state.is_dirty: {}", form_state.is_dirty())
+            })
+            .child(
+                format!(
+                    "field_paths: {}", vec![LocationFormFormPath::name().to_string(),
+                    LocationFormFormPath::location().to_string()] .join(", ")
+                ),
+            )
             .child(format!("value_holder: {:?}", self.current_data))
             .child(
                 format!(
-                    "try_into_original: {:?}", self.current_data.clone()
-                    .try_into_original()
+                    "into_original: {:?}", LocationFormFormValueHolder::try_from(self
+                    .current_data.clone())
                 ),
             )
     }

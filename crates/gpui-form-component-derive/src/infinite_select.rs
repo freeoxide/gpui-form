@@ -1,6 +1,6 @@
 use darling::{FromDeriveInput, FromVariant};
-use gpui_form_codegen::resolve_crate_path;
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use syn::{DeriveInput, Ident, Type};
@@ -76,7 +76,7 @@ impl FluentKvOptions {
                 match string.value().as_str() {
                     "label" => options.has_label = true,
                     "description" => options.has_description = true,
-                    _ => {},
+                    _ => {}
                 }
             }
         }
@@ -154,11 +154,38 @@ where
         .collect()
 }
 
-pub fn from(input: TokenStream) -> TokenStream {
-    let input = match syn::parse::<DeriveInput>(input) {
-        Ok(input) => input,
-        Err(error) => return error.to_compile_error().into(),
+fn crate_tokens(found_crate: FoundCrate) -> proc_macro2::TokenStream {
+    match found_crate {
+        FoundCrate::Itself => quote! { crate },
+        FoundCrate::Name(name) => {
+            let ident = format_ident!("{}", name.replace('-', "_"));
+            quote! { ::#ident }
+        }
+    }
+}
+
+fn resolve_runtime_crate() -> syn::Result<proc_macro2::TokenStream> {
+    let facade_error = match crate_name("gpui-form") {
+        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
+        Err(err) => err,
     };
+
+    let runtime_error = match crate_name("gpui-form-component") {
+        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
+        Err(err) => err,
+    };
+
+    Err(syn::Error::new(
+        proc_macro2::Span::call_site(),
+        format!(
+            "InfiniteSelect derive could not resolve the runtime crate. Add either `gpui-form` or `gpui-form-component` as a dependency. Resolution errors: `gpui-form`: {}; `gpui-form-component`: {}",
+            facade_error, runtime_error,
+        ),
+    ))
+}
+
+pub fn from(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
 
     let args = match InfiniteSelectArgs::from_derive_input(&input) {
         Ok(args) => args,
@@ -166,7 +193,10 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let enum_ident = &args.ident;
-    let runtime_crate = resolve_crate_path("gpui-form-component", "::gpui_form_component");
+    let runtime_crate = match resolve_runtime_crate() {
+        Ok(path) => path,
+        Err(err) => return err.to_compile_error().into(),
+    };
 
     let fluent_kv = match FluentKvOptions::from_attrs(&args.attrs) {
         Ok(options) => options,
@@ -174,14 +204,15 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let type_label_impl = if fluent_kv.uses_type_label() {
-        quote! {
-            #runtime_crate::__macro_support::localize_label::<#enum_ident>(cx).into()
-        }
+        quote! { stringify!(#enum_ident).into() }
     } else {
-        quote! {
-            let _ = cx;
-            stringify!(#enum_ident).into()
-        }
+        quote! { stringify!(#enum_ident).into() }
+    };
+
+    let type_description_impl = if fluent_kv.uses_type_description() {
+        quote! { stringify!(#enum_ident).into() }
+    } else {
+        quote! { stringify!(#enum_ident).into() }
     };
 
     let variants: Result<Vec<VariantInfo>, syn::Error> = match &args.data {
@@ -210,12 +241,8 @@ pub fn from(input: TokenStream) -> TokenStream {
                     darling::ast::Style::Struct => {
                         if variant.fields.fields.len() == 1 {
                             let field = &variant.fields.fields[0];
-                            let Some(field_name) = field.ident.clone() else {
-                                return Err(syn::Error::new_spanned(
-                                    field,
-                                    "InfiniteSelect only supports named struct variant fields",
-                                ));
-                            };
+                            let field_name =
+                                field.ident.clone().expect("struct field must have a name");
                             (Some(field.ty.clone()), Some(field_name))
                         } else if variant.fields.fields.is_empty() {
                             (None, None)
@@ -251,23 +278,6 @@ pub fn from(input: TokenStream) -> TokenStream {
     let variants = match variants {
         Ok(variants) => variants,
         Err(err) => return err.to_compile_error().into(),
-    };
-
-    let type_description_impl = if fluent_kv.uses_type_description() {
-        let description_variants_ident = format_ident!("{}DescriptionVariants", enum_ident);
-        let description_variant_uses = variants.iter().map(|variant| {
-            let variant_ident = &variant.ident;
-            quote! { let _ = #description_variants_ident::#variant_ident; }
-        });
-        quote! {
-            #(#description_variant_uses)*
-            #runtime_crate::__macro_support::localize_label::<#description_variants_ident>(cx).into()
-        }
-    } else {
-        quote! {
-            let _ = cx;
-            stringify!(#enum_ident).into()
-        }
     };
 
     let mut seen_keys = HashMap::new();
@@ -314,31 +324,20 @@ pub fn from(input: TokenStream) -> TokenStream {
         })
         .collect();
 
-    let variant_label_arms: Vec<_> = if fluent_kv.has_label {
-        let label_variants_ident = format_ident!("{}LabelVariants", enum_ident);
-        variants
-            .iter()
-            .map(|variant| {
-                let pattern = variant.ignore_pattern();
-                let variant_ident = &variant.ident;
-                quote! {
-                    #pattern => #runtime_crate::__macro_support::localize_message(
-                        cx,
-                        &#label_variants_ident::#variant_ident,
-                    ).into(),
-                }
-            })
-            .collect()
-    } else {
-        variants
-            .iter()
-            .map(|variant| {
-                let pattern = variant.ignore_pattern();
+    let variant_label_arms: Vec<_> = variants
+        .iter()
+        .map(|variant| {
+            let pattern = variant.ignore_pattern();
+
+            if fluent_kv.has_label {
+                let fallback = variant.ident.to_string();
+                quote! { #pattern => #fallback.into(), }
+            } else {
                 let label = variant.ident.to_string();
                 quote! { #pattern => #label.into(), }
-            })
-            .collect()
-    };
+            }
+        })
+        .collect();
 
     let has_inner_arms = map_variant_arms(
         &variants,
@@ -362,7 +361,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
                         .map(|variant| variant.variant_name())
                         .collect()
@@ -381,7 +380,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
                         .map(|variant| variant.variant_key())
                         .collect()
@@ -400,9 +399,9 @@ pub fn from(input: TokenStream) -> TokenStream {
             let pattern = variant.ignore_pattern();
             quote! {
                 #pattern => {
-                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants()
+                    <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants()
                         .into_iter()
-                        .map(|variant| variant.variant_label(cx))
+                        .map(|variant| variant.variant_label())
                         .collect()
                 }
             }
@@ -441,7 +440,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, _| {
             let pattern = variant.binding_pattern();
-            quote! { #pattern => inner.child_variant_labels(cx), }
+            quote! { #pattern => inner.child_variant_labels(), }
         },
     );
 
@@ -502,7 +501,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let constructor = variant.constructor(quote! { child.clone() });
             quote! {
                 #pattern => {
-                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     children.get(index).map(|child| #constructor)
                 }
             }
@@ -520,7 +519,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             let constructor = variant.constructor(quote! { child });
             quote! {
                 #pattern => {
-                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     children
                         .into_iter()
                         .find(|child| child.variant_key() == key)
@@ -545,7 +544,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     if path.is_empty() {
                         return None;
                     }
-                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     let child = children.get(path[0])?.clone();
                     if path.len() == 1 {
                         Some(#constructor_child)
@@ -573,7 +572,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     if path.is_empty() {
                         return None;
                     }
-                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::variants();
+                    let children = <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::variants();
                     let child = children
                         .into_iter()
                         .find(|child| child.variant_key() == path[0].as_str())?;
@@ -596,7 +595,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, inner_type| {
             let pattern = variant.ignore_pattern();
-            quote! { #pattern => <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::depth(), }
+            quote! { #pattern => <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::depth(), }
         },
     );
 
@@ -663,7 +662,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, _| {
             let pattern = variant.binding_pattern();
-            quote! { #pattern => inner.child_label_at_depth(depth, cx), }
+            quote! { #pattern => inner.child_label_at_depth(depth), }
         },
     );
 
@@ -675,7 +674,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, _| {
             let pattern = variant.binding_pattern();
-            quote! { #pattern => inner.child_description_at_depth(depth, cx), }
+            quote! { #pattern => inner.child_description_at_depth(depth), }
         },
     );
 
@@ -687,7 +686,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, _| {
             let pattern = variant.binding_pattern();
-            quote! { #pattern => Some(inner.type_label(cx)), }
+            quote! { #pattern => Some(inner.type_label()), }
         },
     );
 
@@ -699,7 +698,7 @@ pub fn from(input: TokenStream) -> TokenStream {
         },
         |variant, _| {
             let pattern = variant.binding_pattern();
-            quote! { #pattern => Some(inner.type_description(cx)), }
+            quote! { #pattern => Some(inner.type_description()), }
         },
     );
 
@@ -710,7 +709,7 @@ pub fn from(input: TokenStream) -> TokenStream {
             &variants,
             |_| quote! {},
             |_, inner_type| {
-                quote! { <#inner_type as #runtime_crate::infinite_select::InfiniteSelectValue>::depth() }
+                quote! { <#inner_type as #runtime_crate::infinite_select::InfiniteSelect>::depth() }
             },
         )
         .into_iter()
@@ -723,7 +722,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl #runtime_crate::infinite_select::InfiniteSelectValue for #enum_ident {
+        impl #runtime_crate::infinite_select::InfiniteSelect for #enum_ident {
             fn variants() -> Vec<Self> {
                 vec![
                     #(#variant_items)*
@@ -742,11 +741,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn variant_label(
-                &self,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> gpui::SharedString {
-                let _ = cx;
+            fn variant_label(&self) -> gpui::SharedString {
                 match self {
                     #(#variant_label_arms)*
                 }
@@ -770,10 +765,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn child_variant_labels(
-                &self,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Vec<gpui::SharedString> {
+            fn child_variant_labels(&self) -> Vec<gpui::SharedString> {
                 match self {
                     #(#child_variant_label_arms)*
                 }
@@ -837,10 +829,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn inner_child_variant_labels(
-                &self,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Vec<gpui::SharedString> {
+            fn inner_child_variant_labels(&self) -> Vec<gpui::SharedString> {
                 match self {
                     #(#inner_child_variant_label_arms)*
                 }
@@ -864,65 +853,43 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn type_label(
-                &self,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> gpui::SharedString {
+            fn type_label(&self) -> gpui::SharedString {
                 #type_label_impl
             }
 
-            fn type_description(
-                &self,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> gpui::SharedString {
+            fn type_description(&self) -> gpui::SharedString {
                 #type_description_impl
             }
 
-            fn inner_child_label_at_depth(
-                &self,
-                depth: usize,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Option<gpui::SharedString> {
+            fn inner_child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
                 match self {
                     #(#inner_child_label_arms)*
                 }
             }
 
-            fn inner_child_description_at_depth(
-                &self,
-                depth: usize,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Option<gpui::SharedString> {
+            fn inner_child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
                 match self {
                     #(#inner_child_description_arms)*
                 }
             }
 
-            fn child_label_at_depth(
-                &self,
-                depth: usize,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Option<gpui::SharedString> {
+            fn child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
                 if depth == 0 {
                     match self {
                         #(#child_label_immediate_arms)*
                     }
                 } else {
-                    self.inner_child_label_at_depth(depth - 1, cx)
+                    self.inner_child_label_at_depth(depth - 1)
                 }
             }
 
-            fn child_description_at_depth(
-                &self,
-                depth: usize,
-                cx: &impl std::borrow::Borrow<gpui::App>,
-            ) -> Option<gpui::SharedString> {
+            fn child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
                 if depth == 0 {
                     match self {
                         #(#child_description_immediate_arms)*
                     }
                 } else {
-                    self.inner_child_description_at_depth(depth - 1, cx)
+                    self.inner_child_description_at_depth(depth - 1)
                 }
             }
         }
@@ -934,7 +901,7 @@ pub fn from(input: TokenStream) -> TokenStream {
 #[cfg(test)]
 mod tests {
     use super::{FluentKvOptions, VariantArgs};
-    use darling::FromVariant as _;
+    use darling::FromVariant;
 
     #[test]
     fn fluent_kv_options_merge_across_attributes() {

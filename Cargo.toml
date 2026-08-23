@@ -4,22 +4,21 @@ members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
   "crates/gpui-form-codegen",
-  "crates/gpui-form-collection",
-  "crates/gpui-form-collection-derive",
   "crates/gpui-form-component",
   "crates/gpui-form-component-derive",
   "crates/gpui-form-component-story",
-  "crates/gpui-form-mcp",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
-  "crates/gpui-form-runtime",
   "crates/gpui-form-prototyping-core",
+  "vendor/gpui-storybook/crates/gpui-storybook",
+  "vendor/gpui-storybook/crates/gpui-storybook-core",
+  "vendor/gpui-storybook/crates/gpui-storybook-components",
+  "vendor/gpui-storybook/crates/gpui-storybook-macros",
+  "vendor/gpui-storybook/crates/gpui-storybook-toml",
+  "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
   "examples/some-lib-forms",
-  "examples/mcp-submit",
   "examples/prototyping",
-  "web",
-  "xtask",
 ]
 resolver = "3"
 
@@ -29,116 +28,82 @@ license = "MIT OR Apache-2.0"
 publish = true
 readme = "README.md"
 repository = "https://github.com/stayhydated/gpui-form"
-rust-version = "1.98"
-version = "0.6.0"
+rust-version = "1.95"
+version = "0.5.2"
 
 [workspace.dependencies]
 anyhow = "1.0"
 bon = "3.9"
 chrono = "0.4"
-clap = "4.6"
-component-shape = { git = "https://github.com/stayhydated/component-shape", rev = "8b879b2150caea99284e98044cdf0488d613cbdb", version = "0.2.0" }
-component-shape-codegen = { git = "https://github.com/stayhydated/component-shape", rev = "8b879b2150caea99284e98044cdf0488d613cbdb", version = "0.2.0" }
-component-shape-gpui = { git = "https://github.com/stayhydated/component-shape", rev = "8b879b2150caea99284e98044cdf0488d613cbdb", version = "0.2.0" }
-component-shape-mcp = { git = "https://github.com/stayhydated/component-shape", rev = "8b879b2150caea99284e98044cdf0488d613cbdb", version = "0.2.0" }
 crabtime = "1.1"
-darling = "0.24"
+darling = "0.23"
 derive_more = "2.1"
-dioxus = { default-features = false, version = "0.7" }
-es-fluent = { git = "https://github.com/stayhydated/es-fluent", rev = "69aeaa62c03b23317be13d0ce0661f3160d62db7", version = "0.18.1" }
-es-fluent-build = { git = "https://github.com/stayhydated/es-fluent", rev = "69aeaa62c03b23317be13d0ce0661f3160d62db7", version = "0.18.1" }
-es-fluent-lang = { git = "https://github.com/stayhydated/es-fluent", rev = "69aeaa62c03b23317be13d0ce0661f3160d62db7", version = "0.18.1" }
-es-fluent-manager-embedded = { git = "https://github.com/stayhydated/es-fluent", rev = "69aeaa62c03b23317be13d0ce0661f3160d62db7", version = "0.18.1" }
-gpui = { branch = "linux-headless-renderer", git = "https://github.com/stayhydated/zed", version = "0.2.2" }
-gpui-component = { git = "https://github.com/stayhydated/gpui-component", rev = "33f25d368447a47ab5da2c674b2e833826c79fb1" }
-gpui-es-fluent = { git = "https://github.com/stayhydated/gpui-es-fluent", rev = "f7fb536779286caaf2334cf9b56f2081841a86ff", version = "0.1.0" }
-gpui-form = { path = "crates/gpui-form", version = "0.6.0" }
-gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.6.0" }
-gpui-form-collection = { path = "crates/gpui-form-collection", version = "0.6.0" }
-gpui-form-collection-derive = { path = "crates/gpui-form-collection-derive", version = "0.6.0" }
-gpui-form-component = { path = "crates/gpui-form-component", version = "0.6.0" }
-gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.6.0" }
-gpui-form-component-story = { path = "crates/gpui-form-component-story", version = "0.6.0" }
-gpui-form-core = { path = "crates/gpui-form-core", version = "0.6.0" }
-gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.6.0" }
-gpui-form-mcp = { path = "crates/gpui-form-mcp", version = "0.6.0" }
-gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.6.0" }
-gpui-form-runtime = { path = "crates/gpui-form-runtime", version = "0.6.0" }
-gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.6.0" }
-gpui-storybook = { git = "https://github.com/stayhydated/gpui-storybook", rev = "0cf64e41b329ddc226120e3f756baf119ff76f44", version = "0.5.0" }
-gpui_platform = { branch = "linux-headless-renderer", features = [
+es-fluent = "0.16"
+es-fluent-build = "0.16"
+es-fluent-lang = "0.16"
+es-fluent-manager-embedded = "0.16"
+gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
+gpui-es-fluent = { path = "vendor/gpui-es-fluent/crates/gpui-es-fluent" }
+gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
+gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
+gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.2" }
+gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.5.2" }
+gpui-form-component-story = { path = "crates/gpui-form-component-story", version = "0.5.2" }
+gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.2" }
+gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.2" }
+gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.2" }
+gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.2" }
+gpui-storybook = { path = "vendor/gpui-storybook/crates/gpui-storybook" }
+gpui-storybook-components = { path = "vendor/gpui-storybook/crates/gpui-storybook-components" }
+gpui-storybook-core = { path = "vendor/gpui-storybook/crates/gpui-storybook-core" }
+gpui-storybook-macros = { path = "vendor/gpui-storybook/crates/gpui-storybook-macros" }
+gpui-storybook-toml = { path = "vendor/gpui-storybook/crates/gpui-storybook-toml" }
+gpui_platform = { features = [
   "font-kit",
   "x11",
   "wayland",
   "runtime_shaders",
-], git = "https://github.com/stayhydated/zed" }
+], git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
 heck = "0.5.0"
-icu_calendar = "2.2.1"
+phonenumber = "0.3.9"
+icu_calendar = "2.2.0"
 icu_datetime = "2.2.0"
 icu_locale_core = "2.2.0"
-insta = "1.48"
+insta = "1.46"
 inventory = "0.3"
-itertools = "0.15"
-jiff = "0.2.35"
-koruma = { git = "https://github.com/stayhydated/koruma", rev = "ca2ca21ea7fa346e939d6d789814dd08beeea35e", version = "0.11.0" }
-koruma-collection = { git = "https://github.com/stayhydated/koruma", rev = "ca2ca21ea7fa346e939d6d789814dd08beeea35e", version = "0.11.0" }
-koruma-derive-core = { git = "https://github.com/stayhydated/koruma", rev = "ca2ca21ea7fa346e939d6d789814dd08beeea35e", version = "0.11.0" }
+itertools = "0.14"
+jiff = "0.2.23"
+koruma = "0.9"
+koruma-collection = "0.9"
+koruma-derive-core = "0.9"
 log = "0.4"
-phonenumber = "0.3.9"
-prettyplease = "0.3"
-proc-macro-crate = "3.5"
+prettyplease = "0.2"
+proc-macro-crate = "3.2"
+proc-macro-error2 = "2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
-rmcp = "3.1"
-rust_decimal = "1.42"
+reqwest_client = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
+rust-embed = "8.11"
+rust_decimal = "1.40"
 serde = "1.0"
 serde_json = "1.0"
-stayhydated-dioxus = { git = "https://github.com/stayhydated/shared", rev = "809946144fe13b04a57ba17677c4c699143f4786" }
-stayhydated-site = { git = "https://github.com/stayhydated/shared", rev = "809946144fe13b04a57ba17677c4c699143f4786" }
-stayhydated-xtask = { git = "https://github.com/stayhydated/shared", rev = "809946144fe13b04a57ba17677c4c699143f4786" }
 strum = "0.28"
-syn = "3.0"
-syn-cfg-attr = { git = "https://github.com/stayhydated/syn-cfg-attr", rev = "b7fb4780cf40d643b11184590638ca4d032cdcc4", version = "0.3.0" }
+syn = "2.0"
+syn-cfg-attr = "0.1"
 thiserror = "2.0"
-tokio = "1.53"
+tokio = "1.49"
+toml = "1.0"
+tracing = "0.1"
 tracing-subscriber = "0.3"
 unic-langid = "0.9"
-unicode-segmentation = "1.13"
-wasm-bindgen = "0.2"
-web = { path = "web" }
-web-sys = { features = [ "Location", "Window" ], version = "0.3" }
-
-[patch."https://github.com/zed-industries/zed"]
-gpui = { branch = "linux-headless-renderer", git = "https://github.com/stayhydated/zed", version = "=0.2.2" }
-gpui_macros = { branch = "linux-headless-renderer", git = "https://github.com/stayhydated/zed", version = "0.1.0" }
-
-[profile.dev]
-codegen-units = 16
-debug = "limited"
-opt-level = 1
-split-debuginfo = "unpacked"
-
-[profile.dev.package."*"]
-opt-level = 3
-
-[profile.release]
-codegen-units = 1
-lto = "thin"
-opt-level = 3
+unicode-segmentation = "1.12"
 
 [workspace.lints.rust]
-future_incompatible = "deny"
-nonstandard_style = "deny"
-unexpected_cfgs = { check-cfg = [ "cfg(coverage)" ], level = "deny" }
-unsafe_op_in_unsafe_fn = "deny"
-unused_must_use = "deny"
-
-[workspace.lints.rustdoc]
-bare_urls = "deny"
-broken_intra_doc_links = "deny"
+unexpected_cfgs = { level = "deny" }
 
 [workspace.lints.clippy]
-all = { level = "warn", priority = -1 }
 dbg_macro = "deny"
 derive_partial_eq_without_eq = "warn"
 err_expect = "warn"
@@ -151,3 +116,17 @@ type_complexity = "allow"
 uninlined_format_args = "allow"
 unused_trait_names = "warn"
 useless_conversion = "warn"
+
+[profile.dev]
+codegen-units = 16
+debug = "limited"
+opt-level = 1
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
