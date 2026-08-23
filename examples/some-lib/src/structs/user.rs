@@ -1,7 +1,6 @@
 use anyhow::Context as _;
 use es_fluent::{EsFluent, EsFluentLabel, EsFluentVariants};
-use gpui_form::GpuiForm;
-use gpui_form_collection_derive::SelectItem;
+use gpui_form::{GpuiForm, SelectItem};
 use koruma::{Koruma, KorumaAllFluent};
 use koruma_collection::{
     collection::NonEmptyValidation,
@@ -11,9 +10,9 @@ use koruma_collection::{
 };
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, EnumIter, Eq, EsFluent, PartialEq, SelectItem)]
-#[select_item(fluent)]
+#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[select_item(fluent)]
 pub enum PreferredLanguage {
     #[default]
     English,
@@ -21,99 +20,87 @@ pub enum PreferredLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, Default, EnumIter, Eq, EsFluent, PartialEq, SelectItem)]
-#[select_item(fluent)]
+#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[select_item(fluent)]
 pub enum EnumCountry {
-    #[default]
     UnitedStates,
     France,
     China,
 }
 
 #[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
+#[fluent_label(origin, variants)]
 #[fluent_variants(keys = ["description", "label"])]
-#[gpui_form(koruma(fluent), partial_eq)]
+#[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(
-        component(gpui_form_collection::input::Input::<_>),
         section = "Account",
+        label = "Username",
         placeholder = "Xx...xX",
-        width = half
+        width = half,
+        component(input)
     )]
     #[koruma(
-        NonEmptyValidation::<_>,
-        PrefixValidation::<_>.prefix("Xx"),
-        SuffixValidation::<_>.suffix("xX")
+        NonEmptyValidation::<_>::builder(),
+        PrefixValidation::<_>::builder().prefix("Xx"),
+        SuffixValidation::<_>::builder().suffix("xX")
     )]
     pub username: String,
 
-    #[gpui_form(component(
-        gpui_form_collection::input::Input::<_>,
+    #[gpui_form(
+        section = "Account",
+        label = "Email address",
+        placeholder = "you@example.com",
+        width = half,
+        component(input),
         default = "test@example.com"
-    ), section = "Account", width = half)]
-    #[koruma(EmailValidation::<_>)]
+    )]
+    #[koruma(EmailValidation::<_>::builder())]
     pub email: String,
 
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
-    #[koruma(RangeValidation::<_>.min(18).max(167))]
+    #[gpui_form(section = "Financial", component(number_input))]
+    #[koruma(RangeValidation::<_>::builder().min(18).max(167))]
     pub age: Option<u32>,
 
-    #[gpui_form(component(
-        gpui_form_collection::input::Input::<_>,
-        default = 67
-    ))]
-    #[koruma(PositiveValidation::<_>)]
+    #[gpui_form(section = "Financial", component(number_input(as = f64)), default = 67)]
+    #[koruma(PositiveValidation::<_>::builder())]
     pub balance: rust_decimal::Decimal,
 
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
-    #[koruma(NegativeValidation::<_>)]
+    #[gpui_form(section = "Financial", component(number_input(as = f64)))]
+    #[koruma(NegativeValidation::<_>::builder())]
     pub debt: rust_decimal::Decimal,
 
-    #[gpui_form(component(gpui_form_collection::number_input::NumberInput::<_>))]
-    pub rating: Option<u32>,
-
-    #[gpui_form(component(gpui_form_collection::slider::Slider))]
-    pub attention_level: f32,
-
-    #[gpui_form(component(gpui_form_collection::color_picker::ColorPicker))]
-    pub brand_color: Option<gpui::Hsla>,
-
-    #[gpui_form(component(gpui_form_collection::otp_input::OtpInput::<_>))]
-    pub otp_code: String,
-
-    #[gpui_form(component(gpui_form_component::file_picker::FilePicker))]
-    pub uploaded_files: Vec<std::path::PathBuf>,
-
-    #[gpui_form(component(gpui_form_collection::date_picker::DateRangePicker))]
-    pub holiday_range: Option<(chrono::NaiveDate, chrono::NaiveDate)>,
-
-    #[gpui_form(component(gpui_form_collection::switch::Switch))]
+    #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,
 
-    #[gpui_form(component(gpui_form_collection::checkbox::Checkbox))]
+    #[gpui_form(
+        label = "Enable notifications",
+        description = "Toggles whether we email you product updates",
+        component(switch)
+    )]
     pub enable_notifications: bool,
 
-    #[gpui_form(component(gpui_form_collection::select::Select::<_>.searchable(true)))]
+    #[gpui_form(component(select))]
     pub preferred: PreferredLanguage,
 
-    #[gpui_form(component(
-        gpui_form_collection::select::Select::<_>,
-        default = EnumCountry::France
-    ))]
+    #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
-    #[gpui_form(component(
-        gpui_form_collection::date_picker::DatePicker,
-        value(
-            type = chrono::NaiveDate,
-            from_source = to_form_datetime,
-            into_source = to_model_timestamp,
-        )
-    ))]
-    pub birth_date: Timestamp,
+    #[gpui_form(
+        section = "Advanced",
+        width = third,
+        type = chrono::NaiveDate,
+        from = to_form_datetime,
+        into = to_model_timestamp,
+        component(date_picker)
+    )]
+    pub birth_date: Option<Timestamp>,
 
-    #[gpui_form(skip)]
+    // Layout hints on a skipped field are ignored: no FieldVariant is emitted
+    // for skipped fields, so `section`/`label`/`width` here never reach the
+    // schema metadata. This field exists to prove that boundary.
+    #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
     #[fluent_variants(skip)]
     pub skip_me: bool,
 }
@@ -143,33 +130,13 @@ fn to_form_datetime(value: Timestamp) -> chrono::NaiveDate {
     chrono::DateTime::<chrono::Utc>::from_timestamp_micros(
         value.__timestamp_micros_since_unix_epoch__,
     )
-    .unwrap_or_else(|| {
-        chrono::DateTime::<chrono::Utc>::from_timestamp_micros(0)
-            .expect("Unix epoch timestamp is valid")
-    })
+    .unwrap_or_else(|| chrono::DateTime::<chrono::Utc>::from_timestamp_micros(0).unwrap())
     .date_naive()
 }
 
 fn to_model_timestamp(value: chrono::NaiveDate) -> Timestamp {
-    let naive_datetime = value
-        .and_hms_opt(0, 0, 0)
-        .expect("midnight is a valid time");
+    let naive_datetime = value.and_hms_opt(0, 0, 0).unwrap();
     let datetime =
         chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive_datetime, chrono::Utc);
     Timestamp::from_micros_since_unix_epoch(datetime.timestamp_micros())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_holder_leaves_required_birth_date_empty() {
-        let holder = UserFormValueHolder::default();
-
-        assert!(holder.birth_date.is_none());
-
-        let error = holder.into_original(false).unwrap_err();
-        assert_eq!(error.field_name, "birth_date");
-    }
 }

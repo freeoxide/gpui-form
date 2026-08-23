@@ -1,13 +1,21 @@
 # gpui-form-component-story
 
-Interactive gallery for the reusable date-picker, file-picker, and
-infinite-select components from
+Storybook gallery for the runtime helpers in
 [`gpui-form-component`](../gpui-form-component/README.md).
 
-Run it from the workspace root:
+This package keeps demo UI and the launcher binary outside the runtime library
+crate. Most users should depend on [`gpui-form`](../gpui-form/README.md) or
+`gpui-form-component`, not this package.
+
+Run the gallery with:
 
 ```sh
 cargo run -p gpui-form-component-story
 ```
 
-This package is an example application, not a runtime dependency.
+Story titles, descriptions, diagnostics, and other demo chrome are in-place
+English strings. Text passed into the demo components is fluent-backed: the
+`infinite_select` namespace covers demo enum metadata, while `date_picker` and
+`file_picker` cover component placeholders, prompts, and action labels. Those
+component-facing resources ship in English, French (`fr-FR`), and Simplified
+Chinese (`zh-CN`).

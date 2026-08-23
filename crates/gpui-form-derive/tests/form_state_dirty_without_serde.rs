@@ -19,15 +19,14 @@ use gpui_form_derive::GpuiForm;
 /// `DirtyCheckFormValueHolder` with a `pub` field, matching the patterns in
 /// `serde_round_trip.rs` and `form_state_integration.rs`.
 #[derive(GpuiForm)]
-#[gpui_form(partial_eq)]
 struct DirtyCheckForm {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     label: String,
 }
 
 #[test]
 fn is_dirty_compiles_and_behaves_without_serde_feature() {
-    // Source -> holder (DirectValueStorage stores the String directly).
+    // Source -> holder (holder stores every field as Option<T>).
     let holder = DirtyCheckFormFormValueHolder::from(DirtyCheckForm {
         label: "baseline".to_string(),
     });
@@ -39,7 +38,7 @@ fn is_dirty_compiles_and_behaves_without_serde_feature() {
     assert!(!state.is_dirty());
 
     // Mutate via current_mut() -> state diverges from baseline -> dirty.
-    state.current_mut().label = "edited".to_string();
+    state.current_mut().label = Some("edited".to_string());
     assert!(state.is_dirty());
 
     // Reset restores the baseline -> not dirty again.

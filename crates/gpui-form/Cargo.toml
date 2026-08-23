@@ -13,33 +13,19 @@ readme = "README.md"
 keywords = [ "gpui", "gpui-component", "form" ]
 
 [features]
-chrono = [ "gpui-form-mcp?/chrono" ]
-default = [ "derive", "runtime" ]
-derive = [ "dep:gpui-form-derive", "dep:strum" ]
+default = [ "derive" ]
+derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
 serde = [ "dep:serde", "gpui-form-derive?/serde" ]
 phone = [ "gpui-form-core/phone" ]
-mcp = [ "dep:gpui-form-mcp", "inventory", "gpui-form-derive?/mcp" ]
-runtime = [ "dep:gpui-form-runtime" ]
-rust_decimal = [ "gpui-form-mcp?/rust_decimal" ]
+
 [dependencies]
 bon = { workspace = true }
+gpui-form-component = { workspace = true }
 gpui-form-core = { workspace = true }
 gpui-form-derive = { optional = true, workspace = true }
-gpui-form-mcp = { optional = true, workspace = true }
-gpui-form-runtime = { optional = true, workspace = true }
 gpui-form-schema = { workspace = true }
 serde = { workspace = true, optional = true }
-strum = { features = [ "derive" ], optional = true, workspace = true }
-[dev-dependencies]
-chrono = { workspace = true }
-gpui = { workspace = true }
-gpui-form-collection = { workspace = true }
-gpui-form-component = { features = [ "component-shape" ], workspace = true }
-koruma = { workspace = true }
-koruma-collection = { workspace = true }
-rust_decimal = { workspace = true }
-serde = { features = [ "derive" ], workspace = true }
-serde_json = { workspace = true }
+
 [lints]
 workspace = true

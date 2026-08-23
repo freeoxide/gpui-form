@@ -1,0 +1,334 @@
+use crate::story::StoryContainer;
+use gpui::prelude::{
+    Context, FluentBuilder as _, InteractiveElement as _, IntoElement, ParentElement as _, Render,
+    StatefulInteractiveElement as _, Styled as _,
+};
+use gpui::{
+    App, AppContext as _, ClickEvent, Entity, SharedString, Subscription, Window, div, px, relative,
+};
+use gpui_component::{
+    ActiveTheme as _, h_flex,
+    input::{Input, InputEvent, InputState},
+    resizable::{h_resizable, resizable_panel},
+    sidebar::{Sidebar, SidebarGroup, SidebarMenu, SidebarMenuItem},
+    v_flex,
+};
+use std::collections::BTreeMap;
+
+pub struct Gallery {
+    stories: Vec<Entity<StoryContainer>>,
+    active_index: Option<usize>,
+    collapsed: bool,
+    search_input: Entity<InputState>,
+
+    _subscriptions: Vec<Subscription>,
+}
+
+impl Gallery {
+    pub fn new(
+        initial_stories: Vec<Entity<StoryContainer>>,
+        init_story_name: Option<&str>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let search_input =
+            cx.new(|cx_input| InputState::new(window, cx_input).placeholder("Search..."));
+
+        let subscriptions = vec![
+            #[allow(clippy::single_match)]
+            cx.subscribe(&search_input, |this, _, event, cx_window| match event {
+                InputEvent::Change => {
+                    let query = this
+                        .search_input
+                        .read(cx_window)
+                        .value()
+                        .trim()
+                        .to_lowercase();
+                    let filtered_stories_on_change: Vec<_> = this
+                        .stories
+                        .iter()
+                        .filter(|story| {
+                            let story_data = story.read(cx_window);
+                            let title = story_data.display_title(cx_window);
+                            let section = story_data
+                                .section
+                                .as_ref()
+                                .map(|s| s.to_string())
+                                .unwrap_or_default();
+                            let group = story_data
+                                .group
+                                .as_ref()
+                                .map(|s| s.to_string())
+                                .unwrap_or_default();
+                            title.to_lowercase().contains(&query)
+                                || group.to_lowercase().contains(&query)
+                                || section.to_lowercase().contains(&query)
+                        })
+                        .cloned()
+                        .collect();
+
+                    if let Some(first_filtered_story) = filtered_stories_on_change.first()
+                        && let Some(original_idx) =
+                            this.stories.iter().position(|s| s == first_filtered_story)
+                    {
+                        this.active_index = Some(original_idx);
+                    } else {
+                        this.active_index = None;
+                    }
+                    cx_window.notify();
+                },
+                _ => {},
+            }),
+        ];
+
+        let mut this = Self {
+            search_input,
+            stories: initial_stories.clone(),
+            active_index: if initial_stories.is_empty() {
+                None
+            } else {
+                Some(0)
+            },
+            collapsed: false,
+            _subscriptions: subscriptions,
+        };
+
+        if let Some(name) = init_story_name {
+            this.set_active_story(name, cx);
+        }
+
+        this
+    }
+
+    fn set_active_story(&mut self, name: &str, app_cx: &App) {
+        let lowercase_name = name.to_lowercase().replace("story", "");
+        let story_index = self.stories.iter().position(|story_entity| {
+            let story_data = story_entity.read(app_cx);
+            let title = story_data.display_title(app_cx);
+            title.to_lowercase().replace("story", "") == lowercase_name
+        });
+
+        if let Some(index) = story_index {
+            self.active_index = Some(index);
+        }
+    }
+
+    pub fn view(
+        initial_stories: Vec<Entity<StoryContainer>>,
+        init_story_name: Option<&str>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Entity<Self> {
+        cx.new(|cx_self| Self::new(initial_stories, init_story_name, window, cx_self))
+    }
+}
+
+impl crate::window_view::SimpleWindowView for Gallery {}
+
+impl Render for Gallery {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let query = self.search_input.read(cx).value().trim().to_lowercase();
+
+        let filtered_stories: Vec<Entity<StoryContainer>> = self
+            .stories
+            .iter()
+            .filter(|story| {
+                let story_data = story.read(cx);
+                let title = story_data.display_title(cx);
+                let section = story_data
+                    .section
+                    .as_ref()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+                let group = story_data
+                    .group
+                    .as_ref()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+                title.to_lowercase().contains(&query)
+                    || group.to_lowercase().contains(&query)
+                    || section.to_lowercase().contains(&query)
+            })
+            .cloned()
+            .collect();
+
+        let mut active_story_to_render: Option<Entity<StoryContainer>> = None;
+        let mut ui_active_index_in_filtered_list: Option<usize> = None;
+
+        if let Some(current_original_idx) = self.active_index
+            && let Some(story_from_original_list) = self.stories.get(current_original_idx)
+            && let Some(idx_in_filtered) = filtered_stories
+                .iter()
+                .position(|s| s == story_from_original_list)
+        {
+            active_story_to_render = Some(story_from_original_list.clone());
+            ui_active_index_in_filtered_list = Some(idx_in_filtered);
+        }
+
+        let (story_name, description) =
+            if let Some(story_to_render_cloned) = active_story_to_render.as_ref() {
+                let story_data = story_to_render_cloned.read(cx);
+                let title = story_data.display_title(cx);
+                let desc = story_data.display_description(cx);
+                (title, desc)
+            } else {
+                ("".to_owned(), "".to_owned())
+            };
+
+        h_resizable("gallery-container")
+            .child(
+                resizable_panel()
+                    .size(px(255.))
+                    .size_range(px(200.)..px(320.))
+                    .child(
+                        Sidebar::new("sidebar-gallery")
+                            .side(gpui_component::Side::Left)
+                            .w(relative(1.))
+                            .border_0()
+                            .collapsed(self.collapsed)
+                            .header(
+                                v_flex().w_full().child(
+                                    div()
+                                        .bg(cx.theme().sidebar_border)
+                                        .px_1()
+                                        .rounded_full()
+                                        .flex_1()
+                                        .mx_1()
+                                        .gap_4()
+                                        .child(
+                                            Input::new(&self.search_input)
+                                                .appearance(false)
+                                                .cleanable(true),
+                                        ),
+                                ),
+                            )
+                            .children({
+                                // Group stories by crate group, then optional section.
+                                let mut groups: BTreeMap<
+                                    Option<SharedString>,
+                                    BTreeMap<
+                                        Option<SharedString>,
+                                        Vec<(usize, Entity<StoryContainer>)>,
+                                    >,
+                                > = BTreeMap::new();
+
+                                for (idx_in_filtered, story_entity) in
+                                    filtered_stories.iter().enumerate()
+                                {
+                                    let (group, section) = {
+                                        let story_data = story_entity.read(cx);
+                                        (story_data.sidebar_group(), story_data.sidebar_section())
+                                    };
+
+                                    groups
+                                        .entry(group)
+                                        .or_default()
+                                        .entry(section)
+                                        .or_default()
+                                        .push((idx_in_filtered, story_entity.clone()));
+                                }
+
+                                // Build sidebar groups with menus.
+                                groups
+                                    .into_iter()
+                                    .map(|(group, sections_in_group)| {
+                                        let menu_items: Vec<_> = sections_in_group
+                                            .into_iter()
+                                            .flat_map(|(section, stories_in_section)| {
+                                                let story_items: Vec<_> = stories_in_section
+                                                    .into_iter()
+                                                    .map(
+                                                        |(
+                                                            idx_in_filtered,
+                                                            story_entity_in_filtered,
+                                                        )| {
+                                                            let story_data =
+                                                                story_entity_in_filtered.read(cx);
+                                                            let name: SharedString = story_data
+                                                                .display_title(cx)
+                                                                .into();
+                                                            let is_active =
+                                                                ui_active_index_in_filtered_list
+                                                                    == Some(idx_in_filtered);
+
+                                                            let story_entity_for_click =
+                                                                story_entity_in_filtered.clone();
+
+                                                            SidebarMenuItem::new(name)
+                                                                .active(is_active)
+                                                                .on_click(cx.listener(
+                                                                    move |this,
+                                                                          _: &ClickEvent,
+                                                                          _,
+                                                                          cx_listener| {
+                                                                        if let Some(original_idx) =
+                                                                            this.stories.iter().position(|s| {
+                                                                                s == &story_entity_for_click
+                                                                            })
+                                                                        {
+                                                                            this.active_index = Some(original_idx);
+                                                                        }
+                                                                        cx_listener.notify();
+                                                                    },
+                                                                ))
+                                                        },
+                                                    )
+                                                    .collect();
+
+                                                if let Some(section) = section {
+                                                    vec![
+                                                        SidebarMenuItem::new(section)
+                                                            .default_open(true)
+                                                            .children(story_items),
+                                                    ]
+                                                } else {
+                                                    story_items
+                                                }
+                                            })
+                                            .collect();
+
+                                        let menu = SidebarMenu::new().children(menu_items);
+
+                                        SidebarGroup::new(group.unwrap_or_default()).child(menu)
+                                    })
+                                    .collect::<Vec<_>>()
+                            }),
+                    ),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .h_full()
+                    .overflow_x_hidden()
+                    .child(
+                        h_flex()
+                            .id("header")
+                            .p_4()
+                            .border_b_1()
+                            .border_color(cx.theme().border)
+                            .justify_between()
+                            .items_start()
+                            .child(
+                                v_flex()
+                                    .gap_1()
+                                    .child(div().text_xl().child(story_name))
+                                    .child(
+                                        div()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child(description),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("story")
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .when_some(active_story_to_render, |this, active_story_ref| {
+                                this.child(active_story_ref)
+                            }),
+                    )
+                    .into_any_element(),
+            )
+    }
+}

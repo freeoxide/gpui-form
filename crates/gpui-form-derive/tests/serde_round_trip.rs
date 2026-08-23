@@ -9,12 +9,11 @@ use gpui_form_derive::GpuiForm;
 /// Plain + `Option` fields, no skipped fields: the holder round-trips through
 /// serde and converts both ways via `From`.
 #[derive(GpuiForm)]
-#[gpui_form(partial_eq)]
 struct ContactForm {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     name: String,
 
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     nickname: Option<String>,
 }
 
@@ -22,9 +21,8 @@ struct ContactForm {
 /// the source struct is impossible without the skipped value, which is the
 /// documented limitation mirrored by `has_skipped_fields`.
 #[derive(GpuiForm)]
-#[gpui_form(partial_eq)]
 struct NoteForm {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     body: String,
 
     #[gpui_form(skip)]
@@ -49,12 +47,8 @@ fn holder_round_trips_plain_and_option_fields() {
 
     assert_eq!(restored, holder, "round-tripped holder must equal original");
 
-    // holder -> source: shape-backed fields without defaults use the
-    // fallible conversion surface (TryFrom / try_into_original).
-    let back = restored
-        .clone()
-        .try_into_original()
-        .expect("holder converts back to source");
+    // holder -> source still works (no skipped fields).
+    let back: ContactForm = restored.into();
     assert_eq!(back.name, "Ada");
     assert_eq!(back.nickname.as_deref(), Some("Countess"));
 }
@@ -73,11 +67,6 @@ fn holder_with_none_option_round_trips() {
 
     assert_eq!(restored, holder);
     assert!(restored.nickname.is_none());
-    drop(
-        restored
-            .try_into_original()
-            .expect("None nickname still converts"),
-    );
 }
 
 #[test]
@@ -99,7 +88,7 @@ fn skipped_field_holder_round_trips() {
     let restored: NoteFormFormValueHolder =
         serde_json::from_str(&json).expect("deserialize holder");
     assert_eq!(restored, holder);
-    assert_eq!(restored.body, "hello");
+    assert_eq!(restored.body.as_deref(), Some("hello"));
 }
 
 #[test]

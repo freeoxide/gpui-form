@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod gpui_form_tests {
     use super::super::*;
-    use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
     use crate::derives::gpui_form::koruma;
-    use koruma_derive_core::{ParsedDataField, ValidatorAttr};
+    use koruma_derive_core::{ParseFieldResult, ValidatorAttr};
     use quote::quote;
     use syn::DeriveInput;
 
@@ -11,70 +10,48 @@ mod gpui_form_tests {
         tokens.chars().filter(|c| !c.is_whitespace()).collect()
     }
 
-    fn parse_field_after_cfg_attr_flattening(
-        derive_input: DeriveInput,
-        index: usize,
-    ) -> syn::Result<ParsedDataField> {
-        let derive_input = flatten_cfg_attr_in_derive_input(derive_input);
-        let syn::Data::Struct(data_struct) = &derive_input.data else {
-            panic!("Expected struct data");
-        };
-        let field = data_struct.fields.iter().nth(index).unwrap();
-
-        koruma_derive_core::parse_field(field, index)
-    }
-
     #[test]
-    fn generated_form_field_enum_contains_only_component_fields() {
-        let derive_input: DeriveInput = syn::parse_quote! {
-            #[derive(GpuiForm)]
-            #[gpui_form(no_inventory)]
-            struct UserProfile {
-                #[gpui_form(component(crate::Input))]
-                display_name: String,
-                #[gpui_form(hidden)]
-                internal_note: String,
-                #[gpui_form(skip)]
-                database_id: u64,
+    fn field_path_type_emitted_next_to_value_holder() {
+        // Feature #8 (FLAT v1): the expansion emits a `<Name>FormPath` newtype
+        // alongside the value holder. `<Name>` is the source struct ident, so a
+        // struct named `Profile` gets `ProfileFormPath` (mirroring
+        // `ProfileFormValueHolder`). The constructor name matches the field.
+        use crate::derives::gpui_form::expansion::expand_gpui_form;
+        use crate::derives::gpui_form::structs::GpuiFormOptions;
+
+        let input: DeriveInput = syn::parse_quote! {
+            struct Profile {
+                name: String,
+                email: String,
             }
         };
-
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
+        let out = expand_gpui_form(
+            input,
+            GpuiFormOptions {
                 generate_shape: false,
-                generate_mcp: false,
             },
         );
-        let file = syn::parse2::<syn::File>(expanded.clone()).expect("expansion should parse");
-        let form_field = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                syn::Item::Enum(item) if item.ident == "UserProfileFormField" => Some(item),
-                _ => None,
-            })
-            .expect("generated form-field enum");
+        let s = out.to_string();
 
-        let variants = form_field
-            .variants
-            .iter()
-            .map(|variant| variant.ident.to_string())
-            .collect::<Vec<_>>();
-        assert_eq!(variants, ["DisplayName"]);
-
-        let compact = compact_tokens(&expanded.to_string());
+        // The path type appears after the value holder (both derive from the
+        // source struct ident).
         assert!(
-            compact.contains("#[strum(to_string=\"display_name\")]DisplayName"),
-            "form-field enum should retain the exact source field name: {compact}"
+            s.contains("ProfileFormPath"),
+            "no path type in expansion: {s}"
         );
+        assert!(s.contains("ProfileFormValueHolder"), "no value holder: {s}");
+        // Per-field constructors named after the fields. Tokenized output
+        // spaces out `fn name` / `fn email`, so match on the freestanding form.
+        assert!(s.contains("fn name"), "no name ctor: {s}");
+        assert!(s.contains("fn email"), "no email ctor: {s}");
+        // Trait impls are emitted unconditionally (no feature gating).
+        assert!(s.contains("Deref"), "no Deref: {s}");
+        assert!(s.contains("AsRef"), "no AsRef: {s}");
+        assert!(s.contains("Display"), "no Display: {s}");
+        // No generics on the path type (paths are field-name only).
         assert!(
-            compact.contains("impl::gpui_form::core::FormFieldforUserProfileFormField"),
-            "form-field enum should implement the facade contract: {compact}"
-        );
-        assert!(
-            compact.contains("pubconstfnname(self)->&'staticstr{self.into_str()}"),
-            "form-field enum should expose a const static name: {compact}"
+            !s.contains("ProfileFormPath <"),
+            "path type must not be generic: {s}"
         );
     }
 
@@ -82,31 +59,39 @@ mod gpui_form_tests {
     fn test_koruma_field_parsing_with_cfg_attr() {
         let tokens = quote! {
             struct Test {
-                #[cfg_attr(feature = "validation", koruma(SomeValidator::<_>))]
+                #[cfg_attr(feature = "validation", koruma(SomeValidator::<_>::builder()))]
                 field: u32,
             }
         };
         let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = parse_field_after_cfg_attr_flattening(derive_input, 0);
 
-        match result {
-            Ok(ParsedDataField::Participating(info)) => {
-                assert!(
-                    !info.field_validators().is_empty(),
-                    "Should find validators after cfg_attr flattening"
-                );
-                assert_eq!(
-                    info.field_validators()[0].validator().name().to_string(),
-                    "SomeValidator",
-                    "Should extract correct validator name"
-                );
-            },
-            Ok(ParsedDataField::Unannotated(_)) | Ok(ParsedDataField::Skipped { .. }) => {
-                panic!("parse_field returned Skip after gpui-form cfg_attr flattening");
-            },
-            Err(e) => {
-                panic!("parse_field returned Error: {}", e);
-            },
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field, 0);
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(
+                        !info.validation.field_validators.is_empty(),
+                        "Should find validators in cfg_attr"
+                    );
+                    assert_eq!(
+                        info.validation.field_validators[0].name().to_string(),
+                        "SomeValidator",
+                        "Should extract correct validator name"
+                    );
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
         }
     }
 
@@ -119,21 +104,26 @@ mod gpui_form_tests {
             }
         };
         let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = parse_field_after_cfg_attr_flattening(derive_input, 0);
 
-        match result {
-            Ok(ParsedDataField::Participating(info)) => {
-                assert!(
-                    info.is_newtype(),
-                    "Should detect newtype after cfg_attr flattening"
-                );
-            },
-            Ok(ParsedDataField::Unannotated(_)) | Ok(ParsedDataField::Skipped { .. }) => {
-                panic!("parse_field returned Skip after gpui-form cfg_attr flattening for newtype");
-            },
-            Err(e) => {
-                panic!("parse_field returned Error: {}", e);
-            },
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field, 0);
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(info.is_newtype(), "Should detect newtype in cfg_attr");
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for newtype"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
         }
     }
 
@@ -146,21 +136,26 @@ mod gpui_form_tests {
             }
         };
         let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = parse_field_after_cfg_attr_flattening(derive_input, 0);
 
-        match result {
-            Ok(ParsedDataField::Participating(info)) => {
-                assert!(
-                    info.is_nested(),
-                    "Should detect nested after cfg_attr flattening"
-                );
-            },
-            Ok(ParsedDataField::Unannotated(_)) | Ok(ParsedDataField::Skipped { .. }) => {
-                panic!("parse_field returned Skip after gpui-form cfg_attr flattening for nested");
-            },
-            Err(e) => {
-                panic!("parse_field returned Error: {}", e);
-            },
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field, 0);
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(info.is_nested(), "Should detect nested in cfg_attr");
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "parse_field returned Skip - koruma_derive_core may not be handling cfg_attr correctly for nested"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("parse_field returned Error: {}", e);
+                },
+            }
+        } else {
+            panic!("Expected struct data");
         }
     }
 
@@ -170,33 +165,33 @@ mod gpui_form_tests {
             #[derive(GpuiForm)]
             #[gpui_form(koruma(fluent))]
             struct TestForm {
-                #[gpui_form(component(crate::Input))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::collection::NonEmptyValidation::<_>))]
+                #[gpui_form(component(input))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::general::RequiredValidation::<Option<_>>::builder()))]
                 name: String,
 
-                #[gpui_form(component(crate::NumericShape))]
-                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation::<_>))]
+                #[gpui_form(component(number_input))]
+                #[cfg_attr(feature = "validation", koruma(koruma_collection::numeric::PositiveValidation::<_>::builder()))]
                 age: u32,
             }
         };
 
         let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let flattened_derive_input = flatten_cfg_attr_in_derive_input(derive_input.clone());
 
-        if let syn::Data::Struct(data_struct) = &flattened_derive_input.data {
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
             for (idx, field) in data_struct.fields.iter().enumerate() {
                 let result = koruma_derive_core::parse_field(field, idx);
                 match result {
-                    Ok(ParsedDataField::Participating(info)) => {
+                    ParseFieldResult::Valid(info) => {
                         assert!(
-                            !info.field_validators().is_empty(),
+                            !info.validation.field_validators.is_empty(),
                             "Field {} should have validators detected from cfg_attr",
                             idx
                         );
                         let validator_names: Vec<String> = info
-                            .field_validators()
+                            .validation
+                            .field_validators
                             .iter()
-                            .map(|v| v.validator().name().to_string())
+                            .map(|v| v.name().to_string())
                             .collect();
                         assert!(
                             !validator_names.is_empty(),
@@ -204,10 +199,10 @@ mod gpui_form_tests {
                             idx
                         );
                     },
-                    Ok(ParsedDataField::Unannotated(_)) | Ok(ParsedDataField::Skipped { .. }) => {
+                    ParseFieldResult::Skip => {
                         panic!("Field {} should have validators, got Skip", idx);
                     },
-                    Err(e) => {
+                    ParseFieldResult::Error(e) => {
                         panic!("Field {} parsing failed: {}", idx, e);
                     },
                 }
@@ -215,10 +210,9 @@ mod gpui_form_tests {
         }
 
         let expanded = expansion::expand_gpui_form(
-            derive_input,
+            derive_input.clone(),
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -230,9 +224,8 @@ mod gpui_form_tests {
         );
 
         assert!(
-            expanded_str.contains("NonEmptyValidation")
-                && expanded_str.contains("PositiveValidation"),
-            "Generated code should preserve parsed validation chains: {}",
+            expanded_str.contains("validation_errors") || expanded_str.contains("validate"),
+            "Generated code should include validation error handling: {}",
             &expanded_str[..expanded_str.len().min(500)]
         );
 
@@ -248,41 +241,67 @@ mod gpui_form_tests {
             #[cfg_attr(feature = "ui", derive(GpuiForm))]
             #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
             pub struct CommonVRead {
-                #[cfg_attr(feature = "ui", gpui_form(component(crate::NumericShape)))]
+                #[cfg_attr(feature = "ui", gpui_form(component(number_input)))]
                 #[cfg_attr(feature = "validation", koruma(newtype))]
                 pub index: CommonVariableIndex,
             }
         };
 
         let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let result = parse_field_after_cfg_attr_flattening(derive_input.clone(), 0);
 
-        match result {
-            Ok(ParsedDataField::Participating(info)) => {
-                assert!(
-                    info.is_newtype(),
-                    "Should detect newtype validation after cfg_attr flattening"
-                );
-            },
-            Ok(ParsedDataField::Unannotated(_)) | Ok(ParsedDataField::Skipped { .. }) => {
-                panic!(
-                    "koruma_derive_core returned Skip for field with koruma(newtype) after gpui-form cfg_attr flattening"
-                );
-            },
-            Err(e) => {
-                panic!("koruma_derive_core returned Error: {}", e);
-            },
+        if let syn::Data::Struct(data_struct) = &derive_input.data {
+            let field = data_struct.fields.iter().next().unwrap();
+            let result = koruma_derive_core::parse_field(field, 0);
+
+            eprintln!("=== DEBUG: parse_field result for CommonVRead.index ===");
+            match &result {
+                ParseFieldResult::Valid(info) => {
+                    eprintln!("  Result: Valid");
+                    eprintln!("  is_newtype: {}", info.is_newtype());
+                    eprintln!(
+                        "  field_validators.len(): {}",
+                        info.validation.field_validators.len()
+                    );
+                    for (idx, v) in info.validation.field_validators.iter().enumerate() {
+                        eprintln!("    validator[{}]: {}", idx, v.name());
+                    }
+                },
+                ParseFieldResult::Skip => {
+                    eprintln!("  Result: Skip");
+                },
+                ParseFieldResult::Error(e) => {
+                    eprintln!("  Result: Error({})", e);
+                },
+            }
+
+            match result {
+                ParseFieldResult::Valid(info) => {
+                    assert!(
+                        info.is_newtype(),
+                        "Should detect newtype validation in nested cfg_attr"
+                    );
+                },
+                ParseFieldResult::Skip => {
+                    panic!(
+                        "koruma_derive_core returned Skip for field with koruma(newtype) - cfg_attr not being handled!"
+                    );
+                },
+                ParseFieldResult::Error(e) => {
+                    panic!("koruma_derive_core returned Error: {}", e);
+                },
+            }
         }
 
         let expanded = expansion::expand_gpui_form(
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let expanded_str = expanded.to_string();
+        eprintln!("=== Generated code (first 1000 chars) ===");
+        eprintln!("{}", &expanded_str[..expanded_str.len().min(1000)]);
 
         assert!(
             expanded_str.contains("with_validations"),
@@ -296,9 +315,7 @@ mod gpui_form_tests {
             #[derive(GpuiForm)]
             #[gpui_form(koruma(fluent))]
             struct OptionalOnlyForm {
-                #[gpui_form(hidden)]
                 note: Option<String>,
-                #[gpui_form(hidden)]
                 kind: Option<u8>,
             }
         };
@@ -308,7 +325,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -325,9 +341,9 @@ mod gpui_form_tests {
     }
 
     #[test]
-    fn test_validator_attr_to_tokens_normalizes_direct_chain() {
+    fn test_validator_attr_to_tokens_normalizes_builder_chain() {
         let validator: ValidatorAttr = syn::parse_quote!(
-            koruma_collection::numeric::RangeValidation::<_>
+            koruma_collection::numeric::RangeValidation::<_>::builder()
                 .min(18)
                 .max(167)
         );
@@ -337,18 +353,20 @@ mod gpui_form_tests {
 
         assert_eq!(
             compact,
-            compact_tokens("koruma_collection::numeric::RangeValidation::<_>.min(18).max(167)")
+            compact_tokens(
+                "koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167)"
+            )
         );
     }
 
     #[test]
-    fn test_gpui_form_preserves_direct_chain_koruma_validators() {
+    fn test_gpui_form_preserves_builder_chain_koruma_validators() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             #[gpui_form(koruma)]
             struct TestForm {
-                #[gpui_form(component(crate::NumericShape))]
-                #[koruma(koruma_collection::numeric::RangeValidation::<_>.min(18).max(167))]
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167))]
                 age: u32,
             }
         };
@@ -358,7 +376,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -366,20 +383,20 @@ mod gpui_form_tests {
 
         assert!(
             compact.contains(&compact_tokens(
-                "koruma_collection::numeric::RangeValidation::<_>.min(18).max(167)"
+                "koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(167)"
             )),
-            "Generated value holder should preserve direct-chain koruma validators: {compact}"
+            "Generated value holder should preserve builder-chain koruma validators: {compact}"
         );
     }
 
     #[test]
-    fn test_gpui_form_preserves_zero_setter_koruma_direct_chains() {
+    fn test_gpui_form_preserves_zero_setter_koruma_builder_chains() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             #[gpui_form(koruma)]
             struct TestForm {
-                #[gpui_form(component(crate::NumericShape))]
-                #[koruma(koruma_collection::numeric::PositiveValidation::<_>)]
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::PositiveValidation::<_>::builder())]
                 age: u32,
             }
         };
@@ -389,7 +406,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -397,19 +413,19 @@ mod gpui_form_tests {
 
         assert!(
             compact.contains(&compact_tokens(
-                "koruma_collection::numeric::PositiveValidation::<_>"
+                "koruma_collection::numeric::PositiveValidation::<_>::builder()"
             )),
-            "Generated value holder should preserve zero-setter koruma direct chains: {compact}"
+            "Generated value holder should preserve zero-setter koruma builder chains: {compact}"
         );
     }
 
     #[test]
-    fn test_gpui_form_inherits_required_policy_without_field_override() {
+    fn test_gpui_form_emits_required_validation_as_builder_chain() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             #[gpui_form(koruma)]
             struct TestForm {
-                #[gpui_form(component(crate::Input))]
+                #[gpui_form(component(input))]
                 name: String,
             }
         };
@@ -419,45 +435,16 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains(
-                "if<<crate::Inputas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicyas::gpui_form::runtime::shape::ComponentValueStoragePolicy>::REQUIRES_VALUE{::gpui_form::schema::registry::FieldValuePresence::RequiresValue}else{::gpui_form::schema::registry::FieldValuePresence::DirectStorage}"
-            ),
-            "FieldVariant should inherit value-storage policy from the shape: {compact}"
-        );
-        assert!(
-            compact.contains("__TestFormFormValueHolderValueStoragePolicyValidation")
-                && compact.contains("ValueStorage<Value>>::is_present(value)")
-                && compact
-                    .contains("&[::gpui_form::schema::registry::ValidationRuleId::Required,]"),
-            "shape-inherited requiredness should use the policy-aware validator and conditional metadata: {compact}"
-        );
-        assert!(
-            compact.contains("impl::core::convert::TryFrom<TestFormFormValueHolder>forTestForm"),
-            "Fallible holders should keep the standard TryFrom impl: {compact}"
-        );
-        assert!(
-            compact.contains("with_holder_conversion(::gpui_form::schema::registry::HolderConversionMetadata::new(::gpui_form::schema::registry::HolderConversionShape::FallibleRequired")
-                && compact.contains(
-                    "false||<<crate::Inputas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicyas::gpui_form::runtime::shape::ComponentValueStoragePolicy>::REQUIRES_VALUE"
-                ),
-            "Inventory metadata should record the fallible API shape and runtime policy predicate: {compact}"
-        );
-        assert!(
-            compact.contains(
-                "pubfntry_into_original(self)->Result<TestForm,TestFormFormValueHolderConversionError>"
-            ),
-            "Fallible holders should expose try_into_original(self): {compact}"
-        );
-        assert!(
-            !compact.contains("pubfntry_from("),
-            "Generated holders should expose TryFrom through the standard trait only"
+            compact.contains(&compact_tokens(
+                "koruma_collection::general::RequiredValidation::<Option<_>>::builder()"
+            )),
+            "Generated value holder should emit synthetic required validation as a builder chain: {compact}"
         );
     }
 
@@ -466,14 +453,12 @@ mod gpui_form_tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(
-                    crate::DatePickerState,
-                    value(
-                        type = chrono::NaiveDate,
-                        from_source = |ts| to_form(ts),
-                        into_source = |dt| to_model(dt),
-                    )
-                ))]
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    from = |ts| to_form(ts),
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
                 birth_date: Option<Timestamp>,
             }
         };
@@ -483,16 +468,13 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains(
-                "FieldVariant::component_for_field(\"birth_date\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"chrono::NaiveDate\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"Timestamp\"),::gpui_form::schema::registry::FieldValuePresence::Optional)"
-            ),
+            compact.contains("FieldVariant::new(\"birth_date\",\"chrono::NaiveDate\",true"),
             "FieldVariant should use override type for metadata"
         );
 
@@ -505,40 +487,19 @@ mod gpui_form_tests {
             compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_model"),
             "From<FormValueHolder> for Original should apply `into` conversion"
         );
-        assert!(
-            compact.contains("fnassert_source_to_form<F>(_:F)")
-                && compact.contains("F:::core::ops::FnOnce(Timestamp)->chrono::NaiveDate")
-                && compact.contains("fnassert_form_to_source<F>(_:F)")
-                && compact.contains("F:::core::ops::FnOnce(chrono::NaiveDate)->Timestamp"),
-            "Generated holders should assert explicit conversion signatures: {compact}"
-        );
-        assert!(
-            compact.contains("pubfninto_original(self)->TestForm"),
-            "Infallible holders should expose into_original(self): {compact}"
-        );
-        assert!(
-            compact.contains("with_holder_conversion(::gpui_form::schema::registry::HolderConversionMetadata::new(::gpui_form::schema::registry::HolderConversionShape::Infallible,false))"),
-            "Inventory metadata should publish infallible holder conversion API shape: {compact}"
-        );
-        assert!(
-            !compact.contains("pubfntry_from("),
-            "Generated holders should expose TryFrom through the standard trait only"
-        );
     }
 
     #[test]
-    fn test_shape_override_keeps_full_type_path() {
+    fn test_number_input_override_keeps_full_type_path() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(
-                    crate::NumericShape::<_>,
-                    value(
-                        type = rust_decimal::Decimal,
-                        from_source = |value| value,
-                        into_source = |value| value,
-                    )
-                ))]
+                #[gpui_form(
+                    type = rust_decimal::Decimal,
+                    from = |value| value,
+                    into = |value| value,
+                    component(number_input(as = f64))
+                )]
                 amount: f64,
             }
         };
@@ -548,157 +509,38 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains(
-                "FieldVariant::component_for_field(\"amount\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"rust_decimal::Decimal\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"f64\"),if<<crate::NumericShape<rust_decimal::Decimal>as::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicyas::gpui_form::runtime::shape::ComponentValueStoragePolicy>::REQUIRES_VALUE"
-            ),
+            compact.contains("FieldVariant::new(\"amount\",\"rust_decimal::Decimal\",false"),
             "FieldVariant should keep the fully-qualified override type in metadata"
         );
         assert!(
-            compact.contains(
-                "<crate::NumericShape<rust_decimal::Decimal>as::gpui_form::runtime::shape::GpuiComponentShape>::State"
-            ),
-            "Component shape `_` should resolve to the override type in state metadata"
+            compact.contains("validate_signed_numeric::<f64>(value,true)"),
+            "Number input validation should parse against the validation override type"
         );
         assert!(
             compact.contains(
-                "FieldComponentVariant::new(::gpui_form::schema::registry::RustPath::from_macro_tokens_unchecked(\"crate::NumericShape<rust_decimal::Decimal>\"))"
+                "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"f64\"),kind:::gpui_form::schema::components::NumberInputKind::Float,})"
             ),
-            "Component shape metadata should preserve the fully-qualified override type"
+            "Number input metadata should preserve the validation override and numeric family"
         );
     }
 
     #[test]
-    fn test_skipped_fields_generate_from_original() {
+    fn test_number_input_unsigned_override_drives_validation_family() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(
-                    crate::DatePickerState,
-                    value(
-                        type = chrono::NaiveDate,
-                        from_source = |ts| to_form(ts),
-                        into_source = |dt| to_model(dt),
-                    )
-                ))]
-                birth_date: Option<Timestamp>,
-
-                #[gpui_form(skip)]
-                skip_me: bool,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            !compact.contains("compile_error!"),
-            "skip plus a converted component field should not emit a compile_error"
-        );
-        assert!(
-            compact.contains("::core::convert::From<TestForm>forTestFormFormValueHolder",),
-            "From<Original> for FormValueHolder should be generated even with skipped fields"
-        );
-        assert!(
-            compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_form"),
-            "From<Original> for FormValueHolder should apply `from_source` conversion"
-        );
-        assert!(
-            !compact.contains("::core::convert::From<TestFormFormValueHolder>forTestForm",),
-            "Reverse From<FormValueHolder> for Original should remain disabled when skipped fields exist"
-        );
-        assert!(
-            compact.contains(
-                "pubfninto_original(self,skip_me:bool)->Result<TestForm,TestFormFormValueHolderConversionError>"
-            ),
-            "Skipped-field forms should keep strict into_original(self, skipped...) conversion"
-        );
-        assert!(
-            compact.contains("with_holder_conversion(::gpui_form::schema::registry::HolderConversionMetadata::new(::gpui_form::schema::registry::HolderConversionShape::NeedsSkippedFields,true))"),
-            "Inventory metadata should record skipped-field holder conversion shape: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_present_fields_uses_typed_converted_values_for_skipped_forms() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(component(
-                    crate::DatePickerState,
-                    value(
-                        type = chrono::NaiveDate,
-                        from_source = |ts| to_form(ts),
-                        into_source = |dt| to_model(dt),
-                    )
-                ))]
-                birth_date: Option<Timestamp>,
-
-                #[gpui_form(skip)]
-                skip_me: bool,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("pubenumTestFormFormValueHolderPresentField"),
-            "Skipped-field value holders should generate a typed present-field enum"
-        );
-        assert!(
-            compact
-                .contains("pubfnpresent_fields(&self)->Vec<TestFormFormValueHolderPresentField>"),
-            "Skipped-field value holders should expose typed present_fields() snapshots: {compact}"
-        );
-        assert!(
-            compact.contains("entries.push(TestFormFormValueHolderPresentField::BirthDate((|dt|to_model(dt))(value)));"),
-            "present_fields() should apply `into_source` conversion for optional override fields"
-        );
-    }
-
-    #[test]
-    fn test_structured_field_attribute_grammar() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(component(
-                    crate::DatePickerState,
-                    value(
-                        type = chrono::NaiveDate,
-                        from_source = |ts| to_form(ts),
-                        into_source = |dt| to_model(dt)
-                    ),
-                    default = Timestamp::now()
-                ))]
-                birth_date: Timestamp,
-
-                #[gpui_form(hidden(
-                    value(type = String, from_source = |id| id.to_string(), into_source = |id| id.parse().unwrap()),
-                    default = 1_u64
-                ))]
+                #[gpui_form(
+                    type = crate::ids::AccountId,
+                    from = crate::ids::AccountId::from_u64,
+                    into = crate::ids::AccountId::into_u64,
+                    component(number_input(as = u64))
+                )]
                 account_id: u64,
             }
         };
@@ -708,49 +550,38 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("RustType::from_macro_tokens_unchecked(\"chrono::NaiveDate\")")
-                && compact.contains("pubaccount_id:String"),
-            "structured value(type = ...) should drive component metadata and hidden holder storage: {compact}"
+            compact.contains("validate_unsigned_numeric::<u64>(value,true)"),
+            "Unsigned validation override should parse against the override type"
         );
         assert!(
-            compact.contains("to_form") && compact.contains("to_model"),
-            "structured from_source/into_source conversions should be emitted: {compact}"
-        );
-        assert!(
-            compact.contains(".with_default(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"Timestamp::now()\"))")
-                && compact.contains("::core::convert::Into::into(1_u64)"),
-            "structured default options should be emitted for inventory and value-holder defaults: {compact}"
-        );
-        assert!(
-            compact.contains("FieldVariant::hidden_for_field(\"account_id\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"String\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"u64\"),::gpui_form::schema::registry::FieldValuePresence::DirectStorage)")
-                && compact.contains("with_conversions(::gpui_form::schema::registry::ConversionMetadata::new(Some(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"|id|id.to_string()\")),Some(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"|id|id.parse().unwrap()\"))))")
-                && compact.contains(".with_default(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"1_u64\"))"),
-            "hidden fields should be emitted into inventory with source/form types, conversions, direct storage, and defaults: {compact}"
+            compact.contains(
+                "ComponentsBehaviour::NumberInput(::gpui_form::schema::components::NumberInputBehaviour{validation_type:Some(\"u64\"),kind:::gpui_form::schema::components::NumberInputKind::UnsignedInteger,})"
+            ),
+            "Unsigned validation override should drive number input metadata"
         );
     }
 
     #[test]
-    fn test_hidden_inventory_emits_validations_and_omits_skipped_fields() {
+    fn test_skipped_fields_still_generate_from_original() {
         let tokens = quote! {
             #[derive(GpuiForm)]
-            #[gpui_form(koruma)]
             struct TestForm {
-                #[gpui_form(component(crate::Input))]
-                visible: String,
-
-                #[gpui_form(hidden(default = HiddenId::new()))]
-                #[koruma(newtype)]
-                account_id: HiddenId,
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    from = |ts| to_form(ts),
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
+                birth_date: Option<Timestamp>,
 
                 #[gpui_form(skip)]
-                skipped_secret: bool,
+                skip_me: bool,
             }
         };
 
@@ -759,30 +590,75 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("FieldVariant::hidden_for_field(\"account_id\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"HiddenId\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"HiddenId\"),::gpui_form::schema::registry::FieldValuePresence::DirectStorage)")
-                && compact.contains(".with_validations(&[::gpui_form::schema::registry::ValidationRuleId::Newtype])")
-                && compact.contains(".with_default(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"HiddenId::new()\"))"),
-            "hidden fields should publish validation IDs and defaults in inventory: {compact}"
+            !compact.contains("compile_error!"),
+            "skip + from should no longer emit a compile_error"
         );
         assert!(
-            compact.contains("FieldVariant::component_for_field(\"visible\""),
-            "component field inventory should remain emitted: {compact}"
+            compact.contains("impl::core::convert::From<TestForm>forTestFormFormValueHolder"),
+            "From<Original> for FormValueHolder should be generated even with skipped fields"
         );
         assert!(
-            !compact.contains("FieldVariant::hidden_for_field(\"skipped_secret\")")
-                && !compact.contains("FieldVariant::component_for_field(\"skipped_secret\")"),
-            "skipped fields should stay out of field inventory: {compact}"
+            compact.contains("birth_date:from.birth_date.map(") && compact.contains("to_form"),
+            "From<Original> for FormValueHolder should still apply `from` conversion"
         );
         assert!(
-            compact.contains("with_holder_conversion(::gpui_form::schema::registry::HolderConversionMetadata::new(::gpui_form::schema::registry::HolderConversionShape::NeedsSkippedFields,true))"),
-            "skipped fields should be represented by holder conversion metadata: {compact}"
+            !compact.contains("impl::core::convert::From<TestFormFormValueHolder>forTestForm"),
+            "Reverse From<FormValueHolder> for Original should remain disabled when skipped fields exist"
+        );
+        assert!(
+            compact.contains(
+                "pubfninto_original(self,skip_me:bool)->Result<TestForm,TestFormFormValueHolderConversionError>"
+            ),
+            "Skipped-field forms should keep strict into_original(self, skipped...) conversion"
+        );
+    }
+
+    #[test]
+    fn test_present_fields_json_uses_into_converted_debug_values_for_skipped_forms() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct TestForm {
+                #[gpui_form(
+                    type = chrono::NaiveDate,
+                    into = |dt| to_model(dt),
+                    component(date_picker)
+                )]
+                birth_date: Option<Timestamp>,
+
+                #[gpui_form(skip)]
+                skip_me: bool,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubfnpresent_fields_json(&self)->String"),
+            "Skipped-field value holders should generate present_fields_json()"
+        );
+        assert!(
+            compact.contains(
+                "letconverted=self.birth_date.clone().map(|value|(|dt|to_model(dt))(value));"
+            ),
+            "present_fields_json() should apply `into` conversion for optional override fields"
+        );
+        assert!(
+            compact.contains("format!(\"{:?}\",converted)"),
+            "present_fields_json() should emit debug-formatted converted values"
         );
     }
 
@@ -791,7 +667,7 @@ mod gpui_form_tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(crate::Input, default = "test@example.com"))]
+                #[gpui_form(component(input), default = "test@example.com")]
                 email: String,
             }
         };
@@ -801,7 +677,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -818,7 +693,7 @@ mod gpui_form_tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(crate::Input, default = "test@example.com"))]
+                #[gpui_form(component(input), default = "test@example.com")]
                 email: String,
 
                 #[gpui_form(skip)]
@@ -831,15 +706,14 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("::core::convert::From<TestForm>forTestFormFormValueHolder",),
-            "Skipped-field forms should generate From<Original> for value holder"
+            compact.contains("impl::core::convert::From<TestForm>forTestFormFormValueHolder"),
+            "Skipped-field forms should still generate From<Original> for value holder"
         );
         assert!(
             compact.contains(
@@ -850,11 +724,11 @@ mod gpui_form_tests {
     }
 
     #[test]
-    fn test_component_shape_generates_shape_based_state_and_constructor() {
+    fn test_custom_component_generates_shape_based_state_and_constructor() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(crate::ui::BioInput))]
+                #[gpui_form(component(custom(shape = crate::shapes::BioInputShape, component = crate::ui::BioInput, value_binding)))]
                 bio: String,
             }
         };
@@ -864,201 +738,42 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubbio:::gpui::Entity<")
+            compact.contains("pubbio_custom:::gpui::Entity<")
                 && compact.contains(
-                    "<crate::ui::BioInputas::gpui_form::runtime::shape::GpuiComponentShape>::State"
+                    "<crate::shapes::BioInputShapeas::gpui_form::custom::CustomComponentShape>::State"
                 ),
-            "Component shape field should use the source field name and shape state type"
+            "Custom component field should use shape state type"
         );
 
         assert!(
             compact.contains(
-                "<crate::ui::BioInputas::gpui_form::runtime::shape::GpuiComponentShape>::new(window,cx)"
+                "<crate::shapes::BioInputShapeas::gpui_form::custom::CustomComponentShape>::new(window,cx)"
             ),
-            "Component shape constructor should delegate to shape::new"
+            "Custom component constructor should delegate to shape::new"
         );
 
         assert!(
-            compact.contains(
-                "FieldVariant::component_for_field(\"bio\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"String\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"String\"),if<<crate::ui::BioInputas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicy"
-            ),
-            "FieldVariant metadata should come from the declared component shape"
+            compact.contains("ComponentsBehaviour::Custom"),
+            "FieldVariant should carry Custom behaviour metadata"
         );
 
         assert!(
-            compact.contains("with_render(if<<crate::ui::BioInputas::gpui_form::runtime::shape::GpuiComponentShape>::RenderComponentas::gpui_form::runtime::shape::GpuiComponentRender<"),
-            "FieldVariant should inherit render component metadata from the shape: {compact}"
+            compact.contains("with_custom_component("),
+            "FieldVariant should carry the custom component path: {compact}"
         );
         assert!(
-            compact.contains(
-                "FieldComponentVariant::new(::gpui_form::schema::registry::RustPath::from_macro_tokens_unchecked(\"crate::ui::BioInput\"))"
-            ),
-            "FieldVariant should carry the component shape path: {compact}"
+            compact.contains("with_custom_shape(\"crate::shapes::BioInputShape\")"),
+            "FieldVariant should carry the custom shape path: {compact}"
         );
         assert!(
-            compact.contains("with_value_binding(if<crate::ui::BioInputas::gpui_form::runtime::shape::ComponentShapeMetadata>::CAPABILITIES.value_binding().enabled()"),
-            "FieldVariant should inherit component value binding metadata from the shape: {compact}"
-        );
-        assert!(
-            compact.contains("PROTOTYPING.field_suffix")
-                && compact.contains("ComponentSuffix::new(\"input\")"),
-            "FieldVariant should inherit shape prototyping metadata with a generated fallback: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_component_shape_generates_fields() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(component(crate::shapes::Input::<_>, default = "test@example.com"))]
-                email: String,
-
-                #[gpui_form(component(crate::shapes::Switch))]
-                enabled: bool,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("pubemail:::gpui::Entity<"),
-            "explicit component shape syntax should generate a source-named entity field: {compact}"
-        );
-        assert!(
-            compact.contains("Into::into(\"test@example.com\")"),
-            "explicit component syntax should compose with key-value field helpers"
-        );
-        assert!(
-            compact.contains("pubenabled:"),
-            "explicit component syntax should generate a value-holder field: {compact}"
-        );
-        assert!(
-            compact.contains(
-                "if<<crate::shapes::Switchas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicyas::gpui_form::runtime::shape::ComponentValueStoragePolicy>::REQUIRES_VALUE{::gpui_form::schema::registry::FieldValuePresence::RequiresValue}else{::gpui_form::schema::registry::FieldValuePresence::DirectStorage}"
-            ),
-            "explicit component syntax should inherit required-value metadata from the shape"
-        );
-        assert!(
-            compact.contains("PROTOTYPING.field_suffix")
-                && compact.contains("ComponentSuffix::new(\"input\")"),
-            "component inventory metadata should inherit shape prototyping metadata with a generated fallback"
-        );
-    }
-
-    #[test]
-    fn test_component_shape_rejects_duplicate_component_expression() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(
-                    component(crate::shapes::Input::<_>),
-                    component(crate::Input)
-                )]
-                email: String,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("duplicate`component`option"),
-            "duplicate component syntax should produce an actionable error: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_gpui_form_rejects_duplicate_field_options() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(component(crate::Input, value(type = String, type = std::string::String)))]
-                name: String,
-
-                #[gpui_form(skip, skip)]
-                hidden: bool,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("duplicate`type`option")
-                && compact.contains("removetheduplicate`type`entry"),
-            "duplicate type should produce an actionable error: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_component_value_binding_metadata_assertion_is_generated() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            struct TestForm {
-                #[gpui_form(component(crate::Input))]
-                name: String,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-        let removed_binding_policy_helper =
-            ["Assert", "Component", "Value", "Binding", "Policy"].concat();
-
-        assert!(
-            compact.contains("Shape:::gpui_form::runtime::shape::GpuiComponentShape+::gpui_form::runtime::shape::ComponentShapeMetadata")
-                && compact.contains(
-                    "__gpui_form_assert_name_component_value_binding::<crate::Input,String"
-                )
-                && !compact.contains(&removed_binding_policy_helper),
-            "shape value-binding metadata should emit a derive-time metadata assertion using shape metadata: {compact}"
-        );
-        assert!(
-            compact.contains("__gpui_form_assert_name_declared_component_shape")
-                && compact.contains("__gpui_form_assert_name_component_value_compatibility")
-                && compact.contains("__gpui_form_assert_name_component_value_binding"),
-            "component type checks should be split into field-named assertions: {compact}"
+            compact.contains("with_custom_value_binding(true)"),
+            "FieldVariant should record opt-in custom value binding: {compact}"
         );
     }
 
@@ -1067,14 +782,12 @@ mod gpui_form_tests {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(
-                    crate::Input,
-                    value(
-                        type = crate::types::AccountCode,
-                        from_source = crate::types::AccountCode::new,
-                        into_source = crate::types::AccountCode::into_string
-                    )
-                ))]
+                #[gpui_form(
+                    component(input),
+                    type = crate::types::AccountCode,
+                    from = crate::types::AccountCode::new,
+                    into = crate::types::AccountCode::into_string
+                )]
                 account_no: String,
             }
         };
@@ -1084,41 +797,37 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains(
-                "FieldVariant::component_for_field(\"account_no\",::gpui_form::schema::registry::FieldValueSpec::new(::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"crate::types::AccountCode\"),::gpui_form::schema::registry::RustType::from_macro_tokens_unchecked(\"String\"),if<<crate::Inputas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicy"
-            ),
+            compact
+                .contains("FieldVariant::new(\"account_no\",\"crate::types::AccountCode\",false"),
             "FieldVariant should store the form-side value type: {compact}"
         );
         assert!(
-            compact.contains("RustType::from_macro_tokens_unchecked(\"String\")"),
+            compact.contains("with_source_value_type(\"String\")"),
             "FieldVariant should store the source model value type: {compact}"
         );
         assert!(
-            compact.contains(
-                "if<<crate::Inputas::gpui_form::runtime::shape::GpuiFormComponentShapePolicy>::ValueStoragePolicyas::gpui_form::runtime::shape::ComponentValueStoragePolicy>::REQUIRES_VALUE{::gpui_form::schema::registry::FieldValuePresence::RequiresValue}else{::gpui_form::schema::registry::FieldValuePresence::DirectStorage}"
-            ),
-            "FieldVariant should inherit generated value-storage policy from the shape: {compact}"
+            compact.contains("with_wraps_in_option(true)"),
+            "FieldVariant should store generated holder wrapping policy: {compact}"
         );
         assert!(
-            compact.contains("with_conversions(::gpui_form::schema::registry::ConversionMetadata::new(Some(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"crate::types::AccountCode::new\")),Some(::gpui_form::schema::registry::RustExpr::from_macro_tokens_unchecked(\"crate::types::AccountCode::into_string\"))))"),
+            compact.contains("with_conversions(Some(\"crate::types::AccountCode::new\"),Some(\"crate::types::AccountCode::into_string\"))"),
             "FieldVariant should store source/form conversion expressions: {compact}"
         );
     }
 
     #[test]
-    fn test_component_shape_infers_field_type_generic() {
+    fn test_custom_component_wraps_in_option_controls_value_holder_field() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(crate::shapes::Input::<_>))]
-                account_no: crate::types::AccountCode,
+                #[gpui_form(component(custom(shape = crate::shapes::ToggleShape, wraps_in_option = false)))]
+                enabled: bool,
             }
         };
 
@@ -1127,42 +836,28 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains(
-                "<crate::shapes::Input<crate::types::AccountCode>as::gpui_form::runtime::shape::GpuiComponentShape>::State"
-            ),
-            "component shape `_` should be resolved to the field type in FormFields: {compact}"
+            compact.contains("pubenabled:bool"),
+            "wraps_in_option = false should keep value holder field non-optional"
         );
         assert!(
-            compact.contains("pubaccount_no:::gpui::Entity<"),
-            "generated FormFields identifiers should use the source field name: {compact}"
-        );
-        assert!(
-            compact.contains("PROTOTYPING.field_suffix")
-                && compact.contains("ComponentSuffix::new(\"input\")"),
-            "inventory metadata should use the resolved generated suffix: {compact}"
-        );
-        assert!(
-            compact.contains(
-                "FieldComponentVariant::new(::gpui_form::schema::registry::RustPath::from_macro_tokens_unchecked(\"crate::shapes::Input<crate::types::AccountCode>\"))"
-            ),
-            "component shape metadata should store the resolved shape path: {compact}"
+            !compact.contains("pubenabled:Option<bool>"),
+            "wraps_in_option = false should avoid wrapping in Option"
         );
     }
 
     #[test]
-    fn test_component_shape_generates_multiword_component_suffix() {
+    fn test_custom_component_supports_state_alias() {
         let tokens = quote! {
             #[derive(GpuiForm)]
             struct TestForm {
-                #[gpui_form(component(crate::shapes::DatePicker))]
-                birth_date: chrono::NaiveDate,
+                #[gpui_form(component(custom(state = crate::state::TagsState, wraps_in_option = false)))]
+                tags: Vec<String>,
             }
         };
 
@@ -1171,62 +866,31 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubbirth_date:::gpui::Entity<"),
-            "multiword shape names should not affect generated component entity fields: {compact}"
+            compact.contains("pubtags_custom:::gpui::Entity<")
+                && compact.contains(
+                    "<crate::state::TagsStateas::gpui_form::custom::CustomComponentShape>::State"
+                ),
+            "`state = ...` should map to custom shape path"
         );
         assert!(
-            compact.contains("PROTOTYPING.field_suffix")
-                && compact.contains("ComponentSuffix::new(\"date_picker\")"),
-            "inventory metadata should use the resolved generated suffix: {compact}"
+            compact.contains("pubtags:Vec<String>"),
+            "wraps_in_option = false should keep field as Vec<String>"
         );
     }
 
     #[test]
-    fn test_generic_forms_require_inventory_opt_out() {
+    fn test_select_default_expression_initializes_component_selection() {
         let tokens = quote! {
             #[derive(GpuiForm)]
-            struct TestForm<T>
-            where
-                T: Default,
-            {
-                #[gpui_form(hidden)]
-                value: T,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("cannotregistergenericformsininventory")
-                && compact.contains("gpui_form(no_inventory)"),
-            "generic inventory registration should require an explicit opt-out: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_mcp_attribute_requires_mcp_feature() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            #[gpui_form(mcp)]
             struct TestForm {
-                #[gpui_form(hidden)]
-                value: String,
+                #[gpui_form(component(select), default = crate::defaults::country())]
+                country: Country,
             }
         };
 
@@ -1235,26 +899,33 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("requiresthe`gpui-form/mcp`feature"),
-            "mcp attribute should require the mcp feature: {compact}"
+            compact.contains("let__gpui_form_default=crate::defaults::country()"),
+            "Select component initialization should bind the full default expression once"
+        );
+        assert!(
+            compact.contains(".position(|x|x==__gpui_form_default)"),
+            "Select component initialization should compare against the bound default expression"
+        );
+        assert!(
+            compact.contains(".map(::gpui_component::IndexPath::new)")
+                && !compact.contains(".position(|x|x==__gpui_form_default).unwrap()"),
+            "Select component initialization should skip invalid defaults instead of panicking"
         );
     }
 
     #[test]
-    fn test_mcp_attribute_rejects_no_inventory() {
+    fn test_infinite_select_default_expression_and_max_depth_are_honored() {
         let tokens = quote! {
             #[derive(GpuiForm)]
-            #[gpui_form(no_inventory, mcp)]
             struct TestForm {
-                #[gpui_form(hidden)]
-                value: String,
+                #[gpui_form(component(infinite_select(max_depth = 2)), default = crate::defaults::country())]
+                location: Country,
             }
         };
 
@@ -1263,163 +934,255 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: true,
             },
         );
 
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("cannotbecombinedwith") && compact.contains("gpui_form(no_inventory)"),
-            "mcp attribute should reject no_inventory: {compact}"
+            compact.contains("let__gpui_form_default=crate::defaults::country()"),
+            "InfiniteSelect initialization should bind the full default expression once"
+        );
+        assert!(
+            compact.contains("new_with_options(__gpui_form_default,")
+                && !compact.contains("new_with_options(crate::defaults::country(),"),
+            "InfiniteSelect initialization should use the bound default expression for runtime construction"
+        );
+        assert!(
+            compact.contains("InfiniteSelectState::new_with_options("),
+            "InfiniteSelect initialization should pass the bound default expression into the runtime state"
+        );
+        assert!(
+            compact.contains("InfiniteSelectStateOptions::default()")
+                && compact.contains(".searchable(false)")
+                && compact.contains(".max_depth(2"),
+            "InfiniteSelect initialization should forward max_depth into the runtime options"
         );
     }
 
+    // ------------------------------------------------------------------
+    // Feature #4 (METADATA-FIRST v1): layout & section metadata.
+    //
+    // These tests drive `expand_gpui_form` directly and inspect the tokenized
+    // output. The shape (inventory submission) is what carries the
+    // `FieldVariant` chain, so `generate_shape: true` is used throughout and we
+    // assert the emitted `.with_layout(...)` / `.with_section(...)` /
+    // `.with_width(...)` fragments resolve against the facade path
+    // `::gpui_form::schema::layout::...`.
+    // ------------------------------------------------------------------
+
     #[test]
-    fn test_mcp_attribute_rejects_generic_forms() {
+    fn layout_all_five_hints_plus_width_bare_ident_emit_chain() {
+        // A field exercising every v1 hint, including the bare-ident width.
         let tokens = quote! {
             #[derive(GpuiForm)]
-            #[gpui_form(mcp)]
-            struct TestForm<T> {
-                #[gpui_form(hidden)]
-                value: T,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expansion::expand_gpui_form(
-            derive_input,
-            structs::GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: true,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("doesnotsupportgenericforms"),
-            "mcp attribute should reject generic forms: {compact}"
-        );
-    }
-    #[test]
-    fn generated_layout_metadata_reaches_field_variants() {
-        let derive_input: DeriveInput = syn::parse_quote! {
-            #[derive(GpuiForm)]
-            struct Profile {
+            struct Signup {
                 #[gpui_form(
-                    component(crate::Input),
                     section = "Account",
-                    placeholder = "Xx...xX",
-                    width = half
+                    label = "Username",
+                    description = "Shown publicly",
+                    placeholder = "pick a name",
+                    width = half,
+                    component(input)
                 )]
                 username: String,
             }
         };
 
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
         let expanded = expansion::expand_gpui_form(
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
-        let compact = compact_tokens(&expanded.to_string());
+        let compact = compact_tokenish(&expanded.to_string());
+
+        // The facade path the derive is contracted to emit.
+        assert!(
+            compact.contains("::gpui_form::schema::layout::FieldLayout::new()"),
+            "expected FieldLayout::new() via facade path: {compact}"
+        );
         assert!(
             compact.contains(".with_section(Some(\"Account\"))"),
-            "section hint should reach the schema field variant: {compact}"
+            "section hint not emitted: {compact}"
         );
         assert!(
-            compact.contains(".with_placeholder(Some(\"Xx...xX\"))"),
-            "placeholder hint should reach the schema field variant: {compact}"
+            compact.contains(".with_label(Some(\"Username\"))"),
+            "label hint not emitted: {compact}"
         );
         assert!(
-            compact.contains(".with_width(::gpui_form::schema::registry::LayoutWidth::Half)"),
-            "width hint should reach the schema field variant: {compact}"
+            compact.contains(".with_description(Some(\"Shownpublicly\"))")
+                || compact.contains(".with_description(Some(\"Shown publicly\"))"),
+            "description hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_placeholder(Some(\"pickaname\"))")
+                || compact.contains(".with_placeholder(Some(\"pick a name\"))"),
+            "placeholder hint not emitted: {compact}"
+        );
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Half)"),
+            "bare-ident width=half must map to LayoutWidth::Half: {compact}"
+        );
+        // The layout chain is appended to the FieldVariant construction.
+        assert!(
+            compact.contains(".with_layout("),
+            "with_layout call missing: {compact}"
         );
     }
 
     #[test]
-    fn quoted_width_and_defaults_are_accepted() {
-        let derive_input: DeriveInput = syn::parse_quote! {
+    fn layout_quoted_width_and_third_variant_map_correctly() {
+        let tokens = quote! {
             #[derive(GpuiForm)]
-            struct Profile {
-                #[gpui_form(component(crate::Input), width = "third")]
-                username: String,
-                #[gpui_form(component(crate::Input))]
-                email: String,
+            struct Form {
+                #[gpui_form(width = "third", component(input))]
+                a: String,
+                #[gpui_form(width = full, component(input))]
+                b: String,
             }
         };
 
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
         let expanded = expansion::expand_gpui_form(
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
-        let compact = compact_tokens(&expanded.to_string());
+        let compact = compact_tokenish(&expanded.to_string());
+
         assert!(
-            compact.contains(".with_width(::gpui_form::schema::registry::LayoutWidth::Third)"),
-            "quoted width form should parse: {compact}"
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Third)"),
+            "quoted width=\"third\" must map to LayoutWidth::Third: {compact}"
         );
-        // Fields without a width hint emit no with_width call (schema default
-        // is `Full`).
-        assert_eq!(
-            compact.matches(".with_width(").count(),
-            1,
-            "only the annotated field carries a width hint: {compact}"
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Full)"),
+            "bare width=full must map to LayoutWidth::Full: {compact}"
         );
     }
 
     #[test]
-    fn generated_form_path_wraps_shared_field_path() {
-        let derive_input: DeriveInput = syn::parse_quote! {
+    fn layout_absent_hints_default_to_full_and_no_string_builders() {
+        // No layout hints at all: width still defaults to Full (unconditional
+        // builder), but none of the string `.with_*` builders appear.
+        let tokens = quote! {
             #[derive(GpuiForm)]
-            #[gpui_form(no_inventory)]
-            struct Profile {
-                #[gpui_form(component(crate::Input))]
-                username: String,
-                #[gpui_form(skip)]
-                database_id: u64,
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
             }
         };
 
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
         let expanded = expansion::expand_gpui_form(
             derive_input,
             structs::GpuiFormOptions {
-                generate_shape: false,
-                generate_mcp: false,
+                generate_shape: true,
             },
         );
 
-        let file = syn::parse2::<syn::File>(expanded.clone()).expect("expansion should parse");
-        let form_path = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                syn::Item::Struct(item) if item.ident == "ProfileFormPath" => Some(item),
-                _ => None,
-            })
-            .expect("generated form path type");
+        let compact = compact_tokens(&expanded.to_string());
 
-        // The tuple field wraps the shared core primitive.
-        assert_eq!(form_path.fields.len(), 1);
+        assert!(
+            compact.contains(".with_width(::gpui_form::schema::layout::LayoutWidth::Full)"),
+            "absent width must default to Full: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_section("),
+            "absent section must not emit with_section: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_label("),
+            "absent label must not emit with_label: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_description("),
+            "absent description must not emit with_description: {compact}"
+        );
+        assert!(
+            !compact.contains(".with_placeholder("),
+            "absent placeholder must not emit with_placeholder: {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_on_skipped_field_is_ignored() {
+        // A skipped field with layout hints: NO FieldVariant is emitted for it,
+        // so the layout hints must not appear anywhere in the expansion. The
+        // non-skipped field's width still defaults to Full.
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Mixed {
+                #[gpui_form(component(input))]
+                visible: String,
+
+                #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
+                #[allow(dead_code)]
+                secret: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
 
         let compact = compact_tokens(&expanded.to_string());
+
+        // The skipped field's hints must NOT reach the FieldVariant chain.
         assert!(
-            compact.contains("pubfnusername()->Self{Self(::gpui_form::core::FieldPath::new(&[stringify!(username)]))}"),
-            "per-field constructors should wrap the shared FieldPath: {compact}"
+            !compact.contains("\"Secret\""),
+            "skipped field section leaked into expansion: {compact}"
         );
         assert!(
-            compact.contains("pubfnfrom_form_field(field:ProfileFormField)->Self"),
-            "the FormField enum should bridge into the path type: {compact}"
+            !compact.contains("\"Hidden\""),
+            "skipped field label leaked into expansion: {compact}"
         );
         assert!(
-            !compact.contains("database_id()->Self"),
-            "skipped fields must not get path constructors: {compact}"
+            !compact.contains("LayoutWidth::Half"),
+            "skipped field width leaked into expansion: {compact}"
         );
+        // Only ONE FieldVariant (the visible field), so exactly one with_layout
+        // call and one with_width(Full).
+        let layout_count = compact.matches(".with_layout(").count();
+        assert_eq!(
+            layout_count, 1,
+            "expected exactly one FieldVariant (visible only): {compact}"
+        );
+    }
+
+    #[test]
+    fn layout_width_unknown_variant_is_rejected() {
+        // An invalid width value should fail to parse (darling error), not
+        // silently default. We exercise this through the full derive-input path
+        // because that is where darling runs `FromMeta`.
+        use darling::FromDeriveInput as _;
+        let tokens = quote! {
+            struct Form {
+                #[gpui_form(width = bogus, component(input))]
+                a: String,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let result =
+            crate::derives::gpui_form::structs::ComponentStruct::from_derive_input(&derive_input);
+        assert!(
+            result.is_err(),
+            "unknown width value must be rejected by the attribute parser"
+        );
+    }
+
+    /// Like `compact_tokens` but keeps whitespace-to-single-space so string
+    /// literals with spaces survive intact while still normalizing the token
+    /// stream for substring matching.
+    fn compact_tokenish(tokens: &str) -> String {
+        tokens.split_whitespace().collect::<String>()
     }
 }

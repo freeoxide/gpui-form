@@ -8,13 +8,13 @@ use gpui_form_derive::GpuiForm;
 
 #[derive(GpuiForm)]
 struct Alpha {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     a: String,
 }
 
 #[derive(GpuiForm)]
 struct Beta {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     b: String,
 }
 

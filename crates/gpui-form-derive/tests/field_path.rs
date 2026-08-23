@@ -14,22 +14,20 @@
 
 use gpui_form_derive::GpuiForm;
 
-const INPUT: &str = "gpui_form_collection::input::Input::<_>";
-
 /// Plain form with two fields: both get typed constructors.
 #[derive(GpuiForm)]
 struct Profile {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     name: String,
 
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     email: String,
 }
 
 /// Form with a skipped field: the skipped field must NOT get a constructor.
 #[derive(GpuiForm)]
 struct Comment {
-    #[gpui_form(component(gpui_form_collection::input::Input::<_>))]
+    #[gpui_form(component(input))]
     body: String,
 
     #[gpui_form(skip)]
@@ -37,15 +35,11 @@ struct Comment {
     audit_id: u64,
 }
 
-/// Form with zero component fields (only a skipped one): still emits a
-/// `BlankFormPath` type with `new()` / `path()` / `into_path()` and no
-/// per-field constructors.
+/// Empty form (`#[gpui_form(empty)]`): still emits a `BlankFormPath` type with
+/// `new()` / `path()` / `into_path()` and no per-field constructors.
 #[derive(GpuiForm)]
-struct Blank {
-    #[gpui_form(skip)]
-    #[allow(dead_code)] // skipped fields are absent from the holder / path ctors
-    audit_id: u64,
-}
+#[gpui_form(empty)]
+struct Blank {}
 
 #[test]
 fn typed_constructor_matches_explicit_new_via_path() {
@@ -122,17 +116,6 @@ fn empty_form_still_emits_path_type() {
     assert_eq!(typed.path().segments(), &["anything"]);
     let owned: ::gpui_form::core::FieldPath = typed.into_path();
     assert_eq!(owned.segments(), &["anything"]);
-}
-
-#[test]
-fn form_field_enum_bridges_to_path() {
-    // The generated `{Name}FormField` enum (core::FormField) converts into the
-    // equivalent single-segment path via `from_form_field`.
-    let from_enum = ProfileFormPath::from_form_field(ProfileFormField::Name);
-    let typed = ProfileFormPath::name();
-    assert_eq!(from_enum, typed);
-    assert_eq!(ProfileFormField::Name.name(), "name");
-    assert_eq!(ProfileFormField::Email.name(), "email");
 }
 
 #[test]

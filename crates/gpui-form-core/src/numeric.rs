@@ -185,7 +185,7 @@ mod tests {
             false
         ));
 
-        // Reject invalid patterns.
+        // Should still reject invalid patterns
         assert!(!validate_signed_numeric::<i32>("00", false));
         assert!(!validate_unsigned_numeric::<u32>("00", false));
     }

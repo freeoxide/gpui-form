@@ -1,9 +1,11 @@
-use es_fluent::{EsFluent, FluentLabel, FluentLocalizer, FluentLocalizerExt as _, FluentMessage};
+use es_fluent::{EsFluent, FluentLabel, FluentLocalizer, FluentLocalizerExt, FluentMessage};
 use es_fluent_manager_embedded as i18n_manager;
 
 es_fluent_manager_embedded::define_i18n_module!();
 
 pub use i18n_manager::{EmbeddedI18n, EmbeddedInitError, LocalizationError};
+
+pub type I18n = EmbeddedI18n;
 
 /// Renders a Fluent message through an explicit caller-owned localizer.
 pub fn localize_message<L, T>(localizer: &L, message: &T) -> String
@@ -29,6 +31,14 @@ pub(crate) enum DatePickerText {
     SelectDate,
 }
 
+impl DatePickerText {
+    pub(crate) fn default_text(&self) -> String {
+        match self {
+            Self::SelectDate => "Select date".to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, EsFluent)]
 #[fluent(namespace = "file_picker")]
 pub(crate) enum FilePickerText {
@@ -41,6 +51,25 @@ pub(crate) enum FilePickerText {
     Browse,
     DialogDropped,
     PathsSelected { count: usize },
+}
+
+impl FilePickerText {
+    pub(crate) fn default_text(&self) -> String {
+        match self {
+            Self::SelectAFile => "Select a file".to_string(),
+            Self::SelectADirectory => "Select a directory".to_string(),
+            Self::SelectAFileOrDirectory => "Select a file or directory".to_string(),
+            Self::SelectFile => "Select file".to_string(),
+            Self::SelectDirectory => "Select directory".to_string(),
+            Self::SelectFileOrDirectory => "Select file or directory".to_string(),
+            Self::Browse => "Browse".to_string(),
+            Self::DialogDropped => {
+                "The file picker dialog closed before returning a result.".to_string()
+            }
+            Self::PathsSelected { count: 1 } => "1 path selected".to_string(),
+            Self::PathsSelected { count } => format!("{count} paths selected"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -58,7 +87,7 @@ mod tests {
 
     #[test]
     fn resolves_runtime_component_messages() {
-        let i18n = EmbeddedI18n::try_new_with_language(langid!("en")).unwrap();
+        let i18n = I18n::try_new_with_language(langid!("en")).unwrap();
         assert_eq!(
             i18n.localize_message(&DatePickerText::SelectDate),
             "Select date"

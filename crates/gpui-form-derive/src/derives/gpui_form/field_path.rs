@@ -1,7 +1,7 @@
 //! Generator for the per-form typed path type (`<Name>FormPath`).
 //!
-//! Feature #8 ("Typed field paths and field IDs", FLAT v1) emits a
-//! strongly-typed newtype wrapper around [`#facade_crate::core::FieldPath`] for
+//! Backlog feature #8 ("Typed field paths and field IDs", FLAT v1) emits a
+//! strongly-typed newtype wrapper around [`::gpui_form::core::FieldPath`] for
 //! every `#[derive(GpuiForm)]` form, so validation, dirty tracking, focus,
 //! analytics, and schema export share ONE typed way to name fields instead of
 //! ad-hoc strings.
@@ -10,100 +10,90 @@
 //!
 //! This generator ships **FLAT v1 only**: each constructor names a single
 //! field. Typed nested-path and list-item-path constructors arrive with
-//! features #2 ("Nested forms") and #3 ("Repeated fields"). Hand-built
-//! multi-segment paths via
-//! [`FieldPath::new(&["a", "b"])`](#facade_crate::core::FieldPath::new) work
+//! backlog features #2 ("Nested forms") and #3 ("Repeated fields").
+//! Hand-built multi-segment paths via
+//! [`FieldPath::new(&["a", "b"])`](::gpui_form::core::FieldPath::new) work
 //! today; typed composition of paths is later.
 //!
-//! # Reconciliation with `{Name}FormField`
+//! # Rules
 //!
-//! The derive also emits a `{Name}FormField` enum implementing
-//! `gpui_form::core::FormField`. The two systems are bridged: [`generate`]'s
-//! `from_form_field` converts a field enum variant into the equivalent
-//! single-segment path, so consumers can use the enum for exhaustive matches
-//! and the path for storage/comparison.
+//! - `<Name>FormPath` carries **no generics**, even for generic source
+//!   structs, because a path only names fields — it stores no typed values.
+//! - Skipped fields are EXCLUDED from the constructors (they are absent from
+//!   the value holder too).
+//! - If a form has zero non-skipped fields, the type is still emitted with
+//!   `new()` / `path()` / `into_path()` and no per-field constructors.
+//! - The generated code reaches the shared primitive via the facade path
+//!   `::gpui_form::core::FieldPath`, mirroring how `value_holder.rs` reaches
+//!   `::gpui_form::bon`.
+//! - `FieldPath` is a headless primitive (no GPUI, no serde). It is NOT behind
+//!   a feature flag, so this generator emits NO `#[cfg(...)]` attrs and NO
+//!   serde derives.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use syn::DeriveInput;
 
-use crate::derives::gpui_form::ir::DeriveContext;
+use crate::derives::gpui_form::structs::FieldOptionality;
 
 /// Generates the `<Name>FormPath` newtype plus its impls for a single form.
 ///
-/// `component_field_names` is the same ident list the `{Name}FormField` enum
-/// is generated from (component-backed, non-skipped fields). The path type is
-/// always emitted — even for a form with zero component fields — per the
-/// feature #8 contract.
+/// The returned tokens are spliced into the final derive output next to the
+/// value-holder tokens. They always emit a path type — even for a form with
+/// zero non-skipped fields — per the feature #8 contract.
 pub fn generate_field_path(
-    context: &DeriveContext,
-    component_field_names: &[syn::Ident],
+    original_input: &DeriveInput,
+    fields: &[FieldOptionality],
 ) -> TokenStream {
-    let struct_name = &context.original_ident;
-    let facade_crate = &context.paths.gpui_form;
-    let form_path_ident = format_ident!("{}FormPath", struct_name);
-    let form_field_ident = format_ident!("{}FormField", struct_name);
+    let form_path_ident = format_ident!("{}FormPath", original_input.ident);
 
-    // One freestanding `pub fn <field>() -> Self` constructor per component
-    // field, callable as `<Name>FormPath::<field>()`. `stringify!` yields the
-    // field ident as a `&'static str`, matching the call shape
-    // `FieldPath::new(&[&'static str])`.
-    let constructors: Vec<TokenStream> = component_field_names
+    // One freestanding `pub fn <field>() -> Self` constructor per non-skipped
+    // field. Named identically to the field, callable as
+    // `<Name>FormPath::<field>()`. `stringify!` yields the field ident as a
+    // `&'static str`, matching the call shape `FieldPath::new(&[&'static str])`.
+    let constructors: Vec<TokenStream> = fields
         .iter()
-        .map(|field_name| {
+        .filter(|f| !f.skip)
+        .map(|f| {
+            let field_name = &f.field_name;
             quote! {
                 /// Build a path naming this field.
                 pub fn #field_name() -> Self {
-                    Self(#facade_crate::core::FieldPath::new(&[stringify!(#field_name)]))
+                    Self(::gpui_form::core::FieldPath::new(&[stringify!(#field_name)]))
                 }
             }
         })
         .collect();
 
-    // Bridge to the generated `{Name}FormField` enum (FormField
-    // reconciliation): converts a variant into the equivalent path.
-    let from_form_field = (!component_field_names.is_empty()).then(|| {
-        quote! {
-            /// Build a path from a typed field enum variant.
-            ///
-            /// Bridges the `{Name}FormField` enum (exhaustive matching) to the
-            /// path newtype (storage, comparison, hashing).
-            pub fn from_form_field(field: #form_field_ident) -> Self {
-                Self(#facade_crate::core::FieldPath::new(&[field.name()]))
-            }
-        }
-    });
-
     quote! {
         /// Typed path to a field on this form.
         ///
-        /// Generated by `#[derive(GpuiForm)]` as feature #8 (FLAT v1). Each
-        /// constructor names a single component field. Typed nested and
-        /// list-item paths arrive with features #2 and #3.
+        /// Generated by `#[derive(GpuiForm)]` as backlog feature #8 (FLAT v1).
+        /// Each constructor names a single non-skipped field. Typed nested and
+        /// list-item paths arrive with backlog features #2 and #3.
         #[derive(Clone, Debug, Eq, PartialEq, ::core::hash::Hash)]
-        pub struct #form_path_ident(#facade_crate::core::FieldPath);
+        pub struct #form_path_ident(::gpui_form::core::FieldPath);
 
         impl #form_path_ident {
             /// Build a path from an explicit slice of static segments.
             ///
-            /// Mirrors `FieldPath::new`; useful for hand-built multi-segment
-            /// paths until typed nested/list constructors land with
-            /// features #2/#3.
+            /// Mirrors [`::gpui_form::core::FieldPath::new`]; useful for
+            /// hand-built multi-segment paths until typed nested/list
+            /// constructors land with features #2/#3.
             pub fn new(segments: &[&'static str]) -> Self {
-                Self(#facade_crate::core::FieldPath::new(segments))
+                Self(::gpui_form::core::FieldPath::new(segments))
             }
 
             #(#constructors)*
 
-            #from_form_field
-
-            /// Borrow the underlying shared `FieldPath`.
-            pub fn path(&self) -> &#facade_crate::core::FieldPath {
+            /// Borrow the underlying shared [`::gpui_form::core::FieldPath`].
+            pub fn path(&self) -> &::gpui_form::core::FieldPath {
                 &self.0
             }
 
             /// Consume this typed path and return the underlying shared
-            /// `FieldPath`.
-            pub fn into_path(self) -> #facade_crate::core::FieldPath {
+            /// [`::gpui_form::core::FieldPath`].
+            pub fn into_path(self) -> ::gpui_form::core::FieldPath {
                 self.0
             }
         }
@@ -114,14 +104,14 @@ pub fn generate_field_path(
             }
         }
 
-        impl ::core::convert::AsRef<#facade_crate::core::FieldPath> for #form_path_ident {
-            fn as_ref(&self) -> &#facade_crate::core::FieldPath {
+        impl ::core::convert::AsRef<::gpui_form::core::FieldPath> for #form_path_ident {
+            fn as_ref(&self) -> &::gpui_form::core::FieldPath {
                 &self.0
             }
         }
 
         impl ::core::ops::Deref for #form_path_ident {
-            type Target = #facade_crate::core::FieldPath;
+            type Target = ::gpui_form::core::FieldPath;
             fn deref(&self) -> &Self::Target {
                 &self.0
             }

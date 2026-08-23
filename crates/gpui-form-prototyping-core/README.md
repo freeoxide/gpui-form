@@ -1,28 +1,80 @@
 # gpui-form-prototyping-core
 
-Generate GPUI form scaffolds from concrete `GpuiFormShape` inventory
-registrations.
+Scaffolding utilities built on top of `GpuiFormShape` inventory data.
 
-```toml
-[dependencies]
-gpui-form = { version = "0.6", features = ["inventory"] }
-gpui-form-prototyping-core = "0.6"
-```
+Use this crate when you want to generate GPUI form code from the metadata
+emitted by `#[derive(GpuiForm)]` instead of wiring forms by hand.
 
-Implement `FormLayout` for the target view, then adapt each registered shape:
+Most application code should still start with
+[`gpui-form`](../gpui-form/README.md).
 
-```rust,ignore
+## Quick Example
+
+```rs
 use gpui_form::schema::registry::{GpuiFormShape, inventory};
 use gpui_form_prototyping_core::FormShapeAdapter;
 
 for shape in inventory::iter::<GpuiFormShape>() {
-    FormShapeAdapter::new(shape).generate_file(&layout)?;
+    let parts = FormShapeAdapter::new(shape)
+        .parts()
+        .expect("shape metadata should be valid");
+
+    let _imports = parts.imports;
 }
 ```
 
-`FormShapeAdapter::parts()` exposes validated fragments for custom layouts,
-while `generate_file(...)` renders a complete file. Generators that write into
-another crate can remap source paths before rendering.
+## Main API
 
-See [Prototyping](https://stayhydated.github.io/gpui-form/book/prototyping.html)
-for the complete workflow and failure modes.
+- `FormShapeAdapter::parts()` returns validated identifiers, imports, and form
+  fragments for one shape
+- `FormShapeAdapter::generate_file(&impl FormLayout)` renders a full file with
+  your chosen layout
+- `FormLayout` lets callers define the overall file structure
+- `PrototypingError` reports malformed metadata without panicking
+
+## Example Workflow
+
+The workspace example in [`examples/prototyping`](../../examples/prototyping)
+shows the normal flow:
+
+1. enable `gpui-form`'s `inventory` feature
+1. iterate `inventory::iter::<GpuiFormShape>()`
+1. adapt each shape with `FormShapeAdapter`
+1. render a file through a custom `FormLayout`
+1. clear stale generated modules and write the generated form files
+
+When the layout emits `gpui_storybook::Story`, pass the `cx: &gpui::App`
+provided by `Story::title` into the application i18n helper so generated form
+titles follow the active Storybook locale.
+
+Generated infinite-select and file-picker fields use the same runtime helpers
+that hand-written forms use. Generated text inputs use the form-side
+`FieldVariant::value_type` and parse non-`String` values with `FromStr` instead
+of assuming every text field stores `String`.
+
+The adapter also consumes non-rendering layout hints from
+`FieldVariant::layout` (metadata-first, feature #4). It groups consecutive
+fields by `section` (emitting a section heading via the `field()` builder when
+the section changes, order-preserving), prefers `layout.label` over the
+field-name fallback when generating labels and descriptions in the non-fluent
+path, and surfaces `description` where it already emits help text.
+`placeholder` is reachable through `ResolvedField::layout().placeholder` for
+consumers that own a richer input builder; the v1 generator does not render it
+itself. Layout hints on skipped fields are ignored (no `FieldVariant` is
+emitted for them).
+
+Custom fields remain inert by default. If a field's shape opts into
+`value_binding`, the adapter emits generic seed and subscription hooks through
+`gpui_form::custom::CustomComponentValueAdapter<T>`.
+
+## Feature Flags
+
+- `fluent`: use `es-fluent` keys for generated labels, descriptions, and
+  validation messages through an application helper named
+  `crate::i18n::localize(...)`
+
+## Most Users Should Use Instead
+
+- [`gpui-form`](../gpui-form/README.md) for hand-written forms plus derives
+- [`gpui-form-schema`](../gpui-form-schema/README.md) if you only need the
+  metadata layer
