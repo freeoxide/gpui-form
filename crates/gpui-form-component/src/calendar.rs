@@ -18,6 +18,8 @@ use icu_calendar::{
 use icu_datetime::{FixedCalendarDateTimeFormatter, fieldsets};
 use icu_locale_core::{Locale, locale};
 
+use crate::calendar_navigation::CalendarNavigation;
+
 /// Events emitted by the calendar.
 pub enum CalendarEvent {
     /// The user selected a date.
@@ -61,21 +63,6 @@ impl Date {
         matches!(self, Self::Range(Some(_), Some(_)) | Self::Single(Some(_)))
     }
 
-    fn start(&self) -> Option<NaiveDate> {
-        match self {
-            Self::Single(Some(date)) => Some(*date),
-            Self::Range(Some(start), _) => Some(*start),
-            _ => None,
-        }
-    }
-
-    fn end(&self) -> Option<NaiveDate> {
-        match self {
-            Self::Range(_, Some(end)) => Some(*end),
-            _ => None,
-        }
-    }
-
     fn is_active(&self, v: &NaiveDate) -> bool {
         let v = *v;
         match self {
@@ -84,16 +71,21 @@ impl Date {
         }
     }
 
-    fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
-
     fn is_in_range(&self, v: &NaiveDate) -> bool {
         let v = *v;
         match self {
             Self::Range(Some(start), Some(end)) => v >= *start && v <= *end,
             Self::Range(_, _) => false,
             _ => false,
+        }
+    }
+
+    fn select(self, date: NaiveDate) -> Self {
+        match self {
+            Self::Single(_) => Self::Single(Some(date)),
+            Self::Range(None, None) => Self::Range(Some(date), None),
+            Self::Range(Some(start), None) if date >= start => Self::Range(Some(start), Some(date)),
+            Self::Range(_, _) => Self::Range(Some(date), None),
         }
     }
 }
@@ -134,10 +126,7 @@ pub struct CalendarState {
     focus_handle: FocusHandle,
     view_mode: ViewMode,
     date: Date,
-    current_year: i32,
-    current_month: u8,
-    years: Vec<Vec<i32>>,
-    year_page: i32,
+    navigation: CalendarNavigation,
     today: NaiveDate,
 }
 
@@ -149,13 +138,13 @@ impl CalendarState {
             focus_handle: cx.focus_handle(),
             view_mode: ViewMode::Day,
             date: Date::Single(None),
-            current_month: today.month() as u8,
-            current_year: today.year(),
-            years: vec![],
-            year_page: 0,
+            navigation: CalendarNavigation::new(
+                today.year(),
+                today.month() as u8,
+                (today.year() - 50, today.year() + 50),
+            ),
             today,
         }
-        .year_range((today.year() - 50, today.year() + 50))
     }
 
     /// Set the date of the calendar.
@@ -165,109 +154,52 @@ impl CalendarState {
         self.date = date;
         match self.date {
             Date::Single(Some(date)) => {
-                self.current_month = date.month() as u8;
-                self.current_year = date.year();
-            }
+                self.navigation
+                    .set_position(date.year(), date.month() as u8);
+            },
             Date::Range(Some(start), _) => {
-                self.current_month = start.month() as u8;
-                self.current_year = start.year();
-            }
-            _ => {}
+                self.navigation
+                    .set_position(start.year(), start.month() as u8);
+            },
+            _ => {},
         }
 
         cx.notify()
     }
 
-    /// Get the date of the calendar.
-    pub fn date(&self) -> Date {
-        self.date
-    }
-
-    /// Set the year range of the calendar, default is 50 years before and after the current year.
-    pub fn year_range(mut self, range: (i32, i32)) -> Self {
-        self.apply_year_range(range);
-        self
-    }
-
-    fn apply_year_range(&mut self, range: (i32, i32)) {
-        self.years = (range.0..range.1)
-            .collect::<Vec<_>>()
-            .chunks(20)
-            .map(|chunk| chunk.to_vec())
-            .collect::<Vec<_>>();
-        self.year_page = self
-            .years
-            .iter()
-            .position(|years| years.contains(&self.current_year))
-            .unwrap_or(0) as i32;
-    }
-
     fn offset_year_month(&self, offset_month: usize) -> (i32, u32) {
-        let mut month = self.current_month as i32 + offset_month as i32;
-        let mut year = self.current_year;
-        while month < 1 {
-            month += 12;
-            year -= 1;
-        }
-        while month > 12 {
-            month -= 12;
-            year += 1;
-        }
-
-        (year, month as u32)
+        self.navigation.offset_year_month(offset_month)
     }
 
     fn has_prev_year_page(&self) -> bool {
-        self.year_page > 0
+        self.navigation.has_previous_year_page()
     }
 
     fn has_next_year_page(&self) -> bool {
-        self.year_page < self.years.len() as i32 - 1
+        self.navigation.has_next_year_page()
     }
 
     fn prev_year_page(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.has_prev_year_page() {
+        if !self.navigation.previous_year_page() {
             return;
         }
-
-        self.year_page -= 1;
         cx.notify()
     }
 
     fn next_year_page(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.has_next_year_page() {
+        if !self.navigation.next_year_page() {
             return;
         }
-
-        self.year_page += 1;
         cx.notify()
     }
 
     fn prev_month(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.current_month = if self.current_month == 1 {
-            12
-        } else {
-            self.current_month - 1
-        };
-        self.current_year = if self.current_month == 12 {
-            self.current_year - 1
-        } else {
-            self.current_year
-        };
+        self.navigation.previous_month();
         cx.notify()
     }
 
     fn next_month(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.current_month = if self.current_month == 12 {
-            1
-        } else {
-            self.current_month + 1
-        };
-        self.current_year = if self.current_month == 1 {
-            self.current_year + 1
-        } else {
-            self.current_year
-        };
+        self.navigation.next_month();
         cx.notify()
     }
 
@@ -355,32 +287,10 @@ impl Calendar {
             this.on_click(window.listener_for(
                 &self.state,
                 move |view, _: &ClickEvent, window, cx| {
-                    if view.date.is_single() {
-                        view.set_date(date, window, cx);
-                        cx.emit(CalendarEvent::Selected(view.date()));
-                    } else {
-                        let start = view.date.start();
-                        let end = view.date.end();
-
-                        if start.is_none() && end.is_none() {
-                            view.set_date(Date::Range(Some(date), None), window, cx);
-                        } else if start.is_some() && end.is_none() {
-                            if date < start.unwrap() {
-                                view.set_date(Date::Range(Some(date), None), window, cx);
-                            } else {
-                                view.set_date(
-                                    Date::Range(Some(start.unwrap()), Some(date)),
-                                    window,
-                                    cx,
-                                );
-                            }
-                        } else {
-                            view.set_date(Date::Range(Some(date), None), window, cx);
-                        }
-
-                        if view.date.is_complete() {
-                            cx.emit(CalendarEvent::Selected(view.date()));
-                        }
+                    let selection = view.date.select(date);
+                    view.set_date(selection, window, cx);
+                    if selection.is_complete() {
+                        cx.emit(CalendarEvent::Selected(selection));
                     }
                 },
             ))
@@ -389,7 +299,7 @@ impl Calendar {
 
     fn render_header(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
-        let current_year = state.current_year;
+        let current_year = state.navigation.current_year();
         let view_mode = state.view_mode;
         let disabled = view_mode.is_month();
         let multiple_months = self.number_of_months > 1;
@@ -604,7 +514,7 @@ impl Calendar {
     fn render_months(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
         let months = month_names(&self.display_locale);
-        let current_month = state.current_month;
+        let current_month = state.navigation.current_month();
 
         h_flex()
             .mt_3()
@@ -630,7 +540,7 @@ impl Calendar {
                             .on_click(window.listener_for(
                                 &self.state,
                                 move |view, _, window, cx| {
-                                    view.current_month = (ix + 1) as u8;
+                                    view.navigation.set_month((ix + 1) as u8);
                                     view.set_view_mode(ViewMode::Day, window, cx);
                                     cx.notify();
                                 },
@@ -642,8 +552,8 @@ impl Calendar {
 
     fn render_years(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
-        let current_year = state.current_year;
-        let current_page_years = &self.state.read(cx).years[state.year_page as usize].clone();
+        let current_year = state.navigation.current_year();
+        let current_page_years = state.navigation.current_page_years().to_vec();
 
         h_flex()
             .id("years")
@@ -677,7 +587,7 @@ impl Calendar {
                         .on_click(window.listener_for(
                             &self.state,
                             move |view, _, window, cx| {
-                                view.current_year = year;
+                                view.navigation.set_year(year);
                                 view.set_view_mode(ViewMode::Day, window, cx);
                                 cx.notify();
                             },
@@ -735,7 +645,9 @@ impl RenderOnce for Calendar {
 fn first_weekday(locale: &Locale) -> Weekday {
     WeekInformation::try_new(WeekPreferences::from(locale))
         .map(|info| info.first_weekday)
-        .unwrap_or(Weekday::Sunday)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve week information for locale `{locale}`: {error:?}")
+        })
 }
 
 fn days_in_month(year: i32, month: u32, first_weekday: Weekday) -> Vec<Vec<NaiveDate>> {
@@ -773,16 +685,15 @@ fn weekday_names(locale: &Locale) -> Vec<SharedString> {
         locale.clone().into(),
         fieldsets::E::short(),
     )
-    .ok();
+    .unwrap_or_else(|error| {
+        panic!("failed to create weekday formatter for locale `{locale}`: {error:?}")
+    });
     let first_weekday = first_weekday(locale);
 
     (0..7)
         .map(|offset| {
             let weekday = add_weekdays(first_weekday, offset);
-            formatter
-                .as_ref()
-                .map(|formatter| formatter.format(&weekday).to_string().into())
-                .unwrap_or_else(|| fallback_weekday_name(weekday))
+            formatter.format(&weekday).to_string().into()
         })
         .collect()
 }
@@ -794,50 +705,50 @@ fn month_names(locale: &Locale) -> Vec<SharedString> {
 }
 
 fn format_month_name(year: i32, month: u32, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
+    let formatter = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
         locale.clone().into(),
         fieldsets::M::long(),
     )
-    .ok()
-    .and_then(|formatter| {
-        let month = u8::try_from(month).ok()?;
-        let icu_date = IcuDate::try_new_gregorian(year, month, 1).ok()?;
-        Some(formatter.format(&icu_date).to_string())
+    .unwrap_or_else(|error| {
+        panic!("failed to create month formatter for locale `{locale}`: {error:?}")
     });
+    let month = u8::try_from(month)
+        .unwrap_or_else(|error| panic!("calendar month `{month}` is out of range: {error}"));
+    let icu_date = IcuDate::try_new_gregorian(year, month, 1)
+        .unwrap_or_else(|error| panic!("invalid Gregorian month `{year}-{month:02}`: {error:?}"));
 
-    formatted
-        .unwrap_or_else(|| fallback_month_name(month).to_string())
-        .into()
+    formatter.format(&icu_date).to_string().into()
 }
 
 fn format_year_name(year: i32, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
+    let formatter = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
         locale.clone().into(),
         fieldsets::Y::medium(),
     )
-    .ok()
-    .and_then(|formatter| {
-        let icu_date = IcuDate::try_new_gregorian(year, 1, 1).ok()?;
-        Some(formatter.format(&icu_date).to_string())
+    .unwrap_or_else(|error| {
+        panic!("failed to create year formatter for locale `{locale}`: {error:?}")
     });
+    let icu_date = IcuDate::try_new_gregorian(year, 1, 1)
+        .unwrap_or_else(|error| panic!("invalid Gregorian year `{year}`: {error:?}"));
 
-    formatted.unwrap_or_else(|| year.to_string()).into()
+    formatter.format(&icu_date).to_string().into()
 }
 
 fn format_day_name(date: &NaiveDate, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
+    let formatter = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
         locale.clone().into(),
         fieldsets::D::short(),
     )
-    .ok()
-    .and_then(|formatter| {
-        let month = u8::try_from(date.month()).ok()?;
-        let day = u8::try_from(date.day()).ok()?;
-        let icu_date = IcuDate::try_new_gregorian(date.year(), month, day).ok()?;
-        Some(formatter.format(&icu_date).to_string())
+    .unwrap_or_else(|error| {
+        panic!("failed to create day formatter for locale `{locale}`: {error:?}")
+    });
+    let month = u8::try_from(date.month()).expect("chrono months fit ICU month values");
+    let day = u8::try_from(date.day()).expect("chrono days fit ICU day values");
+    let icu_date = IcuDate::try_new_gregorian(date.year(), month, day).unwrap_or_else(|error| {
+        panic!("invalid Gregorian date `{date}` for ICU formatting: {error:?}")
     });
 
-    formatted.unwrap_or_else(|| date.day().to_string()).into()
+    formatter.format(&icu_date).to_string().into()
 }
 
 fn add_weekdays(weekday: Weekday, offset: u8) -> Weekday {
@@ -856,44 +767,101 @@ fn days_since_sunday(weekday: Weekday) -> u8 {
     }
 }
 
-fn fallback_weekday_name(weekday: Weekday) -> SharedString {
-    match weekday {
-        Weekday::Sunday => "Sun",
-        Weekday::Monday => "Mon",
-        Weekday::Tuesday => "Tue",
-        Weekday::Wednesday => "Wed",
-        Weekday::Thursday => "Thu",
-        Weekday::Friday => "Fri",
-        Weekday::Saturday => "Sat",
-    }
-    .into()
-}
-
-fn fallback_month_name(month: u32) -> &'static str {
-    match month {
-        1 => "January",
-        2 => "February",
-        3 => "March",
-        4 => "April",
-        5 => "May",
-        6 => "June",
-        7 => "July",
-        8 => "August",
-        9 => "September",
-        10 => "October",
-        11 => "November",
-        12 => "December",
-        _ => "",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
     use icu_calendar::types::Weekday;
     use icu_locale_core::locale;
 
-    use super::{days_in_month, first_weekday, format_month_name, weekday_names};
+    use super::{
+        Date, ViewMode, add_weekdays, days_in_month, days_since_sunday, first_weekday,
+        format_day_name, format_month_name, format_year_name, month_names, weekday_names,
+    };
+
+    #[test]
+    fn date_modes_report_completion_ranges_and_display_values() {
+        let before = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap();
+        let start = NaiveDate::from_ymd_opt(2025, 1, 10).unwrap();
+        let end = NaiveDate::from_ymd_opt(2025, 1, 20).unwrap();
+
+        let single = Date::from(start);
+        assert!(single.is_complete());
+        assert!(single.is_active(&start));
+        assert!(!single.is_in_range(&start));
+        assert_eq!(single.to_string(), "2025-01-10");
+        assert_eq!(Date::Single(None).to_string(), "nil");
+
+        let range = Date::from((start, end));
+        assert!(range.is_complete());
+        assert!(range.is_active(&end));
+        assert!(range.is_in_range(&NaiveDate::from_ymd_opt(2025, 1, 15).unwrap()));
+        assert_eq!(range.to_string(), "2025-01-10 - 2025-01-20");
+        assert_eq!(Date::Range(None, None).to_string(), "nil");
+        assert_eq!(
+            Date::Range(Some(start), None).to_string(),
+            "2025-01-10 - nil"
+        );
+        assert_eq!(Date::Range(None, Some(end)).to_string(), "nil - 2025-01-20");
+        assert!(!Date::Range(Some(start), None).is_complete());
+        assert!(!Date::Range(Some(start), None).is_in_range(&start));
+
+        assert_eq!(Date::Single(None).select(start), Date::Single(Some(start)));
+        assert_eq!(
+            Date::Range(None, None).select(start),
+            Date::Range(Some(start), None)
+        );
+        assert_eq!(
+            Date::Range(Some(start), None).select(end),
+            Date::Range(Some(start), Some(end))
+        );
+        assert_eq!(
+            Date::Range(Some(start), None).select(before),
+            Date::Range(Some(before), None)
+        );
+        assert_eq!(
+            Date::Range(Some(start), Some(end)).select(before),
+            Date::Range(Some(before), None)
+        );
+    }
+
+    #[test]
+    fn calendar_view_modes_and_icu_names_cover_all_variants() {
+        assert!(ViewMode::Day.is_day());
+        assert!(ViewMode::Month.is_month());
+        assert!(ViewMode::Year.is_year());
+        assert!(!ViewMode::Day.is_month());
+
+        let weekdays = [
+            Weekday::Sunday,
+            Weekday::Monday,
+            Weekday::Tuesday,
+            Weekday::Wednesday,
+            Weekday::Thursday,
+            Weekday::Friday,
+            Weekday::Saturday,
+        ];
+        let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        let localized_names = weekday_names(&locale!("en-US"));
+        for (index, weekday) in weekdays.into_iter().enumerate() {
+            assert_eq!(days_since_sunday(weekday), index as u8);
+            assert_eq!(localized_names[index].as_ref(), names[index]);
+            assert_eq!(add_weekdays(Weekday::Sunday, index as u8), weekday);
+        }
+
+        let months = month_names(&locale!("en-US"));
+        assert_eq!(months.len(), 12);
+        assert_eq!(months[0].as_ref(), "January");
+        assert_eq!(months[11].as_ref(), "December");
+        assert_eq!(format_year_name(2025, &locale!("en-US")).as_ref(), "2025");
+        assert_eq!(
+            format_day_name(
+                &NaiveDate::from_ymd_opt(2025, 1, 9).unwrap(),
+                &locale!("en-US")
+            )
+            .as_ref(),
+            "9"
+        );
+    }
 
     #[test]
     fn formats_month_names_with_icu4x() {

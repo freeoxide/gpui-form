@@ -1,62 +1,20 @@
 # gpui-form-schema
 
-Shared schema and inventory metadata for the `gpui-form` ecosystem.
+Schema and inventory metadata for the `gpui-form` ecosystem.
 
-Most applications should use [`gpui-form`](../gpui-form/README.md) instead.
-Use this crate directly when you are building tooling, runtime integrations, or
-prototyping flows around generated form metadata.
+Most applications access this crate through `gpui_form::schema`. Depend on it
+directly when building metadata consumers, generators, or runtime integrations
+without the full facade.
 
-## What It Provides
+Key entry points are:
 
-- `components::ComponentKind`
-- `components::ComponentsBehaviour`
-- `components::SelectBehaviour`
-- `components::InfiniteSelectBehaviour`
-- `components::NumberInputBehaviour`
-- `layout::FieldLayout`
-- `layout::LayoutWidth`
-- `registry::GpuiFormShape`
-- `registry::FieldVariant`
-- `registry::inventory`
+- `registry::GpuiFormShape` and `registry::inventory` for registered form
+  metadata
+- `registry::FieldVariant` and component/value metadata types
+- `resolved::ResolvedGpuiFormShape` and `resolved::ResolvedField` for validated,
+  parsed generator input
 
-`FieldVariant` records both source-model and form-side value types, generated
-value-holder wrapping, conversion expressions, custom component shape paths,
-opt-in custom value-binding metadata, and a `FieldLayout` carrying non-rendering
-layout hints (`section`, `label`, `description`, `placeholder`, `width`) for
-generators. `FieldLayout` is metadata-first: it describes intent and leaves
-rendering to the consumer. All string hints are `&'static str` and both
-`FieldLayout` and `LayoutWidth` are `const`-constructible so the derive can
-build them inside `inventory::submit!` blocks.
-
-## Example
-
-```rs
-use gpui_form_schema::registry::{GpuiFormShape, inventory};
-
-for shape in inventory::iter::<GpuiFormShape>() {
-    println!("form: {}", shape.struct_name);
-
-    for field in shape.components {
-        println!("  {} -> {}", field.field_name, field.behaviour.component_name());
-
-        // Layout hints are metadata-only; consumers decide how to render them.
-        if !field.layout.is_empty() {
-            println!("    section: {:?}", field.layout.section);
-            println!("    label:   {:?}", field.layout.label);
-            println!("    width:   {}", field.layout.width);
-        }
-    }
-}
-```
-
-## When To Use This Crate Directly
-
-- You are writing a generator that consumes `GpuiFormShape`
-- You need runtime metadata about supported component behavior
-- You want inventory access without depending on the facade crate
-
-## Most Users Should Use Instead
-
-- [`gpui-form`](../gpui-form/README.md) for normal application development
-- [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for
-  scaffold generation over this metadata
+Prefer the resolved types when generating Rust code. See
+[Prototyping](https://stayhydated.github.io/gpui-form/book/prototyping.html) for
+the user workflow and [docs.rs](https://docs.rs/gpui-form-schema/) for the full
+metadata contract.

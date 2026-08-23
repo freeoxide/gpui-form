@@ -11,12 +11,13 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
-[lints]
-workspace = true
+[dependencies]
+component-shape = { workspace = true }
+phonenumber = { optional = true, workspace = true }
 
 [features]
 default = []
 phone = [ "dep:phonenumber" ]
 
-[dependencies]
-phonenumber = { optional = true, workspace = true }
+[lints]
+workspace = true

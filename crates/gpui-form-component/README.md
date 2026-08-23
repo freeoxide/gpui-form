@@ -1,236 +1,36 @@
 # gpui-form-component
 
-GPUI-facing runtime helpers for the `gpui-form` ecosystem.
+Reusable GPUI runtime components and form shapes that complement
+`gpui-form-collection`.
 
-Most applications should use [`gpui-form`](../gpui-form/README.md), which
-re-exports this crate as `gpui_form::runtime`. Depend on this crate directly
-when you want the runtime implementation layer without the facade.
-
-## What It Provides
-
-- `infinite_select`: runtime traits and helpers for cascading enum selects
-- `date_picker`: localized runtime state and element wrapper for calendar date input
-- `file_picker`: native GPUI path selection rendered with `gpui-component` controls
-- `custom`: the runtime contract for user-defined component state
-
-## Infinite Select
-
-Most applications derive `gpui_form::InfiniteSelect` through the facade and use
-the runtime types from `gpui_form::runtime` or
-`gpui_form::infinite_select`. This crate owns the runtime trait and state
-helpers those derives target.
-
-If you want the derive without the full facade, either enable this crate's
-`derive` feature or pair it with
-[`gpui-form-component-derive`](../gpui-form-component-derive/README.md). The
-proc macro resolves either `gpui-form` or `gpui-form-component`
-automatically, so direct users do not need a dependency rename.
-
-```rs
-use gpui_form_component::InfiniteSelect;
-use gpui_form_component::infinite_select::{InfiniteSelectPath, build_from_path};
-
-#[derive(Clone, Debug, Default, InfiniteSelect, PartialEq)]
-pub enum Country {
-    #[default]
-    USA(USAState),
-    Canada(CanadaProvince),
-    UK,
-}
+```toml
+[dependencies]
+gpui-form-component = { version = "0.6", features = ["component-shape", "derive"] }
 ```
 
-Useful runtime types:
+## Modules
 
-- `InfiniteSelect`
-- `InfiniteSelectItem<T>`
-- `InfiniteSelectPath`
-- `InfiniteSelectKeyPath`
-- `InfiniteSelectKeyPathParseError`
-- `InfiniteSelectPathError`
-- `InfiniteSelectState<T>`
-- `SearchableInfiniteSelectState<T>`
-- `InfiniteSelectEvent<T>`
-- `InfiniteSelectLevel<D>`
-- `InfiniteSelectSnapshot<T, D>`
-- `InfiniteSelectStateOptions`
-- `to_select_items::<T>()`
-- `path_from_value(&value)`
-- `key_path_from_value(&value)`
-- `build_from_path`
-- `build_from_key_path`
+| Module | Purpose |
+|---|---|
+| `infinite_select` | Cascading selects over nested enum trees |
+| `date_picker` | Localized single-date and date-range pickers |
+| `file_picker` | Native file and directory selection |
 
-Manual forms can subscribe to one runtime entity instead of rebuilding nested
-child selects themselves:
+The `derive` feature re-exports `#[derive(InfiniteSelect)]`. The
+`component-shape` feature makes `InfiniteSelect<T>`, `DatePicker`,
+`DateRangePicker`, and `FilePicker` available directly in
+`#[gpui_form(component(...))]`.
 
-```rs
-use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
-
-let location = cx.new(|cx| {
-    InfiniteSelectState::new(Country::default(), window, cx)
-});
-
-cx.subscribe_in(
-    &location,
-    window,
-    |_, _, event: &InfiniteSelectEvent<Country>, _, _| {
-        let _value = event.value();
-        let _path = event.path();
-        let _key_path = event.key_path();
-        let _previous_key_path = event.previous_key_path();
-        let _changed_depth = event.changed_depth();
-    },
-);
+```rust
+#[gpui_form(component(
+    gpui_form_component::infinite_select::InfiniteSelect::<_>.searchable(true)
+))]
+pub location: Location;
 ```
 
-Rendering code can iterate render-ready form fields directly:
+Initialize the application `gpui-es-fluent` resources before using localized
+date, file, or annotated infinite-select text.
 
-```rs
-for field in location.read(cx).form_fields() {
-    let _ = field;
-}
-```
-
-Derived `InfiniteSelect` enums expose:
-
-- `PartialEq` compatibility with the backing `gpui-component` select value
-  comparison
-- `variant_label()` for user-facing option titles
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` to emit
-  `es-fluent` metadata for application-owned localizers; runtime labels use
-  plain fallback names because the runtime trait contract is localizer-free
-- `variant_key()` plus `selection_key_path()` for order-independent paths
-- `#[tuple_enum(key = "...")]` when persisted keys should not mirror variant names
-- `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
-- `InfiniteSelectKeyPath` implements `Display`, `FromStr`, and serde string serialization
-- `set_selected_index_at_depth(...)` / `set_selected_key_at_depth(...)` for incremental updates
-- `build_from_path(...)`, `build_from_key_path(...)`, `set_path(...)`, and
-  `set_key_path(...)` return `InfiniteSelectPathError` instead of failing
-  silently
-
-## Date Picker
-
-This crate provides the localized runtime date-picker used by generated
-`component(date_picker)` fields.
-Its default empty placeholder is plain English fallback copy. Pass
-`DatePicker::placeholder(...)` with text rendered through your application-owned
-`es-fluent` localizer when a form needs localized or custom copy.
-
-```rs
-use gpui_form::runtime::date_picker::{
-    DateDisplayStyle,
-    DatePicker,
-    DatePickerEvent,
-    DatePickerState,
-    DateRangePicker,
-    DateRangePickerEvent,
-    DateRangePickerState,
-};
-```
-
-Generated forms store `Entity<DatePickerState>`, render `DatePicker`, and
-convert emitted `DatePickerEvent::Change` values with `parse_form_date`.
-The selected-date label and embedded calendar popover share the same display
-locale: ICU4X formats month names, weekday headers, day/year labels, and the
-locale-specific first day of the week.
-Manual forms can use `DateRangePickerState`, `DateRangePicker`, and
-`DateRangePickerEvent` when they need range selection over the same localized
-calendar popover. Generated `component(date_picker)` fields remain single-date
-fields.
-Most application code should still go through
-[`gpui-form`](../gpui-form/README.md) instead of depending on this crate
-directly.
-
-## File Picker
-
-This crate provides a native path picker backed by the pinned GPUI git API,
-not a separate dialog crate.
-Generated forms can use the same runtime with
-`#[gpui_form(component(file_picker))]`.
-The built-in placeholders, native-dialog prompts, browse label, dropped-dialog
-error, and selected-count text have plain English fallback copy. Explicit
-builder values such as `placeholder(...)`, `prompt(...)`, and
-`browse_label(...)` remain caller-provided text; render localized strings through
-your application-owned `es-fluent` localizer before passing them in.
-
-```rs
-use gpui_form::runtime::file_picker::{
-    FilePicker,
-    FilePickerEvent,
-    FilePickerState,
-};
-
-let picker = cx.new(|cx| FilePickerState::new(window, cx));
-
-cx.subscribe_in(&picker, window, |_, _, event: &FilePickerEvent, _, _| {
-    if let FilePickerEvent::Change(paths) = event {
-        let _paths = paths;
-    }
-});
-
-FilePicker::new(&picker)
-    .placeholder("Choose a file")
-    .prompt("Choose a file")
-    .cleanable(true);
-```
-
-Use `FilePicker::directories()` or `FilePicker::files_or_directories()` when
-the dialog should select directories instead of files. Multiple selection is
-available through `FilePicker::multiple(true)`.
-
-## Component Stories
-
-This crate is library-only. The interactive infinite-select, date-picker, and
-file-picker storybook gallery lives in
-[`gpui-form-component-story`](../gpui-form-component-story/README.md), which
-owns the demo UI, launcher binary, and any story-only demo metadata.
-
-Launch the component gallery with:
-
-```sh
-cargo run -p gpui-form-component-story
-```
-
-## Custom Components
-
-`custom::CustomComponentShape` is the contract used by
-`component(custom(...))`.
-
-You can declare a reusable shape with the helper macro:
-
-```rs
-gpui_form::custom_component_shape!(
-    pub EmailInputShape,
-    state = gpui_component::input::InputState,
-    new = gpui_component::input::InputState::new,
-    component = gpui_component::input::Input,
-);
-```
-
-Or, through the facade derive, implement the same contract directly on a state
-type:
-
-```rs
-#[derive(gpui_form::CustomComponentState)]
-#[gpui_form_custom(
-    new = crate::state::build,
-    component = crate::ui::TagsInput
-)]
-pub struct TagsState;
-```
-
-For custom components that should participate in generated prototyping
-subscriptions, implement `custom::CustomComponentValueAdapter<T>` for the same
-shape and add `value_binding` to the `component(custom(...))` options. The
-adapter seeds state from the current form value and maps component events to
-`CustomComponentValueChange<T>`.
-
-## Most Users Should Use Instead
-
-- [`gpui-form`](../gpui-form/README.md) for the public facade
-- [`gpui-form-component-derive`](../gpui-form-component-derive/README.md) when
-  you want only the `InfiniteSelect` derive plus this runtime layer
-- [`gpui-component`](https://github.com/longbridge/gpui-component) for the
-  upstream date-picker widget and other base components
-- [`gpui-form-schema`](../gpui-form-schema/README.md) for metadata and inventory
-- [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for
-  scaffold generation
+See [Component shapes](https://stayhydated.github.io/gpui-form/book/component_shapes.html)
+for form integration. The runtime APIs are documented on
+[docs.rs](https://docs.rs/gpui-form-component/).
