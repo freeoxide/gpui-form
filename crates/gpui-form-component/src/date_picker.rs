@@ -97,8 +97,8 @@ impl DatePickerState {
                 CalendarEvent::Selected(CalendarDate::Single(date)) => {
                     this.update_date(date.and_then(jiff_date_from_chrono), true, window, cx);
                     this.focus_handle.focus(window, cx);
-                }
-                CalendarEvent::Selected(CalendarDate::Range(_, _)) => {}
+                },
+                CalendarEvent::Selected(CalendarDate::Range(_, _)) => {},
             },
         )];
 
@@ -213,8 +213,8 @@ impl DateRangePickerState {
                         cx,
                     );
                     this.focus_handle.focus(window, cx);
-                }
-                CalendarEvent::Selected(CalendarDate::Single(_)) => {}
+                },
+                CalendarEvent::Selected(CalendarDate::Single(_)) => {},
             },
         )];
 

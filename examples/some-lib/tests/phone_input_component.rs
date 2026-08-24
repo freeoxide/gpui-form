@@ -80,6 +80,12 @@ fn phone_holder_converts_back_to_source() {
 /// component participates in the standard generated surface.
 #[test]
 fn phone_fields_have_typed_paths() {
-    assert_eq!(PhoneSignupFormPath::mobile_number().to_string(), "mobile_number");
-    assert_eq!(PhoneSignupFormPath::local_number().to_string(), "local_number");
+    assert_eq!(
+        PhoneSignupFormPath::mobile_number().to_string(),
+        "mobile_number"
+    );
+    assert_eq!(
+        PhoneSignupFormPath::local_number().to_string(),
+        "local_number"
+    );
 }

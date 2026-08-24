@@ -553,9 +553,13 @@ mod tests {
     #[cfg(not(feature = "fluent"))]
     fn label_uses_layout_label_when_present() {
         const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Enable experiments"));
-        const FIELDS: [FieldVariant; 1] =
-            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
-                .with_layout(LAYOUT)];
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )
+        .with_layout(LAYOUT)];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
@@ -575,9 +579,12 @@ mod tests {
     #[cfg(not(feature = "fluent"))]
     fn label_falls_back_to_field_name_title_case_when_absent() {
         // Empty layout (no label) — defaults via FieldLayout::new().
-        const FIELDS: [FieldVariant; 1] = [
-            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
-        ];
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
@@ -594,9 +601,13 @@ mod tests {
     fn description_uses_layout_description_when_present() {
         const LAYOUT: FieldLayout =
             FieldLayout::new().with_description(Some("Toggles unreleased features"));
-        const FIELDS: [FieldVariant; 1] =
-            [FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch)
-                .with_layout(LAYOUT)];
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )
+        .with_layout(LAYOUT)];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
@@ -615,9 +626,12 @@ mod tests {
     #[test]
     #[cfg(not(feature = "fluent"))]
     fn description_falls_back_to_field_name_title_case_when_absent() {
-        const FIELDS: [FieldVariant; 1] = [
-            FieldVariant::new("enable_experimental", "bool", false, ComponentsBehaviour::Switch),
-        ];
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
@@ -637,8 +651,10 @@ mod tests {
             .with_label(Some("Username"))
             .with_width(LayoutWidth::Half);
         const FIELDS: [FieldVariant; 1] =
-            [FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
-                .with_layout(LAYOUT)];
+            [
+                FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
+                    .with_layout(LAYOUT),
+            ];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 
         let _ = SHAPE;

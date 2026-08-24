@@ -12,12 +12,17 @@ repository.workspace = true
 readme = "README.md"
 keywords = [ "gpui", "gpui-component", "form" ]
 
+# serde is behind the optional `serde` feature — cargo-machete cannot see
+# feature-gated deps, hence the ignore below.
+[package.metadata.cargo-machete]
+ignored = ["serde"]
+
 [features]
 default = [ "derive" ]
 derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
-serde = [ "dep:serde", "gpui-form-derive?/serde" ]
 phone = [ "gpui-form-core/phone" ]
+serde = [ "dep:serde", "gpui-form-derive?/serde" ]
 
 [dependencies]
 bon = { workspace = true }

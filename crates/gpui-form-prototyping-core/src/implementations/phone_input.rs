@@ -97,7 +97,9 @@ mod tests {
             "phone_number",
             "String",
             true,
-            ComponentsBehaviour::PhoneInput(PhoneInputBehaviour { country_field: None }),
+            ComponentsBehaviour::PhoneInput(PhoneInputBehaviour {
+                country_field: None,
+            }),
         )];
         const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
 

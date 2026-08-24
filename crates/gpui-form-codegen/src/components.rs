@@ -224,12 +224,12 @@ impl CustomOptions {
                 return Err(DarlingError::custom(
                     "custom component may specify only one of `shape` or `state`",
                 ));
-            }
+            },
             (None, None) => {
                 return Err(DarlingError::custom(
                     "custom component requires `shape = ...` or `state = ...`",
                 ));
-            }
+            },
         };
 
         Ok(Self {
@@ -370,16 +370,16 @@ fn number_input_behaviour_tokens(
     let kind_tokens = match number_input_kind(&type_str) {
         NumberInputKind::Float => {
             quote! { ::gpui_form::schema::components::NumberInputKind::Float }
-        }
+        },
         NumberInputKind::SignedInteger => {
             quote! { ::gpui_form::schema::components::NumberInputKind::SignedInteger }
-        }
+        },
         NumberInputKind::UnsignedInteger => {
             quote! { ::gpui_form::schema::components::NumberInputKind::UnsignedInteger }
-        }
+        },
         NumberInputKind::Custom => {
             quote! { ::gpui_form::schema::components::NumberInputKind::Custom }
-        }
+        },
     };
     let validation_type = options.r#as.as_ref().map(|value| value.to_string());
     let validation_type = match validation_type {
@@ -435,7 +435,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::NumberInput(options) => {
                 let component = NumberInputComponent(FieldInformation::new(
                     options.clone(),
@@ -446,7 +446,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::PhoneInput(options) => {
                 let component = PhoneInputComponent(FieldInformation::new(
                     options.clone(),
@@ -457,7 +457,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::Checkbox => {
                 let component = CheckboxComponent(FieldInformation::new(
                     CheckboxOptions,
@@ -468,7 +468,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::Switch => {
                 let component =
                     SwitchComponent(FieldInformation::new(SwitchOptions, field_name, field_type));
@@ -476,7 +476,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::Select(options) => {
                 let component = SelectComponent(FieldInformation::new(
                     options.clone().with_field_default(field_default),
@@ -487,7 +487,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::InfiniteSelect(options) => {
                 let component = InfiniteSelectComponent(FieldInformation::new(
                     options.clone().with_field_default(field_default),
@@ -498,7 +498,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::Custom(options) => {
                 let component = CustomComponent(FieldInformation::new(
                     options.clone(),
@@ -509,7 +509,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::DatePicker => {
                 let component = DatePickerComponent(FieldInformation::new(
                     DatePickerOptions,
@@ -520,7 +520,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
             Self::FilePicker => {
                 let component = FilePickerComponent(FieldInformation::new(
                     FilePickerOptions,
@@ -531,7 +531,7 @@ impl Components {
                     &mut field_structure_tokens,
                     &mut field_base_declarations_tokens,
                 );
-            }
+            },
         }
 
         GeneratedFieldLayout {
@@ -545,7 +545,7 @@ impl Components {
         match self {
             Self::Input => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::Input }
-            }
+            },
             Self::NumberInput(options) => {
                 let behaviour = number_input_behaviour_tokens(options, field_type);
 
@@ -554,13 +554,13 @@ impl Components {
                         #behaviour
                     )
                 }
-            }
+            },
             Self::PhoneInput(options) => {
                 let country_field = match options.country.as_ref() {
                     Some(ident) => {
                         let name = ident.to_string();
                         quote! { Some(#name) }
-                    }
+                    },
                     None => quote! { None },
                 };
                 quote! {
@@ -570,13 +570,13 @@ impl Components {
                         }
                     )
                 }
-            }
+            },
             Self::Checkbox => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::Checkbox }
-            }
+            },
             Self::Switch => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::Switch }
-            }
+            },
             Self::Select(options) => {
                 let searchable = options.behaviour.searchable;
                 let partial = options.behaviour.partial;
@@ -588,7 +588,7 @@ impl Components {
                         }
                     )
                 }
-            }
+            },
             Self::InfiniteSelect(options) => {
                 let searchable = options.behaviour.searchable;
                 let max_depth = match options.behaviour.max_depth {
@@ -603,16 +603,16 @@ impl Components {
                         }
                     )
                 }
-            }
+            },
             Self::Custom(_) => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::Custom }
-            }
+            },
             Self::DatePicker => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::DatePicker }
-            }
+            },
             Self::FilePicker => {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::FilePicker }
-            }
+            },
         }
     }
 

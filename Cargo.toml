@@ -1,24 +1,29 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = [ "examples/some-lib" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
   "crates/gpui-form-codegen",
   "crates/gpui-form-component",
   "crates/gpui-form-component-derive",
-  "crates/gpui-form-component-story",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-prototyping-core",
-  "vendor/gpui-storybook/crates/gpui-storybook",
-  "vendor/gpui-storybook/crates/gpui-storybook-core",
-  "vendor/gpui-storybook/crates/gpui-storybook-components",
-  "vendor/gpui-storybook/crates/gpui-storybook-macros",
-  "vendor/gpui-storybook/crates/gpui-storybook-toml",
   "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
-  "examples/some-lib-forms",
   "examples/prototyping",
+]
+# The vendored gpui-storybook gallery (5 crates), gpui-form-component-story,
+# and the storybook-driven demo (examples/some-lib-forms) are NOT workspace
+# members: the gallery targets gpui-component's REMOVED dock/DockItem API and
+# a redesigned Panel trait, so it cannot compile against gpui-component
+# 5a5e2ab. They stay in-tree for a future re-vendor from an upstream that
+# tracks mainline; excluded so cargo neither builds them with --workspace nor
+# complains about nested packages.
+exclude = [
+  "crates/gpui-form-component-story",
+  "examples/some-lib-forms",
+  "vendor/gpui-storybook",
 ]
 resolver = "3"
 
@@ -50,16 +55,10 @@ gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.2" }
 gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.5.2" }
-gpui-form-component-story = { path = "crates/gpui-form-component-story", version = "0.5.2" }
 gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.2" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.2" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.2" }
 gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.2" }
-gpui-storybook = { path = "vendor/gpui-storybook/crates/gpui-storybook" }
-gpui-storybook-components = { path = "vendor/gpui-storybook/crates/gpui-storybook-components" }
-gpui-storybook-core = { path = "vendor/gpui-storybook/crates/gpui-storybook-core" }
-gpui-storybook-macros = { path = "vendor/gpui-storybook/crates/gpui-storybook-macros" }
-gpui-storybook-toml = { path = "vendor/gpui-storybook/crates/gpui-storybook-toml" }
 gpui_platform = { features = [
   "font-kit",
   "x11",
