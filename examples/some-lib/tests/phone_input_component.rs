@@ -17,7 +17,11 @@
 use gpui_form::{GpuiForm, SelectItem};
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+// --all-features (the CI test lane) enables gpui-form's serde chain, whose
+// generated code bounds select-enums by Serialize/Deserialize.
+#[derive(
+    Clone, Debug, Default, EnumIter, PartialEq, SelectItem, serde::Serialize, serde::Deserialize,
+)]
 enum Region {
     #[default]
     UnitedStates,
