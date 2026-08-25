@@ -21,7 +21,9 @@ jobs:
         uses: stayhydated/es-fluent/crates/es-fluent-cli@master
         with:
           path: .
-          all: true
+          # `all` was renamed `all_locales` upstream; the unknown input was
+          # silently ignored, downgrading this check to fallback-only.
+          all_locales: true
           ignore: |
             some-lib
 
