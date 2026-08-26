@@ -17,7 +17,11 @@
 use gpui_form::{GpuiForm, SelectItem};
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+// --all-features (the CI test lane) enables gpui-form's serde chain, whose
+// generated code bounds select-enums by Serialize/Deserialize.
+#[derive(
+    Clone, Debug, Default, EnumIter, PartialEq, SelectItem, serde::Serialize, serde::Deserialize,
+)]
 enum Region {
     #[default]
     UnitedStates,
@@ -80,6 +84,12 @@ fn phone_holder_converts_back_to_source() {
 /// component participates in the standard generated surface.
 #[test]
 fn phone_fields_have_typed_paths() {
-    assert_eq!(PhoneSignupFormPath::mobile_number().to_string(), "mobile_number");
-    assert_eq!(PhoneSignupFormPath::local_number().to_string(), "local_number");
+    assert_eq!(
+        PhoneSignupFormPath::mobile_number().to_string(),
+        "mobile_number"
+    );
+    assert_eq!(
+        PhoneSignupFormPath::local_number().to_string(),
+        "local_number"
+    );
 }

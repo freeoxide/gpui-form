@@ -1,24 +1,29 @@
 [workspace]
-default-members = [ "examples/some-lib-forms" ]
+default-members = [ "examples/some-lib" ]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
   "crates/gpui-form-codegen",
   "crates/gpui-form-component",
   "crates/gpui-form-component-derive",
-  "crates/gpui-form-component-story",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-prototyping-core",
-  "vendor/gpui-storybook/crates/gpui-storybook",
-  "vendor/gpui-storybook/crates/gpui-storybook-core",
-  "vendor/gpui-storybook/crates/gpui-storybook-components",
-  "vendor/gpui-storybook/crates/gpui-storybook-macros",
-  "vendor/gpui-storybook/crates/gpui-storybook-toml",
   "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
-  "examples/some-lib-forms",
   "examples/prototyping",
+]
+# The vendored gpui-storybook gallery (5 crates), gpui-form-component-story,
+# and the storybook-driven demo (examples/some-lib-forms) are NOT workspace
+# members: the gallery targets gpui-component's REMOVED dock/DockItem API and
+# a redesigned Panel trait, so it cannot compile against gpui-component
+# 5a5e2ab. They stay in-tree for a future re-vendor from an upstream that
+# tracks mainline; excluded so cargo neither builds them with --workspace nor
+# complains about nested packages.
+exclude = [
+  "crates/gpui-form-component-story",
+  "examples/some-lib-forms",
+  "vendor/gpui-storybook",
 ]
 resolver = "3"
 
@@ -42,30 +47,24 @@ es-fluent = "0.16"
 es-fluent-build = "0.16"
 es-fluent-lang = "0.16"
 es-fluent-manager-embedded = "0.16"
-gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
+gpui = { git = "https://github.com/zed-industries/zed" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
 gpui-es-fluent = { path = "vendor/gpui-es-fluent/crates/gpui-es-fluent" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.2" }
 gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.5.2" }
-gpui-form-component-story = { path = "crates/gpui-form-component-story", version = "0.5.2" }
 gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.2" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.2" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.2" }
 gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.2" }
-gpui-storybook = { path = "vendor/gpui-storybook/crates/gpui-storybook" }
-gpui-storybook-components = { path = "vendor/gpui-storybook/crates/gpui-storybook-components" }
-gpui-storybook-core = { path = "vendor/gpui-storybook/crates/gpui-storybook-core" }
-gpui-storybook-macros = { path = "vendor/gpui-storybook/crates/gpui-storybook-macros" }
-gpui-storybook-toml = { path = "vendor/gpui-storybook/crates/gpui-storybook-toml" }
 gpui_platform = { features = [
   "font-kit",
   "x11",
   "wayland",
   "runtime_shaders",
-], git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
+], git = "https://github.com/zed-industries/zed" }
 heck = "0.5.0"
 phonenumber = "0.3.9"
 icu_calendar = "2.2.0"
@@ -84,10 +83,10 @@ proc-macro-crate = "3.2"
 proc-macro-error2 = "2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
-reqwest_client = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
+reqwest_client = { git = "https://github.com/zed-industries/zed" }
 rust-embed = "8.11"
 rust_decimal = "1.40"
-serde = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 strum = "0.28"
 syn = "2.0"

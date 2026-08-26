@@ -9,6 +9,7 @@ use gpui::{
 };
 use gpui_component::{
     ActiveTheme as _, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
+    ThemeStyled as _,
     button::{Button, ButtonVariants as _},
     h_flex,
 };
@@ -96,8 +97,8 @@ impl DatePickerState {
                 CalendarEvent::Selected(CalendarDate::Single(date)) => {
                     this.update_date(date.and_then(jiff_date_from_chrono), true, window, cx);
                     this.focus_handle.focus(window, cx);
-                }
-                CalendarEvent::Selected(CalendarDate::Range(_, _)) => {}
+                },
+                CalendarEvent::Selected(CalendarDate::Range(_, _)) => {},
             },
         )];
 
@@ -212,8 +213,8 @@ impl DateRangePickerState {
                         cx,
                     );
                     this.focus_handle.focus(window, cx);
-                }
-                CalendarEvent::Selected(CalendarDate::Single(_)) => {}
+                },
+                CalendarEvent::Selected(CalendarDate::Single(_)) => {},
             },
         )];
 
@@ -525,7 +526,7 @@ impl RenderOnce for DatePicker {
                             .border_color(cx.theme().input)
                             .rounded(cx.theme().radius)
                             .when(cx.theme().shadow, |this| this.shadow_xs())
-                            .when(is_focused, |this| this.focused_border(cx))
+                            .when(is_focused, |this| this.focus_ring_style(window, cx))
                     })
                     .overflow_hidden()
                     .input_text_size(self.size)
@@ -653,7 +654,7 @@ impl RenderOnce for DateRangePicker {
                             .border_color(cx.theme().input)
                             .rounded(cx.theme().radius)
                             .when(cx.theme().shadow, |this| this.shadow_xs())
-                            .when(is_focused, |this| this.focused_border(cx))
+                            .when(is_focused, |this| this.focus_ring_style(window, cx))
                     })
                     .overflow_hidden()
                     .input_text_size(self.size)

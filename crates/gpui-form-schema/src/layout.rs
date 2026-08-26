@@ -48,9 +48,7 @@ use strum::{Display, EnumString, IntoStaticStr};
 ///
 /// Defaults to [`LayoutWidth::Full`] — fields take their natural width unless a
 /// narrower hint is provided.
-#[derive(
-    Clone, Copy, Debug, Default, Display, EnumString, Eq, IntoStaticStr, PartialEq,
-)]
+#[derive(Clone, Copy, Debug, Default, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
 #[strum(serialize_all = "snake_case")]
 pub enum LayoutWidth {
     /// Full available width (the default).
@@ -254,12 +252,8 @@ mod tests {
 
     #[test]
     fn field_variant_new_defaults_layout_to_empty() {
-        const FV: FieldVariant = FieldVariant::new(
-            "username",
-            "String",
-            false,
-            ComponentsBehaviour::Input,
-        );
+        const FV: FieldVariant =
+            FieldVariant::new("username", "String", false, ComponentsBehaviour::Input);
         assert!(FV.layout.is_empty());
         assert_eq!(FV.layout.width, LayoutWidth::Full);
     }
@@ -282,18 +276,13 @@ mod tests {
     #[test]
     fn field_variant_with_layout_is_const_constructible() {
         // Const chain mirroring what the derive emits.
-        const FV: FieldVariant = FieldVariant::new(
-            "email",
-            "String",
-            false,
-            ComponentsBehaviour::Input,
-        )
-        .with_layout(
-            FieldLayout::new()
-                .with_section(Some("Contact"))
-                .with_placeholder(Some("you@example.com"))
-                .with_width(LayoutWidth::Half),
-        );
+        const FV: FieldVariant =
+            FieldVariant::new("email", "String", false, ComponentsBehaviour::Input).with_layout(
+                FieldLayout::new()
+                    .with_section(Some("Contact"))
+                    .with_placeholder(Some("you@example.com"))
+                    .with_width(LayoutWidth::Half),
+            );
         assert_eq!(FV.field_name, "email");
         assert_eq!(FV.layout.section, Some("Contact"));
         assert_eq!(FV.layout.placeholder, Some("you@example.com"));
