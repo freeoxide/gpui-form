@@ -48,8 +48,8 @@ es-fluent-build = "0.16"
 es-fluent-lang = "0.16"
 es-fluent-manager-embedded = "0.16"
 gpui = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "2126cedcb2664ab1f1c0625fbc667a007698521f" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "2126cedcb2664ab1f1c0625fbc667a007698521f" }
 gpui-es-fluent = { path = "vendor/gpui-es-fluent/crates/gpui-es-fluent" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
