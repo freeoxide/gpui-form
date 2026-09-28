@@ -5,7 +5,7 @@ use gpui::{
     Stateful, StatefulInteractiveElement as _, StyleRefinement, Styled, Window,
     prelude::FluentBuilder as _, px, relative,
 };
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, IconName, Selectable as _, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
