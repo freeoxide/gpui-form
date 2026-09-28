@@ -202,7 +202,7 @@ pub fn humanize_key(id: &str) -> String {
 
 #[cfg(feature = "component")]
 pub fn component_language(fallback: &str) -> LanguageIdentifier {
-    gpui_component::locale()
+    gpui_kit::component::locale()
         .parse::<LanguageIdentifier>()
         .or_else(|_| fallback.parse::<LanguageIdentifier>())
         .expect("fallback language must be a valid language identifier")
@@ -228,7 +228,7 @@ pub fn set_component_locale(
                 .expect("fallback language must be a valid language identifier")
         });
 
-    gpui_component::set_locale(&language.to_string());
+    gpui_kit::component::set_locale(&language.to_string());
     replace_with_language(cx, language.clone())?;
     Ok(language)
 }
