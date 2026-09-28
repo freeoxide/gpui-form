@@ -12,9 +12,9 @@ use super::{
 pub struct FilePickerCodeGenerator;
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_form::runtime::file_picker::FilePicker"),
-    ImportItem::path("gpui_form::runtime::file_picker::FilePickerEvent"),
-    ImportItem::path("gpui_form::runtime::file_picker::FilePickerState"),
+    ImportItem::path("::gpui_form::runtime::file_picker::FilePicker"),
+    ImportItem::path("::gpui_form::runtime::file_picker::FilePickerEvent"),
+    ImportItem::path("::gpui_form::runtime::file_picker::FilePickerState"),
 ];
 
 impl FieldCodeGenerator for FilePickerCodeGenerator {

@@ -3,7 +3,7 @@
 //! This crate provides:
 //! - `custom` shape contracts/macros for user-defined components
 //! - `date_picker` for localized runtime date and date-range pickers
-//! - `file_picker` for native GPUI path selection with gpui-component styling
+//! - `file_picker` for native GPUI path selection with gpui-kit styling
 //! - `infinite_select` for cascading selects over nested enums
 
 #[cfg(feature = "derive")]

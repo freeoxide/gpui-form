@@ -17,7 +17,7 @@ impl super::ComponentLayout for NumberInputComponent {
         let field_name_ident = crate::component_field_name!(name);
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: ::gpui::Entity<::gpui_component::input::InputState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
         // Use the `as` option if provided for validation type detection, otherwise use the field type
@@ -51,9 +51,9 @@ impl super::ComponentLayout for NumberInputComponent {
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
                 window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<'_, ::gpui_component::input::InputState>
-            ) -> ::gpui_component::input::InputState {
-                ::gpui_component::input::InputState::new(window, cx)#validation_logic
+                cx: &mut ::gpui::Context<'_, ::gpui_kit::component::input::InputState>
+            ) -> ::gpui_kit::component::input::InputState {
+                ::gpui_kit::component::input::InputState::new(window, cx)#validation_logic
             }
         };
 

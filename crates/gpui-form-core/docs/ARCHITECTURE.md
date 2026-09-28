@@ -1,7 +1,7 @@
 # gpui-form-core Architecture
 
 `gpui-form-core` hosts helper logic that should stay usable without `gpui` or
-`gpui-component`.
+`gpui-kit`.
 
 ## Purpose
 

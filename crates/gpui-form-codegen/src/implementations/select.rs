@@ -17,13 +17,13 @@ impl super::ComponentLayout for SelectComponent {
         let field_name_ident = crate::component_field_name!(name);
 
         let vec_type = if options.behaviour.searchable {
-            quote! { ::gpui_component::select::SearchableVec }
+            quote! { ::gpui_kit::component::select::SearchableVec }
         } else {
             quote! { Vec }
         };
 
         let state_type = quote! {
-          ::gpui_component::select::SelectState<#vec_type<#r#type>>
+          ::gpui_kit::component::select::SelectState<#vec_type<#r#type>>
         };
 
         let field_structure_definition = quote! {
@@ -37,14 +37,14 @@ impl super::ComponentLayout for SelectComponent {
                     let __gpui_form_default = #default_expr;
                     #r#type::iter()
                         .position(|x| x == __gpui_form_default)
-                        .map(::gpui_component::IndexPath::new)
+                        .map(::gpui_kit::component::IndexPath::new)
                 }
             }
         } else if options.use_enum_default() {
             quote! {
               #r#type::iter()
                 .position(|x| x == #r#type::default())
-                .map(::gpui_component::IndexPath::new)
+                .map(::gpui_kit::component::IndexPath::new)
             }
         } else {
             quote! { None }
@@ -57,7 +57,7 @@ impl super::ComponentLayout for SelectComponent {
                     cx: &mut ::gpui::Context<'_, #state_type>,
                 ) -> #state_type {
                   use strum::IntoEnumIterator as _;
-                  ::gpui_component::select::SelectState::new(
+                  ::gpui_kit::component::select::SelectState::new(
                       #r#type::iter().collect::<Vec<#r#type>>().into(),
                       #index,
                       window,

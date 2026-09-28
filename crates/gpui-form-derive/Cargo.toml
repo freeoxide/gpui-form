@@ -36,8 +36,8 @@ serde = [ "dep:serde" ]
 
 [dev-dependencies]
 gpui = { workspace = true }
-gpui-component = { workspace = true }
 gpui-form = { default-features = false, path = "../gpui-form" }
+gpui-kit = { workspace = true }
 insta = { workspace = true }
 koruma = { workspace = true }
 koruma-collection = { workspace = true }

@@ -13,9 +13,9 @@ use super::{
 pub struct InputCodeGenerator;
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_component::input::Input"),
-    ImportItem::path("gpui_component::input::InputEvent"),
-    ImportItem::path("gpui_component::input::InputState"),
+    ImportItem::path("::gpui_kit::component::input::Input"),
+    ImportItem::path("::gpui_kit::component::input::InputEvent"),
+    ImportItem::path("::gpui_kit::component::input::InputState"),
 ];
 
 impl FieldCodeGenerator for InputCodeGenerator {

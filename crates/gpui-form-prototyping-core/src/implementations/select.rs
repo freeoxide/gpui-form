@@ -15,9 +15,9 @@ use super::{
 pub struct SelectCodeGenerator;
 
 const IMPORTS_BASE: &[ImportItem] = &[
-    ImportItem::path("gpui_component::select::Select"),
-    ImportItem::path("gpui_component::select::SelectEvent"),
-    ImportItem::path("gpui_component::select::SelectState"),
+    ImportItem::path("::gpui_kit::component::select::Select"),
+    ImportItem::path("::gpui_kit::component::select::SelectEvent"),
+    ImportItem::path("::gpui_kit::component::select::SelectState"),
 ];
 
 impl FieldCodeGenerator for SelectCodeGenerator {
@@ -26,7 +26,9 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         if let ComponentsBehaviour::Select(opts) = &field.behaviour
             && opts.searchable
         {
-            items.push(ImportItem::path("gpui_component::select::SearchableVec"));
+            items.push(ImportItem::path(
+                "::gpui_kit::component::select::SearchableVec",
+            ));
         }
         items
     }
@@ -156,7 +158,7 @@ mod tests {
     fn select_generator_keeps_qualified_type_paths() {
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "country",
-            "some_lib::country::Country",
+            "::some_lib::country::Country",
             false,
             ComponentsBehaviour::Select(SelectBehaviour {
                 partial: false,
@@ -173,7 +175,7 @@ mod tests {
         let compact = compact(&generated.handlers[0].to_string());
 
         assert!(
-            compact.contains("Entity<SelectState<Vec<some_lib::country::Country>>>"),
+            compact.contains("Entity<SelectState<Vec<::some_lib::country::Country>>>"),
             "subscription handler should keep the fully-qualified type path: {compact}"
         );
     }

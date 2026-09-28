@@ -22,7 +22,7 @@ impl super::ComponentLayout for PhoneInputComponent {
         let field_name_ident = crate::component_field_name!(name);
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: ::gpui::Entity<::gpui_component::input::InputState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
         // Accept empty input so a partially typed or cleared field is not
@@ -31,9 +31,9 @@ impl super::ComponentLayout for PhoneInputComponent {
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
                 window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<'_, ::gpui_component::input::InputState>
-            ) -> ::gpui_component::input::InputState {
-                ::gpui_component::input::InputState::new(window, cx)
+                cx: &mut ::gpui::Context<'_, ::gpui_kit::component::input::InputState>
+            ) -> ::gpui_kit::component::input::InputState {
+                ::gpui_kit::component::input::InputState::new(window, cx)
                     .validate(|value, _| {
                         ::gpui_form::phone::validate_optional_phone_number(value, None)
                             .is_valid_or_empty()

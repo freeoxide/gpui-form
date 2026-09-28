@@ -10,7 +10,7 @@ when you want the runtime implementation layer without the facade.
 
 - `infinite_select`: runtime traits and helpers for cascading enum selects
 - `date_picker`: localized runtime state and element wrapper for calendar date input
-- `file_picker`: native GPUI path selection rendered with `gpui-component` controls
+- `file_picker`: native GPUI path selection rendered with `gpui-kit` controls
 - `custom`: the runtime contract for user-defined component state
 
 ## Infinite Select
@@ -92,7 +92,7 @@ for field in location.read(cx).form_fields() {
 
 Derived `InfiniteSelect` enums expose:
 
-- `PartialEq` compatibility with the backing `gpui-component` select value
+- `PartialEq` compatibility with the backing `gpui-kit` select value
   comparison
 - `variant_label()` for user-facing option titles
 - `#[fluent_kv(keys = ["label", "description"], keys_this)]` to emit
@@ -142,7 +142,7 @@ directly.
 
 ## File Picker
 
-This crate provides a native path picker backed by the pinned GPUI git API,
+This crate provides a native path picker backed by the pinned GPUI API,
 not a separate dialog crate.
 Generated forms can use the same runtime with
 `#[gpui_form(component(file_picker))]`.
@@ -200,9 +200,9 @@ You can declare a reusable shape with the helper macro:
 ```rs
 gpui_form::custom_component_shape!(
     pub EmailInputShape,
-    state = gpui_component::input::InputState,
-    new = gpui_component::input::InputState::new,
-    component = gpui_component::input::Input,
+    state = gpui_kit::component::input::InputState,
+    new = gpui_kit::component::input::InputState::new,
+    component = gpui_kit::component::input::Input,
 );
 ```
 
@@ -229,7 +229,7 @@ adapter seeds state from the current form value and maps component events to
 - [`gpui-form`](../gpui-form/README.md) for the public facade
 - [`gpui-form-component-derive`](../gpui-form-component-derive/README.md) when
   you want only the `InfiniteSelect` derive plus this runtime layer
-- [`gpui-component`](https://github.com/longbridge/gpui-component) for the
+- [`gpui-kit`](https://github.com/longbridge/gpui-kit) for the
   upstream date-picker widget and other base components
 - [`gpui-form-schema`](../gpui-form-schema/README.md) for metadata and inventory
 - [`gpui-form-prototyping-core`](../gpui-form-prototyping-core/README.md) for

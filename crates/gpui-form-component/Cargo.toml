@@ -20,8 +20,8 @@ chrono = { workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
-gpui-component = { workspace = true }
 gpui-form-component-derive = { optional = true, workspace = true }
+gpui-kit = { workspace = true }
 icu_calendar = { workspace = true }
 icu_datetime = { workspace = true }
 icu_locale_core = { workspace = true }

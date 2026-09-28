@@ -18,7 +18,7 @@ scaffolding from `GpuiFormShape` inventory data instead of wiring forms by hand.
 ## Project Summary
 
 `gpui-form` is a Rust form-generation ecosystem built on top of `gpui` and
-`gpui-component`, centered on `#[derive(GpuiForm)]`.
+`gpui-kit`, centered on `#[derive(GpuiForm)]`.
 
 Its priorities are:
 

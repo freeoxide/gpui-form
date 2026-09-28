@@ -7,7 +7,7 @@ use gpui::{
     RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
     Subscription, Window, anchored, deferred, div, prelude::FluentBuilder as _, px,
 };
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme as _, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
     ThemeStyled as _,
     button::{Button, ButtonVariants as _},
@@ -764,7 +764,7 @@ fn jiff_date_from_chrono(date: NaiveDate) -> Option<JiffDate> {
 }
 
 fn active_locale() -> Locale {
-    let raw = gpui_component::locale();
+    let raw = gpui_kit::component::locale();
     let normalized = raw.deref().replace('_', "-");
     Locale::from_str(&normalized).unwrap_or(locale!("en-US"))
 }

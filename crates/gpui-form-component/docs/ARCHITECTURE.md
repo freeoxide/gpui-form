@@ -53,7 +53,7 @@ Responsibilities:
 
 - represent nested enum variant choices as selectable runtime items
 - require `PartialEq` on `InfiniteSelect` values so the backing
-  `gpui-component` select can compare current and candidate selections
+  `gpui-kit` select can compare current and candidate selections
 - track confirmed selection indices with `InfiniteSelectPath`
 - track stable persisted selections with `InfiniteSelectKeyPath`
 - serialize stable key paths to and from strings for persistence
@@ -93,12 +93,12 @@ Responsibilities:
 
 - hold selected path state in `FilePickerState`
 - emit `FilePickerEvent::Change`, `Cancel`, and `Error`
-- render the control with `gpui-component` buttons, icons, theme tokens, and
+- render the control with `gpui-kit` buttons, icons, theme tokens, and
   sizing helpers
 - provide plain English fallback copy for built-in placeholders, prompts,
   button labels, selected-count text, and dropped-dialog errors while keeping
   Fluent resources available for caller-owned localizers
-- use the workspace-pinned GPUI git API instead of adding another native dialog
+- use the workspace-pinned GPUI API instead of adding another native dialog
   dependency
 
 ## Data Flow

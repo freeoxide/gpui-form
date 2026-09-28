@@ -174,7 +174,7 @@ When the `inventory` feature is enabled:
 
 ### `SelectItem`
 
-- implements `gpui_component::select::SelectItem`
+- implements `::gpui_kit::component::select::SelectItem`
 - accepts `#[select_item(fluent)]` for enums that do not implement `Display`,
   but emits fallback titles because `SelectItem::title()` has no localizer
   argument

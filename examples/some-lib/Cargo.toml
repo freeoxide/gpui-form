@@ -12,8 +12,8 @@ derive_more = { features = [ "full" ], workspace = true }
 es-fluent = { features = [ "derive" ], workspace = true }
 es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
-gpui-component = { workspace = true }
 gpui-form = { features = [ "derive", "phone" ], workspace = true }
+gpui-kit = { workspace = true }
 koruma = { features = [ "fluent" ], workspace = true }
 koruma-collection = { features = [ "rust_decimal", "email", "fluent" ], workspace = true }
 rust_decimal = { workspace = true }
@@ -43,4 +43,4 @@ ui = [  ]
 validation = [  ]
 
 [package.metadata.cargo-machete]
-ignored = [ "gpui", "gpui-component" ]
+ignored = [ "gpui", "gpui-kit" ]

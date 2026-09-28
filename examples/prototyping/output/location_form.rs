@@ -1,30 +1,30 @@
-use some_lib::structs::location::*;
-use es_fluent::FluentMessage as _;
-use gpui::{Subscription, div};
-use gpui::prelude::FluentBuilder as _;
-use gpui_component::ActiveTheme as _;
-use gpui_component::form::field;
-use gpui_component::input::{Input, InputEvent, InputState};
-use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
-use gpui::{
+use ::some_lib::structs::location::*;
+use ::es_fluent::FluentMessage as _;
+use ::gpui::{Subscription, div};
+use ::gpui::prelude::FluentBuilder as _;
+use ::gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
+use ::gpui_kit::component::ActiveTheme as _;
+use ::gpui_kit::component::form::field;
+use ::gpui_kit::component::input::{Input, InputEvent, InputState};
+use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
 };
-use gpui_component::Disableable as _;
-use gpui_component::separator::Separator;
-use gpui_component::form::v_form;
-use gpui_component::v_flex;
-use some_lib::structs::form_action::FormAction;
+use ::gpui_kit::component::Disableable as _;
+use ::gpui_kit::component::separator::Separator;
+use ::gpui_kit::component::form::v_form;
+use ::gpui_kit::component::v_flex;
+use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "LocationFormForm";
 fn localize(
-    cx: &impl std::borrow::Borrow<App>,
-    message: &impl es_fluent::FluentMessage,
+    cx: &impl ::std::borrow::Borrow<App>,
+    message: &impl ::es_fluent::FluentMessage,
 ) -> String {
     crate::i18n::localize_message(cx, message)
 }
-#[gpui_storybook::story_init]
+#[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
-#[gpui_storybook::story]
+#[::gpui_storybook::story]
 pub struct LocationFormForm {
     current_data: LocationFormFormValueHolder,
     fields: LocationFormFormFields,
@@ -36,8 +36,8 @@ impl Focusable for LocationFormForm {
         self.focus_handle.clone()
     }
 }
-impl gpui_storybook::Story for LocationFormForm {
-    fn title(cx: &gpui::App) -> String {
+impl ::gpui_storybook::Story for LocationFormForm {
+    fn title(cx: &::gpui::App) -> String {
         crate::i18n::localize_label::<LocationForm>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -82,7 +82,7 @@ impl LocationFormForm {
                     Country,
                 >::new_with_options(
                     current_data.location.clone(),
-                    gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+                    ::gpui_form::infinite_select::InfiniteSelectStateOptions::default()
                         .searchable(false),
                     window,
                     cx,
@@ -122,10 +122,10 @@ impl LocationFormForm {
     fn submit_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
+        label: impl Into<::gpui::SharedString>,
         on_submit: impl Fn(LocationForm, &mut Window, &mut Context<Self>) + 'static,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
                 format!("{}-submit-button", "location_form-form"),
             )
             .label(label)
@@ -140,9 +140,9 @@ impl LocationFormForm {
     fn reset_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(
+        label: impl Into<::gpui::SharedString>,
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
                 format!("{}-reset-button", "location_form-form"),
             )
             .label(label)

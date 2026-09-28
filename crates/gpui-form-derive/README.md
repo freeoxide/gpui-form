@@ -79,7 +79,7 @@ Supporting struct attributes:
 
 Behavior notes:
 
-- `select` expects enum-like values that can populate a `gpui_component` select
+- `select` expects enum-like values that can populate a `gpui_kit` select
 - `component(infinite_select)` expects the field type to implement
   `gpui_form::InfiniteSelect`
 - `component(file_picker)` stores a selected `PathBuf` in the generated value
@@ -124,7 +124,7 @@ Behavior notes:
 
 ## `#[derive(SelectItem)]`
 
-Implements `gpui_component::select::SelectItem` for enums.
+Implements `::gpui_kit::component::select::SelectItem` for enums.
 
 ```rs
 use gpui_form::SelectItem;

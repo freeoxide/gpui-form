@@ -1,8 +1,8 @@
 //! Runtime file picker support backed by GPUI's native path prompt.
 //!
 //! This module intentionally uses `gpui::App::prompt_for_paths` from the
-//! pinned GPUI git dependency instead of adding a second native-dialog
-//! dependency. The rendered control follows `gpui-component` styling and emits
+//! pinned GPUI dependency instead of adding a second native-dialog
+//! dependency. The rendered control follows `gpui-kit` styling and emits
 //! form-friendly change events.
 
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use gpui::{
     RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Window,
     div, prelude::FluentBuilder as _,
 };
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme as _, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
     ThemeStyled as _,
     button::{Button, ButtonVariants as _},
@@ -207,7 +207,7 @@ impl Render for FilePickerState {
     }
 }
 
-/// A native file picker element using `gpui-component` visual primitives.
+/// A native file picker element using `gpui-kit` visual primitives.
 #[derive(IntoElement)]
 pub struct FilePicker {
     id: ElementId,

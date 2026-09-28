@@ -1,35 +1,35 @@
-use some_lib::structs::user::*;
-use es_fluent::FluentMessage as _;
-use gpui::{Subscription, div};
-use gpui::prelude::FluentBuilder as _;
-use gpui_component::ActiveTheme as _;
-use gpui_component::checkbox::Checkbox;
-use gpui_component::form::field;
-use gpui_component::input::{
+use ::some_lib::structs::user::*;
+use ::es_fluent::FluentMessage as _;
+use ::gpui::{Subscription, div};
+use ::gpui::prelude::FluentBuilder as _;
+use ::gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
+use ::gpui_kit::component::ActiveTheme as _;
+use ::gpui_kit::component::checkbox::Checkbox;
+use ::gpui_kit::component::form::field;
+use ::gpui_kit::component::input::{
     Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
-use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
-use gpui_component::switch::Switch;
-use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use gpui::{
+use ::gpui_kit::component::select::{SearchableVec, Select, SelectEvent, SelectState};
+use ::gpui_kit::component::switch::Switch;
+use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
 };
-use gpui_component::Disableable as _;
-use gpui_component::separator::Separator;
-use gpui_component::form::v_form;
-use gpui_component::v_flex;
-use some_lib::structs::form_action::FormAction;
+use ::gpui_kit::component::Disableable as _;
+use ::gpui_kit::component::separator::Separator;
+use ::gpui_kit::component::form::v_form;
+use ::gpui_kit::component::v_flex;
+use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "UserForm";
 fn localize(
-    cx: &impl std::borrow::Borrow<App>,
-    message: &impl es_fluent::FluentMessage,
+    cx: &impl ::std::borrow::Borrow<App>,
+    message: &impl ::es_fluent::FluentMessage,
 ) -> String {
     crate::i18n::localize_message(cx, message)
 }
-#[gpui_storybook::story_init]
+#[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
-#[gpui_storybook::story]
+#[::gpui_storybook::story]
 pub struct UserForm {
     current_data: UserFormValueHolder,
     fields: UserFormFields,
@@ -41,8 +41,8 @@ impl Focusable for UserForm {
         self.focus_handle.clone()
     }
 }
-impl gpui_storybook::Story for UserForm {
-    fn title(cx: &gpui::App) -> String {
+impl ::gpui_storybook::Story for UserForm {
+    fn title(cx: &::gpui::App) -> String {
         crate::i18n::localize_label::<User>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -155,7 +155,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.balance = text.parse::<rust_decimal::Decimal>().ok();
+                self.current_data.balance = text.parse::<::rust_decimal::Decimal>().ok();
             }
             _ => {}
         }
@@ -212,7 +212,7 @@ impl UserForm {
         match event {
             InputEvent::Change => {
                 let text = state.read(_cx).value();
-                self.current_data.debt = text.parse::<rust_decimal::Decimal>().ok();
+                self.current_data.debt = text.parse::<::rust_decimal::Decimal>().ok();
             }
             _ => {}
         }
@@ -405,14 +405,16 @@ impl UserForm {
     fn submit_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
+        label: impl Into<::gpui::SharedString>,
         on_submit: impl Fn(
             Result<UserFormValueHolder, String>,
             &mut Window,
             &mut Context<Self>,
         ) + 'static,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-submit-button", "user-form"))
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
+                format!("{}-submit-button", "user-form"),
+            )
             .label(label)
             .disabled(self.current_data.validate().is_err())
             .on_click(
@@ -425,9 +427,11 @@ impl UserForm {
     fn reset_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-reset-button", "user-form"))
+        label: impl Into<::gpui::SharedString>,
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
+                format!("{}-reset-button", "user-form"),
+            )
             .label(label)
             .on_click(
                 cx

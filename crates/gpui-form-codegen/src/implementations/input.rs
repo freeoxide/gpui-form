@@ -17,7 +17,7 @@ impl super::ComponentLayout for InputComponent {
         let field_name_ident = crate::component_field_name!(name);
 
         let field_structure_definition = quote! {
-            pub #field_name_ident: ::gpui::Entity<::gpui_component::input::InputState>,
+            pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
         // Skip validation for String types since they always parse successfully
@@ -33,9 +33,9 @@ impl super::ComponentLayout for InputComponent {
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
                 window: &mut ::gpui::Window,
-                cx: &mut ::gpui::Context<'_, ::gpui_component::input::InputState>
-            ) -> ::gpui_component::input::InputState {
-                ::gpui_component::input::InputState::new(window, cx)#validation_logic
+                cx: &mut ::gpui::Context<'_, ::gpui_kit::component::input::InputState>
+            ) -> ::gpui_kit::component::input::InputState {
+                ::gpui_kit::component::input::InputState::new(window, cx)#validation_logic
             }
         };
 

@@ -176,7 +176,7 @@ assert!(!validate_unsigned_numeric::<u32>("-1", true));
 - You are building your own numeric input wrapper and want the same text-entry
   rules as `gpui-form`
 - You want the numeric or phone validation helpers without pulling in `gpui` or
-  `gpui-component`
+  `gpui-kit`
 - You want `FormState` dirty/reset/diff logic without the GPUI runtime layer
   (the facade re-exports it as `gpui_form::FormState` for convenience)
 - You want the `FieldPath` naming primitive for analytics, focus tracking, or

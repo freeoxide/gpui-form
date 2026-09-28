@@ -1,22 +1,22 @@
-use some_lib::structs::empty::*;
-use gpui::{
+use ::some_lib::structs::empty::*;
+use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
 };
-use gpui_component::Disableable as _;
-use gpui_component::separator::Separator;
-use gpui_component::form::v_form;
-use gpui_component::v_flex;
+use ::gpui_kit::component::Disableable as _;
+use ::gpui_kit::component::separator::Separator;
+use ::gpui_kit::component::form::v_form;
+use ::gpui_kit::component::v_flex;
 const CONTEXT: &str = "EmptyForm";
 fn localize(
-    cx: &impl std::borrow::Borrow<App>,
-    message: &impl es_fluent::FluentMessage,
+    cx: &impl ::std::borrow::Borrow<App>,
+    message: &impl ::es_fluent::FluentMessage,
 ) -> String {
     crate::i18n::localize_message(cx, message)
 }
-#[gpui_storybook::story_init]
+#[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
-#[gpui_storybook::story]
+#[::gpui_storybook::story]
 pub struct EmptyForm {
     fields: EmptyFormFields,
     focus_handle: FocusHandle,
@@ -26,8 +26,8 @@ impl Focusable for EmptyForm {
         self.focus_handle.clone()
     }
 }
-impl gpui_storybook::Story for EmptyForm {
-    fn title(cx: &gpui::App) -> String {
+impl ::gpui_storybook::Story for EmptyForm {
+    fn title(cx: &::gpui::App) -> String {
         crate::i18n::localize_label::<Empty>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

@@ -5,7 +5,7 @@
 # gpui-form
 
 `gpui-form` is a type-safe form-generation ecosystem for `gpui` and
-[`gpui-component`](https://github.com/longbridge/gpui-component), centered on
+[`gpui-kit`](https://github.com/longbridge/gpui-kit), centered on
 `#[derive(GpuiForm)]`.
 
 It is designed for three things:
@@ -17,17 +17,17 @@ It is designed for three things:
 
 ## Compatibility
 
-| `gpui-form` | `gpui-component` | `gpui` |
-| :---------- | :--------------- | :----- |
+| `gpui-form` | `gpui-kit` | `gpui` |
+| :---------- | :--------- | :----- |
 | **git** | | |
-| `branch = "master"` | `branch = "main"` | `rev = "832c17e8192e2e1d472f0751e7cef2af84ded622"` |
+| `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
 
 ## Installation
 
 ```toml
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "832c17e8192e2e1d472f0751e7cef2af84ded622" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
+gpui = { package = "gpui-pre", version = "0.3.7" }
+gpui-kit = "0.7.0"
 
 gpui-form = "*"
 
@@ -243,7 +243,7 @@ assert!(result.is_valid());
 
 `component(infinite_select)` expects the field type to implement
 `gpui_form::InfiniteSelect`, usually by deriving it on the enum tree. The enum
-tree must also implement `PartialEq` because the backing `gpui-component`
+tree must also implement `PartialEq` because the backing `gpui-kit`
 select compares selected values.
 Lower-level users can derive the same runtime contract from
 `gpui-form-component` or `gpui-form-component-derive`; the macro resolves
@@ -545,9 +545,9 @@ pub struct PostEditor {
 ```rs
 gpui_form::custom_component_shape!(
     pub EmailInputShape,
-    state = gpui_component::input::InputState,
-    new = gpui_component::input::InputState::new,
-    component = gpui_component::input::Input,
+    state = gpui_kit::component::input::InputState,
+    new = gpui_kit::component::input::InputState::new,
+    component = gpui_kit::component::input::Input,
 );
 
 #[derive(Clone, Debug, Default, gpui_form::GpuiForm)]
@@ -579,8 +579,8 @@ model stores something derived from a path.
 
 For manual native path selection, use `gpui_form::file_picker` or
 `gpui_form::runtime::file_picker`. The runtime uses GPUI's
-`PathPromptOptions` from the pinned Zed git dependency and renders the control
-with `gpui-component` buttons, icons, sizing, and theme tokens.
+`PathPromptOptions` from the pinned GPUI dependency and renders the control
+with `gpui-kit` buttons, icons, sizing, and theme tokens.
 Built-in defaults are plain English fallback copy. When a form needs localized
 placeholder, prompt, or button text, render those messages through an
 application-owned `es-fluent` localizer and pass the resulting strings through

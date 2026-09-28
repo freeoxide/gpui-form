@@ -15,7 +15,7 @@ use super::{
 pub struct InfiniteSelectCodeGenerator;
 
 const IMPORTS_BASE: &[ImportItem] = &[ImportItem::path(
-    "gpui_form::infinite_select::InfiniteSelectEvent",
+    "::gpui_form::infinite_select::InfiniteSelectEvent",
 )];
 
 impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
@@ -24,11 +24,11 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
         if let ComponentsBehaviour::InfiniteSelect(opts) = &field.behaviour {
             if opts.searchable {
                 items.push(ImportItem::path(
-                    "gpui_form::infinite_select::SearchableInfiniteSelectState",
+                    "::gpui_form::infinite_select::SearchableInfiniteSelectState",
                 ));
             } else {
                 items.push(ImportItem::path(
-                    "gpui_form::infinite_select::InfiniteSelectState",
+                    "::gpui_form::infinite_select::InfiniteSelectState",
                 ));
             }
         }
@@ -152,14 +152,14 @@ fn infinite_select_options(field: &ResolvedField<'_>) -> TokenStream {
     if let Some(max_depth) = behaviour.max_depth {
         let searchable = behaviour.searchable;
         quote! {
-            gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+            ::gpui_form::infinite_select::InfiniteSelectStateOptions::default()
                 .searchable(#searchable)
                 .max_depth(#max_depth)
         }
     } else {
         let searchable = behaviour.searchable;
         quote! {
-            gpui_form::infinite_select::InfiniteSelectStateOptions::default()
+            ::gpui_form::infinite_select::InfiniteSelectStateOptions::default()
                 .searchable(#searchable)
         }
     }
