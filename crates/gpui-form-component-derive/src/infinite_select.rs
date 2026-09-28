@@ -741,7 +741,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn variant_label(&self) -> gpui::SharedString {
+            fn variant_label(&self) -> ::gpui::SharedString {
                 match self {
                     #(#variant_label_arms)*
                 }
@@ -765,7 +765,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn child_variant_labels(&self) -> Vec<gpui::SharedString> {
+            fn child_variant_labels(&self) -> Vec<::gpui::SharedString> {
                 match self {
                     #(#child_variant_label_arms)*
                 }
@@ -829,7 +829,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn inner_child_variant_labels(&self) -> Vec<gpui::SharedString> {
+            fn inner_child_variant_labels(&self) -> Vec<::gpui::SharedString> {
                 match self {
                     #(#inner_child_variant_label_arms)*
                 }
@@ -853,27 +853,27 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn type_label(&self) -> gpui::SharedString {
+            fn type_label(&self) -> ::gpui::SharedString {
                 #type_label_impl
             }
 
-            fn type_description(&self) -> gpui::SharedString {
+            fn type_description(&self) -> ::gpui::SharedString {
                 #type_description_impl
             }
 
-            fn inner_child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+            fn inner_child_label_at_depth(&self, depth: usize) -> Option<::gpui::SharedString> {
                 match self {
                     #(#inner_child_label_arms)*
                 }
             }
 
-            fn inner_child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+            fn inner_child_description_at_depth(&self, depth: usize) -> Option<::gpui::SharedString> {
                 match self {
                     #(#inner_child_description_arms)*
                 }
             }
 
-            fn child_label_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+            fn child_label_at_depth(&self, depth: usize) -> Option<::gpui::SharedString> {
                 if depth == 0 {
                     match self {
                         #(#child_label_immediate_arms)*
@@ -883,7 +883,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                 }
             }
 
-            fn child_description_at_depth(&self, depth: usize) -> Option<gpui::SharedString> {
+            fn child_description_at_depth(&self, depth: usize) -> Option<::gpui::SharedString> {
                 if depth == 0 {
                     match self {
                         #(#child_description_immediate_arms)*
