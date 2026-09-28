@@ -65,11 +65,11 @@ pub struct User {
 
     #[gpui_form(section = "Financial", component(number_input(as = f64)), default = 67)]
     #[koruma(PositiveValidation::<_>::builder())]
-    pub balance: rust_decimal::Decimal,
+    pub balance: ::rust_decimal::Decimal,
 
     #[gpui_form(section = "Financial", component(number_input(as = f64)))]
     #[koruma(NegativeValidation::<_>::builder())]
-    pub debt: rust_decimal::Decimal,
+    pub debt: ::rust_decimal::Decimal,
 
     #[gpui_form(component(checkbox))]
     pub subscribe_newsletter: bool,
