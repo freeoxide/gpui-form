@@ -8,7 +8,7 @@ use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_sta
 
 pub struct SwitchCodeGenerator;
 
-const IMPORTS: &[ImportItem] = &[ImportItem::path("gpui_component::switch::Switch")];
+const IMPORTS: &[ImportItem] = &[ImportItem::path("::gpui_kit::component::switch::Switch")];
 
 impl FieldCodeGenerator for SwitchCodeGenerator {
     fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {

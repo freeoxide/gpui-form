@@ -27,7 +27,7 @@ pub enum Alias {
 /// [`FieldVariant::custom_component`](gpui_form_schema::registry::FieldVariant::custom_component).
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportItem {
-    /// Full path to the imported item, e.g. `"gpui_component::checkbox::Checkbox"`.
+    /// Full path to the imported item, e.g. `"::gpui_kit::component::checkbox::Checkbox"`.
     pub path: &'static str,
     /// Optional alias applied to the import.
     pub alias: Option<Alias>,

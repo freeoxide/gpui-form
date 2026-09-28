@@ -26,11 +26,11 @@ fn number_input_step_kind(type_str: &str) -> NumberInputKind {
 }
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_component::input::InputEvent"),
-    ImportItem::path("gpui_component::input::InputState"),
-    ImportItem::path("gpui_component::input::NumberInput"),
-    ImportItem::path("gpui_component::input::NumberInputEvent"),
-    ImportItem::path("gpui_component::input::StepAction"),
+    ImportItem::path("::gpui_kit::component::input::InputEvent"),
+    ImportItem::path("::gpui_kit::component::input::InputState"),
+    ImportItem::path("::gpui_kit::component::input::NumberInput"),
+    ImportItem::path("::gpui_kit::component::input::NumberInputEvent"),
+    ImportItem::path("::gpui_kit::component::input::StepAction"),
 ];
 
 impl FieldCodeGenerator for NumberInputCodeGenerator {

@@ -15,9 +15,9 @@ use super::{
 pub struct SelectCodeGenerator;
 
 const IMPORTS_BASE: &[ImportItem] = &[
-    ImportItem::path("gpui_component::select::Select"),
-    ImportItem::path("gpui_component::select::SelectEvent"),
-    ImportItem::path("gpui_component::select::SelectState"),
+    ImportItem::path("::gpui_kit::component::select::Select"),
+    ImportItem::path("::gpui_kit::component::select::SelectEvent"),
+    ImportItem::path("::gpui_kit::component::select::SelectState"),
 ];
 
 impl FieldCodeGenerator for SelectCodeGenerator {
@@ -26,7 +26,9 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         if let ComponentsBehaviour::Select(opts) = &field.behaviour
             && opts.searchable
         {
-            items.push(ImportItem::path("gpui_component::select::SearchableVec"));
+            items.push(ImportItem::path(
+                "::gpui_kit::component::select::SearchableVec",
+            ));
         }
         items
     }

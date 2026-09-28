@@ -14,20 +14,22 @@ use crate::imports::{Alias, ImportItem, ImportSet};
 /// Layout-specific imports such as `Render`, `Focusable`, `v_form`, or
 /// `Divider` belong in the caller's [`FormLayout`] implementation rather than
 /// in the shared form-shape adapter output.
+// Paths carry a leading `::` so emitted use-statements stay anchored to the
+// extern crate even when the consumer declares a same-named root module.
 const FRAGMENT_IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui::div"),
-    ImportItem::aliased("gpui::prelude::FluentBuilder", Alias::Anonymous),
-    ImportItem::aliased("gpui_component::ActiveTheme", Alias::Anonymous),
-    ImportItem::path("gpui_component::form::field"),
+    ImportItem::path("::gpui::div"),
+    ImportItem::aliased("::gpui::prelude::FluentBuilder", Alias::Anonymous),
+    ImportItem::aliased("::gpui_kit::component::ActiveTheme", Alias::Anonymous),
+    ImportItem::path("::gpui_kit::component::form::field"),
 ];
 
 #[cfg(feature = "fluent")]
 const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
-    "es_fluent::FluentMessage",
+    "::es_fluent::FluentMessage",
     Alias::Anonymous,
 )];
 
-const SUBSCRIPTION_IMPORTS: &[ImportItem] = &[ImportItem::path("gpui::Subscription")];
+const SUBSCRIPTION_IMPORTS: &[ImportItem] = &[ImportItem::path("::gpui::Subscription")];
 
 struct GeneratedField<'a> {
     imports: Vec<ImportItem>,
@@ -600,8 +602,46 @@ mod tests {
         let compact = compact(&parts.imports.to_string());
 
         assert!(
-            !compact.contains("usegpui::Subscription;"),
+            !compact.contains("use::gpui::Subscription;"),
             "subscription import should be omitted when no generated subscriptions exist: {compact}"
+        );
+    }
+
+    #[test]
+    fn imports_emit_hygienic_leading_colon_kit_paths() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enabled",
+            "bool",
+            false,
+            ComponentsBehaviour::Checkbox,
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid checkbox shapes should generate parts");
+        let compact = compact(&parts.imports.to_string());
+
+        assert!(
+            compact.contains("use::gpui::div;"),
+            "gpui items should be imported via a leading-colon path: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui_kit::component::ActiveThemeas_;"),
+            "kit trait imports should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui_kit::component::form::field;"),
+            "kit form builders should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui_kit::component::checkbox::Checkbox;"),
+            "component imports should resolve through the component facade: {compact}"
+        );
+        assert!(
+            !compact.contains("gpui_component"),
+            "no legacy gpui_component paths should remain in emitted imports: {compact}"
         );
     }
 

@@ -11,7 +11,7 @@ use super::{
 
 /// Code generator for `component(phone_input)` fields.
 ///
-/// The rendered control is a plain `gpui_component::input::Input`, so the value
+/// The rendered control is a plain `gpui_kit::component::input::Input`, so the value
 /// wiring (entity creation, subscription, text prefill, focus) is identical to
 /// [`InputCodeGenerator`] and is delegated to it. Only the rendered child
 /// differs: it emits `Input::new(...)` directly instead of resolving the

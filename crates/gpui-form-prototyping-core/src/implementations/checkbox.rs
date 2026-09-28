@@ -8,7 +8,9 @@ use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_sta
 
 pub struct CheckboxCodeGenerator;
 
-const IMPORTS: &[ImportItem] = &[ImportItem::path("gpui_component::checkbox::Checkbox")];
+const IMPORTS: &[ImportItem] = &[ImportItem::path(
+    "::gpui_kit::component::checkbox::Checkbox",
+)];
 
 impl FieldCodeGenerator for CheckboxCodeGenerator {
     fn generate_imports(&self, _field: &FieldVariant) -> Vec<ImportItem> {
