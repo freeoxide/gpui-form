@@ -1,31 +1,31 @@
-use some_lib::structs::new_type::*;
-use es_fluent::FluentMessage as _;
-use gpui::{Subscription, div};
-use gpui::prelude::FluentBuilder as _;
-use gpui_component::ActiveTheme as _;
-use gpui_component::form::field;
-use gpui_component::input::{
+use ::some_lib::structs::new_type::*;
+use ::es_fluent::FluentMessage as _;
+use ::gpui::{Subscription, div};
+use ::gpui::prelude::FluentBuilder as _;
+use ::gpui_kit::component::ActiveTheme as _;
+use ::gpui_kit::component::form::field;
+use ::gpui_kit::component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
-use gpui::{
+use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
 };
-use gpui_component::Disableable as _;
-use gpui_component::separator::Separator;
-use gpui_component::form::v_form;
-use gpui_component::v_flex;
-use some_lib::structs::form_action::FormAction;
+use ::gpui_kit::component::Disableable as _;
+use ::gpui_kit::component::separator::Separator;
+use ::gpui_kit::component::form::v_form;
+use ::gpui_kit::component::v_flex;
+use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "ItemForm";
 fn localize(
-    cx: &impl std::borrow::Borrow<App>,
-    message: &impl es_fluent::FluentMessage,
+    cx: &impl ::std::borrow::Borrow<App>,
+    message: &impl ::es_fluent::FluentMessage,
 ) -> String {
     crate::i18n::localize_message(cx, message)
 }
-#[gpui_storybook::story_init]
+#[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
-#[gpui_storybook::story]
+#[::gpui_storybook::story]
 pub struct ItemForm {
     current_data: ItemFormValueHolder,
     fields: ItemFormFields,
@@ -37,8 +37,8 @@ impl Focusable for ItemForm {
         self.focus_handle.clone()
     }
 }
-impl gpui_storybook::Story for ItemForm {
-    fn title(cx: &gpui::App) -> String {
+impl ::gpui_storybook::Story for ItemForm {
+    fn title(cx: &::gpui::App) -> String {
         crate::i18n::localize_label::<Item>(cx)
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -143,14 +143,16 @@ impl ItemForm {
     fn submit_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
+        label: impl Into<::gpui::SharedString>,
         on_submit: impl Fn(
             Result<Option<Item>, String>,
             &mut Window,
             &mut Context<Self>,
         ) + 'static,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-submit-button", "item-form"))
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
+                format!("{}-submit-button", "item-form"),
+            )
             .label(label)
             .disabled(self.current_data.validate().is_err())
             .on_click(
@@ -163,9 +165,11 @@ impl ItemForm {
     fn reset_button(
         &self,
         cx: &mut Context<Self>,
-        label: impl Into<gpui::SharedString>,
-    ) -> gpui_component::button::Button {
-        gpui_component::button::Button::new(format!("{}-reset-button", "item-form"))
+        label: impl Into<::gpui::SharedString>,
+    ) -> ::gpui_kit::component::button::Button {
+        ::gpui_kit::component::button::Button::new(
+                format!("{}-reset-button", "item-form"),
+            )
             .label(label)
             .on_click(
                 cx
