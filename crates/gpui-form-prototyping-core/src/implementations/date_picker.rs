@@ -12,9 +12,9 @@ use super::{
 pub struct DatePickerCodeGenerator;
 
 const IMPORTS: &[ImportItem] = &[
-    ImportItem::path("gpui_form::runtime::date_picker::DatePicker"),
-    ImportItem::path("gpui_form::runtime::date_picker::DatePickerEvent"),
-    ImportItem::path("gpui_form::runtime::date_picker::DatePickerState"),
+    ImportItem::path("::gpui_form::runtime::date_picker::DatePicker"),
+    ImportItem::path("::gpui_form::runtime::date_picker::DatePickerEvent"),
+    ImportItem::path("::gpui_form::runtime::date_picker::DatePickerState"),
 ];
 
 fn value_assign(field: &ResolvedField<'_>, field_name_ident: &syn::Ident) -> TokenStream {

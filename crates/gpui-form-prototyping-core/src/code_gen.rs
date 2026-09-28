@@ -344,8 +344,10 @@ impl<'a> FormShapeAdapter<'a> {
             collected_imports.extend(field.imports.clone());
         }
         let collected_imports = collected_imports.to_token_stream();
+        // The glob anchors with `::`: source_path_to_use_path builds
+        // crate-name-first paths that resolve through the extern prelude.
         let imports = quote! {
-            use #source_module_path::*;
+            use ::#source_module_path::*;
             #collected_imports
         };
 
@@ -608,24 +610,98 @@ mod tests {
     }
 
     #[test]
-    fn imports_emit_hygienic_leading_colon_kit_paths() {
-        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
-            "enabled",
-            "bool",
-            false,
-            ComponentsBehaviour::Checkbox,
-        )];
+    fn imports_emit_hygienic_leading_colon_paths() {
+        const FIELDS: [FieldVariant; 10] = [
+            FieldVariant::new("enabled", "bool", false, ComponentsBehaviour::Checkbox),
+            FieldVariant::new("dark_mode", "bool", false, ComponentsBehaviour::Switch),
+            FieldVariant::new("username", "String", false, ComponentsBehaviour::Input),
+            FieldVariant::new(
+                "age",
+                "u32",
+                false,
+                ComponentsBehaviour::NumberInput(
+                    gpui_form_schema::components::NumberInputBehaviour {
+                        validation_type: None,
+                        kind: gpui_form_schema::components::NumberInputKind::UnsignedInteger,
+                    },
+                ),
+            ),
+            FieldVariant::new(
+                "phone",
+                "String",
+                false,
+                ComponentsBehaviour::PhoneInput(
+                    gpui_form_schema::components::PhoneInputBehaviour {
+                        country_field: None,
+                    },
+                ),
+            ),
+            FieldVariant::new(
+                "country",
+                "String",
+                false,
+                ComponentsBehaviour::Select(gpui_form_schema::components::SelectBehaviour {
+                    partial: false,
+                    searchable: true,
+                }),
+            ),
+            FieldVariant::new(
+                "category",
+                "String",
+                false,
+                ComponentsBehaviour::InfiniteSelect(
+                    gpui_form_schema::components::InfiniteSelectBehaviour {
+                        searchable: true,
+                        max_depth: None,
+                    },
+                ),
+            ),
+            FieldVariant::new(
+                "sub_category",
+                "String",
+                false,
+                ComponentsBehaviour::InfiniteSelect(
+                    gpui_form_schema::components::InfiniteSelectBehaviour {
+                        searchable: false,
+                        max_depth: None,
+                    },
+                ),
+            ),
+            FieldVariant::new(
+                "avatar",
+                "Option<String>",
+                false,
+                ComponentsBehaviour::FilePicker,
+            ),
+            FieldVariant::new(
+                "born",
+                "Option<String>",
+                false,
+                ComponentsBehaviour::DatePicker,
+            ),
+        ];
         const SHAPE: GpuiFormShape =
             GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
 
         let parts = FormShapeAdapter::new(&SHAPE)
             .parts()
-            .expect("valid checkbox shapes should generate parts");
+            .expect("valid all-family shapes should generate parts");
         let compact = compact(&parts.imports.to_string());
 
+        // One exact pin per emitted use-statement — source glob, shared
+        // fragments, and every implementation family — so a dropped leading
+        // `::` or a renamed item fails here.
         assert!(
-            compact.contains("use::gpui::div;"),
+            compact.contains("use::some_lib::demo::*;"),
+            "source-module glob should be anchored to the extern crate: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui::{Subscription,div};"),
             "gpui items should be imported via a leading-colon path: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui::prelude::FluentBuilderas_;"),
+            "gpui trait imports should be anchored: {compact}"
         );
         assert!(
             compact.contains("use::gpui_kit::component::ActiveThemeas_;"),
@@ -637,7 +713,50 @@ mod tests {
         );
         assert!(
             compact.contains("use::gpui_kit::component::checkbox::Checkbox;"),
-            "component imports should resolve through the component facade: {compact}"
+            "checkbox imports should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui_kit::component::switch::Switch;"),
+            "switch imports should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "use::gpui_kit::component::input::{Input,InputEvent,InputState,NumberInput,NumberInputEvent,StepAction};"
+            ),
+            "input-family imports should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "use::gpui_kit::component::select::{SearchableVec,Select,SelectEvent,SelectState};"
+            ),
+            "select imports (searchable included) should resolve through the component facade: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "use::gpui_form::infinite_select::{InfiniteSelectEvent,InfiniteSelectState,SearchableInfiniteSelectState};"
+            ),
+            "infinite-select imports should be anchored to the extern crate: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "use::gpui_form::runtime::date_picker::{DatePicker,DatePickerEvent,DatePickerState};"
+            ),
+            "date-picker imports should be anchored to the extern crate: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "use::gpui_form::runtime::file_picker::{FilePicker,FilePickerEvent,FilePickerState};"
+            ),
+            "file-picker imports should be anchored to the extern crate: {compact}"
+        );
+        #[cfg(feature = "fluent")]
+        assert!(
+            compact.contains("use::es_fluent::FluentMessageas_;"),
+            "fluent fragment imports should be anchored: {compact}"
+        );
+        assert!(
+            !compact.contains("usegpui"),
+            "every emitted use statement must anchor extern paths with a leading `::`: {compact}"
         );
         assert!(
             !compact.contains("gpui_component"),
