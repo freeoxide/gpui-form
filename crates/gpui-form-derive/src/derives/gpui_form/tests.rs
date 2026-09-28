@@ -913,7 +913,7 @@ mod gpui_form_tests {
             "Select component initialization should compare against the bound default expression"
         );
         assert!(
-            compact.contains(".map(::gpui_component::IndexPath::new)")
+            compact.contains(".map(::gpui_kit::component::IndexPath::new)")
                 && !compact.contains(".position(|x|x==__gpui_form_default).unwrap()"),
             "Select component initialization should skip invalid defaults instead of panicking"
         );

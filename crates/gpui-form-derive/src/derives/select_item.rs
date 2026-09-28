@@ -50,7 +50,7 @@ pub fn from(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl gpui_component::select::SelectItem for #item_ident {
+        impl gpui_kit::component::select::SelectItem for #item_ident {
             type Value = Self;
 
             fn title(&self) -> gpui::SharedString {
