@@ -83,9 +83,9 @@ pub trait CustomComponentValueAdapter<T>: CustomComponentShape {
 /// ```ignore
 /// gpui_form_component::custom_component_shape!(
 ///     pub EmailInputShape,
-///     state = gpui_component::input::InputState,
-///     new = gpui_component::input::InputState::new,
-///     component = gpui_component::input::Input,
+///     state = gpui_kit::component::input::InputState,
+///     new = gpui_kit::component::input::InputState::new,
+///     component = gpui_kit::component::input::Input,
 /// );
 /// ```
 #[macro_export]
