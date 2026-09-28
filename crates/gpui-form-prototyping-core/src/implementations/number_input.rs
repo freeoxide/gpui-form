@@ -243,7 +243,7 @@ mod tests {
     fn number_input_as_float_keeps_custom_value_step_logic() {
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "balance",
-            "rust_decimal::Decimal",
+            "::rust_decimal::Decimal",
             false,
             ComponentsBehaviour::NumberInput(NumberInputBehaviour {
                 kind: NumberInputKind::Float,
@@ -257,6 +257,7 @@ mod tests {
         let generated = generator
             .generate_subscription(&field, &SHAPE)
             .expect("number input fields should generate subscriptions");
+        let input_handler = compact(&generated.handlers[0].to_string());
         let compact = compact(&generated.handlers[1].to_string());
 
         assert_eq!(
@@ -271,6 +272,12 @@ mod tests {
         assert!(
             !compact.contains("-1.0") && !compact.contains("+1.0"),
             "custom value step logic should not emit float arithmetic: {compact}"
+        );
+
+        // Body paths (not imports): the anchor must survive parse_str + splice.
+        assert!(
+            input_handler.contains("parse::<::rust_decimal::Decimal>()"),
+            "value-type paths must keep their leading `::` anchor through emission: {input_handler}"
         );
     }
 }

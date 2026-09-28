@@ -158,7 +158,7 @@ mod tests {
     fn select_generator_keeps_qualified_type_paths() {
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "country",
-            "some_lib::country::Country",
+            "::some_lib::country::Country",
             false,
             ComponentsBehaviour::Select(SelectBehaviour {
                 partial: false,
@@ -175,7 +175,7 @@ mod tests {
         let compact = compact(&generated.handlers[0].to_string());
 
         assert!(
-            compact.contains("Entity<SelectState<Vec<some_lib::country::Country>>>"),
+            compact.contains("Entity<SelectState<Vec<::some_lib::country::Country>>>"),
             "subscription handler should keep the fully-qualified type path: {compact}"
         );
     }
