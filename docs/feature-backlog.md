@@ -12,14 +12,14 @@ The workspace currently has three related layers:
 1. **Headless form metadata and generated value state** in the derive, schema,
    codegen, and core crates.
 2. **GPUI integration glue** that maps generated form fields onto
-   `gpui-component` controls.
+   `gpui-kit` controls.
 3. **Small form-specific runtime helpers** in `gpui-form-component`, such as
    date picker, file picker, infinite select state, and custom component
    contracts.
 
 Prefer features that improve generated state, metadata, validation, conversion,
 and prototyping. Add new rendered controls only when they are form-specific
-runtime primitives or thin mappings to existing `gpui-component` widgets.
+runtime primitives or thin mappings to existing `gpui-kit` widgets.
 
 ## Highest-value candidates
 
@@ -142,7 +142,7 @@ pub assignee: Option<UserId>,
 
 This should be designed as a provider contract plus generated state wiring, not
 as a new standalone select widget. The rendered control can still be backed by
-`gpui-component` where possible.
+`gpui-kit` where possible.
 
 Key design questions:
 
@@ -427,7 +427,7 @@ component library.
 pub bio: Option<String>,
 ```
 
-This is a good low-risk candidate if `gpui-component` already exposes the
+This is a good low-risk candidate if `gpui-kit` already exposes the
 needed multiline input behavior.
 
 ### Radio group mapping
