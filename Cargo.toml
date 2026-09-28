@@ -15,11 +15,11 @@ members = [
 ]
 # The vendored gpui-storybook gallery (5 crates), gpui-form-component-story,
 # and the storybook-driven demo (examples/some-lib-forms) are NOT workspace
-# members: the gallery targets gpui-component's REMOVED dock/DockItem API and
-# a redesigned Panel trait, so it cannot compile against gpui-component
-# 5a5e2ab. They stay in-tree for a future re-vendor from an upstream that
-# tracks mainline; excluded so cargo neither builds them with --workspace nor
-# complains about nested packages.
+# members: the gallery targets the retired longbridge/gpui-component git
+# crate's REMOVED dock/DockItem API and a redesigned Panel trait, so it cannot
+# compile against gpui-kit 0.7.0. They stay in-tree for a future re-vendor
+# from an upstream that tracks mainline; excluded so cargo neither builds them
+# with --workspace nor complains about nested packages.
 exclude = [
   "crates/gpui-form-component-story",
   "examples/some-lib-forms",
@@ -47,9 +47,7 @@ es-fluent = "0.16"
 es-fluent-build = "0.16"
 es-fluent-lang = "0.16"
 es-fluent-manager-embedded = "0.16"
-gpui = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "2126cedcb2664ab1f1c0625fbc667a007698521f" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "2126cedcb2664ab1f1c0625fbc667a007698521f" }
+gpui = { package = "gpui-pre", version = "0.3.7" }
 gpui-es-fluent = { path = "vendor/gpui-es-fluent/crates/gpui-es-fluent" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
@@ -59,12 +57,14 @@ gpui-form-core = { path = "crates/gpui-form-core", version = "0.5.2" }
 gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.5.2" }
 gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.5.2" }
 gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.5.2" }
+gpui-kit = "0.7.0"
+gpui-kit-assets = "0.7.0"
 gpui_platform = { features = [
   "font-kit",
   "x11",
   "wayland",
   "runtime_shaders",
-], git = "https://github.com/zed-industries/zed" }
+], package = "gpui-pre-platform", version = "0.3.7" }
 heck = "0.5.0"
 phonenumber = "0.3.9"
 icu_calendar = "2.2.0"
@@ -83,7 +83,6 @@ proc-macro-crate = "3.2"
 proc-macro-error2 = "2.0"
 proc-macro2 = "1.0"
 quote = "1.0"
-reqwest_client = { git = "https://github.com/zed-industries/zed" }
 rust-embed = "8.11"
 rust_decimal = "1.40"
 serde = { version = "1.0", features = [ "derive" ] }
