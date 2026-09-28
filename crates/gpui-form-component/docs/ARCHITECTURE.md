@@ -98,7 +98,7 @@ Responsibilities:
 - provide plain English fallback copy for built-in placeholders, prompts,
   button labels, selected-count text, and dropped-dialog errors while keeping
   Fluent resources available for caller-owned localizers
-- use the workspace-pinned GPUI git API instead of adding another native dialog
+- use the workspace-pinned GPUI API instead of adding another native dialog
   dependency
 
 ## Data Flow

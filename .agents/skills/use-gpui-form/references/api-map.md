@@ -4,13 +4,13 @@ Use this reference for application code that consumes `gpui-form`.
 
 ## Install Shape
 
-Use `gpui-form` as the public entry point. Match `gpui` and `gpui-component`
+Use `gpui-form` as the public entry point. Match `gpui` and `gpui-kit`
 versions to the compatibility guidance for the `gpui-form` version in use.
 
 ```toml
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "832c17e8192e2e1d472f0751e7cef2af84ded622" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
+gpui = { package = "gpui-pre", version = "0.3.7" }
+gpui-kit = "0.7.0"
 gpui-form = "*"
 ```
 
@@ -240,9 +240,9 @@ Or declare a reusable shape:
 ```rust
 gpui_form::custom_component_shape!(
     pub EmailInputShape,
-    state = gpui_component::input::InputState,
-    new = gpui_component::input::InputState::new,
-    component = gpui_component::input::Input,
+    state = gpui_kit::component::input::InputState,
+    new = gpui_kit::component::input::InputState::new,
+    component = gpui_kit::component::input::Input,
 );
 ```
 
