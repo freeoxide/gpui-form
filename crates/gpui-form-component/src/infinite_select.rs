@@ -8,7 +8,7 @@ use gpui::{
     App, AppContext as _, Context, Empty, Entity, EventEmitter, FocusHandle, Focusable,
     IntoElement, ParentElement as _, Render, SharedString, Styled as _, Subscription, Window, div,
 };
-use gpui_component::{
+use gpui_kit::component::{
     IndexPath,
     form::{Field, field},
     select::{SearchableVec, Select, SelectDelegate, SelectEvent, SelectItem, SelectState},
@@ -845,7 +845,7 @@ where
         self.selected_key.as_deref()
     }
 
-    /// Builds a `gpui_component::form::Field` for this select level.
+    /// Builds a `gpui_kit::component::form::Field` for this select level.
     pub fn to_form_field(&self) -> Field {
         let label = self.label.clone();
         let description = self.description.clone();
