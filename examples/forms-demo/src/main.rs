@@ -25,6 +25,7 @@ use unic_langid::LanguageIdentifier;
 rust_i18n::i18n!("locales", fallback = "en");
 
 #[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
 pub enum Country {
     #[default]
@@ -34,6 +35,7 @@ pub enum Country {
 }
 
 #[derive(Clone, Debug, Default, GpuiForm, Koruma, KorumaAllDisplay)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[gpui_form(koruma(fluent))]
 pub struct Signup {
     #[gpui_form(label = "Username", placeholder = "ada", component(input))]
