@@ -106,7 +106,9 @@ pub struct NewtypeConvertedRequest {
     code: RequestCode,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, gpui_form::mcp::McpJsonSchema, PartialEq)]
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, gpui_form::mcp::McpJsonSchema, PartialEq, Serialize,
+)]
 #[serde(transparent)]
 pub struct DecodeOnlyValue(String);
 
@@ -121,7 +123,8 @@ pub struct NotificationPreferences {
     topics: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct SlashSeparatedTags(Vec<String>);
 
 impl gpui_form::mcp::McpToolValue for SlashSeparatedTags {
