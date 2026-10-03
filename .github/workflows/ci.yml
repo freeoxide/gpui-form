@@ -31,6 +31,29 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-features
 
+  macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Build GPUI stack (Metal)
+        run: cargo build --workspace --all-features
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Storybook apps (informational — not buildable yet)
+        continue-on-error: true
+        run: |
+          echo "::warning::gpui-form-component-story and examples/some-lib-forms are workspace-excluded (they depend on the vendored gallery that still targets the retired longbridge/gpui-component API) and cannot compile until that gallery is revived."
+          cargo check --manifest-path crates/gpui-form-component-story/Cargo.toml
+
   fmt:
     runs-on: ubuntu-latest
 
