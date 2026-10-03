@@ -40,7 +40,10 @@ component_shape! {
     }
 }
 
-impl_form_component_shape!(ColorPicker, gpui_form_collection::shape::RequiredValueStorage);
+impl_form_component_shape!(
+    ColorPicker,
+    gpui_form_collection::shape::RequiredValueStorage
+);
 
 #[cfg(test)]
 mod tests {

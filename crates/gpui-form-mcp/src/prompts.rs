@@ -147,10 +147,7 @@ pub(crate) fn form_prompt_spec(
     })
 }
 
-pub(crate) fn optional_prompt_argument(
-    name: &'static str,
-    description: &str,
-) -> McpPromptArgument {
+pub(crate) fn optional_prompt_argument(name: &'static str, description: &str) -> McpPromptArgument {
     McpPromptArgument::new(name)
         .with_description(description)
         .with_required(false)

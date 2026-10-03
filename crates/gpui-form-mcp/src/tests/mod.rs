@@ -1,8 +1,8 @@
+pub(super) use super::descriptors::FieldValuePresence;
 pub(super) use super::{
     McpField, McpFormDescriptor, McpFormEditorOptions, McpFormInput, McpFormRegistrationOptions,
     McpInput, McpObject, McpServer, form, tool_name,
 };
-pub(super) use super::descriptors::FieldValuePresence;
 pub(super) use component_shape::{RustPath, RustType};
 pub(super) use std::time::Duration;
 
@@ -80,4 +80,3 @@ impl super::McpJsonSchema for BookingResponse {
         super::object_schema(properties, ["available_on"])
     }
 }
-

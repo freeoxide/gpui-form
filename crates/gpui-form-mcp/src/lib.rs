@@ -44,7 +44,7 @@ pub use contracts::{
     McpContextSubmit, McpEditableForm, McpForm, McpFormInput, McpFormModel, McpFormValidation,
     McpFormValueHolder, McpObject, McpSubmitArgument, McpSubmitContext,
 };
-pub use descriptors::{FieldValuePresence, FieldToolValueSchemaFn, McpField, McpFormDescriptor};
+pub use descriptors::{FieldToolValueSchemaFn, FieldValuePresence, McpField, McpFormDescriptor};
 pub use editor::{McpFormEditorToolNames, editor_tool_definitions, editor_tool_names};
 pub use options::{
     DEFAULT_EDITOR_SESSION_IDLE_TIMEOUT, DEFAULT_EDITOR_SESSION_LIMIT, McpFormEditorOptions,

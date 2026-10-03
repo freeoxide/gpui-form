@@ -265,8 +265,7 @@ mod tests {
             for locale in LOCALES.iter().copied() {
                 let translated = rust_i18n::t!(key, locale = locale);
                 assert_ne!(
-                    &*translated,
-                    key,
+                    &*translated, key,
                     "key {key} unresolved for locale {locale}"
                 );
             }
@@ -332,10 +331,7 @@ mod tests {
         assert_eq!(rust_i18n::t!("file_picker.browse"), "Parcourir");
 
         i18n.select_language(langid("zh-CN")).unwrap();
-        assert_eq!(
-            rust_i18n::t!("date_picker.select_date"),
-            "选择日期"
-        );
+        assert_eq!(rust_i18n::t!("date_picker.select_date"), "选择日期");
 
         i18n.select_language(langid("en")).unwrap();
         assert_eq!(rust_i18n::t!("file_picker.browse"), "Browse");

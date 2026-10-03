@@ -97,9 +97,7 @@ pub struct ConstrainedRequest {
 )]
 #[serde(transparent)]
 #[koruma(newtype)]
-pub struct RequestCode(
-    #[koruma(LenValidation::<_>::builder().min(2).max(8))] pub String,
-);
+pub struct RequestCode(#[koruma(LenValidation::<_>::builder().min(2).max(8))] pub String);
 
 #[derive(Clone, Debug, Deserialize, Eq, GpuiForm, PartialEq, Serialize)]
 #[gpui_form(mcp)]

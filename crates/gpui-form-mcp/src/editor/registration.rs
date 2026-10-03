@@ -215,49 +215,77 @@ where
         open: editor_tool_definition::<McpFormEditOpenInput<Form>>(
             tool_names.open,
             rust_i18n::t!("editor.open_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.open_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.open_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             snapshot_output_schema.clone(),
             session_mutation_annotations(false),
         )?,
         list: editor_tool_definition::<()>(
             tool_names.list,
             rust_i18n::t!("editor.list_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.list_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.list_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             list_output_schema,
             read_only_annotations(),
         )?,
         read: editor_tool_definition::<SessionIdInput>(
             tool_names.read,
             rust_i18n::t!("editor.read_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.read_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.read_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             snapshot_output_schema.clone(),
             read_only_annotations(),
         )?,
         patch: editor_tool_definition::<McpFormEditPatchInput<Form>>(
             tool_names.patch,
             rust_i18n::t!("editor.patch_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.patch_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.patch_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             snapshot_output_schema.clone(),
             session_mutation_annotations(true),
         )?,
         validate: editor_tool_definition::<SessionIdInput>(
             tool_names.validate,
             rust_i18n::t!("editor.validate_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.validate_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.validate_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             snapshot_output_schema,
             read_only_annotations(),
         )?,
         close: editor_tool_definition::<McpFormEditCloseInput>(
             tool_names.close,
             rust_i18n::t!("editor.close_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.close_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.close_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             close_editor_output_schema(),
             session_mutation_annotations(true),
         )?,
         close_all: editor_tool_definition::<()>(
             tool_names.close_all,
             rust_i18n::t!("editor.close_all_title", form_name = descriptor.form_name()).to_string(),
-            rust_i18n::t!("editor.close_all_description", form_name = descriptor.form_name()).to_string(),
+            rust_i18n::t!(
+                "editor.close_all_description",
+                form_name = descriptor.form_name()
+            )
+            .to_string(),
             close_all_editor_output_schema(descriptor),
             session_mutation_annotations(true),
         )?,
@@ -309,7 +337,11 @@ where
     editor_tool_definition::<McpFormEditSubmitInput>(
         tool_names.submit,
         rust_i18n::t!("editor.submit_title", form_name = descriptor.form_name()).to_string(),
-        rust_i18n::t!("editor.submit_description", form_name = descriptor.form_name()).to_string(),
+        rust_i18n::t!(
+            "editor.submit_description",
+            form_name = descriptor.form_name()
+        )
+        .to_string(),
         descriptor.output_schema::<Response>(),
         McpToolAnnotations::new()
             .read_only(false)

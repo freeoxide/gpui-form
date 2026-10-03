@@ -1,9 +1,9 @@
 #[cfg(feature = "derive")]
 pub use gpui_form_component::InfiniteSelect;
-#[cfg(feature = "derive")]
-pub use gpui_form_derive::{CustomComponentState, GpuiForm, SelectItem};
 #[cfg(all(feature = "derive", feature = "mcp"))]
 pub use gpui_form_derive::mcp_submit;
+#[cfg(feature = "derive")]
+pub use gpui_form_derive::{CustomComponentState, GpuiForm, SelectItem};
 
 #[cfg(feature = "mcp")]
 pub use gpui_form_mcp as mcp;

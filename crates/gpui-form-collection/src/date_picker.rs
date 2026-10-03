@@ -55,7 +55,10 @@ component_shape! {
     }
 }
 
-impl_form_component_shape!(DatePicker, gpui_form_collection::shape::RequiredValueStorage);
+impl_form_component_shape!(
+    DatePicker,
+    gpui_form_collection::shape::RequiredValueStorage
+);
 
 component_shape! {
     /// Form component for a range-mode `gpui_kit::component::date_picker::DatePicker`.

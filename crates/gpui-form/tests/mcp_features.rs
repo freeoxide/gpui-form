@@ -24,4 +24,3 @@ fn facade_mcp_reexports_component_shape_mcp_derives() {
         gpui_form::mcp::serde_json::json!(["query"])
     );
 }
-

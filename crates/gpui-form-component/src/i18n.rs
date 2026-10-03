@@ -2,8 +2,8 @@ use rust_i18n::t;
 
 pub use gpui_form_i18n::{
     CurrentLanguage, I18n, Language, LocalizationError, change_locale, fallback_label,
-    fallback_message, humanize_key, init, init_with_language, localize_label, localize_message,
-    locale, replace_with_language, try_localize_message,
+    fallback_message, humanize_key, init, init_with_language, locale, localize_label,
+    localize_message, replace_with_language, try_localize_message,
 };
 
 #[derive(Clone, Debug)]
@@ -90,8 +90,7 @@ mod tests {
             for locale in LOCALES.iter().copied() {
                 let translated = t!(key, locale = locale);
                 assert_ne!(
-                    &*translated,
-                    key,
+                    &*translated, key,
                     "key {key} unresolved for locale {locale}"
                 );
             }
