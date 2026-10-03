@@ -8,6 +8,7 @@ members = [
   "crates/gpui-form-component-derive",
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
+  "crates/gpui-form-collection",
   "crates/gpui-form-prototyping-core",
   "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
@@ -40,6 +41,8 @@ version = "0.5.2"
 anyhow = "1.0"
 bon = "3.9"
 chrono = "0.4"
+component-shape = "0.3.3"
+component-shape-gpui = "0.3.3"
 crabtime = "1.1"
 darling = "0.23"
 derive_more = "2.1"
