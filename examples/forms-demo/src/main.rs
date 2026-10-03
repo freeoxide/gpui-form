@@ -347,10 +347,14 @@ impl FormsDemo {
     }
 }
 
-fn localized_field_error<E>(errs: &[E], key_of: impl Fn(&E) -> &'static str) -> Option<String> {
+fn localized_field_error<E>(
+    errs: &[E],
+    locale: &str,
+    key_of: impl Fn(&E) -> &'static str,
+) -> Option<String> {
     (!errs.is_empty()).then(|| {
         errs.iter()
-            .map(|v| t!(key_of(v)).to_string())
+            .map(|v| t!(key_of(v), locale = locale).to_string())
             .collect::<Vec<_>>()
             .join("\n")
     })
@@ -365,8 +369,9 @@ impl Focusable for FormsDemo {
 impl Render for FormsDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let validation_errors = self.data.validate().err();
+        let active_locale = rust_i18n::locale().to_string();
         let username_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.username().all(), |v| match v {
+            localized_field_error(&e.username().all(), &active_locale, |v| match v {
                 SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
                     "validation.required"
                 },
@@ -376,17 +381,17 @@ impl Render for FormsDemo {
             })
         });
         let email_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.email().all(), |v| match v {
+            localized_field_error(&e.email().all(), &active_locale, |v| match v {
                 SignupFormValueHolderEmailKorumaValidator::EmailValidation(_) => "validation.email",
             })
         });
         let age_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.age().all(), |v| match v {
+            localized_field_error(&e.age().all(), &active_locale, |v| match v {
                 SignupFormValueHolderAgeKorumaValidator::RangeValidation(_) => "validation.range",
             })
         });
         let code_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.code().all(), |v| match v {
+            localized_field_error(&e.code().all(), &active_locale, |v| match v {
                 SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
                     "validation.required"
                 },
@@ -724,15 +729,12 @@ mod validation_locale_tests {
     use crate::SignupFormValueHolder;
     use crate::SignupFormValueHolderUsernameKorumaValidator;
     use crate::localized_field_error;
-    use crate::test_util::LOCALE_LOCK;
 
     #[test]
     fn field_errors_render_in_french() {
-        let _locale_guard = LOCALE_LOCK.lock().unwrap();
-        rust_i18n::set_locale("fr-FR");
         let err = SignupFormValueHolder::default().validate().err().unwrap();
         let errs = err.username().all();
-        let rendered = localized_field_error(&errs, |v| match v {
+        let rendered = localized_field_error(&errs, "fr-FR", |v| match v {
             SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
                 "validation.required"
             },
@@ -743,9 +745,7 @@ mod validation_locale_tests {
         .unwrap();
         assert_eq!(rendered, "Ce champ est obligatoire.");
 
-        rust_i18n::set_locale("zh-CN");
-        let errs = err.username().all();
-        let rendered = localized_field_error(&errs, |v| match v {
+        let rendered = localized_field_error(&errs, "zh-CN", |v| match v {
             SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
                 "validation.required"
             },
@@ -755,7 +755,6 @@ mod validation_locale_tests {
         })
         .unwrap();
         assert_eq!(rendered, "此字段为必填项。");
-        rust_i18n::set_locale("en");
     }
 }
 
@@ -765,10 +764,8 @@ mod newtype_locale_tests {
     use crate::SignupFormValueHolder;
     use crate::SignupFormValueHolderCodeKorumaValidator;
     use crate::localized_field_error;
-    use crate::test_util::LOCALE_LOCK;
 
-    fn rendered_code_error() -> String {
-        let _locale_guard = LOCALE_LOCK.lock().unwrap();
+    fn rendered_code_error(locale: &str) -> String {
         let mut holder = SignupFormValueHolder::default();
         holder.username = Some("ada".to_string());
         holder.code = Some(RequestCode::from("A".to_string()));
@@ -776,7 +773,7 @@ mod newtype_locale_tests {
             .validate()
             .err()
             .expect("short invite code must fail");
-        localized_field_error(&err.code().all(), |v| match v {
+        localized_field_error(&err.code().all(), locale, |v| match v {
             SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
                 "validation.required"
             },
@@ -793,14 +790,14 @@ mod newtype_locale_tests {
 
     #[test]
     fn newtype_inner_error_localizes() {
-        rust_i18n::set_locale("fr-FR");
         assert_eq!(
-            rendered_code_error(),
+            rendered_code_error("fr-FR"),
             "La longueur doit rester dans les limites autorisées."
         );
-
-        rust_i18n::set_locale("zh-CN");
-        assert_eq!(rendered_code_error(), "长度超出允许范围。");
-        rust_i18n::set_locale("en");
+        assert_eq!(rendered_code_error("zh-CN"), "长度超出允许范围。");
+        assert_eq!(
+            rendered_code_error("en"),
+            "Length must be between the allowed bounds."
+        );
     }
 }
