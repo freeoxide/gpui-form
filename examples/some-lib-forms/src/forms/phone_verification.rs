@@ -9,8 +9,8 @@ use gpui_component::select::{Select, SelectEvent, SelectItem, SelectState};
 use gpui_component::separator::Separator;
 use gpui_component::v_flex;
 use gpui_form::phone::{
-    PhoneCountry as PhoneCountryExt, PhoneNumberValidation, country, validate_phone_number_for,
-    validate_optional_phone_number,
+    PhoneCountry as PhoneCountryExt, PhoneNumberValidation, country,
+    validate_optional_phone_number, validate_phone_number_for,
 };
 use strum::IntoEnumIterator as _;
 
@@ -83,7 +83,10 @@ impl PhoneBreakdown {
             .country()
             .map(|id| format!("{id:?}"))
             .unwrap_or_else(|| "—".to_string());
-        let e164 = validation.e164().map(str::to_string).unwrap_or_else(|| "—".to_string());
+        let e164 = validation
+            .e164()
+            .map(str::to_string)
+            .unwrap_or_else(|| "—".to_string());
 
         Self {
             is_valid: validation.is_valid(),

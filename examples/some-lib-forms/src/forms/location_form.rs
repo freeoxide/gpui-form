@@ -1,4 +1,3 @@
-use es_fluent::FluentMessage as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
@@ -16,8 +15,8 @@ use gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::location::*;
 const CONTEXT: &str = "LocationFormForm";
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
-    crate::i18n::localize_message(cx, message)
+fn localize(cx: &impl std::borrow::Borrow<App>, key: &str) -> String {
+    crate::i18n::localize_message(cx, key)
 }
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
@@ -35,7 +34,7 @@ impl Focusable for LocationFormForm {
 }
 impl gpui_storybook::Story for LocationFormForm {
     fn title(cx: &gpui::App) -> String {
-        crate::i18n::localize_label::<LocationForm>(cx)
+        crate::i18n::localize_label(cx, "location_form_label")
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -143,8 +142,8 @@ impl LocationFormForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit))
+            .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
     }
 }
 impl Render for LocationFormForm {
@@ -161,15 +160,10 @@ impl Render for LocationFormForm {
                 v_form()
                     .child(
                         field()
-                            .label({
-                                let message = LocationFormLabelVariants::Name;
-                                localize(cx, &message)
-                            })
+                            .label(localize(cx, "location_form.name_label"))
                             .description_fn({
-                                let description = {
-                                    let message = LocationFormDescriptionVariants::Name;
-                                    localize(cx, &message)
-                                };
+                                let description =
+                                    { localize(cx, "location_form.name_description") };
                                 move |_, _| {
                                     div()
                                         .flex()

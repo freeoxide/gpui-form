@@ -1,0 +1,47 @@
+enum_country:
+  china: Chine
+  france: France
+  united_states: États-Unis
+item:
+  index_label: Index
+prefered_language:
+  chinese: Chinois
+  english: Anglais
+  french: Français
+preferred_language:
+  chinese: Chinese
+  english: English
+  french: French
+user:
+  age_label: Âge
+  balance_label: Solde
+  birth_date_label: Date de naissance
+  country_label: Pays
+  debt_label: Dette
+  email_label: Courriel
+  enable_notifications_label: Activer les notifications
+  preferred_label: Préféré
+  subscribe_newsletter_label: S'abonner à la newsletter
+  username_label: Nom d'utilisateur
+validation:
+  alphanumeric: "Doit contenir uniquement des lettres et des chiffres."
+  ascii: "Doit contenir uniquement des caractères ASCII."
+  contains: "Doit contenir la sous-chaîne « %{substring} »."
+  credit_card: "N'est pas un numéro de carte de crédit valide."
+  email: "N'est pas une adresse e-mail valide."
+  invalid: "Valeur non valide."
+  ip: "Ce n'est pas une adresse IP valide."
+  len: "La longueur doit être comprise entre %{min} et %{max}."
+  matches: "Ne correspond pas à la valeur attendue."
+  negative: "Doit être négatif."
+  non_empty: "Ne doit pas être vide."
+  non_negative: "Doit être nul ou positif."
+  non_positive: "Doit être nul ou négatif."
+  pattern: "Ne correspond pas au motif requis."
+  phone_number: "N'est pas un numéro de téléphone valide."
+  positive: "Doit être positif."
+  prefix: "Doit commencer par « %{prefix} »."
+  range: "Doit être dans l'intervalle %{left_delimiter}%{min}, %{max}%{right_delimiter}."
+  required: "Ce champ est obligatoire."
+  suffix: "Doit se terminer par « %{suffix} »."
+  url: "N'est pas une URL valide."

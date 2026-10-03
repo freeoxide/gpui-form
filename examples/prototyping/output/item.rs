@@ -1,5 +1,4 @@
 use ::some_lib::structs::new_type::*;
-use ::es_fluent::FluentMessage as _;
 use ::gpui::{Subscription, div};
 use ::gpui::prelude::FluentBuilder as _;
 use ::gpui_kit::component::ActiveTheme as _;
@@ -7,6 +6,12 @@ use ::gpui_kit::component::form::field;
 use ::gpui_kit::component::input::{
     InputEvent, InputState, NumberInput, NumberInputEvent, StepAction,
 };
+/// i18n keys this scaffold resolves via `::rust_i18n::t!`; declare
+/// them in the consumer crate's `locales/` for en, fr-FR and zh-CN.
+/// - item.index_label
+/// - item.index_description
+#[allow(dead_code)]
+pub const ITEM_I18N_KEYS: &[&str] = &["item.index_label", "item.index_description"];
 use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
@@ -17,11 +22,8 @@ use ::gpui_kit::component::form::v_form;
 use ::gpui_kit::component::v_flex;
 use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "ItemForm";
-fn localize(
-    cx: &impl ::std::borrow::Borrow<App>,
-    message: &impl ::es_fluent::FluentMessage,
-) -> String {
-    crate::i18n::localize_message(cx, message)
+fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
+    crate::i18n::localize_message(cx, key)
 }
 #[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
@@ -39,7 +41,7 @@ impl Focusable for ItemForm {
 }
 impl ::gpui_storybook::Story for ItemForm {
     fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label::<Item>(cx)
+        crate::i18n::localize_label(cx, "item_label")
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -190,8 +192,10 @@ impl ItemForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+            .child(
+                self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit),
+            )
+            .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
     }
 }
 impl Render for ItemForm {
@@ -210,13 +214,23 @@ impl Render for ItemForm {
                     .child(
                         field()
                             .label({
-                                let message = ItemLabelVariants::Index;
-                                localize(cx, &message)
+                                let key: &str = "item.index_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Index".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = ItemDescriptionVariants::Index;
-                                    localize(cx, &message)
+                                    let key: &str = "item.index_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Index".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -229,7 +243,7 @@ impl Render for ItemForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )

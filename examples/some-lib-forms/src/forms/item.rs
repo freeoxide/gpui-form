@@ -1,4 +1,3 @@
-use es_fluent::FluentMessage as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
@@ -15,8 +14,8 @@ use gpui_component::v_flex;
 use some_lib::structs::form_action::FormAction;
 use some_lib::structs::new_type::*;
 const CONTEXT: &str = "ItemForm";
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl es_fluent::FluentMessage) -> String {
-    crate::i18n::localize_message(cx, message)
+fn localize(cx: &impl std::borrow::Borrow<App>, key: &str) -> String {
+    crate::i18n::localize_message(cx, key)
 }
 #[gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
@@ -34,7 +33,7 @@ impl Focusable for ItemForm {
 }
 impl gpui_storybook::Story for ItemForm {
     fn title(cx: &gpui::App) -> String {
-        crate::i18n::localize_label::<Item>(cx)
+        crate::i18n::localize_label(cx, "item_label")
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -155,8 +154,8 @@ impl ItemForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+            .child(self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit))
+            .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
     }
 }
 impl Render for ItemForm {
@@ -174,15 +173,9 @@ impl Render for ItemForm {
                 v_form()
                     .child(
                         field()
-                            .label({
-                                let message = ItemLabelVariants::Index;
-                                localize(cx, &message)
-                            })
+                            .label(localize(cx, "item.index_label"))
                             .description_fn({
-                                let description = {
-                                    let message = ItemDescriptionVariants::Index;
-                                    localize(cx, &message)
-                                };
+                                let description = { localize(cx, "item.index_description") };
                                 let error = {
                                     validation_errors.as_ref().and_then(|e| {
                                         let errs = e.index().all();
@@ -191,7 +184,7 @@ impl Render for ItemForm {
                                         } else {
                                             Some(
                                                 errs.iter()
-                                                    .map(|v| localize(cx, v))
+                                                    .map(|v| v.to_string())
                                                     .collect::<Vec<_>>()
                                                     .join("\n"),
                                             )

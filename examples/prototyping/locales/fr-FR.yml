@@ -1,0 +1,32 @@
+empty_label: Vide
+form_action:
+  reset: Réinitialiser
+  submit: Envoyer
+item:
+  index_description: Index
+  index_label: Index
+item_label: Élément
+location_form:
+  location_description: Emplacement
+  location_label: Emplacement
+  name_description: Nom
+  name_label: Nom
+location_form_label: Formulaire de localisation
+user:
+  age_description: Âge
+  age_label: Âge
+  balance_description: Solde
+  balance_label: Solde
+  birth_date_description: Date de naissance
+  birth_date_label: Date de naissance
+  country_description: Pays
+  country_label: Pays
+  debt_description: Dette
+  debt_label: Dette
+  email_description: Courriel
+  preferred_description: Préféré
+  preferred_label: Préféré
+  subscribe_newsletter_description: S'abonner à la newsletter
+  subscribe_newsletter_label: S'abonner à la newsletter
+  username_description: Nom d'utilisateur
+user_label: Utilisateur

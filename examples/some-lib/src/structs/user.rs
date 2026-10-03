@@ -1,7 +1,6 @@
 use anyhow::Context as _;
-use es_fluent::{EsFluent, EsFluentLabel, EsFluentVariants};
 use gpui_form::{GpuiForm, SelectItem};
-use koruma::{Koruma, KorumaAllFluent};
+use koruma::{Koruma, KorumaAllDisplay};
 use koruma_collection::{
     collection::NonEmptyValidation,
     format::EmailValidation,
@@ -10,7 +9,7 @@ use koruma_collection::{
 };
 use strum::EnumIter;
 
-#[derive(Clone, Debug, Default, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
 pub enum PreferredLanguage {
@@ -20,7 +19,7 @@ pub enum PreferredLanguage {
     Chinese,
 }
 
-#[derive(Clone, Debug, EnumIter, EsFluent, PartialEq, SelectItem)]
+#[derive(Clone, Debug, EnumIter, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
 pub enum EnumCountry {
@@ -29,9 +28,7 @@ pub enum EnumCountry {
     China,
 }
 
-#[derive(Clone, Debug, EsFluentLabel, EsFluentVariants, GpuiForm, Koruma, KorumaAllFluent)]
-#[fluent_label(origin, variants)]
-#[fluent_variants(keys = ["description", "label"])]
+#[derive(Clone, Debug, GpuiForm, Koruma, KorumaAllDisplay)]
 #[gpui_form(koruma(fluent))]
 pub struct User {
     #[gpui_form(
@@ -101,7 +98,6 @@ pub struct User {
     // for skipped fields, so `section`/`label`/`width` here never reach the
     // schema metadata. This field exists to prove that boundary.
     #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
-    #[fluent_variants(skip)]
     pub skip_me: bool,
 }
 

@@ -4629,11 +4629,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a99ca603b2f4d4e8b8bd4487d7bfcfd1b5684ae37c18224508fde52850ff1eca"
 dependencies = [
  "email_address",
- "es-fluent",
  "es-fluent-build",
- "es-fluent-manager-embedded",
  "koruma",
- "rust-embed",
  "rust_decimal",
 ]
 
@@ -4642,9 +4639,6 @@ name = "koruma-core"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c4eaac2dc915f8934b98f713f197b2bd87d86157202bdd7b13d3ae7b9c2e2d9"
-dependencies = [
- "es-fluent",
-]
 
 [[package]]
 name = "koruma-derive"
@@ -6389,6 +6383,7 @@ dependencies = [
  "inventory",
  "prettyplease",
  "quote",
+ "rust-i18n",
  "some-lib",
  "syn 2.0.118",
 ]
@@ -7600,15 +7595,13 @@ dependencies = [
  "anyhow",
  "chrono",
  "derive_more",
- "es-fluent",
- "es-fluent-build",
- "es-fluent-manager-embedded",
  "gpui-form",
  "gpui-form-derive",
  "gpui-kit",
  "gpui-pre",
  "koruma",
  "koruma-collection",
+ "rust-i18n",
  "rust_decimal",
  "serde",
  "serde_json",

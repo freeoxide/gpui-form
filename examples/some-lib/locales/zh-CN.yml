@@ -1,0 +1,47 @@
+enum_country:
+  china: 中国
+  france: 法国
+  united_states: 美国
+item:
+  index_label: 索引
+prefered_language:
+  chinese: 中文
+  english: 英语
+  french: 法语
+preferred_language:
+  chinese: Chinese
+  english: English
+  french: French
+user:
+  age_label: 年龄
+  balance_label: 余额
+  birth_date_label: 出生日期
+  country_label: 国家
+  debt_label: 债务
+  email_label: 电子邮件
+  enable_notifications_label: 启用通知
+  preferred_label: 首选
+  subscribe_newsletter_label: 订阅简报
+  username_label: 用户名
+validation:
+  alphanumeric: "必须只包含字母和数字。"
+  ascii: "必须只包含 ASCII 字符。"
+  contains: "必须包含子串 '%{substring}'。"
+  credit_card: "不是有效的信用卡号。"
+  email: "不是有效的电子邮件地址。"
+  invalid: "值无效。"
+  ip: "不是有效的 IP 地址。"
+  len: "长度必须在 %{min} 到 %{max} 之间。"
+  matches: "与期望值不匹配。"
+  negative: "必须为负数。"
+  non_empty: "不能为空。"
+  non_negative: "必须为零或正数。"
+  non_positive: "必须为零或负数。"
+  pattern: "不匹配所需的模式。"
+  phone_number: "不是有效的电话号码。"
+  positive: "必须为正数。"
+  prefix: "必须以 '%{prefix}' 开头。"
+  range: "必须在区间 %{left_delimiter}%{min}，%{max}%{right_delimiter} 内。"
+  required: "此字段为必填。"
+  suffix: "必须以 '%{suffix}' 结尾。"
+  url: "不是有效的 URL。"
