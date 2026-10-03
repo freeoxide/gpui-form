@@ -17,19 +17,16 @@ derive = [ "dep:gpui-form-component-derive" ]
 
 [dependencies]
 chrono = { workspace = true }
-es-fluent = { features = [ "derive" ], workspace = true }
-es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-form-component-derive = { optional = true, workspace = true }
+gpui-form-i18n = { workspace = true }
 gpui-kit = { workspace = true }
 icu_calendar = { workspace = true }
 icu_datetime = { workspace = true }
 icu_locale_core = { workspace = true }
 jiff = { workspace = true }
+rust-i18n = { workspace = true }
 serde = { workspace = true }
-
-[build-dependencies]
-es-fluent-build = { workspace = true }
 
 [dev-dependencies]
 gpui-form-component-derive = { workspace = true }

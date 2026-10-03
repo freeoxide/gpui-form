@@ -6,6 +6,8 @@
 //! - `file_picker` for native GPUI path selection with gpui-kit styling
 //! - `infinite_select` for cascading selects over nested enums
 
+rust_i18n::i18n!("locales", fallback = "en");
+
 #[cfg(feature = "derive")]
 pub use gpui_form_component_derive::InfiniteSelect;
 
@@ -20,7 +22,7 @@ pub mod date_picker;
 /// Runtime helpers for the native file picker component.
 pub mod file_picker;
 
-/// Embedded i18n adapter used by runtime components and generated code.
+/// i18n adapter used by runtime components and generated code.
 pub mod i18n;
 
 /// Runtime helpers for the InfiniteSelect component.

@@ -1,0 +1,13 @@
+date_picker:
+  select_date: "选择日期"
+file_picker:
+  browse: "浏览"
+  dialog_dropped: "文件选择对话框在返回结果前已关闭。"
+  paths_selected_one: "已选择 1 个路径"
+  paths_selected_other: "已选择 %{count} 个路径"
+  select_a_directory: "选择文件夹"
+  select_a_file: "选择文件"
+  select_a_file_or_directory: "选择文件或文件夹"
+  select_directory: "选择文件夹"
+  select_file: "选择文件"
+  select_file_or_directory: "选择文件或文件夹"
