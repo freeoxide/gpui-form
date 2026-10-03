@@ -632,8 +632,16 @@ fn main() {
 }
 
 #[cfg(test)]
+mod test_util {
+    use std::sync::Mutex;
+
+    pub(crate) static LOCALE_LOCK: Mutex<()> = Mutex::new(());
+}
+
+#[cfg(test)]
 mod tests {
     use crate::SignupFormValueHolder;
+    use crate::test_util::LOCALE_LOCK;
     use rust_i18n::t;
 
     const KEYS: &[&str] = &[
@@ -675,6 +683,7 @@ mod tests {
 
     #[test]
     fn every_key_resolves_in_every_locale() {
+        let _locale_guard = LOCALE_LOCK.lock().unwrap();
         for locale in ["en", "fr-FR", "zh-CN"] {
             rust_i18n::set_locale(locale);
             for &key in KEYS {
@@ -715,9 +724,11 @@ mod validation_locale_tests {
     use crate::SignupFormValueHolder;
     use crate::SignupFormValueHolderUsernameKorumaValidator;
     use crate::localized_field_error;
+    use crate::test_util::LOCALE_LOCK;
 
     #[test]
     fn field_errors_render_in_french() {
+        let _locale_guard = LOCALE_LOCK.lock().unwrap();
         rust_i18n::set_locale("fr-FR");
         let err = SignupFormValueHolder::default().validate().err().unwrap();
         let errs = err.username().all();
@@ -754,8 +765,10 @@ mod newtype_locale_tests {
     use crate::SignupFormValueHolder;
     use crate::SignupFormValueHolderCodeKorumaValidator;
     use crate::localized_field_error;
+    use crate::test_util::LOCALE_LOCK;
 
     fn rendered_code_error() -> String {
+        let _locale_guard = LOCALE_LOCK.lock().unwrap();
         let mut holder = SignupFormValueHolder::default();
         holder.username = Some("ada".to_string());
         holder.code = Some(RequestCode::from("A".to_string()));
