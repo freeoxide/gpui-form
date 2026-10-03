@@ -2829,6 +2829,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-form-collection-derive"
+version = "0.5.2"
+dependencies = [
+ "darling",
+ "gpui-kit",
+ "proc-macro-crate",
+ "quote",
+ "syn 2.0.118",
+ "trybuild",
+]
+
+[[package]]
 name = "gpui-form-component"
 version = "0.5.2"
 dependencies = [

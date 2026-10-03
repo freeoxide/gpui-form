@@ -9,6 +9,7 @@ members = [
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-collection",
+  "crates/gpui-form-collection-derive",
   "crates/gpui-form-prototyping-core",
   "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
