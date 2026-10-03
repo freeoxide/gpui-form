@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 use gpui::{
     App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, ParentElement as _,
     Render, SharedString, Styled as _, Subscription, Window, div,
@@ -193,34 +195,32 @@ impl Focusable for FormsDemo {
     }
 }
 
+fn localized_field_error<E>(errs: &[E], key_of: impl Fn(&E) -> &'static str) -> Option<String> {
+    (!errs.is_empty()).then(|| {
+        errs.iter()
+            .map(|v| t!(key_of(v)).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
+}
+
 impl Render for FormsDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let validation_errors = self.data.validate().err();
         let username_error = validation_errors.as_ref().and_then(|e| {
-            let errs = e.username().all();
-            if errs.is_empty() {
-                None
-            } else {
-                Some(
-                    errs.iter()
-                        .map(|v| v.to_string())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                )
-            }
+            localized_field_error(&e.username().all(), |v| match v {
+                SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
+                    "validation.required"
+                },
+                SignupFormValueHolderUsernameKorumaValidator::NonEmptyValidation(_) => {
+                    "validation.non_empty"
+                },
+            })
         });
         let age_error = validation_errors.as_ref().and_then(|e| {
-            let errs = e.age().all();
-            if errs.is_empty() {
-                None
-            } else {
-                Some(
-                    errs.iter()
-                        .map(|v| v.to_string())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                )
-            }
+            localized_field_error(&e.age().all(), |v| match v {
+                SignupFormValueHolderAgeKorumaValidator::RangeValidation(_) => "validation.range",
+            })
         });
         let danger = cx.theme().danger;
 
@@ -415,5 +415,43 @@ mod tests {
             SignupFormValueHolder::validation_issue_key("RequiredValidation"),
             "validation.required"
         );
+    }
+}
+
+#[cfg(test)]
+mod validation_locale_tests {
+    use crate::SignupFormValueHolder;
+    use crate::SignupFormValueHolderUsernameKorumaValidator;
+    use crate::localized_field_error;
+
+    #[test]
+    fn field_errors_render_in_french() {
+        rust_i18n::set_locale("fr-FR");
+        let err = SignupFormValueHolder::default().validate().err().unwrap();
+        let errs = err.username().all();
+        let rendered = localized_field_error(&errs, |v| match v {
+            SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
+                "validation.required"
+            },
+            SignupFormValueHolderUsernameKorumaValidator::NonEmptyValidation(_) => {
+                "validation.non_empty"
+            },
+        })
+        .unwrap();
+        assert_eq!(rendered, "Ce champ est obligatoire.");
+
+        rust_i18n::set_locale("zh-CN");
+        let errs = err.username().all();
+        let rendered = localized_field_error(&errs, |v| match v {
+            SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
+                "validation.required"
+            },
+            SignupFormValueHolderUsernameKorumaValidator::NonEmptyValidation(_) => {
+                "validation.non_empty"
+            },
+        })
+        .unwrap();
+        assert_eq!(rendered, "此字段为必填项。");
+        rust_i18n::set_locale("en");
     }
 }
