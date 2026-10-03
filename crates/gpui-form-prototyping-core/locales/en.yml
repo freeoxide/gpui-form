@@ -1,0 +1,21 @@
+user:
+  age_label: Age
+  age_description: Age
+  balance_label: Balance
+  balance_description: Balance
+  birth_date_label: Birth Date
+  birth_date_description: Birth Date
+  country_label: Country
+  country_description: Country
+  debt_label: Debt
+  debt_description: Debt
+  email_label: Email
+  email_description: Email
+  enable_notifications_label: Enable Notifications
+  enable_notifications_description: Enable Notifications
+  preferred_label: Preferred
+  preferred_description: Preferred
+  subscribe_newsletter_label: Subscribe Newsletter
+  subscribe_newsletter_description: Subscribe Newsletter
+  username_label: Username
+  username_description: Username

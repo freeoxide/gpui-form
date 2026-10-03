@@ -287,14 +287,6 @@ pub trait ShapeIdentities {
     fn form_id_literal(&self) -> String {
         format!("{}-form", self.struct_name().to_snake_case())
     }
-
-    fn ftl_label_ident(&self) -> syn::Ident {
-        format_ident!("{}LabelVariants", self.struct_name())
-    }
-
-    fn ftl_description_ident(&self) -> syn::Ident {
-        format_ident!("{}DescriptionVariants", self.struct_name())
-    }
 }
 
 impl ShapeIdentities for GpuiFormShape {
@@ -382,36 +374,69 @@ pub fn render_component_entity_field(
     )
 }
 
+/// Label tokens for one field: an explicit `layout.label` hint verbatim, or a
+/// `::rust_i18n::t!` lookup of the `<form>.<field>_label` key with the
+/// title-cased field name as the miss fallback.
 pub fn generate_label_tokens(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
 ) -> proc_macro2::TokenStream {
-    #[cfg(not(feature = "fluent"))]
-    let _ = component;
+    if let Some(label) = field.layout().label {
+        quote! { #label }
+    } else {
+        localized_text_tokens(field, component, "label")
+    }
+}
 
-    #[cfg(feature = "fluent")]
-    {
-        let ftl_label_ident = component.ftl_label_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
-        quote! {{
-            let message = #ftl_label_ident::#field_name_pascal_case_ident;
-            localize(cx, &message)
-        }}
-    }
-    #[cfg(not(feature = "fluent"))]
-    {
-        // METADATA-FIRST v1: prefer an explicit `layout.label` hint when the
-        // field declared one. Fall back to a title-cased field name otherwise.
-        // (label defaults to the field name at consumption time per the v1
-        // contract — see `gpui_form_schema::layout`.)
-        if let Some(label) = field.layout().label {
-            quote! { #label }
+/// `::rust_i18n::t!` tokens for `<form_snake>.<field_name>_<suffix>`, falling
+/// back to the title-cased field name when the key is not translated. The `t!`
+/// expansion resolves against the CONSUMER crate's `rust_i18n::i18n!` backend.
+fn localized_text_tokens(
+    field: &ResolvedField<'_>,
+    component: &GpuiFormShape,
+    suffix: &str,
+) -> proc_macro2::TokenStream {
+    use heck::ToTitleCase as _;
+
+    let key = format!(
+        "{}.{}_{}",
+        component.struct_name().to_snake_case(),
+        field.field_name(),
+        suffix
+    );
+    let fallback = field.field_name().to_title_case();
+    quote! {{
+        let key: &str = #key;
+        let translated = ::rust_i18n::t!(key);
+        if &*translated == key {
+            #fallback.to_string()
         } else {
-            use heck::ToTitleCase as _;
-            let title = field.field_name().to_title_case();
-            quote! { #title }
+            translated.into_owned()
         }
-    }
+    }}
+}
+
+/// The i18n keys one form scaffold resolves, in field order:
+/// `<form_snake>.<field>_label` / `<form_snake>.<field>_description` for every
+/// field without an explicit `layout` override.
+pub fn collect_i18n_keys(component: &GpuiFormShape) -> Vec<String> {
+    use heck::ToSnakeCase as _;
+
+    let form_key = component.struct_name().to_snake_case();
+    component
+        .components
+        .iter()
+        .flat_map(|field| {
+            let mut keys = Vec::with_capacity(2);
+            if field.layout.label.is_none() {
+                keys.push(format!("{form_key}.{}_label", field.field_name));
+            }
+            if field.layout.description.is_none() {
+                keys.push(format!("{form_key}.{}_description", field.field_name));
+            }
+            keys
+        })
+        .collect()
 }
 
 pub fn generate_description_fn_tokens(
@@ -420,36 +445,15 @@ pub fn generate_description_fn_tokens(
 ) -> proc_macro2::TokenStream {
     let field_name_ident = field.field_ident();
 
-    #[cfg(feature = "fluent")]
-    let description_tokens = {
-        let ftl_description_ident = component.ftl_description_ident();
-        let field_name_pascal_case_ident = field.field_ident_pascal();
-        quote! {{
-            let message = #ftl_description_ident::#field_name_pascal_case_ident;
-            localize(cx, &message)
-        }}
-    };
-    #[cfg(not(feature = "fluent"))]
-    let description_tokens = {
-        // METADATA-FIRST v1: prefer an explicit `layout.description` hint when
-        // present, falling back to the title-cased field name.
-        if let Some(description) = field.layout().description {
-            quote! { #description }
-        } else {
-            use heck::ToTitleCase as _;
-            let title = field.field_name().to_title_case();
-            quote! { #title }
-        }
+    let description_tokens = if let Some(description) = field.layout().description {
+        quote! { #description }
+    } else {
+        localized_text_tokens(field, component, "description")
     };
 
     let field_has_validations = !field.validation_rules().is_empty() && component.has_koruma();
     let uses_optional_inner_validation_errors = field.uses_optional_inner_validation_errors();
     let error_tokens = if field_has_validations {
-        #[cfg(feature = "fluent")]
-        let conversion_tokens = quote! {
-            localize(cx, v)
-        };
-        #[cfg(not(feature = "fluent"))]
         let conversion_tokens = quote! { v.to_string() };
 
         if uses_optional_inner_validation_errors {
@@ -528,11 +532,7 @@ pub fn generate_description_fn_tokens(
 
 #[cfg(test)]
 mod tests {
-    use super::{ResolvedField, generate_description_fn_tokens};
-    // `generate_label_tokens` is only exercised by the non-fluent label tests;
-    // the fluent label branch localizes through `es-fluent` keys instead.
-    #[cfg(not(feature = "fluent"))]
-    use super::generate_label_tokens;
+    use super::{ResolvedField, generate_description_fn_tokens, generate_label_tokens};
     use gpui_form_schema::{
         components::ComponentsBehaviour,
         layout::{FieldLayout, LayoutWidth},
@@ -543,14 +543,7 @@ mod tests {
         input.chars().filter(|c| !c.is_whitespace()).collect()
     }
 
-    // ── METADATA-FIRST v1: layout.label / layout.description consumption ──────
-    // The non-fluent label/description branches consume `layout.label` /
-    // `layout.description`. The fluent branches localize through
-    // `es-fluent` keys instead (v1 minimal scope — fluent policy is deferred),
-    // so these assertions are only meaningful without the `fluent` feature.
-
     #[test]
-    #[cfg(not(feature = "fluent"))]
     fn label_uses_layout_label_when_present() {
         const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Enable experiments"));
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
@@ -576,7 +569,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "fluent"))]
     fn label_falls_back_to_field_name_title_case_when_absent() {
         // Empty layout (no label) — defaults via FieldLayout::new().
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
@@ -597,7 +589,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "fluent"))]
     fn description_uses_layout_description_when_present() {
         const LAYOUT: FieldLayout =
             FieldLayout::new().with_description(Some("Toggles unreleased features"));
@@ -624,7 +615,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "fluent"))]
     fn description_falls_back_to_field_name_title_case_when_absent() {
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "enable_experimental",
@@ -640,6 +630,102 @@ mod tests {
         assert!(
             tokens.contains("Enable Experimental"),
             "field name should be title-cased as the fallback description: {tokens}"
+        );
+    }
+
+    #[test]
+    fn label_emits_rust_i18n_lookup_with_form_namespaced_key() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_label_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains(r#"let key : & str = "demo.enable_experimental_label""#),
+            "label lookup should target the <form>.<field>_label key: {tokens}"
+        );
+        assert!(
+            tokens.contains(":: rust_i18n :: t ! (key)"),
+            "label should resolve through ::rust_i18n::t!: {tokens}"
+        );
+        assert!(
+            !tokens.contains("es_fluent"),
+            "no es-fluent tokens may remain in emitted labels: {tokens}"
+        );
+    }
+
+    #[test]
+    fn description_emits_form_namespaced_description_key() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let tokens = generate_description_fn_tokens(&field, &SHAPE).to_string();
+
+        assert!(
+            tokens.contains(r#"let key : & str = "demo.enable_experimental_description""#),
+            "description lookup should target the <form>.<field>_description key: {tokens}"
+        );
+        assert!(
+            tokens.contains(":: rust_i18n :: t ! (key)"),
+            "description should resolve through ::rust_i18n::t!: {tokens}"
+        );
+    }
+
+    #[test]
+    fn description_renders_validation_errors_via_display() {
+        const VALIDATIONS: &[&str] = &["EmailValidation"];
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("email", "String", false, ComponentsBehaviour::Input)
+                    .with_validations(VALIDATIONS),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        let compact = compact(&generate_description_fn_tokens(&field, &SHAPE).to_string());
+
+        assert!(
+            compact.contains(".map(|v|v.to_string())"),
+            "validation issues should render through Display, not a localizer: {compact}"
+        );
+        assert!(
+            !compact.contains("localize("),
+            "no localize() calls may remain in emitted error rendering: {compact}"
+        );
+    }
+
+    #[test]
+    fn collect_i18n_keys_lists_label_and_description_per_unoverridden_aspect() {
+        const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Username"));
+        const FIELDS: [FieldVariant; 2] = [
+            FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
+                .with_layout(LAYOUT),
+            FieldVariant::new("age", "u32", false, ComponentsBehaviour::Input),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let keys = super::collect_i18n_keys(&SHAPE);
+
+        assert_eq!(
+            keys,
+            vec![
+                "demo.username_description".to_string(),
+                "demo.age_label".to_string(),
+                "demo.age_description".to_string(),
+            ],
+            "a layout.label override suppresses only the label key; description keys stay"
         );
     }
 

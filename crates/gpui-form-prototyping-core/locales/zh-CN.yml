@@ -1,0 +1,21 @@
+user:
+  age_label: 年龄
+  age_description: 年龄
+  balance_label: 余额
+  balance_description: 余额
+  birth_date_label: 出生日期
+  birth_date_description: 出生日期
+  country_label: 国家
+  country_description: 国家
+  debt_label: 债务
+  debt_description: 债务
+  email_label: 电子邮件
+  email_description: 电子邮件
+  enable_notifications_label: 启用通知
+  enable_notifications_description: 启用通知
+  preferred_label: 首选
+  preferred_description: 首选
+  subscribe_newsletter_label: 订阅简报
+  subscribe_newsletter_description: 订阅简报
+  username_label: 用户名
+  username_description: 用户名

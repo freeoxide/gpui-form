@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::error::{PrototypingError, PrototypingResult};
 use crate::implementations::{
-    GeneratedSubscription, ResolvedField, ShapeIdentities as _, field_generator,
+    GeneratedSubscription, ResolvedField, ShapeIdentities as _, collect_i18n_keys, field_generator,
 };
 use crate::imports::{Alias, ImportItem, ImportSet};
 
@@ -22,12 +22,6 @@ const FRAGMENT_IMPORTS: &[ImportItem] = &[
     ImportItem::aliased("::gpui_kit::component::ActiveTheme", Alias::Anonymous),
     ImportItem::path("::gpui_kit::component::form::field"),
 ];
-
-#[cfg(feature = "fluent")]
-const FLUENT_FRAGMENT_IMPORTS: &[ImportItem] = &[ImportItem::aliased(
-    "::es_fluent::FluentMessage",
-    Alias::Anonymous,
-)];
 
 const SUBSCRIPTION_IMPORTS: &[ImportItem] = &[ImportItem::path("::gpui::Subscription")];
 
@@ -122,8 +116,6 @@ impl<'a> FormShapeAdapter<'a> {
         let mut set = ImportSet::default();
         if !self.shape_data.components.is_empty() {
             set.extend_items(FRAGMENT_IMPORTS);
-            #[cfg(feature = "fluent")]
-            set.extend_items(FLUENT_FRAGMENT_IMPORTS);
         }
         if self
             .shape_data
@@ -334,8 +326,6 @@ impl<'a> FormShapeAdapter<'a> {
         let mut collected_imports = ImportSet::default();
         if !generated_fields.is_empty() {
             collected_imports.extend_items(FRAGMENT_IMPORTS);
-            #[cfg(feature = "fluent")]
-            collected_imports.extend_items(FLUENT_FRAGMENT_IMPORTS);
         }
         if !subscription_call_items.is_empty() {
             collected_imports.extend_items(SUBSCRIPTION_IMPORTS);
@@ -350,6 +340,7 @@ impl<'a> FormShapeAdapter<'a> {
             use ::#source_module_path::*;
             #collected_imports
         };
+        let i18n_key_items = i18n_key_items(data);
 
         Ok(FormParts {
             struct_name_ident,
@@ -363,6 +354,7 @@ impl<'a> FormShapeAdapter<'a> {
             has_koruma,
             has_skipped_fields,
             imports,
+            i18n_key_items,
             component_creations,
             field_initializers,
             render_children,
@@ -440,6 +432,10 @@ pub struct FormParts {
     // ── Raw generated fragments ───────────────────────────────────────────────
     /// Grouped `use` statements (source module glob + framework base + per-component items).
     pub imports: TokenStream,
+    /// Doc-commented `<FORM>_I18N_KEYS` const listing every i18n key this
+    /// scaffold resolves; splice at module level so the emitted file doubles as
+    /// the locale scaffolding note for en / fr-FR / zh-CN.
+    pub i18n_key_items: TokenStream,
     /// `cx.new(|cx| FormComponents::field(window, cx))` calls.
     pub component_creations: TokenStream,
     /// Field name tokens for the `FormFields { ... }` struct literal.
@@ -484,6 +480,37 @@ pub trait FormLayout {
     fn generate_file(&self, parts: &FormParts) -> syn::File;
 }
 
+/// Scaffolding item for a form's i18n keys: a `#[doc]`-documented const
+/// listing every key the emitted `::rust_i18n::t!` calls resolve, so layouts
+/// can splice locale notes next to the imports.
+fn i18n_key_items(component: &GpuiFormShape) -> TokenStream {
+    use heck::ToShoutySnakeCase as _;
+
+    let keys = collect_i18n_keys(component);
+    if keys.is_empty() {
+        return TokenStream::new();
+    }
+
+    let const_ident = format_ident!(
+        "{}_I18N_KEYS",
+        component.struct_name().to_shouty_snake_case()
+    );
+    let mut doc_attrs = vec![quote! {
+        #[doc = r" i18n keys this scaffold resolves via `::rust_i18n::t!`; declare"]
+        #[doc = r" them in the consumer crate's `locales/` for en, fr-FR and zh-CN."]
+    }];
+    for key in &keys {
+        let line = format!(" - {key}");
+        doc_attrs.push(quote! { #[doc = #line] });
+    }
+
+    quote! {
+        #(#doc_attrs)*
+        #[allow(dead_code)]
+        pub const #const_ident: &[&str] = &[#(#keys),*];
+    }
+}
+
 /// Converts a `file!()` source path like
 /// `examples/some-lib/src/structs/user.rs` into a use-path like
 /// `some_lib::structs::user` for the glob import at the top of each generated file.
@@ -526,11 +553,9 @@ fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
 mod tests {
     use super::FormShapeAdapter;
     use crate::error::PrototypingError;
-    #[cfg(not(feature = "fluent"))]
-    use gpui_form_schema::layout::LayoutWidth;
     use gpui_form_schema::{
         components::ComponentsBehaviour,
-        layout::FieldLayout,
+        layout::{FieldLayout, LayoutWidth},
         registry::{FieldVariant, GpuiFormShape},
     };
 
@@ -749,10 +774,9 @@ mod tests {
             ),
             "file-picker imports should be anchored to the extern crate: {compact}"
         );
-        #[cfg(feature = "fluent")]
         assert!(
-            compact.contains("use::es_fluent::FluentMessageas_;"),
-            "fluent fragment imports should be anchored: {compact}"
+            !compact.contains("es_fluent"),
+            "no es-fluent imports may be emitted: {compact}"
         );
         assert!(
             !compact.contains("usegpui"),
@@ -921,10 +945,106 @@ mod tests {
         );
     }
 
-    // The label override only applies in the non-fluent label branch; the
-    // fluent branch localizes through `es-fluent` keys instead (v1 minimal).
     #[test]
-    #[cfg(not(feature = "fluent"))]
+    fn i18n_key_items_document_keys_and_skip_overridden_fields() {
+        const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Username"));
+        const FIELDS: [FieldVariant; 2] = [
+            FieldVariant::new("username", "String", false, ComponentsBehaviour::Input)
+                .with_layout(LAYOUT),
+            FieldVariant::new("age", "u32", false, ComponentsBehaviour::Input),
+        ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let tokens = parts.i18n_key_items.to_string();
+
+        assert!(
+            tokens.contains("const DEMO_I18N_KEYS"),
+            "key const should be named after the form: {tokens}"
+        );
+        assert!(
+            tokens.contains(r#""demo.age_label""#) && tokens.contains(r#""demo.age_description""#),
+            "unoverridden fields should contribute label and description keys: {tokens}"
+        );
+        assert!(
+            !tokens.contains("username_label"),
+            "a layout.label override must suppress the label key: {tokens}"
+        );
+        assert!(
+            tokens.contains("fr-FR") && tokens.contains("zh-CN"),
+            "locale scaffolding note must name all three locales: {tokens}"
+        );
+
+        let empty = FormShapeAdapter::new(&GpuiFormShape::new(
+            "Empty",
+            &[],
+            "examples/some-lib/src/empty.rs",
+            false,
+        ))
+        .parts()
+        .expect("empty shapes should generate parts");
+        assert!(
+            empty.i18n_key_items.to_string().is_empty(),
+            "forms without fields should emit no key items"
+        );
+    }
+
+    #[test]
+    fn i18n_key_items_parse_alongside_imports_and_carry_doc_notes() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "enable_experimental",
+            "bool",
+            false,
+            ComponentsBehaviour::Switch,
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let parts = FormShapeAdapter::new(&SHAPE)
+            .parts()
+            .expect("valid shapes should generate parts");
+        let imports = &parts.imports;
+        let i18n_keys = &parts.i18n_key_items;
+        let file: syn::File = syn::parse2(quote::quote! {
+            #imports
+            #i18n_keys
+        })
+        .expect("imports plus i18n key items must parse as one file");
+
+        let const_item = file.items.iter().find_map(|item| match item {
+            syn::Item::Const(const_item) if const_item.ident == "DEMO_I18N_KEYS" => {
+                Some(const_item)
+            },
+            _ => None,
+        });
+        let const_item = const_item.expect("DEMO_I18N_KEYS must be emitted as a const item");
+        let doc_lines: Vec<String> = const_item
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("doc"))
+            .filter_map(|attr| match &attr.meta {
+                syn::Meta::NameValue(nv) => match &nv.value {
+                    syn::Expr::Lit(expr_lit) => match &expr_lit.lit {
+                        syn::Lit::Str(text) => Some(text.value()),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        assert!(
+            doc_lines
+                .iter()
+                .any(|line| line.contains("demo.enable_experimental_label")),
+            "each key must appear as a doc line so it renders as a locale note: {doc_lines:?}"
+        );
+    }
+
+    #[test]
     fn layout_label_override_appears_in_render_children() {
         const LAYOUT: FieldLayout = FieldLayout::new()
             .with_label(Some("Enable experiments"))
