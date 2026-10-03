@@ -5012,6 +5012,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mcp-submit"
+version = "0.5.2"
+dependencies = [
+ "gpui-form",
+ "gpui-kit",
+ "koruma",
+ "koruma-collection",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

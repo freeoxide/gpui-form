@@ -15,6 +15,7 @@ members = [
   "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
   "examples/prototyping",
+  "examples/mcp-submit",
 ]
 # The vendored gpui-storybook gallery (5 crates), gpui-form-component-story,
 # and the storybook-driven demo (examples/some-lib-forms) are NOT workspace
