@@ -2932,6 +2932,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-form-i18n"
+version = "0.5.2"
+dependencies = [
+ "gpui-kit",
+ "gpui-pre",
+ "rust-i18n",
+ "strum 0.28.0",
+ "thiserror 2.0.18",
+ "unic-langid",
+]
+
+[[package]]
 name = "gpui-form-mcp"
 version = "0.5.2"
 dependencies = [
