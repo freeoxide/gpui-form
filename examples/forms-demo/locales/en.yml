@@ -1,0 +1,23 @@
+app:
+  title: "gpui-form demo"
+  subtitle: "GpuiForm derive + koruma validation + rust-i18n locales"
+  locale_hint: "Locale"
+  validate: "Validate"
+  reset: "Reset"
+  all_valid: "All fields valid."
+  invalid: "Validation failed — fix the highlighted fields."
+  date_section: "Date picker (runtime component, follows the locale)"
+  picked: "Picked"
+signup:
+  username_label: "Username"
+  age_label: "Age"
+  country_label: "Country"
+country:
+  united_states: "United States"
+  france: "France"
+  china: "China"
+validation:
+  required: "This field is required."
+  non_empty: "This field must not be empty."
+  range: "Value must be within the allowed bounds."
+  invalid: "Invalid value."

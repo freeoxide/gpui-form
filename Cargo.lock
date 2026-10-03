@@ -2211,6 +2211,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "forms-demo"
+version = "0.1.0"
+dependencies = [
+ "gpui-form",
+ "gpui-kit",
+ "gpui-pre",
+ "koruma",
+ "koruma-collection",
+ "rust-i18n",
+ "strum 0.28.0",
+ "unic-langid",
+]
+
+[[package]]
 name = "freetype-sys"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

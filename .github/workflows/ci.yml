@@ -48,6 +48,15 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-features
 
+      - name: Build forms-demo app (release)
+        run: cargo build --release -p forms-demo
+
+      - name: Upload forms-demo binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: forms-demo-macos
+          path: target/release/forms-demo
+
       - name: Storybook apps (informational — not buildable yet)
         continue-on-error: true
         run: |

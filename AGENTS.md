@@ -225,6 +225,11 @@ inventory or codegen workflows change.
 
   Validate with `cargo test -p mcp-submit`.
 
+- `examples/forms-demo`
+  Standalone GPUI demo app on the current stack (no storybook shell): a `#[derive(GpuiForm)]` signup form with koruma validation, the runtime date picker, and live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
+
+  Run with `cargo run -p forms-demo`.
+
 ## Validation and Editing Rules
 
 ### Validation After Changes

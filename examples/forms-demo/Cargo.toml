@@ -1,0 +1,19 @@
+[package]
+name = "forms-demo"
+version = "0.1.0"
+edition.workspace = true
+license = "Unlicense"
+publish = false
+
+[dependencies]
+gpui = { workspace = true }
+gpui-form = { features = [ "derive" ], workspace = true }
+gpui-kit = { workspace = true }
+koruma = { workspace = true }
+koruma-collection = { workspace = true }
+rust-i18n = { workspace = true }
+strum = { workspace = true }
+unic-langid = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = [ "gpui", "gpui-kit" ]

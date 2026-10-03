@@ -1,0 +1,23 @@
+app:
+  title: "démo gpui-form"
+  subtitle: "Dérivé GpuiForm + validation koruma + locales rust-i18n"
+  locale_hint: "Langue"
+  validate: "Valider"
+  reset: "Réinitialiser"
+  all_valid: "Tous les champs sont valides."
+  invalid: "Validation échouée — corrigez les champs signalés."
+  date_section: "Sélecteur de date (composant runtime, suit la langue)"
+  picked: "Sélectionné"
+signup:
+  username_label: "Nom d'utilisateur"
+  age_label: "Âge"
+  country_label: "Pays"
+country:
+  united_states: "États-Unis"
+  france: "France"
+  china: "Chine"
+validation:
+  required: "Ce champ est obligatoire."
+  non_empty: "Ce champ ne doit pas être vide."
+  range: "La valeur doit rester dans les limites autorisées."
+  invalid: "Valeur invalide."

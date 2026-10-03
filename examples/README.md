@@ -102,6 +102,23 @@ Run its tests with:
 cargo test -p mcp-submit
 ```
 
+## forms-demo
+
+Small standalone GPUI app built entirely on the current stack (no storybook
+shell): a `#[derive(GpuiForm)]` signup form with koruma validation, the runtime
+date picker, and EN/FR/中文 locale switch buttons that drive the shared
+`gpui-form-i18n` locale live — labels, select options, and the date picker all
+re-render in the chosen language.
+
+Run it with:
+
+```sh
+cargo run -p forms-demo
+```
+
+CI builds it in release on macOS and uploads the binary as the
+`forms-demo-macos` artifact on every run.
+
 ## Localization
 
 Each example crate owns its own `locales/{en,fr-FR,zh-CN}.yml` files plus
