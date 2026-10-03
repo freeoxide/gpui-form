@@ -13,23 +13,15 @@ readme = "README.md"
 
 [dependencies]
 anyhow = { workspace = true }
-es-fluent = { features = [ "derive" ], workspace = true }
-es-fluent-lang = { workspace = true }
-es-fluent-manager-embedded = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
-gpui-es-fluent = { workspace = true }
 gpui-form-component = { features = [ "derive" ], workspace = true }
+gpui-form-i18n = { features = [ "component" ], workspace = true }
 gpui-storybook = { features = [ "macros" ], workspace = true }
 gpui-storybook-core = { workspace = true }
 gpui_platform = { workspace = true }
 jiff = { workspace = true }
-strum = { workspace = true }
-
-[build-dependencies]
-es-fluent-build = { workspace = true }
-
-[dev-dependencies]
+rust-i18n = { workspace = true }
 unic-langid = { workspace = true }
 
 [lints]

@@ -1,4 +1,3 @@
-use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -11,13 +10,9 @@ use gpui_form_component::date_picker::{
     DateRangePickerEvent, DateRangePickerState,
 };
 
-use crate::i18n::DatePickerComponentText;
+use crate::i18n::{DatePickerComponentText, localize};
 
 use super::common::{story_field, story_panel};
-
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
-    crate::i18n::localize_message(cx, message)
-}
 
 #[gpui_storybook::story]
 pub struct DatePickerStory {
