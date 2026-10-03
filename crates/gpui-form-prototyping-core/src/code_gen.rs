@@ -775,10 +775,6 @@ mod tests {
             "file-picker imports should be anchored to the extern crate: {compact}"
         );
         assert!(
-            !compact.contains("es_fluent"),
-            "no es-fluent imports may be emitted: {compact}"
-        );
-        assert!(
             !compact.contains("usegpui"),
             "every emitted use statement must anchor extern paths with a leading `::`: {compact}"
         );

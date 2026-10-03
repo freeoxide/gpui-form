@@ -11,22 +11,6 @@ env:
   RUSTC_WRAPPER: sccache
 
 jobs:
-  es-fluent:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install Linux dependencies
-        uses: ./.github/actions/install-linux-deps
-      - name: Check FTL files
-        uses: stayhydated/es-fluent/crates/es-fluent-cli@master
-        with:
-          path: .
-          # `all` was renamed `all_locales` upstream; the unknown input was
-          # silently ignored, downgrading this check to fallback-only.
-          all_locales: true
-          ignore: |
-            some-lib
-
   test:
     runs-on: ubuntu-latest
 

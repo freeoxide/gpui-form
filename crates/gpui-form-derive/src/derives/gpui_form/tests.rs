@@ -343,10 +343,6 @@ mod gpui_form_tests {
             "KorumaAllDisplay derive should be emitted when gpui_form(koruma(fluent)) is enabled"
         );
         assert!(
-            !expanded_str.contains("KorumaAllFluent"),
-            "koruma(fluent) must no longer emit the es-fluent backed KorumaAllFluent derive"
-        );
-        assert!(
             !expanded_str.contains("Fluent"),
             "koruma(fluent) emission must not reference fluent types: {expanded_str}"
         );

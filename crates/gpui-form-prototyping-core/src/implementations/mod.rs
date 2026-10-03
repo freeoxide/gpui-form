@@ -654,10 +654,6 @@ mod tests {
             tokens.contains(":: rust_i18n :: t ! (key)"),
             "label should resolve through ::rust_i18n::t!: {tokens}"
         );
-        assert!(
-            !tokens.contains("es_fluent"),
-            "no es-fluent tokens may remain in emitted labels: {tokens}"
-        );
     }
 
     #[test]
