@@ -5,6 +5,8 @@ use proc_macro2::TokenStream;
 use quote::ToTokens as _;
 use syn::{Expr, Ident, Lit, Type, TypePath};
 
+use crate::derives::gpui_form::attrs::McpToolOptions;
+
 #[derive(Clone, Debug)]
 pub struct TypeOverride(pub Type);
 
@@ -125,6 +127,10 @@ pub struct FieldOptionality {
     pub override_type: Option<Type>,
     pub into_expr: Option<Expr>,
     pub from_expr: Option<Expr>,
+    #[cfg_attr(not(feature = "mcp"), allow(dead_code))]
+    pub label: Option<String>,
+    #[cfg_attr(not(feature = "mcp"), allow(dead_code))]
+    pub description: Option<String>,
     pub skip: bool,
 }
 
@@ -205,6 +211,8 @@ pub struct ComponentStruct {
     pub empty: bool,
     #[darling(default)]
     pub koruma: Option<KorumaField>,
+    #[darling(default)]
+    pub mcp: Option<McpToolOptions>,
 }
 
 pub struct ComponentFieldContent {
@@ -213,6 +221,8 @@ pub struct ComponentFieldContent {
     pub wrap_in_option: (String, bool),
 }
 
+#[derive(Default)]
 pub struct GpuiFormOptions {
     pub generate_shape: bool,
+    pub generate_mcp: bool,
 }

@@ -1,0 +1,57 @@
+descriptor:
+  default_title: "%{form_name} submit"
+  default_description: "Submit a %{form_name} gpui-form request."
+resources:
+  descriptor_title: "%{title} descriptor"
+  descriptor_description: "Field metadata for the %{title} generated form."
+  schema_title: "%{title} schema"
+  schema_description: "Input JSON Schema for the %{title} generated form."
+  examples_title: "%{title} examples"
+  examples_description: "Field examples for the %{title} generated form."
+prompts:
+  fill_title: "Fill %{title}"
+  fill_description: "Draft valid direct-submit arguments for %{title}."
+  repair_title: "Repair %{title}"
+  repair_description: "Repair invalid arguments or edit-session values for %{title}."
+  submit_title: "Submit %{title}"
+  submit_description: "Choose a direct submit or edit-session submit path for %{title}."
+  arg_goal_description: "Optional user goal or context for filling the form."
+  arg_validation_issues_description: "Validation issue details from the last failed submit or edit validation."
+  arg_current_values_description: "Current direct-submit arguments or edit-session values."
+  arg_workflow_description: "Optional workflow notes, such as direct submit or edit-session submit."
+  fill_result_description: "Fill %{title}."
+  repair_result_description: "Repair %{title}."
+  submit_result_description: "Submit %{title}."
+  caller_context: "Caller-provided context:"
+  fill_body: |-
+    Fill the gpui-form `%{form_name}` for MCP tool `%{tool_name}`.
+    Read `%{descriptor_uri}` for field labels, descriptions, examples, validation rules, and per-field schemas.
+    Read `%{schema_uri}` for the direct-submit JSON Schema and `%{examples_uri}` for example values.
+    Return a JSON object that can be used as `arguments` for `%{tool_name}`.
+  repair_body: |-
+    Repair invalid values for gpui-form `%{form_name}` and MCP tool `%{tool_name}`.
+    Use `%{descriptor_uri}` for field metadata and validation rules, and `%{schema_uri}` for the expected argument shape.
+    If editing an open session, return a minimal patch with `values` and optional `clear` entries for `%{patch_tool}`.
+    If submitting directly, return a corrected `arguments` object for `%{tool_name}`.
+  submit_body: |-
+    Submit gpui-form `%{form_name}` through MCP.
+    Use direct tool `%{tool_name}` when all required arguments are ready.
+    When iterative repair is useful and editor tools are registered, use `%{open_tool}`, `%{patch_tool}`, `%{validate_tool}`, and `%{submit_tool}`.
+    Use `%{descriptor_uri}` and `%{schema_uri}` to inspect field metadata and the direct-submit schema before calling tools.
+editor:
+  open_title: "Open %{form_name} edit session"
+  open_description: "Create an editable %{form_name} form value-holder session."
+  list_title: "List %{form_name} edit sessions"
+  list_description: "Return active editable %{form_name} form sessions."
+  read_title: "Read %{form_name} edit session"
+  read_description: "Return the current values for an editable %{form_name} form session."
+  patch_title: "Patch %{form_name} fields"
+  patch_description: "Update fields in an editable %{form_name} form session."
+  validate_title: "Validate %{form_name} edit session"
+  validate_description: "Validate the current values for an editable %{form_name} form session."
+  close_title: "Close %{form_name} edit session"
+  close_description: "Close an editable %{form_name} form value-holder session."
+  close_all_title: "Close all %{form_name} edit sessions"
+  close_all_description: "Close every active editable %{form_name} form value-holder session."
+  submit_title: "Submit %{form_name} edit session"
+  submit_description: "Submit the current values from an editable %{form_name} form session."
