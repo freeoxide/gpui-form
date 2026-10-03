@@ -80,11 +80,7 @@ pub(super) fn tool_metadata_tokens(
     Ok(tokens)
 }
 
-fn icon_tokens(
-    mcp_crate: &Path,
-    icon: &McpIconOptions,
-    span: Span,
-) -> TokenStream {
+fn icon_tokens(mcp_crate: &Path, icon: &McpIconOptions, span: Span) -> TokenStream {
     let src = LitStr::new(&icon.src, span);
     let mut tokens = quote! { #mcp_crate::McpToolIcon::new(#src) };
     if let Some(mime_type) = icon.mime_type.as_deref() {

@@ -1,6 +1,7 @@
+use heck::{ToShoutySnakeCase as _, ToSnakeCase as _};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use syn::{DeriveInput, Type};
 
 use crate::derives::gpui_form::koruma::validator_attr_to_tokens;
@@ -498,11 +499,9 @@ pub fn generate_value_holder(
         derives.push(quote! { ::gpui_form::bon::Builder });
     }
     if needs_koruma_derive {
+        derives.push(quote! { ::koruma::Koruma });
         if enable_koruma_fluent {
-            derives.push(quote! { ::koruma::Koruma });
-            derives.push(quote! { ::koruma::KorumaAllFluent });
-        } else {
-            derives.push(quote! { ::koruma::Koruma });
+            derives.push(quote! { ::koruma::KorumaAllDisplay });
         }
     }
     // Always derive `PartialEq` on the generated holder (not `Eq`, since
@@ -672,6 +671,12 @@ pub fn generate_value_holder(
         }
     };
 
+    let i18n_impl = if enable_koruma_fluent {
+        generate_koruma_i18n_impl(original_input, fields)
+    } else {
+        quote! {}
+    };
+
     let mut tokens = quote! {
         #conversion_error_type
         #derive_output
@@ -691,6 +696,8 @@ pub fn generate_value_holder(
         }
 
         #skipped_fields_impl
+
+        #i18n_impl
     };
 
     if has_custom_defaults {
@@ -702,4 +709,68 @@ pub fn generate_value_holder(
     }
 
     (tokens, fields_requiring_required)
+}
+
+pub fn validation_issue_key_for_kind(kind: &str) -> String {
+    let stem = kind.strip_suffix("Validation").unwrap_or(kind);
+    format!("validation.{}", stem.to_snake_case())
+}
+
+fn generate_koruma_i18n_impl(
+    original_input: &DeriveInput,
+    fields: &[FieldOptionality],
+) -> TokenStream {
+    let (impl_generics, ty_generics, where_clause) = original_input.generics.split_for_impl();
+    let wrapped_ident = format_ident!("{}FormValueHolder", original_input.ident);
+    let form_key = original_input.ident.to_string().to_snake_case();
+    let prefix_const = format_ident!(
+        "{}_I18N_KEY_PREFIX",
+        original_input.ident.to_string().to_shouty_snake_case()
+    );
+
+    let label_consts = fields.iter().filter(|f| !f.skip).map(|f| {
+        let field = f.field_name.to_string();
+        let const_ident = format_ident!("{}_LABEL_KEY", field.to_shouty_snake_case());
+        let key = format!("{form_key}.{field}_label");
+        quote! { pub const #const_ident: &'static str = #key; }
+    });
+
+    let mut kinds: BTreeSet<String> = fields
+        .iter()
+        .filter(|f| !f.skip)
+        .flat_map(|f| {
+            f.validation
+                .field_validators
+                .iter()
+                .chain(f.validation.element_validators.iter())
+                .map(|v| v.name().to_string())
+        })
+        .collect();
+    if fields.iter().any(|f| f.needs_required_validation()) {
+        kinds.insert("RequiredValidation".to_string());
+    }
+
+    let kind_arms = kinds.iter().map(|kind| {
+        let key = validation_issue_key_for_kind(kind);
+        quote! { #kind => #key, }
+    });
+
+    quote! {
+        impl #impl_generics #wrapped_ident #ty_generics #where_clause {
+            pub const #prefix_const: &'static str = #form_key;
+            #(#label_consts)*
+
+            pub fn validation_issue_key(kind: &str) -> &'static str {
+                match kind {
+                    #(#kind_arms)*
+                    _ => "validation.invalid",
+                }
+            }
+
+            pub fn localized_validation_issue(kind: &str) -> ::std::borrow::Cow<'static, str> {
+                let key = Self::validation_issue_key(kind);
+                ::rust_i18n::t!(key)
+            }
+        }
+    }
 }

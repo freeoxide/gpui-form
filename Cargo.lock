@@ -2922,6 +2922,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
+ "rust-i18n",
  "serde",
  "serde_json",
  "strum 0.28.0",

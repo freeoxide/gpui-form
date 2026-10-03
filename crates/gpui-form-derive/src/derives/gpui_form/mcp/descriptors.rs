@@ -108,7 +108,10 @@ pub(super) fn field_decode_tokens(_facade_crate: &Path, field: &FieldOptionality
     }
 }
 
-pub(super) fn field_decode_arm_tokens(facade_crate: &Path, field: &FieldOptionality) -> TokenStream {
+pub(super) fn field_decode_arm_tokens(
+    facade_crate: &Path,
+    field: &FieldOptionality,
+) -> TokenStream {
     let field_name_str = field.field_name.to_string();
     let field_decode = field_decode_tokens(facade_crate, field);
 

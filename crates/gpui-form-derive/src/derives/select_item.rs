@@ -1,4 +1,5 @@
 use darling::FromDeriveInput;
+use heck::ToSnakeCase as _;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields};
@@ -43,10 +44,36 @@ pub fn from(input: TokenStream) -> TokenStream {
         _ => quote! { stringify!(#item_ident).to_string() },
     };
 
-    let title_token = if args.fluent {
-        quote! { #fallback_title_token.into() }
-    } else {
-        quote! { self.to_string().into() }
+    let title_token = match (&input.data, args.fluent) {
+        (Data::Enum(data), true) => {
+            let enum_key = item_ident.to_string().to_snake_case();
+            let key_arms = data.variants.iter().map(|variant| {
+                let ident = &variant.ident;
+                let key = format!("{enum_key}.{}", ident.to_string().to_snake_case());
+                let pattern = match &variant.fields {
+                    Fields::Named(_) => quote! { Self::#ident { .. } },
+                    Fields::Unnamed(_) => quote! { Self::#ident(..) },
+                    Fields::Unit => quote! { Self::#ident },
+                };
+
+                quote! { #pattern => #key, }
+            });
+
+            quote! {
+                {
+                    let key: &'static str = match self {
+                        #(#key_arms)*
+                    };
+                    let translated = ::rust_i18n::t!(key);
+                    if &*translated == key {
+                        #fallback_title_token.into()
+                    } else {
+                        translated.into_owned().into()
+                    }
+                }
+            }
+        },
+        _ => quote! { self.to_string().into() },
     };
 
     let expanded = quote! {

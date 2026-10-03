@@ -1,11 +1,7 @@
 use darling::{Error as DarlingError, FromMeta};
 use quote::ToTokens as _;
 use strum::EnumString;
-use syn::{
-    Expr, Lit, Meta, Path, Token, Type,
-    parse::Parser as _,
-    punctuated::Punctuated,
-};
+use syn::{Expr, Lit, Meta, Path, Token, Type, parse::Parser as _, punctuated::Punctuated};
 
 #[derive(Clone, Debug, Default)]
 pub struct McpToolOptions {

@@ -339,8 +339,160 @@ mod gpui_form_tests {
             "Koruma derive should be emitted when gpui_form(koruma) is enabled, even without validators"
         );
         assert!(
-            expanded_str.contains("::koruma::KorumaAllFluent"),
-            "KorumaAllFluent derive should be emitted when gpui_form(koruma(fluent)) is enabled"
+            expanded_str.contains("::koruma::KorumaAllDisplay"),
+            "KorumaAllDisplay derive should be emitted when gpui_form(koruma(fluent)) is enabled"
+        );
+        assert!(
+            !expanded_str.contains("KorumaAllFluent"),
+            "koruma(fluent) must no longer emit the es-fluent backed KorumaAllFluent derive"
+        );
+        assert!(
+            !expanded_str.contains("Fluent"),
+            "koruma(fluent) emission must not reference fluent types: {expanded_str}"
+        );
+        assert!(
+            expanded_str.contains("OPTIONAL_ONLY_FORM_I18N_KEY_PREFIX"),
+            "koruma(fluent) should emit the i18n key prefix constant: {expanded_str}"
+        );
+        assert!(
+            expanded_str.contains("\"optional_only_form.note_label\"")
+                && expanded_str.contains("\"optional_only_form.kind_label\""),
+            "koruma(fluent) should emit per-field label key constants: {expanded_str}"
+        );
+        assert!(
+            expanded_str.contains("_=>\"validation.invalid\""),
+            "koruma(fluent) mapping must fall back to validation.invalid: {expanded_str}"
+        );
+    }
+
+    #[test]
+    fn test_validation_issue_key_mapping_covers_koruma_collection_validators() {
+        use crate::derives::gpui_form::value_holder::validation_issue_key_for_kind;
+        use heck::ToSnakeCase as _;
+
+        let kinds = [
+            "RequiredValidation",
+            "NonEmptyValidation",
+            "LenValidation",
+            "CreditCardValidation",
+            "EmailValidation",
+            "IpValidation",
+            "PhoneNumberValidation",
+            "UrlValidation",
+            "NegativeValidation",
+            "NonNegativeValidation",
+            "NonPositiveValidation",
+            "PositiveValidation",
+            "RangeValidation",
+            "AlphanumericValidation",
+            "AsciiValidation",
+            "ContainsValidation",
+            "MatchesValidation",
+            "PatternValidation",
+            "PrefixValidation",
+            "SuffixValidation",
+        ];
+
+        for kind in kinds {
+            let stem = kind.strip_suffix("Validation").unwrap_or(kind);
+            assert_eq!(
+                validation_issue_key_for_kind(kind),
+                format!("validation.{}", stem.to_snake_case()),
+                "kind {kind} must map to its namespaced validation.* key"
+            );
+        }
+        assert_eq!(
+            validation_issue_key_for_kind("MysteryValidation"),
+            "validation.mystery",
+            "unlisted kinds still derive a namespaced key; the emitted match falls back to validation.invalid"
+        );
+    }
+
+    #[test]
+    fn test_koruma_fluent_emits_validation_issue_mapping_and_label_keys() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma(fluent))]
+            struct BillingForm {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(1).max(12))]
+                seats: u32,
+
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::PositiveValidation::<_>::builder())]
+                discount: u32,
+
+                #[gpui_form(component(input))]
+                note: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+                generate_mcp: false,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("\"RequiredValidation\"=>\"validation.required\"")
+                && compact.contains("\"RangeValidation\"=>\"validation.range\"")
+                && compact.contains("\"PositiveValidation\"=>\"validation.positive\""),
+            "koruma(fluent) should map validation issue kinds to validation.* t! keys: {compact}"
+        );
+        assert!(
+            compact.contains("BILLING_FORM_I18N_KEY_PREFIX")
+                && compact.contains("\"billing_form\""),
+            "koruma(fluent) should emit the form i18n key prefix constant: {compact}"
+        );
+        assert!(
+            compact.contains("SEATS_LABEL_KEY") && compact.contains("\"billing_form.seats_label\""),
+            "koruma(fluent) should emit per-field label key constants: {compact}"
+        );
+        assert!(
+            compact.contains("NOTE_LABEL_KEY") && compact.contains("\"billing_form.note_label\""),
+            "koruma(fluent) should emit per-field label key constants: {compact}"
+        );
+        assert!(
+            compact.contains("fnlocalized_validation_issue(kind:&str)")
+                && compact.contains("::rust_i18n::t!(key)"),
+            "koruma(fluent) should emit a rust-i18n backed localization helper: {compact}"
+        );
+    }
+
+    #[test]
+    fn test_koruma_without_fluent_keeps_plain_koruma_derive() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma)]
+            struct PlainForm {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+                generate_mcp: false,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("::koruma::Koruma") && !compact.contains("KorumaAllDisplay"),
+            "koruma without fluent must not emit KorumaAllDisplay: {compact}"
+        );
+        assert!(
+            !compact.contains("I18N_KEY_PREFIX") && !compact.contains("::rust_i18n::t!"),
+            "koruma without fluent must not emit rust-i18n lookups: {compact}"
         );
     }
 

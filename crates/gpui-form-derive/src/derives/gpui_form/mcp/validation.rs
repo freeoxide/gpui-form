@@ -276,11 +276,12 @@ pub(super) fn field_validation_issue_tokens(
     })
 }
 
-fn validator_getter_ident(validator: &ValidatorAttr, siblings: &[ValidationRulePlan]) -> syn::Ident {
-    let sibling_names: Vec<ValidatorAttr> = siblings
-        .iter()
-        .map(|plan| plan.validator.clone())
-        .collect();
+fn validator_getter_ident(
+    validator: &ValidatorAttr,
+    siblings: &[ValidationRulePlan],
+) -> syn::Ident {
+    let sibling_names: Vec<ValidatorAttr> =
+        siblings.iter().map(|plan| plan.validator.clone()).collect();
     let simple = validator.name().to_string().to_snake_case();
     if !has_name_collision(&simple, &sibling_names, |sibling| {
         sibling.name().to_string().to_snake_case()

@@ -6,8 +6,8 @@ mod validation;
 use context_submit::context_submit_registration_tokens;
 use descriptors::{field_decode_arm_tokens, field_decode_tokens, field_descriptor_tokens};
 use metadata::tool_metadata_tokens;
-use proc_macro2::{Span, TokenStream};
 use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens as _, format_ident, quote};
 use syn::{DeriveInput, Lit, LitStr, Path, spanned::Spanned as _};
 
@@ -38,7 +38,8 @@ pub(super) fn generate_mcp_impl(
     let holder_ident = format_ident!("{}FormValueHolder", original_ident);
     let fields_const_ident = format_ident!("__{}GpuiFormMcpFields", original_ident);
     let descriptor_fn_ident = format_ident!("__{}_gpui_form_mcp_descriptor", original_ident);
-    let editor_register_fn_ident = format_ident!("__{}_gpui_form_mcp_register_editor", original_ident);
+    let editor_register_fn_ident =
+        format_ident!("__{}_gpui_form_mcp_register_editor", original_ident);
     let editor_definitions_fn_ident =
         format_ident!("__{}_gpui_form_mcp_editor_tool_definitions", original_ident);
     let (impl_generics, ty_generics, where_clause) = original_input.generics.split_for_impl();
