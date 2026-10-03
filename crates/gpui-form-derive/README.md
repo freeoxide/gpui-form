@@ -122,6 +122,27 @@ Behavior notes:
   because no `FieldVariant` is emitted for skipped fields. Section grouping is
   order-preserving (consecutive same-section fields).
 
+### `koruma(fluent)` localization
+
+The attribute grammar is unchanged. Under `koruma(fluent)` the generated holder
+derives `KorumaAllDisplay` and adds:
+
+- `const <FORM>_I18N_KEY_PREFIX: &str = "<snake_form>"`
+- `const <FIELD>_LABEL_KEY: &str = "<snake_form>.<field>_label"` per non-skipped
+  field
+- `fn validation_issue_key(kind: &str) -> &'static str` mapping validator kinds
+  to `validation.<snake>` keys (`RequiredValidation` -> `validation.required`,
+  with `validation.invalid` as the fallback arm)
+- `fn localized_validation_issue(kind: &str) -> Cow<'static, str>` resolving
+  through `rust_i18n::t!`
+
+The emitted `t!` resolves against the CONSUMER crate's `rust-i18n` backend:
+apps using `koruma(fluent)` must depend on `rust-i18n`, call
+`rust_i18n::i18n!("locales", fallback = "en")` at their crate root, and own the
+`validation.*` and `<form>.<field>_label` keys. This crate's
+`locales/{en,fr-FR,zh-CN}.yml` ship the canonical `validation.*` strings as the
+template.
+
 ## `#[derive(SelectItem)]`
 
 Implements `::gpui_kit::component::select::SelectItem` for enums.
@@ -138,9 +159,11 @@ pub enum Country {
 
 Optional attribute:
 
-- `#[select_item(fluent)]` allows enums that derive `EsFluent` to avoid a
-  `Display` bound, but `SelectItem::title()` has no localizer argument. Render
-  localized select labels in the application layer when localization is needed.
+- `#[select_item(fluent)]` allows enums that do not implement `Display`.
+  `title()` resolves `"<enum_snake>.<variant_snake>"` (e.g.
+  `preferred_language.english`) through `rust_i18n::t!` and falls back to the
+  variant name when the key is missing. The consuming crate must depend on
+  `rust-i18n`, call `rust_i18n::i18n!` at its crate root, and own those keys.
 
 ## `#[derive(CustomComponentState)]`
 

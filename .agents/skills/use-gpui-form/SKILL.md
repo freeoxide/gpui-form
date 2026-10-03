@@ -103,6 +103,7 @@ Common patterns:
   logic in each UI.
 - For typed field naming (validation, dirty tracking, focus, analytics, schema export), use the generated `<Name>FormPath` constructors such as `UserProfileFormPath::username()`; skipped fields have no constructor.
 - For layout intent, attach non-rendering hints with `section`, `label`, `description`, `placeholder`, and `width`; prototyping groups by `section`, prefers `label`, and emits `description` where it already produces help text.
+- For localized text, use rust-i18n 4 (see [Localization](#localization-rust-i18n)).
 - Keep consumer code focused on app models, form state, rendering, and app-owned components.
 
 ## Saving, Restoring, and Dirty Tracking
@@ -198,6 +199,33 @@ Scope notes for this feature (FLAT v1):
 - `FieldPath` is the shared naming foundation for the upcoming field-level
   validation (#6), field-level diff/delta reporting (#9), and schema export
   (#14).
+
+## Localization (rust-i18n)
+
+Locale text is backed by `rust-i18n` 4 — the same backend `gpui-kit` widgets
+use, so widget and form text share one active locale.
+
+```toml
+[dependencies]
+rust-i18n = "4"
+```
+
+1. Give each crate that localizes its own `locales/<locale>.yml` files
+   (`locales/en.yml`, `locales/fr-FR.yml`, `locales/zh-CN.yml`) and call
+   `rust_i18n::i18n!("locales", fallback = "en")` at the crate root. `t!` is
+   crate-local: keys never resolve across crates.
+2. Switch the locale app-wide through `gpui_form::i18n`:
+   `gpui_form::i18n::init(cx)` once, then
+   `gpui_form::i18n::change_locale(cx, "fr-FR".parse()?)`. Built-in runtime
+   copy (date picker, file picker) ships en/fr-FR/zh-CN and follows the same
+   shared locale.
+3. `#[gpui_form(koruma(fluent))]` and `#[select_item(fluent)]` keep their
+   attribute grammar and resolve `<form>.<field>_label` / `validation.<kind>` /
+   `<enum>.<variant>` keys through the app's own locales; missed keys fall back
+   to a humanized key or the variant name.
+4. Look single strings up with `gpui_form::i18n::localize_message(cx, key)` or
+   plain `rust_i18n::t!(key)`; `t!` returns `Cow<str>`, so deref (`&*t`) rather
+   than calling unstable `str` methods on it.
 
 ## Layout and Section Hints
 

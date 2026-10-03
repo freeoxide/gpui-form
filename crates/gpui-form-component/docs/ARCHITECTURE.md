@@ -27,8 +27,9 @@ schema metadata:
   ICU4X-driven labels and locale-specific week layout
 - `src/file_picker.rs`: runtime state and element wrapper for native path
   selection with `gpui::PathPromptOptions`
-- `src/i18n.rs`: crate-local `es-fluent` message enums plus helpers for
-  caller-owned localizers
+- `src/i18n.rs`: crate-local `DatePickerText`/`FilePickerText` message enums
+  plus re-exports of the `gpui-form-i18n` bridge; text resolves through
+  `rust_i18n::t!` against this crate's `locales/{en,fr-FR,zh-CN}.yml`
 
 ## Subsystem Boundaries
 
@@ -95,9 +96,9 @@ Responsibilities:
 - emit `FilePickerEvent::Change`, `Cancel`, and `Error`
 - render the control with `gpui-kit` buttons, icons, theme tokens, and
   sizing helpers
-- provide plain English fallback copy for built-in placeholders, prompts,
-  button labels, selected-count text, and dropped-dialog errors while keeping
-  Fluent resources available for caller-owned localizers
+- resolve built-in placeholders, prompts, button labels, selected-count text,
+  and dropped-dialog errors through this crate's `rust-i18n` locales
+  (`en`, `fr-FR`, `zh-CN`) and the shared locale from `gpui_form::i18n`
 - use the workspace-pinned GPUI API instead of adding another native dialog
   dependency
 
@@ -153,17 +154,19 @@ Responsibilities:
 
 ### Built-in text
 
-1. `src/i18n.rs` defines this crate's embedded Fluent resource module and
-   message enums for caller-owned `es-fluent` localizers.
-1. `i18n.toml` allowlists the runtime namespaces (`date_picker`,
-   `file_picker`).
-1. Fluent resources live under
-   `i18n/{locale}/gpui-form-component/{namespace}.ftl`; add new component text
-   to the matching namespace file instead of a shared crate-level Fluent file.
-1. Runtime resources currently ship for `en`, `fr-FR`, and `zh-CN`.
-1. Runtime components use plain English fallback copy unless callers pass
-   localized text explicitly; `src/i18n.rs` exposes helpers that render this
-   crate's messages through caller-owned localizers.
+1. `src/i18n.rs` defines this crate's `DatePickerText`/`FilePickerText` message
+   enums; each variant maps to a namespaced key (`date_picker.select_date`,
+   `file_picker.browse`, `file_picker.paths_selected_one`, ...) and resolves it
+   through `rust_i18n::t!`.
+1. Locale resources live under `locales/{locale}.yml`; add new component text
+   to all three locale files (`en`, `fr-FR`, `zh-CN`).
+1. `rust_i18n::i18n!("locales", fallback = "en")` at the crate root embeds the
+   YAML at compile time; a missed key falls back to a humanized form of the
+   key.
+1. The active locale is the one shared `rust-i18n` static managed through the
+   `gpui-form-i18n` bridge (`init`, `change_locale`, re-exported as
+   `gpui_form::i18n`), so these strings follow the same locale as `gpui-kit`
+   widgets.
 1. Caller-provided labels, prompts, placeholders, and event errors remain
    caller-owned text.
 1. Story/demo text belongs to `gpui-form-component-story`, not this runtime

@@ -11,9 +11,8 @@ locale plumbing underneath it.
 
 - Form crates and examples that need **one locale** shared between GPUI Kit
   widgets (`gpui_kit::component`) and generated form components.
-- Consumers migrating off `es-fluent` that still want the
-  `init` / `change_locale` / `localize_message` / `localize_label` helper
-  names.
+- Callers that want one stable set of `init` / `change_locale` /
+  `localize_message` / `localize_label` helper names shared across crates.
 
 ## What it does
 

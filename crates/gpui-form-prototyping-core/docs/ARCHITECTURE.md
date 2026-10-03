@@ -39,8 +39,10 @@ This crate exists to:
    `FilePicker`, and store the first selected path in the form value holder.
    Text input fields parse the form-side value type from `FieldVariant`
    metadata instead of assuming `String`.
-   Non-fluent label/description generation prefers `layout.label` /
-   `layout.description` over the title-cased field-name fallback.
+   Label/description generation emits `rust_i18n::t!` lookups of
+   `<form>.<field>_label` / `<form>.<field>_description` keys unless
+   `layout.label` / `layout.description` override them verbatim; a missed key
+   falls back to the title-cased field name.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`
@@ -58,6 +60,9 @@ It contains:
 - event/subscription/init tokens
 - render fragments
 - debug helpers
+- `i18n_key_items`: tokens emitting a doc-commented `<FORM>_I18N_KEYS` const
+  listing every rust-i18n key the generated file resolves, spliced by layouts
+  that scaffold locale files
 - flags such as `is_empty`, `has_koruma`, and `has_skipped_fields`
 
 The `render_children` fragment is assembled with order-preserving section

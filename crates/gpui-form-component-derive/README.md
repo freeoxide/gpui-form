@@ -41,10 +41,9 @@ Variant attributes:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 - `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` emits
-  `EsFluentVariants` / `EsFluentLabel` metadata for application-owned
-  localizers. Runtime labels use plain fallback names because the runtime trait
-  contract is localizer-free.
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
+  compatibility but emits no localization metadata. Runtime labels use
+  variant-name fallbacks; localize them through your app's `rust-i18n` locales.
 
 Behavior notes:
 
@@ -52,9 +51,9 @@ Behavior notes:
   `gpui-kit` select compares selected values
 - derived enums expose stable `variant_key()` values plus `selection_key_path()`
 - custom keys are validated for uniqueness within the enum
-- fluent metadata is emitted for callers that render through their own
-  `es-fluent` localizer; runtime trait methods use fallback names because the
-  contract is localizer-free
+- no localization metadata is emitted; runtime trait methods use variant-name
+  fallback names, and localized labels are an application concern through
+  `rust-i18n`
 
 ## Most Users Should Use Instead
 

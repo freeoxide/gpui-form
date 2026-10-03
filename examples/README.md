@@ -81,7 +81,8 @@ cargo run -p gpui-form-component-story
 
 Generator example that walks `GpuiFormShape` inventory data and emits scaffolded
 form files into `examples/prototyping/output`. Generated Storybook form titles
-use the example app's active locale.
+use the example app's active locale, and generated labels/descriptions resolve
+through `rust_i18n::t!` keys listed in the emitted `<FORM>_I18N_KEYS` consts.
 
 Run it with:
 
@@ -89,8 +90,23 @@ Run it with:
 cargo run -p prototyping
 ```
 
-## i18n
+## mcp-submit
 
-Shared localization assets used by the example crates. Story apps own a small
-`i18n` helper around `EmbeddedI18n`; generated/story rendering calls that helper
-to pass localized strings explicitly.
+stdio MCP server built on the facade's `mcp` feature: generated submit and
+editor tools, schema metadata, resources, and prompt templates for a
+`GpuiForm`-backed demo model, with an in-repo JSON-RPC test client.
+
+Run its tests with:
+
+```sh
+cargo test -p mcp-submit
+```
+
+## Localization
+
+Each example crate owns its own `locales/{en,fr-FR,zh-CN}.yml` files plus
+`rust_i18n::i18n!("locales", fallback = "en")` at its crate root — `t!` keys
+are crate-local, so nothing is shared between them. Story apps switch the
+locale through the `gpui-form-i18n` bridge helpers (`init`, `change_locale`);
+generated and story rendering resolve text through `rust_i18n::t!` and
+app-owned keys.

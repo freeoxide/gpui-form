@@ -12,6 +12,9 @@ when you want the runtime implementation layer without the facade.
 - `date_picker`: localized runtime state and element wrapper for calendar date input
 - `file_picker`: native GPUI path selection rendered with `gpui-kit` controls
 - `custom`: the runtime contract for user-defined component state
+- `i18n`: re-exports of the [`gpui-form-i18n`](../gpui-form-i18n/README.md)
+  bridge (`init`, `change_locale`, `localize_message`, ...) that the facade
+  exposes as `gpui_form::i18n`
 
 ## Infinite Select
 
@@ -95,9 +98,10 @@ Derived `InfiniteSelect` enums expose:
 - `PartialEq` compatibility with the backing `gpui-kit` select value
   comparison
 - `variant_label()` for user-facing option titles
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` to emit
-  `es-fluent` metadata for application-owned localizers; runtime labels use
-  plain fallback names because the runtime trait contract is localizer-free
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
+  compatibility but emits no localization metadata; runtime labels use
+  variant-name fallbacks, and applications localize labels through their own
+  `rust-i18n` locales
 - `variant_key()` plus `selection_key_path()` for order-independent paths
 - `#[tuple_enum(key = "...")]` when persisted keys should not mirror variant names
 - `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
@@ -111,9 +115,10 @@ Derived `InfiniteSelect` enums expose:
 
 This crate provides the localized runtime date-picker used by generated
 `component(date_picker)` fields.
-Its default empty placeholder is plain English fallback copy. Pass
-`DatePicker::placeholder(...)` with text rendered through your application-owned
-`es-fluent` localizer when a form needs localized or custom copy.
+Its built-in empty placeholder and selected-date label resolve through
+`rust-i18n` — locales ship for `en`, `fr-FR`, and `zh-CN` and follow the shared
+locale managed through `gpui_form::i18n`; pass `DatePicker::placeholder(...)`
+for custom copy.
 
 ```rs
 use gpui_form::runtime::date_picker::{
@@ -147,10 +152,10 @@ not a separate dialog crate.
 Generated forms can use the same runtime with
 `#[gpui_form(component(file_picker))]`.
 The built-in placeholders, native-dialog prompts, browse label, dropped-dialog
-error, and selected-count text have plain English fallback copy. Explicit
-builder values such as `placeholder(...)`, `prompt(...)`, and
-`browse_label(...)` remain caller-provided text; render localized strings through
-your application-owned `es-fluent` localizer before passing them in.
+error, and selected-count text resolve through `rust-i18n` — this crate ships
+`locales/{en,fr-FR,zh-CN}.yml` and follows the shared locale managed through
+`gpui_form::i18n`. Explicit builder values such as `placeholder(...)`,
+`prompt(...)`, and `browse_label(...)` remain caller-provided text.
 
 ```rs
 use gpui_form::runtime::file_picker::{

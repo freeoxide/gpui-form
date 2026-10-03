@@ -163,6 +163,26 @@ inventory or codegen workflows change.
   Docs: [Architecture](crates/gpui-form-prototyping-core/docs/ARCHITECTURE.md)
   Role: prototyping and code-generation helpers that consume `GpuiFormShape` inventory data and generate scaffolded form code.
 
+- `crates/gpui-form-i18n`
+  Audience: **Public integration**
+  Docs: [README](crates/gpui-form-i18n/README.md)
+  Role: rust-i18n-backed locale bridge (gpui `I18n` global, `init`, `change_locale`, `localize_message`) shared by the facade and story/example apps. Most users should consume it through `gpui_form::i18n`.
+
+- `crates/gpui-form-collection`
+  Audience: **Public integration**
+  Docs: [README](crates/gpui-form-collection/README.md)
+  Role: ready-made form shapes for common GPUI Kit controls, plus the shape-policy trait layer in its `shape` module.
+
+- `crates/gpui-form-collection-derive`
+  Audience: **Public integration**
+  Docs: [README](crates/gpui-form-collection-derive/README.md)
+  Role: proc macros for the `gpui-form-collection` surface (`SelectItem` derivation for collection enums).
+
+- `crates/gpui-form-mcp`
+  Audience: **Public integration**
+  Docs: [README](crates/gpui-form-mcp/README.md)
+  Role: optional MCP integration exposing generated forms as MCP tools, resources, and prompts; enabled through the facade's `mcp` feature (`gpui_form::mcp`).
+
 ### Internal Crates
 
 - `crates/gpui-form-codegen`
@@ -178,9 +198,6 @@ inventory or codegen workflows change.
 
 - `examples/README.md`
   Canonical index of runnable workspace examples.
-
-- `examples/i18n`
-  Shared localization assets used by the example crates.
 
 - `examples/some-lib`
   Shared example domain types and source structs that derive `GpuiForm`.
@@ -202,6 +219,11 @@ inventory or codegen workflows change.
   Prototype generator that reads `GpuiFormShape` inventory data and emits form scaffolding.
 
   Run with `cargo run -p prototyping`.
+
+- `examples/mcp-submit`
+  stdio MCP server example for the facade `mcp` feature: generated submit/editor tools, schema metadata, resources, and prompts with an in-repo JSON-RPC test client.
+
+  Validate with `cargo test -p mcp-submit`.
 
 ## Validation and Editing Rules
 
