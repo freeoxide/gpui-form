@@ -226,7 +226,7 @@ inventory or codegen workflows change.
   Validate with `cargo test -p mcp-submit`.
 
 - `examples/forms-demo`
-  Standalone GPUI demo app on the current stack (no storybook shell): a `#[derive(GpuiForm)]` signup form with koruma validation, the runtime date picker, and live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
+  Standalone GPUI demo app on the current stack (no storybook shell): one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and `FormState` dirty tracking with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
 
   Run with `cargo run -p forms-demo`.
 

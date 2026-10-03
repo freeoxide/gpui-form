@@ -2214,12 +2214,15 @@ dependencies = [
 name = "forms-demo"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "derive_more",
  "gpui-form",
  "gpui-kit",
  "gpui-pre",
  "koruma",
  "koruma-collection",
  "rust-i18n",
+ "serde",
  "strum 0.28.0",
  "unic-langid",
 ]

@@ -5,21 +5,29 @@ use gpui::{
     Render, SharedString, Styled as _, Subscription, Window, div,
 };
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
+use gpui_form::runtime::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
 use gpui_form::{GpuiForm, SelectItem};
 use gpui_kit::assets::Assets;
 use gpui_kit::component::{
     ActiveTheme as _, Sizable as _,
     button::{Button, ButtonVariants as _},
+    checkbox::Checkbox,
     form::{field, v_form},
     h_flex, v_flex, *,
 };
 use gpui_kit::component::{
     input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent, StepAction},
+    scroll::ScrollableElement as _,
     select::{SearchableVec, Select, SelectEvent, SelectState},
+    switch::Switch,
 };
 use gpui_kit::*;
 use koruma::{Koruma, KorumaAllDisplay};
-use koruma_collection::{collection::NonEmptyValidation, numeric::RangeValidation};
+use koruma_collection::{
+    collection::{LenValidation, NonEmptyValidation},
+    format::EmailValidation,
+    numeric::RangeValidation,
+};
 use rust_i18n::t;
 use strum::EnumIter;
 use unic_langid::LanguageIdentifier;
@@ -36,6 +44,46 @@ pub enum Country {
     China,
 }
 
+#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[select_item(fluent)]
+pub enum Language {
+    #[default]
+    English,
+    French,
+    Chinese,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    koruma::Koruma,
+    koruma::KorumaAllDisplay,
+    derive_more::Display,
+    derive_more::From,
+    derive_more::Into,
+    derive_more::Deref,
+    derive_more::AsRef,
+    derive_more::FromStr,
+)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+#[display("{value}")]
+#[koruma(try_new, newtype)]
+pub struct RequestCode {
+    #[koruma(LenValidation::<_>::builder().min(2).max(8))]
+    pub value: String,
+}
+
+impl std::fmt::Display for RequestCodeKorumaValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 #[derive(Clone, Debug, Default, GpuiForm, Koruma, KorumaAllDisplay)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[gpui_form(koruma(fluent))]
@@ -44,18 +92,42 @@ pub struct Signup {
     #[koruma(NonEmptyValidation::<_>::builder())]
     pub username: String,
 
+    #[gpui_form(label = "Email", placeholder = "you@example.com", component(input))]
+    #[koruma(EmailValidation::<_>::builder())]
+    pub email: Option<String>,
+
     #[gpui_form(label = "Age", component(number_input))]
     #[koruma(RangeValidation::<_>::builder().min(1).max(130))]
     pub age: Option<u32>,
 
     #[gpui_form(component(select(searchable)), default = Country::France)]
     pub country: Option<Country>,
+
+    #[gpui_form(component(select), default = Language::English)]
+    pub language: Language,
+
+    #[gpui_form(component(checkbox))]
+    pub newsletter: bool,
+
+    #[gpui_form(label = "Enable notifications", component(switch))]
+    pub notifications: bool,
+
+    #[gpui_form(label = "Invite code", placeholder = "AB12", component(input))]
+    #[koruma(newtype)]
+    pub code: RequestCode,
+
+    #[gpui_form(component(date_picker))]
+    pub birth_date: Option<chrono::NaiveDate>,
+
+    #[gpui_form(skip)]
+    pub session_id: u32,
 }
 
 struct FormsDemo {
     data: SignupFormValueHolder,
     fields: SignupFormFields,
-    birth_picker: Entity<DatePickerState>,
+    standalone_picker: Entity<DatePickerState>,
+    file_picker: Entity<FilePickerState>,
     picked_date: Option<SharedString>,
     status: Option<SharedString>,
     focus_handle: FocusHandle,
@@ -66,26 +138,42 @@ impl FormsDemo {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = SignupFormValueHolder::default();
         let username_input = cx.new(|cx| SignupFormComponents::username_input(window, cx));
+        let email_input = cx.new(|cx| SignupFormComponents::email_input(window, cx));
         let age_number_input = cx.new(|cx| SignupFormComponents::age_number_input(window, cx));
         let country_select = cx.new(|cx| SignupFormComponents::country_select(window, cx));
-        let birth_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let language_select = cx.new(|cx| SignupFormComponents::language_select(window, cx));
+        let code_input = cx.new(|cx| SignupFormComponents::code_input(window, cx));
+        let birth_date_date_picker =
+            cx.new(|cx| SignupFormComponents::birth_date_date_picker(window, cx));
+        let standalone_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let file_picker = cx.new(|cx| FilePickerState::new(window, cx));
 
         let subscriptions = vec![
             cx.subscribe_in(&username_input, window, Self::on_username_change),
+            cx.subscribe_in(&email_input, window, Self::on_email_change),
             cx.subscribe_in(&age_number_input, window, Self::on_age_change),
             cx.subscribe_in(&age_number_input, window, Self::on_age_step),
             cx.subscribe_in(&country_select, window, Self::on_country_confirm),
-            cx.subscribe_in(&birth_picker, window, Self::on_birth_change),
+            cx.subscribe_in(&language_select, window, Self::on_language_confirm),
+            cx.subscribe_in(&code_input, window, Self::on_code_change),
+            cx.subscribe_in(&birth_date_date_picker, window, Self::on_birth_date_change),
+            cx.subscribe_in(&standalone_picker, window, Self::on_standalone_pick),
+            cx.subscribe_in(&file_picker, window, Self::on_file_pick),
         ];
 
         Self {
             data,
             fields: SignupFormFields {
                 username_input,
+                email_input,
                 age_number_input,
                 country_select,
+                language_select,
+                code_input,
+                birth_date_date_picker,
             },
-            birth_picker,
+            standalone_picker,
+            file_picker,
             picked_date: None,
             status: None,
             focus_handle: cx.focus_handle(),
@@ -103,6 +191,23 @@ impl FormsDemo {
         if let InputEvent::Change = event {
             let text = state.read(cx).value();
             self.data.username = if text.is_empty() {
+                None
+            } else {
+                Some(text.to_string())
+            };
+        }
+    }
+
+    fn on_email_change(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let InputEvent::Change = event {
+            let text = state.read(cx).value();
+            self.data.email = if text.is_empty() {
                 None
             } else {
                 Some(text.to_string())
@@ -152,7 +257,48 @@ impl FormsDemo {
         self.data.country = value.clone();
     }
 
-    fn on_birth_change(
+    fn on_language_confirm(
+        &mut self,
+        _: &Entity<SelectState<Vec<Language>>>,
+        event: &SelectEvent<Vec<Language>>,
+        _: &mut Window,
+        _: &mut Context<Self>,
+    ) {
+        let SelectEvent::Confirm(value) = event;
+        if let Some(value) = value {
+            self.data.language = value.clone();
+        }
+    }
+
+    fn on_code_change(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let InputEvent::Change = event {
+            let text = state.read(cx).value();
+            self.data.code = if text.is_empty() {
+                None
+            } else {
+                text.parse::<RequestCode>().ok()
+            };
+        }
+    }
+
+    fn on_birth_date_change(
+        &mut self,
+        _: &Entity<DatePickerState>,
+        event: &DatePickerEvent,
+        _: &mut Window,
+        _: &mut Context<Self>,
+    ) {
+        let DatePickerEvent::Change(date) = event;
+        self.data.birth_date = date.and_then(gpui_form::runtime::date_picker::parse_form_date);
+    }
+
+    fn on_standalone_pick(
         &mut self,
         _: &Entity<DatePickerState>,
         event: &DatePickerEvent,
@@ -162,6 +308,18 @@ impl FormsDemo {
         let DatePickerEvent::Change(date) = event;
         self.picked_date = date.map(|d| d.to_string().into());
         cx.notify();
+    }
+
+    fn on_file_pick(
+        &mut self,
+        _: &Entity<FilePickerState>,
+        event: &FilePickerEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let FilePickerEvent::Change(_) = event {
+            cx.notify();
+        }
     }
 
     fn locale_button(
@@ -189,12 +347,6 @@ impl FormsDemo {
     }
 }
 
-impl Focusable for FormsDemo {
-    fn focus_handle(&self, _: &App) -> FocusHandle {
-        self.focus_handle.clone()
-    }
-}
-
 fn localized_field_error<E>(errs: &[E], key_of: impl Fn(&E) -> &'static str) -> Option<String> {
     (!errs.is_empty()).then(|| {
         errs.iter()
@@ -202,6 +354,12 @@ fn localized_field_error<E>(errs: &[E], key_of: impl Fn(&E) -> &'static str) -> 
             .collect::<Vec<_>>()
             .join("\n")
     })
+}
+
+impl Focusable for FormsDemo {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl Render for FormsDemo {
@@ -217,12 +375,35 @@ impl Render for FormsDemo {
                 },
             })
         });
+        let email_error = validation_errors.as_ref().and_then(|e| {
+            localized_field_error(&e.email().all(), |v| match v {
+                SignupFormValueHolderEmailKorumaValidator::EmailValidation(_) => "validation.email",
+            })
+        });
         let age_error = validation_errors.as_ref().and_then(|e| {
             localized_field_error(&e.age().all(), |v| match v {
                 SignupFormValueHolderAgeKorumaValidator::RangeValidation(_) => "validation.range",
             })
         });
+        let code_error = validation_errors.as_ref().and_then(|e| {
+            localized_field_error(&e.code().all(), |v| match v {
+                SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
+                    "validation.required"
+                },
+                SignupFormValueHolderCodeKorumaValidator::Inner(inner) => {
+                    if inner.value().len_validation().is_some() {
+                        "validation.len"
+                    } else {
+                        "validation.invalid"
+                    }
+                },
+            })
+        });
         let danger = cx.theme().danger;
+
+        let mut form_state = gpui_form::FormState::new(SignupFormValueHolder::default());
+        form_state.replace_current(self.data.clone());
+        let dirty = form_state.is_dirty();
 
         v_flex()
             .size_full()
@@ -230,6 +411,7 @@ impl Render for FormsDemo {
             .text_color(cx.theme().foreground)
             .p_4()
             .gap_3()
+            .overflow_y_scrollbar()
             .child(
                 h_flex()
                     .justify_between()
@@ -281,6 +463,18 @@ impl Render for FormsDemo {
                     )
                     .child(
                         field()
+                            .label(t!(SignupFormValueHolder::EMAIL_LABEL_KEY).to_string())
+                            .description_fn(move |_, _| match &email_error {
+                                Some(error) => div()
+                                    .text_color(danger)
+                                    .child(error.clone())
+                                    .into_any_element(),
+                                None => div().into_any_element(),
+                            })
+                            .child(Input::new(&self.fields.email_input)),
+                    )
+                    .child(
+                        field()
                             .label(t!(SignupFormValueHolder::AGE_LABEL_KEY).to_string())
                             .description_fn(move |_, _| match &age_error {
                                 Some(error) => div()
@@ -298,22 +492,75 @@ impl Render for FormsDemo {
                     )
                     .child(
                         field()
-                            .label(t!("app.date_section").to_string())
-                            .description_fn({
-                                let picked = self.picked_date.clone();
-                                move |_, _| match &picked {
-                                    Some(date) => div()
-                                        .child(format!("{}: {date}", t!("app.picked")))
-                                        .into_any_element(),
-                                    None => div().into_any_element(),
-                                }
-                            })
+                            .label(t!(SignupFormValueHolder::LANGUAGE_LABEL_KEY).to_string())
+                            .child(Select::new(&self.fields.language_select)),
+                    )
+                    .child(
+                        field()
+                            .label(t!(SignupFormValueHolder::NEWSLETTER_LABEL_KEY).to_string())
                             .child(
-                                DatePicker::new(&self.birth_picker)
-                                    .cleanable(true)
-                                    .number_of_months(1),
+                                Checkbox::new("newsletter-checkbox")
+                                    .checked(self.data.newsletter)
+                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                        this.data.newsletter = *checked;
+                                        cx.notify();
+                                    })),
                             ),
+                    )
+                    .child(
+                        field()
+                            .label(t!(SignupFormValueHolder::NOTIFICATIONS_LABEL_KEY).to_string())
+                            .child(
+                                Switch::new("notifications-switch")
+                                    .checked(self.data.notifications)
+                                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                        this.data.notifications = *checked;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .child(
+                        field()
+                            .label(t!(SignupFormValueHolder::CODE_LABEL_KEY).to_string())
+                            .description_fn(move |_, _| match &code_error {
+                                Some(error) => div()
+                                    .text_color(danger)
+                                    .child(error.clone())
+                                    .into_any_element(),
+                                None => div().into_any_element(),
+                            })
+                            .child(Input::new(&self.fields.code_input)),
+                    )
+                    .child(
+                        field()
+                            .label(t!(SignupFormValueHolder::BIRTH_DATE_LABEL_KEY).to_string())
+                            .child(DatePicker::new(&self.fields.birth_date_date_picker)),
                     ),
+            )
+            .child(
+                field()
+                    .label(t!("app.date_section").to_string())
+                    .description_fn({
+                        let picked = self.picked_date.clone();
+                        move |_, _| match &picked {
+                            Some(date) => div()
+                                .child(format!("{}: {date}", t!("app.picked")))
+                                .into_any_element(),
+                            None => div().into_any_element(),
+                        }
+                    })
+                    .child(
+                        DatePicker::new(&self.standalone_picker)
+                            .cleanable(true)
+                            .number_of_months(1),
+                    ),
+            )
+            .child(
+                field().label(t!("app.file_section").to_string()).child(
+                    FilePicker::new(&self.file_picker)
+                        .multiple(true)
+                        .cleanable(true),
+                ),
             )
             .child(
                 h_flex()
@@ -342,6 +589,27 @@ impl Render for FormsDemo {
                     .text_sm()
                     .text_color(cx.theme().muted_foreground)
                     .child(format!("locale: {}", &*rust_i18n::locale()))
+                    .child(format!("{}: {dirty}", t!("app.dirty")))
+                    .child(format!(
+                        "{}: {}",
+                        t!("app.paths"),
+                        self.file_picker.read(cx).paths().len()
+                    ))
+                    .child(t!("app.paths_note").to_string())
+                    .child(
+                        [
+                            SignupFormPath::username().to_string(),
+                            SignupFormPath::email().to_string(),
+                            SignupFormPath::age().to_string(),
+                            SignupFormPath::country().to_string(),
+                            SignupFormPath::language().to_string(),
+                            SignupFormPath::newsletter().to_string(),
+                            SignupFormPath::notifications().to_string(),
+                            SignupFormPath::code().to_string(),
+                            SignupFormPath::birth_date().to_string(),
+                        ]
+                        .join(", "),
+                    )
                     .children(self.status.clone().map(|s| div().child(s))),
             )
     }
@@ -353,7 +621,7 @@ fn main() {
         gpui_form::i18n::init(cx);
 
         let window_options = WindowOptions {
-            window_bounds: Some(WindowBounds::centered(size(px(760.), px(720.)), cx)),
+            window_bounds: Some(WindowBounds::centered(size(px(760.), px(860.)), cx)),
             ..Default::default()
         };
         gpui_kit::open_window(window_options, cx, |window, cx| {
@@ -377,16 +645,31 @@ mod tests {
         "app.all_valid",
         "app.invalid",
         "app.date_section",
+        "app.file_section",
         "app.picked",
-        "signup.username_label",
-        "signup.age_label",
-        "signup.country_label",
+        "app.paths",
+        "app.dirty",
+        "app.paths_note",
+        "signup_form.username_label",
+        "signup_form.email_label",
+        "signup_form.age_label",
+        "signup_form.country_label",
+        "signup_form.language_label",
+        "signup_form.newsletter_label",
+        "signup_form.notifications_label",
+        "signup_form.code_label",
+        "signup_form.birth_date_label",
         "country.united_states",
         "country.france",
         "country.china",
+        "language.english",
+        "language.french",
+        "language.chinese",
         "validation.required",
         "validation.non_empty",
         "validation.range",
+        "validation.len",
+        "validation.email",
         "validation.invalid",
     ];
 
@@ -414,6 +697,15 @@ mod tests {
         assert_eq!(
             SignupFormValueHolder::validation_issue_key("RequiredValidation"),
             "validation.required"
+        );
+        assert_eq!(
+            SignupFormValueHolder::validation_issue_key("EmailValidation"),
+            "validation.email"
+        );
+        assert_eq!(
+            SignupFormValueHolder::validation_issue_key("LenValidation"),
+            "validation.invalid",
+            "kinds declared inside newtype validators are not in the emitted match — the app maps Inner variants itself"
         );
     }
 }
@@ -452,6 +744,50 @@ mod validation_locale_tests {
         })
         .unwrap();
         assert_eq!(rendered, "此字段为必填项。");
+        rust_i18n::set_locale("en");
+    }
+}
+
+#[cfg(test)]
+mod newtype_locale_tests {
+    use crate::RequestCode;
+    use crate::SignupFormValueHolder;
+    use crate::SignupFormValueHolderCodeKorumaValidator;
+    use crate::localized_field_error;
+
+    fn rendered_code_error() -> String {
+        let mut holder = SignupFormValueHolder::default();
+        holder.username = Some("ada".to_string());
+        holder.code = Some(RequestCode::from("A".to_string()));
+        let err = holder
+            .validate()
+            .err()
+            .expect("short invite code must fail");
+        localized_field_error(&err.code().all(), |v| match v {
+            SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
+                "validation.required"
+            },
+            SignupFormValueHolderCodeKorumaValidator::Inner(inner) => {
+                if inner.value().len_validation().is_some() {
+                    "validation.len"
+                } else {
+                    "validation.invalid"
+                }
+            },
+        })
+        .expect("short invite code must render an error")
+    }
+
+    #[test]
+    fn newtype_inner_error_localizes() {
+        rust_i18n::set_locale("fr-FR");
+        assert_eq!(
+            rendered_code_error(),
+            "La longueur doit rester dans les limites autorisées."
+        );
+
+        rust_i18n::set_locale("zh-CN");
+        assert_eq!(rendered_code_error(), "长度超出允许范围。");
         rust_i18n::set_locale("en");
     }
 }

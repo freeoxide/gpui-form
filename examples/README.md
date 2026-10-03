@@ -104,11 +104,21 @@ cargo test -p mcp-submit
 
 ## forms-demo
 
-Small standalone GPUI app built entirely on the current stack (no storybook
-shell): a `#[derive(GpuiForm)]` signup form with koruma validation, the runtime
-date picker, and EN/FR/中文 locale switch buttons that drive the shared
-`gpui-form-i18n` locale live — labels, select options, and the date picker all
-re-render in the chosen language.
+Standalone GPUI app built entirely on the current stack (no storybook shell),
+packing the edge cases an application form actually hits. One `#[derive(GpuiForm)]`
+signup form covers: required text input, optional field whose validators only
+fire when present (email), number input with range validation, searchable and
+plain selects over `SelectItem(fluent)` enums, checkbox and switch bool fields,
+a newtype-backed field with inner koruma validation (`#[koruma(newtype)]` invite
+code whose `Inner` error is mapped to a localized key), a form-bound
+`component(date_picker)` field, and a `#[gpui_form(skip)]` field that is absent
+from the holder and typed paths (shown live in the footer). Standalone runtime
+components add a date picker and a multiple-mode file picker whose pluralized
+count text follows the locale. Validation errors render through `validation.*`
+`t!` keys — including newtype `Inner` errors — with unit tests asserting the
+French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
+drive the shared `gpui-form-i18n` locale; the footer shows the live locale,
+`FormState::is_dirty`, picked paths count, and the typed field paths.
 
 Run it with:
 
