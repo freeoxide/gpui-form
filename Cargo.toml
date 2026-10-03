@@ -13,7 +13,6 @@ members = [
   "crates/gpui-form-collection-derive",
   "crates/gpui-form-mcp",
   "crates/gpui-form-prototyping-core",
-  "vendor/gpui-es-fluent/crates/gpui-es-fluent",
   "examples/some-lib",
   "examples/prototyping",
   "examples/mcp-submit",
@@ -51,12 +50,7 @@ component-shape-mcp = "0.3.3"
 crabtime = "1.1"
 darling = "0.23"
 derive_more = "2.1"
-es-fluent = "0.16"
-es-fluent-build = "0.16"
-es-fluent-lang = "0.16"
-es-fluent-manager-embedded = "0.16"
 gpui = { package = "gpui-pre", version = "0.3.7" }
-gpui-es-fluent = { path = "vendor/gpui-es-fluent/crates/gpui-es-fluent" }
 gpui-form = { path = "crates/gpui-form", version = "0.5.2" }
 gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.5.2" }
 gpui-form-component = { path = "crates/gpui-form-component", version = "0.5.2" }
