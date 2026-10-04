@@ -12,7 +12,7 @@ app:
   paths: "路径"
   dirty: "已修改"
   paths_note: "类型化字段路径（skip 的 session_id 不存在）："
-signup_form:
+signup:
   username_label: "用户名"
   email_label: "邮箱（可选）"
   age_label: "年龄"

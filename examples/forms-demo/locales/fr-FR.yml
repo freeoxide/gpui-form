@@ -12,7 +12,7 @@ app:
   paths: "Chemins"
   dirty: "modifié"
   paths_note: "Chemins de champs typés (session_id ignoré est absent) :"
-signup_form:
+signup:
   username_label: "Nom d'utilisateur"
   email_label: "E-mail (optionnel)"
   age_label: "Âge"

@@ -12,7 +12,7 @@ app:
   paths: "Paths"
   dirty: "dirty"
   paths_note: "Typed field paths (skipped session_id is absent):"
-signup_form:
+signup:
   username_label: "Username"
   email_label: "Email (optional)"
   age_label: "Age"

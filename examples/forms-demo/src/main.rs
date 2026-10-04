@@ -663,15 +663,15 @@ mod tests {
         "app.paths",
         "app.dirty",
         "app.paths_note",
-        "signup_form.username_label",
-        "signup_form.email_label",
-        "signup_form.age_label",
-        "signup_form.country_label",
-        "signup_form.language_label",
-        "signup_form.newsletter_label",
-        "signup_form.notifications_label",
-        "signup_form.code_label",
-        "signup_form.birth_date_label",
+        "signup.username_label",
+        "signup.email_label",
+        "signup.age_label",
+        "signup.country_label",
+        "signup.language_label",
+        "signup.newsletter_label",
+        "signup.notifications_label",
+        "signup.code_label",
+        "signup.birth_date_label",
         "country.united_states",
         "country.france",
         "country.china",
@@ -799,5 +799,28 @@ mod newtype_locale_tests {
             rendered_code_error("en"),
             "Length must be between the allowed bounds."
         );
+    }
+}
+
+#[cfg(test)]
+mod label_keys {
+    use crate::SignupFormValueHolder;
+    use rust_i18n::t;
+
+    #[test]
+    fn generated_label_keys_resolve_in_every_locale() {
+        for (locale, expected) in [
+            ("en", "Username"),
+            ("fr-FR", "Nom d'utilisateur"),
+            ("zh-CN", "用户名"),
+        ] {
+            rust_i18n::set_locale(locale);
+            assert_eq!(
+                t!(SignupFormValueHolder::USERNAME_LABEL_KEY).to_string(),
+                expected,
+                "username label wrong in locale {locale}"
+            );
+        }
+        rust_i18n::set_locale("en");
     }
 }
