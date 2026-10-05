@@ -2,7 +2,7 @@ use koruma_collection::numeric::NonNegativeValidation;
 
 #[derive(
     koruma::Koruma,
-    koruma::KorumaAllFluent,
+    koruma::KorumaAllDisplay,
     Debug,
     Clone,
     Copy,
@@ -27,18 +27,19 @@ pub struct Age {
     pub value: i32,
 }
 
+#[cfg(feature = "validation")]
+impl std::fmt::Display for AgeKorumaValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "ui", derive(gpui_form::GpuiForm,))]
 #[cfg_attr(
-    feature = "fluent",
-    derive(es_fluent::EsFluentVariants, es_fluent::EsFluentLabel,)
-)]
-#[cfg_attr(
     feature = "validation",
-    derive(koruma::Koruma, koruma::KorumaAllFluent)
+    derive(koruma::Koruma, koruma::KorumaAllDisplay)
 )]
-#[cfg_attr(feature = "fluent", fluent_variants(keys = ["description", "label"]))]
-#[cfg_attr(feature = "fluent", fluent_label(origin, variants))]
 #[cfg_attr(feature = "ui", gpui_form(koruma(fluent)))]
 pub struct Item {
     #[cfg_attr(feature = "ui", gpui_form(component(number_input)))]

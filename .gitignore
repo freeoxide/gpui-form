@@ -1,5 +1,5 @@
 target/
-.es-fluent/
 .expanded.rs
 .DS_Store
 .commandcode
+.z-gpui-workflow/

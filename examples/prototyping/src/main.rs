@@ -4,6 +4,8 @@ use heck::ToSnakeCase as _;
 use quote::quote;
 use std::{collections::BTreeSet, fs, path::Path};
 
+rust_i18n::i18n!("locales", fallback = "en");
+
 // import targeted lib to get inventory registrations
 extern crate some_lib;
 
@@ -22,6 +24,7 @@ impl FormLayout for StorybookLayout {
             has_koruma,
             has_skipped_fields,
             imports,
+            i18n_key_items,
             component_creations,
             event_handlers,
             subscription_calls,
@@ -129,8 +132,8 @@ impl FormLayout for StorybookLayout {
                     div()
                         .flex()
                         .gap_2()
-                        .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-                        .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+                        .child(self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit))
+                        .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
                 }
             }
         };
@@ -156,8 +159,11 @@ impl FormLayout for StorybookLayout {
             quote! { use ::some_lib::structs::form_action::FormAction; }
         };
 
+        let title_key = format!("{}_label", struct_name_ident.to_string().to_snake_case());
+
         syn::parse2(quote! {
             #imports
+            #i18n_key_items
             use ::gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, Styled, Window};
             use ::gpui_kit::component::Disableable as _;
             use ::gpui_kit::component::separator::Separator;
@@ -167,8 +173,8 @@ impl FormLayout for StorybookLayout {
 
             const CONTEXT: &str = #context_str;
 
-            fn localize(cx: &impl ::std::borrow::Borrow<App>, message: &impl ::es_fluent::FluentMessage) -> String {
-                crate::i18n::localize_message(cx, message)
+            fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
+                crate::i18n::localize_message(cx, key)
             }
 
             #[::gpui_storybook::story_init]
@@ -190,7 +196,7 @@ impl FormLayout for StorybookLayout {
 
             impl ::gpui_storybook::Story for #form_ident {
                 fn title(cx: &::gpui::App) -> String {
-                    crate::i18n::localize_label::<#struct_name_ident>(cx)
+                    crate::i18n::localize_label(cx, #title_key)
                 }
 
                 fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -295,4 +301,52 @@ fn main() {
 
     println!("Generated module index: {}", mod_rs_path.display());
     println!("Form generation complete.");
+}
+
+#[cfg(test)]
+mod i18n_tests {
+    use gpui_form::schema::registry::GpuiFormShape;
+    use gpui_form_prototyping_core::implementations::collect_i18n_keys;
+
+    const FORM_TITLE_KEYS: &[&str] = &[
+        "empty_label",
+        "item_label",
+        "location_form_label",
+        "user_label",
+    ];
+
+    const ACTION_KEYS: &[&str] = &["form_action.submit", "form_action.reset"];
+
+    const LOCALES: &[&str] = &["en", "fr-FR", "zh-CN"];
+
+    fn all_keys() -> Vec<String> {
+        let mut keys: Vec<String> = FORM_TITLE_KEYS
+            .iter()
+            .chain(ACTION_KEYS.iter())
+            .map(|key| key.to_string())
+            .collect();
+        for shape in inventory::iter::<GpuiFormShape>() {
+            keys.extend(collect_i18n_keys(shape));
+        }
+        keys
+    }
+
+    #[test]
+    fn every_key_resolves_in_every_locale() {
+        let keys = all_keys();
+        assert!(
+            !keys.is_empty(),
+            "prototyping key inventory must not be empty"
+        );
+        for key in &keys {
+            let key: &str = key;
+            for locale in LOCALES.iter().copied() {
+                let translated = rust_i18n::t!(key, locale = locale);
+                assert_ne!(
+                    &*translated, key,
+                    "key {key} unresolved for locale {locale}"
+                );
+            }
+        }
+    }
 }

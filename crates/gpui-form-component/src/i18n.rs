@@ -1,46 +1,29 @@
-use es_fluent::{EsFluent, FluentLabel, FluentLocalizer, FluentLocalizerExt as _, FluentMessage};
-use es_fluent_manager_embedded as i18n_manager;
+use rust_i18n::t;
 
-es_fluent_manager_embedded::define_i18n_module!();
+pub use gpui_form_i18n::{
+    CurrentLanguage, I18n, Language, LocalizationError, change_locale, fallback_label,
+    fallback_message, humanize_key, init, init_with_language, locale, localize_label,
+    localize_message, replace_with_language, try_localize_message,
+};
 
-pub use i18n_manager::{EmbeddedI18n, EmbeddedInitError, LocalizationError};
-
-pub type I18n = EmbeddedI18n;
-
-/// Renders a Fluent message through an explicit caller-owned localizer.
-pub fn localize_message<L, T>(localizer: &L, message: &T) -> String
-where
-    L: FluentLocalizer + ?Sized,
-    T: FluentMessage + ?Sized,
-{
-    localizer.localize_message(message)
-}
-
-/// Renders a Fluent type label through an explicit caller-owned localizer.
-pub fn localize_label<L, T>(localizer: &L) -> String
-where
-    L: FluentLocalizer + ?Sized,
-    T: FluentLabel,
-{
-    T::localize_label(localizer)
-}
-
-#[derive(Clone, Debug, EsFluent)]
-#[fluent(namespace = "date_picker")]
+#[derive(Clone, Debug)]
 pub(crate) enum DatePickerText {
     SelectDate,
 }
 
 impl DatePickerText {
-    pub(crate) fn default_text(&self) -> String {
+    fn key(&self) -> &'static str {
         match self {
-            Self::SelectDate => "Select date".to_string(),
+            Self::SelectDate => "date_picker.select_date",
         }
+    }
+
+    pub(crate) fn default_text(&self) -> String {
+        t!(self.key()).to_string()
     }
 }
 
-#[derive(Clone, Debug, EsFluent)]
-#[fluent(namespace = "file_picker")]
+#[derive(Clone, Debug)]
 pub(crate) enum FilePickerText {
     SelectAFile,
     SelectADirectory,
@@ -54,76 +37,114 @@ pub(crate) enum FilePickerText {
 }
 
 impl FilePickerText {
+    fn key(&self) -> &'static str {
+        match self {
+            Self::SelectAFile => "file_picker.select_a_file",
+            Self::SelectADirectory => "file_picker.select_a_directory",
+            Self::SelectAFileOrDirectory => "file_picker.select_a_file_or_directory",
+            Self::SelectFile => "file_picker.select_file",
+            Self::SelectDirectory => "file_picker.select_directory",
+            Self::SelectFileOrDirectory => "file_picker.select_file_or_directory",
+            Self::Browse => "file_picker.browse",
+            Self::DialogDropped => "file_picker.dialog_dropped",
+            Self::PathsSelected { count: 1 } => "file_picker.paths_selected_one",
+            Self::PathsSelected { .. } => "file_picker.paths_selected_other",
+        }
+    }
+
     pub(crate) fn default_text(&self) -> String {
         match self {
-            Self::SelectAFile => "Select a file".to_string(),
-            Self::SelectADirectory => "Select a directory".to_string(),
-            Self::SelectAFileOrDirectory => "Select a file or directory".to_string(),
-            Self::SelectFile => "Select file".to_string(),
-            Self::SelectDirectory => "Select directory".to_string(),
-            Self::SelectFileOrDirectory => "Select file or directory".to_string(),
-            Self::Browse => "Browse".to_string(),
-            Self::DialogDropped => {
-                "The file picker dialog closed before returning a result.".to_string()
-            },
-            Self::PathsSelected { count: 1 } => "1 path selected".to_string(),
-            Self::PathsSelected { count } => format!("{count} paths selected"),
+            Self::PathsSelected { count } => t!(self.key(), count = count).to_string(),
+            _ => t!(self.key()).to_string(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use es_fluent::unic_langid::langid;
-
     use super::*;
 
-    fn strip_fluent_isolates(input: &str) -> String {
-        input
-            .chars()
-            .filter(|ch| !matches!(*ch, '\u{2068}' | '\u{2069}'))
-            .collect()
+    fn langid(tag: &str) -> unic_langid::LanguageIdentifier {
+        tag.parse().unwrap()
+    }
+
+    const KEYS: &[&str] = &[
+        "date_picker.select_date",
+        "file_picker.browse",
+        "file_picker.dialog_dropped",
+        "file_picker.paths_selected_one",
+        "file_picker.paths_selected_other",
+        "file_picker.select_a_directory",
+        "file_picker.select_a_file",
+        "file_picker.select_a_file_or_directory",
+        "file_picker.select_directory",
+        "file_picker.select_file",
+        "file_picker.select_file_or_directory",
+    ];
+
+    const LOCALES: &[&str] = &["en", "fr-FR", "zh-CN"];
+
+    #[test]
+    fn every_key_resolves_in_every_locale() {
+        for key in KEYS.iter().copied() {
+            for locale in LOCALES.iter().copied() {
+                let translated = t!(key, locale = locale);
+                assert_ne!(
+                    &*translated, key,
+                    "key {key} unresolved for locale {locale}"
+                );
+            }
+        }
     }
 
     #[test]
     fn resolves_runtime_component_messages() {
-        let i18n = I18n::try_new_with_language(langid!("en")).unwrap();
+        rust_i18n::set_locale("en");
+        assert_eq!(DatePickerText::SelectDate.default_text(), "Select date");
+        assert_eq!(FilePickerText::Browse.default_text(), "Browse");
         assert_eq!(
-            i18n.localize_message(&DatePickerText::SelectDate),
-            "Select date"
+            FilePickerText::SelectAFileOrDirectory.default_text(),
+            "Select a file or directory"
         );
-        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "Browse");
         assert_eq!(
-            strip_fluent_isolates(
-                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
-            ),
+            FilePickerText::PathsSelected { count: 2 }.default_text(),
             "2 paths selected"
         );
 
-        i18n.select_language(langid!("fr-FR")).unwrap();
+        rust_i18n::set_locale("fr-FR");
         assert_eq!(
-            i18n.localize_message(&DatePickerText::SelectDate),
+            DatePickerText::SelectDate.default_text(),
             "Sélectionner une date"
         );
-        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "Parcourir");
+        assert_eq!(FilePickerText::Browse.default_text(), "Parcourir");
         assert_eq!(
-            strip_fluent_isolates(
-                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
-            ),
+            FilePickerText::PathsSelected { count: 1 }.default_text(),
+            "1 chemin sélectionné"
+        );
+        assert_eq!(
+            FilePickerText::PathsSelected { count: 2 }.default_text(),
             "2 chemins sélectionnés"
         );
 
-        i18n.select_language(langid!("zh-CN")).unwrap();
+        rust_i18n::set_locale("zh-CN");
+        assert_eq!(DatePickerText::SelectDate.default_text(), "选择日期");
+        assert_eq!(FilePickerText::Browse.default_text(), "浏览");
         assert_eq!(
-            i18n.localize_message(&DatePickerText::SelectDate),
-            "选择日期"
+            FilePickerText::PathsSelected { count: 1 }.default_text(),
+            "已选择 1 个路径"
         );
-        assert_eq!(i18n.localize_message(&FilePickerText::Browse), "浏览");
         assert_eq!(
-            strip_fluent_isolates(
-                &i18n.localize_message(&FilePickerText::PathsSelected { count: 2 })
-            ),
+            FilePickerText::PathsSelected { count: 2 }.default_text(),
             "已选择 2 个路径"
         );
+
+        rust_i18n::set_locale("en");
+    }
+
+    #[test]
+    fn bridge_helpers_stay_reexported() {
+        let i18n = I18n::new_with_language(langid("zh-CN"));
+        assert_eq!(i18n.localize_message("date_picker.select_date"), "选择日期");
+        assert_eq!(i18n.localize_message("missing_key"), "Missing Key");
     }
 }

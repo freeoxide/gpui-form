@@ -1,0 +1,32 @@
+empty_label: 空
+form_action:
+  reset: 重置
+  submit: 提交
+item:
+  index_description: 索引
+  index_label: 索引
+item_label: 项目
+location_form:
+  location_description: 位置
+  location_label: 位置
+  name_description: 名称
+  name_label: 名称
+location_form_label: 位置表单
+user:
+  age_description: 年龄
+  age_label: 年龄
+  balance_description: 余额
+  balance_label: 余额
+  birth_date_description: 出生日期
+  birth_date_label: 出生日期
+  country_description: 国家
+  country_label: 国家
+  debt_description: 债务
+  debt_label: 债务
+  email_description: 电子邮件
+  preferred_description: 首选
+  preferred_label: 首选
+  subscribe_newsletter_description: 订阅简报
+  subscribe_newsletter_label: 订阅简报
+  username_description: 用户名
+user_label: 用户

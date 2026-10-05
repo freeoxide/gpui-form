@@ -1,0 +1,25 @@
+[package]
+name = "gpui-form-i18n"
+description = "GPUI global-state i18n bridge backed by rust-i18n"
+version.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[features]
+default = []
+component = [ "dep:gpui-kit" ]
+
+[dependencies]
+gpui = { workspace = true }
+gpui-kit = { optional = true, workspace = true }
+rust-i18n = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+unic-langid = { features = [ "serde" ], workspace = true }
+
+[lints]
+workspace = true

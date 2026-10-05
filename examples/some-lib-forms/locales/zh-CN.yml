@@ -1,0 +1,217 @@
+account_type:
+  enterprise: 企业版
+  free: 免费
+  premium: 高级版
+british_columbia_city:
+  burnaby: 本那比
+  richmond: 列治文
+  surrey: 萨里
+  vancouver: 温哥华
+  victoria: 维多利亚
+british_columbia_city_label: 英属哥伦比亚城市
+california_city:
+  los_angeles: 洛杉矶
+  sacramento: 萨克拉门托
+  san_diego: 圣地亚哥
+  san_francisco: 旧金山
+  san_jose: 圣何塞
+california_city_label: 加州城市
+canada_province:
+  british_columbia: 英属哥伦比亚 %{f0}
+  ontario: 安大略 %{f0}
+  quebec: 魁北克 %{f0}
+canada_province_description_variants:
+  british_columbia: 英属哥伦比亚
+  ontario: 安大略
+  quebec: 魁北克
+canada_province_description_variants_label: 加拿大省份描述
+canada_province_label: 加拿大省份
+canada_province_label_variants:
+  british_columbia: 英属哥伦比亚
+  ontario: 安大略
+  quebec: 魁北克
+canada_province_label_variants_label: 加拿大省份标签
+cfg_attr_example_description_variants:
+  account_type: 账户类型
+  active: 是否激活
+  age: 年龄
+  balance: 余额
+  created_at: 创建时间
+  email: 电子邮件
+  enabled: 已启用
+  username: 用户名
+cfg_attr_example_description_variants_label: 配置属性示例描述
+cfg_attr_example_label: 配置属性示例
+cfg_attr_example_label_variants:
+  account_type: 账户类型
+  active: 是否激活
+  age: 年龄
+  balance: 余额
+  created_at: 创建时间
+  email: 电子邮件
+  enabled: 已启用
+  username: 用户名
+cfg_attr_example_label_variants_label: 配置属性示例标签
+country:
+  canada: 加拿大 %{province}
+  usa: 美国 %{f0}
+country_description_variants:
+  canada: 加拿大
+  usa: 美国
+country_description_variants_label: 国家描述
+country_label: 国家
+country_label_variants:
+  canada: 加拿大
+  usa: 美国
+country_label_variants_label: 国家标签
+empty_label: 空
+enum_country:
+  china: 中国
+  france: 法国
+  united_states: 美国
+form_action:
+  reset: 重置
+  submit: 提交
+item:
+  index_description: 索引
+  index_label: 索引
+item_description_variants:
+  index: 索引
+item_description_variants_label: 项目描述
+item_label: 项目
+item_label_variants:
+  index: 索引
+item_label_variants_label: 项目标签
+location_form:
+  location_description: 位置
+  location_label: 位置
+  name_description: 名称
+  name_label: 名称
+location_form_description_variants:
+  location: 位置
+  name: 名称
+location_form_description_variants_label: 位置表单描述
+location_form_label: 位置表单
+location_form_label_variants:
+  location: 位置
+  name: 名称
+location_form_label_variants_label: 位置表单标签
+new_york_city:
+  albany: 奥尔巴尼
+  buffalo: 布法罗
+  new_york_city: 纽约市
+  rochester: 罗切斯特
+  syracuse: 锡拉丘兹
+new_york_city_label: 纽约州城市
+ontario_city:
+  hamilton: 汉密尔顿
+  london: 伦敦
+  mississauga: 密西沙加
+  ottawa: 渥太华
+  toronto: 多伦多
+ontario_city_label: 安大略城市
+prefered_language:
+  chinese: 中文
+  english: 英语
+  french: 法语
+preferred_language:
+  chinese: Chinese
+  english: English
+  french: French
+quebec_city:
+  gatineau: 加蒂诺
+  laval: 拉瓦勒
+  longueuil: 朗格伊
+  montreal: 蒙特利尔
+  quebec_city: 魁北克市
+quebec_city_label: 魁北克城市
+texas_city:
+  austin: 奥斯汀
+  dallas: 达拉斯
+  fort_worth: 沃斯堡
+  houston: 休斯顿
+  san_antonio: 圣安东尼奥
+texas_city_label: 德州城市
+usa_state:
+  california: 加利福尼亚 %{f0}
+  new_york: 纽约 %{f0}
+  texas: 德克萨斯 %{f0}
+usa_state_description_variants:
+  california: 加利福尼亚
+  new_york: 纽约
+  texas: 德克萨斯
+usa_state_description_variants_label: 美国州描述
+usa_state_label: 美国州
+usa_state_label_variants:
+  california: 加利福尼亚
+  new_york: 纽约
+  texas: 德克萨斯
+usa_state_label_variants_label: 美国州标签
+user:
+  age_description: 年龄
+  age_label: 年龄
+  balance_description: 余额
+  balance_label: 余额
+  birth_date_description: 出生日期
+  birth_date_label: 出生日期
+  country_description: 国家
+  country_label: 国家
+  debt_description: 债务
+  debt_label: 债务
+  email_description: 电子邮件
+  email_label: 电子邮件
+  enable_notifications_description: 启用通知
+  enable_notifications_label: 启用通知
+  preferred_description: 首选
+  preferred_label: 首选
+  subscribe_newsletter_description: 订阅简报
+  subscribe_newsletter_label: 订阅简报
+  username_description: 用户名
+  username_label: 用户名
+user_description_variants:
+  age: 年龄
+  balance: 余额
+  birth_date: 出生日期
+  country: 国家
+  debt: 债务
+  email: 电子邮件
+  enable_notifications: 启用通知
+  preferred: 首选
+  subscribe_newsletter: 订阅简报
+  username: 用户名
+user_description_variants_label: 用户描述
+user_label: 用户
+user_label_variants:
+  age: 年龄
+  balance: 余额
+  birth_date: 出生日期
+  country: 国家
+  debt: 债务
+  email: 电子邮件
+  enable_notifications: 启用通知
+  preferred: 首选
+  subscribe_newsletter: 订阅简报
+  username: 用户名
+user_label_variants_label: 用户标签
+validation:
+  alphanumeric: 必须只包含字母和数字。
+  ascii: 必须只包含 ASCII 字符。
+  contains: 必须包含子串 '%{substring}'。
+  credit_card: 不是有效的信用卡号。
+  email: 不是有效的电子邮件地址。
+  invalid: 值无效。
+  ip: 不是有效的 IP 地址。
+  len: 长度必须在 %{min} 到 %{max} 之间。
+  matches: 与期望值不匹配。
+  negative: 必须为负数。
+  non_empty: 不能为空。
+  non_negative: 必须为零或正数。
+  non_positive: 必须为零或负数。
+  pattern: 不匹配所需的模式。
+  phone_number: 不是有效的电话号码。
+  positive: 必须为正数。
+  prefix: 必须以 '%{prefix}' 开头。
+  range: 必须在区间 %{left_delimiter}%{min}，%{max}%{right_delimiter} 内。
+  required: 此字段为必填。
+  suffix: 必须以 '%{suffix}' 结尾。
+  url: 不是有效的 URL。

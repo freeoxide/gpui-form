@@ -154,6 +154,12 @@ The derive layer:
 - injects required-value behavior where holder optionality would otherwise lose
   source-model required semantics
 
+Under `koruma(fluent)` the holder additionally derives `KorumaAllDisplay` and
+emits an i18n surface — `<FORM>_I18N_KEY_PREFIX`,
+per-field `<FIELD>_LABEL_KEY`, `validation_issue_key`, and
+`localized_validation_issue` backed by `rust_i18n::t!` — that resolves against
+the consuming crate's `rust-i18n` backend.
+
 ## Inventory Integration
 
 When the `inventory` feature is enabled:
@@ -175,9 +181,11 @@ When the `inventory` feature is enabled:
 ### `SelectItem`
 
 - implements `::gpui_kit::component::select::SelectItem`
-- accepts `#[select_item(fluent)]` for enums that do not implement `Display`,
-  but emits fallback titles because `SelectItem::title()` has no localizer
-  argument
+- accepts `#[select_item(fluent)]` for enums that do not implement `Display`;
+  emits `title()` bodies that resolve `"<enum_snake>.<variant_snake>"` through
+  `rust_i18n::t!` and fall back to the variant name on a miss (the emitted
+  tokens resolve against the consuming crate's `rust-i18n` backend, so that
+  crate must host `rust_i18n::i18n!` at its root)
 
 ### `CustomComponentState`
 

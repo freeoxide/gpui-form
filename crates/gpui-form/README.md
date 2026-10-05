@@ -39,6 +39,9 @@ gpui-form = "*"
 
 # Optional: parser-backed phone-number validation helpers
 # gpui-form = { version = "*", features = ["phone"] }
+
+# Optional: your crate's own locale files (required when the crate calls t!)
+# rust-i18n = "4"
 ```
 
 ## Quick Start
@@ -222,8 +225,9 @@ Common struct-level helpers:
 
 - `#[gpui_form(empty)]` marks an intentional empty form.
 - `#[gpui_form(koruma)]` enables Koruma-backed validation wiring.
-- `#[gpui_form(koruma(fluent))]` enables Koruma validation plus fluent error
-  rendering.
+- `#[gpui_form(koruma(fluent))]` enables Koruma validation plus localized
+  error rendering through `rust-i18n` (see
+  [Localization](#localization-rust-i18n)).
 
 ## Layout and Section Hints
 
@@ -318,10 +322,10 @@ The derive/runtime pair also exposes typed option labels, stable key paths, and
 typed path errors:
 
 - root option titles come from `variant_label()` instead of raw `variant_name()`
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` emits
-  `es-fluent` variant and type metadata for application-owned localizers;
-  generated runtime labels use plain fallback names because the runtime trait
-  contract is localizer-free
+- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
+  compatibility but emits no localization metadata; generated runtime labels
+  use variant-name fallbacks, and applications localize labels through their
+  own `rust-i18n` locales (see [Localization](#localization-rust-i18n))
 - `#[tuple_enum(key = "...")]` overrides persisted keys when enum names should
   stay decoupled from storage
 - `selection_key_path()` / `build_from_key_path(...)` round-trip nested values
@@ -341,13 +345,13 @@ holder so your form state and your domain model stay aligned.
 
 ```rs
 use gpui_form::GpuiForm;
-use koruma::{Koruma, KorumaAllFluent};
+use koruma::{Koruma, KorumaAllDisplay};
 use koruma_collection::{
     collection::NonEmptyValidation,
     numeric::RangeValidation,
 };
 
-#[derive(Clone, Debug, GpuiForm, Koruma, KorumaAllFluent)]
+#[derive(Clone, Debug, GpuiForm, Koruma, KorumaAllDisplay)]
 #[gpui_form(koruma(fluent))]
 pub struct Signup {
     #[gpui_form(component(input))]
@@ -367,6 +371,63 @@ When validation is enabled:
 - builder-chain Koruma attrs are mirrored
 - generated value-holder validation uses the same validator set as the source
   struct
+
+With `koruma(fluent)`, the generated holder also resolves validation text
+through `rust-i18n`: it emits a `<FORM>_I18N_KEY_PREFIX` const, a
+`<FIELD>_LABEL_KEY = "<form>.<field>_label"` const per non-skipped field, and a
+`localized_validation_issue(kind)` helper backed by `validation.<kind>` keys
+(`validation.required`, `validation.email`, ...). Your crate must depend on
+`rust-i18n`, call `rust_i18n::i18n!` at its crate root, and own those keys —
+`crates/gpui-form-derive/locales` is the reference template for the
+`validation.*` strings.
+
+## Localization (rust-i18n)
+
+Localization is backed by [`rust-i18n`](https://github.com/longbridge/rust-i18n)
+major 4 (`4.2.1` in this workspace) — the same backend `gpui-kit` 0.7
+components use, so widget text and form text share ONE active locale.
+
+Locale files live under `locales/` in your crate, one YAML file per locale,
+named after the locale (`locales/en.yml`, `locales/fr-FR.yml`,
+`locales/zh-CN.yml`):
+
+```yaml
+# locales/en.yml
+signup:
+  username_label: "Username"
+validation:
+  required: "%{field} is required"
+```
+
+```rs
+rust_i18n::i18n!("locales", fallback = "en");
+```
+
+Keys are namespaced per crate (`date_picker.select_date`,
+`file_picker.browse`, `signup.username_label`, `validation.required`). `t!` is
+crate-local: every crate that calls it needs its own `i18n!` line and locale
+files — including apps that use `koruma(fluent)`, `#[select_item(fluent)]`, or
+prototyping output. `t!` returns the key itself on a miss, so a miss fallback
+compares the translation against the key.
+
+Switch the locale for the whole process through the `gpui-form-i18n` bridge,
+re-exported as `gpui_form::i18n`:
+
+```rs
+use gpui_form::i18n::{change_locale, init, localize_message, locale};
+use unic_langid::LanguageIdentifier;
+
+init(cx);
+change_locale(cx, "fr-FR".parse::<LanguageIdentifier>().unwrap()).unwrap();
+assert_eq!(locale(cx), "fr-FR");
+assert_eq!(localize_message(cx, "file_picker.browse"), "Parcourir");
+```
+
+Built-in runtime strings (date-picker placeholder and selected-date label,
+file-picker prompts and counts) ship in `gpui-form-component` locales for
+`en`, `fr-FR`, and `zh-CN` and follow the same shared locale. Missed keys fall
+back to a humanized form of the key ("file_picker.browse" -> "File Picker
+Browse").
 
 ## Saving, Restoring, and Dirty Tracking
 
@@ -550,11 +611,11 @@ For manual native path selection, use `gpui_form::file_picker` or
 `gpui_form::runtime::file_picker`. The runtime uses GPUI's
 `PathPromptOptions` from the pinned GPUI dependency and renders the control
 with `gpui-kit` buttons, icons, sizing, and theme tokens.
-Built-in defaults are plain English fallback copy. When a form needs localized
-placeholder, prompt, or button text, render those messages through an
-application-owned `es-fluent` localizer and pass the resulting strings through
-`placeholder(...)`, `prompt(...)`, and `browse_label(...)`. The runtime ships
-Fluent resources for callers that localize those messages explicitly.
+Built-in placeholder, prompt, browse-label, dropped-dialog, and selected-count
+text resolve through `rust-i18n` and ship for `en`, `fr-FR`, and `zh-CN`; they
+follow the shared locale managed through `gpui_form::i18n`. Explicit builder
+values such as `placeholder(...)`, `prompt(...)`, and `browse_label(...)` remain
+caller-provided text.
 
 ```rs
 use gpui_form::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
@@ -593,8 +654,9 @@ pub struct User {
 
 This pattern is useful when the model stores a domain-specific timestamp type
 but the UI should edit a calendar date.
-The default empty placeholder is plain English fallback copy; pass
-`DatePicker::placeholder(...)` when a form needs localized or custom copy. The
+The built-in empty placeholder and selected-date label resolve through
+`rust-i18n` and follow the shared locale managed through `gpui_form::i18n`;
+pass `DatePicker::placeholder(...)` for custom copy. The
 selected-date label and calendar popover use ICU4X for localized month names,
 weekday headers, day/year labels, and locale-specific week starts. Manual
 runtime code can use `DateRangePicker` and `DateRangePickerState` for range

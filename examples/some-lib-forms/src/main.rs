@@ -1,43 +1,51 @@
-use es_fluent::{EsFluent, unic_langid::LanguageIdentifier};
-use es_fluent_lang::es_fluent_language;
+use anyhow::anyhow;
 use gpui::BorrowAppContext as _;
+use unic_langid::LanguageIdentifier;
+
 use gpui_storybook::{Assets, Gallery};
-use gpui_storybook_core::{
-    language::Language,
-    locale::{LocaleManager, LocaleStore},
-};
-use strum::EnumIter;
+use gpui_storybook_core::locale::LocaleStore;
 
 // bring the stories in scope for inventory
 #[allow(unused_imports, clippy::single_component_path_imports)]
 use some_lib_forms;
 
-#[es_fluent_language]
-#[derive(Clone, Copy, Debug, EnumIter, EsFluent, PartialEq)]
-pub enum Languages {}
+const DEFAULT_LOCALE: &str = "en";
 
-struct FormLocaleStore<L: Language> {
-    inner: LocaleManager<L>,
-}
+const AVAILABLE_LOCALES: &[(&str, &str)] = &[
+    ("English", "en"),
+    ("Français", "fr-FR"),
+    ("简体中文", "zh-CN"),
+];
 
-impl<L: Language> FormLocaleStore<L> {
+struct FormLocaleStore;
+
+impl FormLocaleStore {
     fn new() -> Self {
-        Self {
-            inner: LocaleManager::new(),
-        }
+        Self
     }
 }
 
-impl<L: Language> LocaleStore for FormLocaleStore<L> {
+impl LocaleStore for FormLocaleStore {
     fn available_locales(
         &self,
-        cx: &gpui::App,
+        _cx: &gpui::App,
     ) -> anyhow::Result<Vec<(String, LanguageIdentifier)>> {
-        self.inner.available_locales(cx)
+        AVAILABLE_LOCALES
+            .iter()
+            .map(|(label, id)| {
+                let locale = id
+                    .parse()
+                    .map_err(|err| anyhow!("invalid locale '{id}': {err}"))?;
+                Ok(((*label).to_string(), locale))
+            })
+            .collect()
     }
 
     fn current_locale(&self, cx: &gpui::App) -> anyhow::Result<LanguageIdentifier> {
-        self.inner.current_locale(cx)
+        let locale = some_lib_forms::i18n::locale(cx);
+        locale
+            .parse()
+            .map_err(|err| anyhow!("invalid current locale '{locale}': {err}"))
     }
 
     fn set_current_locale(
@@ -45,7 +53,6 @@ impl<L: Language> LocaleStore for FormLocaleStore<L> {
         locale: LanguageIdentifier,
         cx: &mut gpui::App,
     ) -> anyhow::Result<()> {
-        self.inner.set_current_locale(locale.clone(), cx)?;
         some_lib_forms::i18n::change_locale(cx, locale.clone()).map_err(|err| {
             anyhow::anyhow!("failed to sync gpui-form locale to '{}': {err}", locale)
         })?;
@@ -59,13 +66,12 @@ fn main() {
 
     app.run(move |app_cx| {
         gpui_component::init(app_cx);
-        some_lib_forms::i18n::init(app_cx, Languages::default())
-            .expect("failed to initialize form story i18n");
-        gpui_storybook::init(app_cx, Languages::default());
-        app_cx.set_global(Box::new(FormLocaleStore::<Languages>::new()) as Box<dyn LocaleStore>);
+        some_lib_forms::i18n::init(app_cx);
+        gpui_storybook_core::story::init(app_cx);
+        app_cx.set_global(Box::new(FormLocaleStore::new()) as Box<dyn LocaleStore>);
         app_cx
             .update_global::<Box<dyn LocaleStore>, _>(|locale_store, cx| {
-                locale_store.set_current_locale(Languages::default().into(), cx)
+                locale_store.set_current_locale(DEFAULT_LOCALE.parse().unwrap(), cx)
             })
             .unwrap();
         app_cx.activate(true);

@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use es_fluent::FluentMessage;
 use gpui::{
     App, AppContext as _, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, div,
@@ -11,13 +10,9 @@ use gpui_form_component::file_picker::{
     FilePicker, FilePickerEvent, FilePickerMode, FilePickerState,
 };
 
-use crate::i18n::FilePickerComponentText;
+use crate::i18n::{FilePickerComponentText, localize};
 
 use super::common::{story_field, story_panel};
-
-fn localize(cx: &impl std::borrow::Borrow<App>, message: &impl FluentMessage) -> String {
-    crate::i18n::localize_message(cx, message)
-}
 
 #[gpui_storybook::story]
 pub struct FilePickerStory {

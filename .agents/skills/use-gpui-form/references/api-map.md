@@ -25,6 +25,9 @@ Optional feature flags (additive):
 
 # parser-backed phone-number validation helpers
 # gpui-form = { version = "*", features = ["phone"] }
+
+# locale files for this crate (required when the crate calls rust_i18n::t!)
+# rust-i18n = "4"
 ```
 
 ## Facade Imports
@@ -45,6 +48,8 @@ Useful facade paths:
 - `gpui_form::path` (pure field-path module from `gpui-form-core`)
 - `gpui_form::phone` (parser-backed phone validation helpers; `phone` feature)
 - `gpui_form::state` (pure form-state module from `gpui-form-core`)
+- `gpui_form::i18n` (rust-i18n locale bridge: `init`, `change_locale`,
+  `localize_message`; built-in runtime copy ships en/fr-FR/zh-CN)
 - `gpui_form::FieldPath` (typed field-path primitive; no feature flag)
 - `gpui_form::FormState` (dirty tracking / reset / diff helper)
 - `gpui_form::custom_component_shape!`
@@ -166,8 +171,9 @@ pub enum Country {
 }
 ```
 
-Add `#[select_item(fluent)]` when the enum derives `EsFluent` and the app will
-handle localized labels outside the `SelectItem::title()` call.
+Add `#[select_item(fluent)]` when the enum does not implement `Display`:
+`title()` then resolves `<enum_snake>.<variant_snake>` through the app's
+`rust-i18n` locales and falls back to the variant name on a miss.
 
 ## Infinite Select Pattern
 

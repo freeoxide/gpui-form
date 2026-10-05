@@ -1,0 +1,32 @@
+empty_label: Empty
+form_action:
+  reset: Reset
+  submit: Submit
+item:
+  index_description: Index
+  index_label: Index
+item_label: Item
+location_form:
+  location_description: Location
+  location_label: Location
+  name_description: Name
+  name_label: Name
+location_form_label: Location Form
+user:
+  age_description: Age
+  age_label: Age
+  balance_description: Balance
+  balance_label: Balance
+  birth_date_description: Birth Date
+  birth_date_label: Birth Date
+  country_description: Country
+  country_label: Country
+  debt_description: Debt
+  debt_label: Debt
+  email_description: Email
+  preferred_description: Preferred
+  preferred_label: Preferred
+  subscribe_newsletter_description: Subscribe Newsletter
+  subscribe_newsletter_label: Subscribe Newsletter
+  username_description: Username
+user_label: User

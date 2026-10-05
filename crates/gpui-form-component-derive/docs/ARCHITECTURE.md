@@ -24,14 +24,12 @@ Responsibilities:
 - support `#[tuple_enum(skip)]` for variants that should not appear in the
   select tree
 - support `#[tuple_enum(key = "...")]` for persisted key overrides
-- support `#[fluent_kv(keys = ["label", "description"], keys_this)]` metadata
-  while allowing sibling `es-fluent` derives to route those messages through
-  their own `#[fluent(namespace = "...")]` metadata
+- accept `#[fluent_kv(keys = ["label", "description"], keys_this)]` for
+  backward compatibility; it emits no localization tokens
 - emit recursive child traversal methods that match the runtime contract in
   `gpui-form-component`
-- keep `fluent_kv` label/description metadata available to callers with an
-  explicit localizer; generated runtime trait methods use fallback names
-  because the contract is localizer-free
+- emit variant-name fallback labels from the generated runtime trait methods;
+  localization lives in the consuming application through `rust-i18n`
 - validate that persisted keys stay unique within one enum
 
 ## Dependency Role

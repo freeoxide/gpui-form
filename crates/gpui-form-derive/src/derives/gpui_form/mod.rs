@@ -1,8 +1,12 @@
+#[cfg_attr(not(feature = "mcp"), allow(dead_code))]
+pub mod attrs;
 pub mod cfg_attr;
 pub mod components;
 pub mod expansion;
 pub mod field_path;
 pub mod koruma;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 pub mod structs;
 pub mod tests;
 pub mod utils;

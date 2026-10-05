@@ -1,11 +1,23 @@
 use ::some_lib::structs::location::*;
-use ::es_fluent::FluentMessage as _;
 use ::gpui::{Subscription, div};
 use ::gpui::prelude::FluentBuilder as _;
 use ::gpui_form::infinite_select::{InfiniteSelectEvent, InfiniteSelectState};
 use ::gpui_kit::component::ActiveTheme as _;
 use ::gpui_kit::component::form::field;
 use ::gpui_kit::component::input::{Input, InputEvent, InputState};
+/// i18n keys this scaffold resolves via `::rust_i18n::t!`; declare
+/// them in the consumer crate's `locales/` for en, fr-FR and zh-CN.
+/// - location_form.name_label
+/// - location_form.name_description
+/// - location_form.location_label
+/// - location_form.location_description
+#[allow(dead_code)]
+pub const LOCATION_FORM_I18N_KEYS: &[&str] = &[
+    "location_form.name_label",
+    "location_form.name_description",
+    "location_form.location_label",
+    "location_form.location_description",
+];
 use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
@@ -16,11 +28,8 @@ use ::gpui_kit::component::form::v_form;
 use ::gpui_kit::component::v_flex;
 use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "LocationFormForm";
-fn localize(
-    cx: &impl ::std::borrow::Borrow<App>,
-    message: &impl ::es_fluent::FluentMessage,
-) -> String {
-    crate::i18n::localize_message(cx, message)
+fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
+    crate::i18n::localize_message(cx, key)
 }
 #[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
@@ -38,7 +47,7 @@ impl Focusable for LocationFormForm {
 }
 impl ::gpui_storybook::Story for LocationFormForm {
     fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label::<LocationForm>(cx)
+        crate::i18n::localize_label(cx, "location_form_label")
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -161,8 +170,10 @@ impl LocationFormForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+            .child(
+                self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit),
+            )
+            .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
     }
 }
 impl Render for LocationFormForm {
@@ -180,13 +191,23 @@ impl Render for LocationFormForm {
                     .child(
                         field()
                             .label({
-                                let message = LocationFormLabelVariants::Name;
-                                localize(cx, &message)
+                                let key: &str = "location_form.name_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Name".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = LocationFormDescriptionVariants::Name;
-                                    localize(cx, &message)
+                                    let key: &str = "location_form.name_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Name".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 move |_, _| {
                                     div()

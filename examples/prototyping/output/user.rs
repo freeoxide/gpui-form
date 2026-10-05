@@ -1,5 +1,4 @@
 use ::some_lib::structs::user::*;
-use ::es_fluent::FluentMessage as _;
 use ::gpui::{Subscription, div};
 use ::gpui::prelude::FluentBuilder as _;
 use ::gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
@@ -11,6 +10,43 @@ use ::gpui_kit::component::input::{
 };
 use ::gpui_kit::component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use ::gpui_kit::component::switch::Switch;
+/// i18n keys this scaffold resolves via `::rust_i18n::t!`; declare
+/// them in the consumer crate's `locales/` for en, fr-FR and zh-CN.
+/// - user.username_description
+/// - user.email_description
+/// - user.age_label
+/// - user.age_description
+/// - user.balance_label
+/// - user.balance_description
+/// - user.debt_label
+/// - user.debt_description
+/// - user.subscribe_newsletter_label
+/// - user.subscribe_newsletter_description
+/// - user.preferred_label
+/// - user.preferred_description
+/// - user.country_label
+/// - user.country_description
+/// - user.birth_date_label
+/// - user.birth_date_description
+#[allow(dead_code)]
+pub const USER_I18N_KEYS: &[&str] = &[
+    "user.username_description",
+    "user.email_description",
+    "user.age_label",
+    "user.age_description",
+    "user.balance_label",
+    "user.balance_description",
+    "user.debt_label",
+    "user.debt_description",
+    "user.subscribe_newsletter_label",
+    "user.subscribe_newsletter_description",
+    "user.preferred_label",
+    "user.preferred_description",
+    "user.country_label",
+    "user.country_description",
+    "user.birth_date_label",
+    "user.birth_date_description",
+];
 use ::gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement as _, Render, Styled, Window,
@@ -21,11 +57,8 @@ use ::gpui_kit::component::form::v_form;
 use ::gpui_kit::component::v_flex;
 use ::some_lib::structs::form_action::FormAction;
 const CONTEXT: &str = "UserForm";
-fn localize(
-    cx: &impl ::std::borrow::Borrow<App>,
-    message: &impl ::es_fluent::FluentMessage,
-) -> String {
-    crate::i18n::localize_message(cx, message)
+fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
+    crate::i18n::localize_message(cx, key)
 }
 #[::gpui_storybook::story_init]
 pub fn init(_cx: &mut App) {}
@@ -43,7 +76,7 @@ impl Focusable for UserForm {
 }
 impl ::gpui_storybook::Story for UserForm {
     fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label::<User>(cx)
+        crate::i18n::localize_label(cx, "user_label")
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         cx.new(|cx| Self::new(window, cx))
@@ -452,8 +485,10 @@ impl UserForm {
         div()
             .flex()
             .gap_2()
-            .child(self.submit_button(cx, localize(cx, &FormAction::Submit), on_submit))
-            .child(self.reset_button(cx, localize(cx, &FormAction::Reset)))
+            .child(
+                self.submit_button(cx, localize(cx, FormAction::Submit.key()), on_submit),
+            )
+            .child(self.reset_button(cx, localize(cx, FormAction::Reset.key())))
     }
 }
 impl Render for UserForm {
@@ -472,14 +507,16 @@ impl Render for UserForm {
                     .child(field().label("Account"))
                     .child(
                         field()
-                            .label({
-                                let message = UserLabelVariants::Username;
-                                localize(cx, &message)
-                            })
+                            .label("Username")
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Username;
-                                    localize(cx, &message)
+                                    let key: &str = "user.username_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Username".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -492,7 +529,7 @@ impl Render for UserForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -522,14 +559,16 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label({
-                                let message = UserLabelVariants::Email;
-                                localize(cx, &message)
-                            })
+                            .label("Email address")
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Email;
-                                    localize(cx, &message)
+                                    let key: &str = "user.email_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Email".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -542,7 +581,7 @@ impl Render for UserForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -574,13 +613,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::Age;
-                                localize(cx, &message)
+                                let key: &str = "user.age_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Age".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Age;
-                                    localize(cx, &message)
+                                    let key: &str = "user.age_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Age".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -593,7 +642,7 @@ impl Render for UserForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -624,13 +673,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::Balance;
-                                localize(cx, &message)
+                                let key: &str = "user.balance_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Balance".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Balance;
-                                    localize(cx, &message)
+                                    let key: &str = "user.balance_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Balance".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -643,7 +702,7 @@ impl Render for UserForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -674,13 +733,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::Debt;
-                                localize(cx, &message)
+                                let key: &str = "user.debt_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Debt".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Debt;
-                                    localize(cx, &message)
+                                    let key: &str = "user.debt_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Debt".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 let error = {
                                     validation_errors
@@ -693,7 +762,7 @@ impl Render for UserForm {
                                                 Some(
                                                     errs
                                                         .iter()
-                                                        .map(|v| localize(cx, v))
+                                                        .map(|v| v.to_string())
                                                         .collect::<Vec<_>>()
                                                         .join("\n"),
                                                 )
@@ -724,13 +793,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::SubscribeNewsletter;
-                                localize(cx, &message)
+                                let key: &str = "user.subscribe_newsletter_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Subscribe Newsletter".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::SubscribeNewsletter;
-                                    localize(cx, &message)
+                                    let key: &str = "user.subscribe_newsletter_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Subscribe Newsletter".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 move |_, _| {
                                     div()
@@ -755,15 +834,9 @@ impl Render for UserForm {
                     )
                     .child(
                         field()
-                            .label({
-                                let message = UserLabelVariants::EnableNotifications;
-                                localize(cx, &message)
-                            })
+                            .label("Enable notifications")
                             .description_fn({
-                                let description = {
-                                    let message = UserDescriptionVariants::EnableNotifications;
-                                    localize(cx, &message)
-                                };
+                                let description = "Toggles whether we email you product updates";
                                 move |_, _| {
                                     div()
                                         .flex()
@@ -787,13 +860,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::Preferred;
-                                localize(cx, &message)
+                                let key: &str = "user.preferred_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Preferred".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Preferred;
-                                    localize(cx, &message)
+                                    let key: &str = "user.preferred_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Preferred".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 move |_, _| {
                                     div()
@@ -808,13 +891,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::Country;
-                                localize(cx, &message)
+                                let key: &str = "user.country_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Country".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::Country;
-                                    localize(cx, &message)
+                                    let key: &str = "user.country_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Country".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 move |_, _| {
                                     div()
@@ -830,13 +923,23 @@ impl Render for UserForm {
                     .child(
                         field()
                             .label({
-                                let message = UserLabelVariants::BirthDate;
-                                localize(cx, &message)
+                                let key: &str = "user.birth_date_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "Birth Date".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
                             })
                             .description_fn({
                                 let description = {
-                                    let message = UserDescriptionVariants::BirthDate;
-                                    localize(cx, &message)
+                                    let key: &str = "user.birth_date_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "Birth Date".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
                                 };
                                 move |_, _| {
                                     div()

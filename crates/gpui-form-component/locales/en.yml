@@ -1,0 +1,13 @@
+date_picker:
+  select_date: "Select date"
+file_picker:
+  browse: "Browse"
+  dialog_dropped: "The file picker dialog closed before returning a result."
+  paths_selected_one: "1 path selected"
+  paths_selected_other: "%{count} paths selected"
+  select_a_directory: "Select a directory"
+  select_a_file: "Select a file"
+  select_a_file_or_directory: "Select a file or directory"
+  select_directory: "Select directory"
+  select_file: "Select file"
+  select_file_or_directory: "Select file or directory"

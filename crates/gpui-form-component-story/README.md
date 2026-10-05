@@ -14,8 +14,9 @@ cargo run -p gpui-form-component-story
 ```
 
 Story titles, descriptions, diagnostics, and other demo chrome are in-place
-English strings. Text passed into the demo components is fluent-backed: the
-`infinite_select` namespace covers demo enum metadata, while `date_picker` and
-`file_picker` cover component placeholders, prompts, and action labels. Those
-component-facing resources ship in English, French (`fr-FR`), and Simplified
-Chinese (`zh-CN`).
+English strings. Text passed into the demo components is rust-i18n-backed via
+this package's `locales/{en,fr-FR,zh-CN}.yml`: the `infinite_select` namespace
+covers demo enum metadata, while `date_picker` and `file_picker` cover
+component placeholders, prompts, and action labels. Locale switching goes
+through the `gpui-form-i18n` bridge re-exported in `src/i18n.rs`
+(`init`, `change_locale`).

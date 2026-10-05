@@ -55,9 +55,11 @@ of assuming every text field stores `String`.
 The adapter also consumes non-rendering layout hints from
 `FieldVariant::layout` (metadata-first, feature #4). It groups consecutive
 fields by `section` (emitting a section heading via the `field()` builder when
-the section changes, order-preserving), prefers `layout.label` over the
-field-name fallback when generating labels and descriptions in the non-fluent
-path, and surfaces `description` where it already emits help text.
+the section changes, order-preserving), emits `layout.label` /
+`layout.description` verbatim when present and otherwise `rust_i18n::t!`
+lookups of `<form>.<field>_label` / `<form>.<field>_description` keys that
+fall back to the title-cased field name on a miss, and surfaces `description`
+where it already emits help text.
 `placeholder` is reachable through `ResolvedField::layout().placeholder` for
 consumers that own a richer input builder; the v1 generator does not render it
 itself. Layout hints on skipped fields are ignored (no `FieldVariant` is
@@ -67,11 +69,18 @@ Custom fields remain inert by default. If a field's shape opts into
 `value_binding`, the adapter emits generic seed and subscription hooks through
 `gpui_form::custom::CustomComponentValueAdapter<T>`.
 
-## Feature Flags
+## Localization
 
-- `fluent`: use `es-fluent` keys for generated labels, descriptions, and
-  validation messages through an application helper named
-  `crate::i18n::localize(...)`
+Generated labels, descriptions, and form titles resolve through `rust-i18n`.
+Generated files call `rust_i18n::t!(...)`, so the consuming crate must depend
+on `rust-i18n`, call `rust_i18n::i18n!("locales", fallback = "en")` at its
+crate root, and own the `<form>.<field>_label` / `_description` keys —
+`layout.label` / `layout.description` overrides replace the lookup with a
+verbatim literal. `FormParts` carries `i18n_key_items` (emitted as a
+doc-commented `<FORM>_I18N_KEYS` const) and `collect_i18n_keys(&GpuiFormShape)`
+lists every key a shape needs, so generators can scaffold the locale files.
+This crate's own `locales/{en,fr-FR,zh-CN}.yml` double as the reference
+template.
 
 ## Most Users Should Use Instead
 

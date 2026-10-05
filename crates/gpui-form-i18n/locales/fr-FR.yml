@@ -1,0 +1,12 @@
+date_picker:
+  select_date: "Sélectionner une date"
+file_picker:
+  browse: "Parcourir"
+  dialog_dropped: "La boîte de dialogue de sélection de fichier s'est fermée avant de renvoyer un résultat."
+  paths_selected: "%{count} chemins sélectionnés"
+  select_a_directory: "Sélectionner un dossier"
+  select_a_file: "Sélectionner un fichier"
+  select_a_file_or_directory: "Sélectionner un fichier ou un dossier"
+  select_directory: "Sélectionner un dossier"
+  select_file: "Sélectionner un fichier"
+  select_file_or_directory: "Sélectionner un fichier ou un dossier"
