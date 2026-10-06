@@ -11,20 +11,23 @@ versions to the compatibility guidance for the `gpui-form` version in use.
 [dependencies]
 gpui = { package = "gpui-pre", version = "0.3.7" }
 gpui-kit = "0.7.0"
-gpui-form = "*"
+gpui-form = { git = "https://github.com/stayhydated/gpui-form" }
 ```
+
+The `gpui-form` package on crates.io is the upstream `freeoxide/gpui-form`
+lineage, not this fork — install from git.
 
 Optional feature flags (additive):
 
 ```toml
 # inventory registration for prototyping/code generation
-# gpui-form = { version = "*", features = ["inventory"] }
+# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["inventory"] }
 
 # form-state persistence + dirty tracking (serde + PartialEq on the holder)
-# gpui-form = { version = "*", features = ["serde"] }
+# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
 
 # parser-backed phone-number validation helpers
-# gpui-form = { version = "*", features = ["phone"] }
+# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["phone"] }
 
 # locale files for this crate (required when the crate calls rust_i18n::t!)
 # rust-i18n = "4"
@@ -75,6 +78,7 @@ Useful facade paths:
 #[gpui_form(component(custom(state = my::State)))]
 #[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]
 #[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]
+#[gpui_form(component(custom(shape = my::Shape, value_binding)))]
 ```
 
 Common field attributes:

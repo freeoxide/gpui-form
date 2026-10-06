@@ -190,10 +190,6 @@ inventory or codegen workflows change.
   Docs: [Architecture](crates/gpui-form-codegen/docs/ARCHITECTURE.md)
   Role: parse-time component parsing, per-component layout emission, and token generation used by `gpui-form-derive`.
 
-- `crates/gpui-form-component-story`
-  Audience: **Internal**
-  Role: Storybook launcher, story UI, and story-only localization assets for the runtime components in `gpui-form-component`.
-
 ### Examples and Shared Surfaces
 
 - `examples/README.md`
@@ -204,16 +200,6 @@ inventory or codegen workflows change.
 
 - `examples/some-lib-custom-components`
   Example external custom component state types and UI widgets.
-
-- `examples/some-lib-forms`
-  Storybook-like GPUI example app for browsing generated forms.
-
-  Run with `cargo run -p some-lib-forms`.
-
-- `crates/gpui-form-component-story`
-  Storybook-like GPUI example app for browsing the reusable runtime components.
-
-  Run with `cargo run -p gpui-form-component-story`.
 
 - `examples/prototyping`
   Prototype generator that reads `GpuiFormShape` inventory data and emits form scaffolding.
@@ -226,7 +212,7 @@ inventory or codegen workflows change.
   Validate with `cargo test -p mcp-submit`.
 
 - `examples/forms-demo`
-  Standalone GPUI demo app on the current stack (no storybook shell): one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and `FormState` dirty tracking with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
+  Standalone GPUI demo app on the current stack: one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and `FormState` dirty tracking with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
 
   Run with `cargo run -p forms-demo`.
 

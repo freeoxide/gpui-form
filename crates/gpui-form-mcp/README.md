@@ -10,8 +10,7 @@ for generated `gpui-form` holders.
 
 Application crates enable `gpui-form/mcp`. Keep the default features when the
 same crate renders GPUI forms; for a headless server, disable default features
-and enable `derive` and `mcp`. Enable `chrono` or `rust_decimal` alongside `mcp`
-when exposed fields or responses use those value types.
+and enable `derive` and `mcp`.
 
 Concrete forms opt in with `#[gpui_form(mcp)]`. Register an application-owned
 handler with `#[gpui_form::mcp_submit]`, then serve the generated tools with

@@ -31,7 +31,7 @@ matching. This avoids repeating the same boilerplate in every UI that has a
 country select plus phone input.
 
 ```toml
-gpui-form-core = { version = "*", features = ["phone"] }
+gpui-form-core = { git = "https://github.com/stayhydated/gpui-form", features = ["phone"] }
 ```
 
 ```rs

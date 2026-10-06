@@ -115,7 +115,7 @@ additive: it adds `Serialize`, `Deserialize`, and `PartialEq` to the generated
 logic from `gpui-form-core`).
 
 ```toml
-gpui-form = { version = "*", features = ["serde"] }
+gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
 ```
 
 ```rust
