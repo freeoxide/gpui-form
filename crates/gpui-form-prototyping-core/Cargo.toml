@@ -19,11 +19,5 @@ quote = { workspace = true }
 rust-i18n = { workspace = true }
 syn = { features = [ "full", "parsing" ], workspace = true }
 
-[features]
-default = [  ]
-# Legacy no-op: emission is rust-i18n-only now; kept until consumers stop
-# passing `features = ["fluent"]` (examples/prototyping still does).
-fluent = [  ]
-
 [lints]
 workspace = true

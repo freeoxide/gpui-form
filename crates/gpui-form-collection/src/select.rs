@@ -129,10 +129,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Select, SelectArgs};
-    use component_shape_gpui::GpuiComponentShapeBuilder;
-    use gpui_kit::component::select::{SelectDelegate, SelectItem};
-    use strum::IntoEnumIterator;
+    use super::SelectArgs;
 
     #[test]
     fn select_args_default_to_non_searchable() {
@@ -148,18 +145,5 @@ mod tests {
                 .build()
                 .searchable
         );
-    }
-
-    #[allow(dead_code)]
-    fn assert_select_args_build_shape<T, D>() -> (SelectArgs<T, D>, SelectArgs<T, D>)
-    where
-        T: Clone + Default + IntoEnumIterator + PartialEq + SelectItem<Value = T> + 'static,
-        D: SelectDelegate<Item = T> + From<Vec<T>> + 'static,
-        SelectArgs<T, D>: GpuiComponentShapeBuilder<Select<T, D>>,
-    {
-        (
-            Select::<T, D>::from(SelectArgs::<T, D>::builder().searchable(true).build()),
-            Select::<T, D>::searchable(true),
-        )
     }
 }

@@ -13,9 +13,7 @@ readme = "README.md"
 keywords = [ "gpui", "gpui-kit", "form", "mcp" ]
 
 [features]
-chrono = [ "component-shape-mcp/chrono" ]
 default = [  ]
-rust_decimal = [ "component-shape-mcp/rust_decimal" ]
 
 [dependencies]
 component-shape = { workspace = true }
@@ -27,9 +25,7 @@ serde = { features = [ "derive" ], workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-chrono = { workspace = true }
 proptest = { default-features = false, features = [ "std" ], version = "1.11" }
-rust_decimal = { workspace = true }
 
 [lints]
 workspace = true

@@ -116,9 +116,7 @@ impl FromMeta for LayoutWidthMeta {
 /// Information about a field for value holder generation.
 pub struct FieldOptionality {
     pub field_name: Ident,
-    #[allow(dead_code)]
     pub original_type: Type,
-    #[allow(dead_code)]
     pub inner_type: Type,
     pub was_optional: bool,
     pub wrap_in_option: bool,

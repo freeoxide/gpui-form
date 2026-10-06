@@ -89,7 +89,7 @@ pub(crate) fn form_prompt_specs(
             rust_i18n::t!("prompts.fill_description", title = title).to_string(),
             vec![optional_prompt_argument(
                 "goal",
-                &rust_i18n::t!("prompts.arg_goal_description").to_string(),
+                rust_i18n::t!("prompts.arg_goal_description").as_ref(),
             )],
             descriptor,
             McpFormPromptKind::Fill,
@@ -101,11 +101,11 @@ pub(crate) fn form_prompt_specs(
             vec![
                 optional_prompt_argument(
                     "validation_issues",
-                    &rust_i18n::t!("prompts.arg_validation_issues_description").to_string(),
+                    rust_i18n::t!("prompts.arg_validation_issues_description").as_ref(),
                 ),
                 optional_prompt_argument(
                     "current_values",
-                    &rust_i18n::t!("prompts.arg_current_values_description").to_string(),
+                    rust_i18n::t!("prompts.arg_current_values_description").as_ref(),
                 ),
             ],
             descriptor,
@@ -117,7 +117,7 @@ pub(crate) fn form_prompt_specs(
             rust_i18n::t!("prompts.submit_description", title = title).to_string(),
             vec![optional_prompt_argument(
                 "workflow",
-                &rust_i18n::t!("prompts.arg_workflow_description").to_string(),
+                rust_i18n::t!("prompts.arg_workflow_description").as_ref(),
             )],
             descriptor,
             McpFormPromptKind::Submit,

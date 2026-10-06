@@ -519,7 +519,16 @@ pub fn generate_value_holder(
         derives.push(quote! { ::serde::Deserialize });
     }
 
-    let derive_output = quote! { #[derive(#(#derives),*)] };
+    let derive_output = quote! {
+        // The holder always derives `PartialEq` without `Eq` (see above), which
+        // would otherwise trip `clippy::derive_partial_eq_without_eq` at every
+        // `#[derive(GpuiForm)]` call site. Silence the lint on the generated
+        // struct so downstream users are not nagged by generated code.
+        // Note: `#[automatically_derived]` cannot be added here — it is only
+        // valid on impl blocks.
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(#(#derives),*)]
+    };
     let builder_attr = if has_skipped_fields {
         quote! { #[builder(crate = ::gpui_form::bon)] }
     } else {
