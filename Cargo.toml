@@ -9,8 +9,6 @@ members = [
   "crates/gpui-form-schema",
   "crates/gpui-form-derive",
   "crates/gpui-form-i18n",
-  "crates/gpui-form-collection",
-  "crates/gpui-form-collection-derive",
   "crates/gpui-form-mcp",
   "crates/gpui-form-prototyping-core",
   "examples/some-lib",

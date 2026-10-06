@@ -168,16 +168,6 @@ inventory or codegen workflows change.
   Docs: [README](crates/gpui-form-i18n/README.md)
   Role: rust-i18n-backed locale bridge (gpui `I18n` global, `init`, `change_locale`, `localize_message`) shared by the facade and story/example apps. Most users should consume it through `gpui_form::i18n`.
 
-- `crates/gpui-form-collection`
-  Audience: **Public integration**
-  Docs: [README](crates/gpui-form-collection/README.md)
-  Role: ready-made form shapes for common GPUI Kit controls, plus the shape-policy trait layer in its `shape` module.
-
-- `crates/gpui-form-collection-derive`
-  Audience: **Public integration**
-  Docs: [README](crates/gpui-form-collection-derive/README.md)
-  Role: proc macros for the `gpui-form-collection` surface (`SelectItem` derivation for collection enums).
-
 - `crates/gpui-form-mcp`
   Audience: **Public integration**
   Docs: [README](crates/gpui-form-mcp/README.md)
