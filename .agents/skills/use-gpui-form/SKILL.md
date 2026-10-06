@@ -17,268 +17,127 @@ internals. For build, test, format, lint, maintenance, release, or architecture
 work, read the repository source, `AGENTS.md`, and the relevant crate
 documentation directly.
 
-## Core Workflow
+## Documentation Sources
 
-Start from the user-facing facade. Most application code uses `gpui-form` for
-derives, runtime helpers, and compatibility re-exports:
+The repository root `README.md` (single source) carries install snippets,
+component syntax details, and the full feature sections: phone validation,
+Koruma validation, localization, form-state persistence, typed field paths,
+custom components, file/date picker runtime, and prototyping. Reference those
+sections by name instead of transcribing them.
+
+- `references/api-map.md`: facade import map, component/attribute inventory,
+  generated names, and pattern skeletons.
+- `examples/README.md`: canonical index of runnable workspace examples.
+
+## Core Workflow
 
 1. Identify the application struct or enum that should drive the form.
 2. Check the app's existing `Cargo.toml` and form code for local patterns.
-3. Use the facade crate in application code:
-
-   ```rust
-   use gpui_form::{GpuiForm, SelectItem};
-   ```
-
+3. Depend on the facade crate and import `gpui_form::{GpuiForm, SelectItem}`.
 4. Add `GpuiForm` to a normal Rust struct and annotate each visible field with
    a component.
-5. Use generated types named from the source struct, such as
-   `UserProfileFormFields`, `UserProfileFormComponents`,
-   `UserProfileFormValueHolder`, and `UserProfileFormPath` (typed field paths,
-   see [Typed Field Paths](#typed-field-paths)).
-6. Use `#[gpui_form(default = ...)]` for initial form values,
-   `#[gpui_form(skip)]` for model fields that should not render as widgets, and
+5. Use generated types named from the source struct: `<Name>FormFields`,
+   `<Name>FormComponents`, `<Name>FormValueHolder`, and `<Name>FormPath`.
+6. Use `#[gpui_form(default = ...)]` for initial values, `#[gpui_form(skip)]`
+   for model fields that should not render, and
    `#[gpui_form(type = ..., from = ..., into = ..., component(...))]` when the
-   UI edits a form-side type that differs from the model field. Text input
-   prototyping parses non-`String` form-side types with `FromStr`. Add
-   non-rendering layout hints (`section`, `label`, `description`,
-   `placeholder`, `width`) to drive generated/prototyped layout decisions —
-   see [Layout and Section Hints](#layout-and-section-hints).
+   UI edits a form-side type differing from the model field. Text input
+   prototyping parses non-`String` form-side types with `FromStr`.
 7. Use paths such as `gpui_form::date_picker`, `gpui_form::file_picker`, and
-   `gpui_form::infinite_select` for helper state and facade compatibility modules.
+   `gpui_form::infinite_select` for helper state and compatibility modules.
 
-## Reference Selection
+## Component Selection
 
-Load only the reference needed for the task:
+- `input` for text-like fields; `number_input` for numeric fields
+  (`number_input(as = f64)` for a different numeric representation).
+- `checkbox` or `switch` for `bool` fields.
+- `select` for a single enum-like choice (plain, `searchable`, or `partial`);
+  derive `SelectItem`, plus `EnumIter` when choices come from iteration.
+- `infinite_select` for cascading/nested enum trees; derive `InfiniteSelect`
+  and `PartialEq` on the enum tree.
+- `phone_input` for phone fields (`phone` feature); bare form validates any
+  globally valid number, `phone_input(country = <field>)` binds a sibling
+  country-select field.
+- `date_picker` for single dates; `file_picker` for native path selection on
+  `PathBuf` fields.
+- `custom(...)` when the app owns the state/widget contract (state derive,
+  `custom_component_shape!`, optional `value_binding`).
 
-- `references/api-map.md`: installation shape, supported component syntax, and user-facing usage patterns.
+Full syntax inventory: root `README.md` §Component Syntax, or
+`references/api-map.md`.
 
-Prefer current public docs or source examples over memory when details matter.
+## Common Patterns
 
-## Implementation Rules
+- For selects, derive `SelectItem` on enum-like values and `EnumIter` when the
+  app needs iteration-backed choices.
+- For cascading or nested selects, derive `InfiniteSelect` and `PartialEq` on
+  the enum tree and use `#[gpui_form(component(infinite_select))]`.
+- For custom widgets, derive `CustomComponentState` on a state type or declare
+  a reusable shape with `gpui_form::custom_component_shape!`.
+- For value-bound custom widgets, implement
+  `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use
+  `component(custom(shape = ..., value_binding))`.
+- For typed field naming (validation, dirty tracking, focus, analytics, schema
+  export), use the generated `<Name>FormPath` constructors such as
+  `UserProfileFormPath::username()`; skipped fields have no constructor.
+- For layout intent, attach non-rendering hints with `section`, `label`,
+  `description`, `placeholder`, and `width`.
+- Keep consumer code focused on app models, form state, rendering, and
+  app-owned components.
 
-Derive application forms from app-owned data types:
+## Feature Gotchas
 
-```rust
-use gpui_form::{GpuiForm, SelectItem};
-use strum::EnumIter;
+### Phone (`phone` feature)
 
-#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
-pub enum Country {
-    #[default]
-    UnitedStates,
-    France,
-}
+Headless validation lives in `gpui_form::phone`:
+`validate_phone_number` (any valid global number),
+`validate_phone_number_for_country_label` (parsed country must match the
+selection), `validate_optional_phone_number` /
+`validate_required_phone_number` for explicit empty handling, plus
+`_for_country_label` variants. Implement `gpui_form::phone::PhoneCountry` on
+an app country enum once instead of duplicating parser and country-matching
+logic per UI. Details: root `README.md` §Phone Number Validation.
 
-#[derive(Clone, Debug, Default, GpuiForm)]
-pub struct UserProfile {
-    #[gpui_form(component(input))]
-    pub username: Option<String>,
+### Serde and dirty tracking (`serde` feature)
 
-    #[gpui_form(component(number_input))]
-    pub age: Option<u32>,
+Enable the facade `serde` feature and wrap the holder in
+`gpui_form::FormState` for save/restore and dirty tracking. `FormState` itself
+is re-exported unconditionally; only the holder serde derives need the
+feature. Scope: `FormState` stores holder data only (no runtime UI state, no
+undo/redo); dirty/diff is boolean-level (field-level diff is backlog #9);
+holders with `#[gpui_form(skip)]` fields round-trip through serde but cannot
+fully reconstruct the source struct (per-field passthrough is backlog #15).
+Details: root `README.md` §Saving, Restoring, and Dirty Tracking.
 
-    #[gpui_form(component(select), default = Country::France)]
-    pub country: Country,
-}
-```
+### Typed field paths
 
-Common patterns:
+Every form emits `<Name>FormPath`, a typed newtype over
+`gpui_form::FieldPath` (no feature flag, no GPUI, no serde). One constructor
+per non-skipped field; skipped fields have none. Hand-built multi-segment
+paths via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
+composition arrives with backlog #2/#3. Details: root `README.md` §Typed Field
+Paths.
 
-- For selects, derive `SelectItem` on enum-like values and `EnumIter` when the app needs iteration-backed choices.
-- For cascading or nested selects, derive `InfiniteSelect` and `PartialEq` on the enum tree and use `#[gpui_form(component(infinite_select))]`.
-- For custom widgets, derive `CustomComponentState` on a state type or declare a reusable shape with `gpui_form::custom_component_shape!`.
-- For value-bound custom widgets, implement `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use `component(custom(shape = ..., value_binding))`.
-- For save/restore and dirty tracking, enable the facade `serde` feature and wrap the holder in `gpui_form::FormState`.
-- For phone inputs, enable the facade `phone` feature. Use the generated
-  `component(phone_input)` field for a globally valid number, or
-  `component(phone_input(country = <field>))` to bind it to a sibling
-  country-select field. For headless validation, use
-  `gpui_form::phone::validate_phone_number` (general),
-  `gpui_form::phone::validate_phone_number_for_country_label` (parsed number
-  must match the selected country), or the `validate_optional_phone_number` /
-  `validate_required_phone_number` variants for explicit empty handling.
-  Implement `gpui_form::phone::PhoneCountry` on an app country enum to map it to
-  a `country::Id` and label once. Do not duplicate parser and country-matching
-  logic in each UI.
-- For typed field naming (validation, dirty tracking, focus, analytics, schema export), use the generated `<Name>FormPath` constructors such as `UserProfileFormPath::username()`; skipped fields have no constructor.
-- For layout intent, attach non-rendering hints with `section`, `label`, `description`, `placeholder`, and `width`; prototyping groups by `section`, prefers `label`, and emits `description` where it already produces help text.
-- For localized text, use rust-i18n 4 (see [Localization](#localization-rust-i18n)).
-- Keep consumer code focused on app models, form state, rendering, and app-owned components.
+### Localization (rust-i18n 4)
 
-## Saving, Restoring, and Dirty Tracking
+Same backend as `gpui-kit` widgets, so widget and form text share one active
+locale. Workflow: each localizing crate owns its `locales/<locale>.yml` files
+and calls `rust_i18n::i18n!("locales", fallback = "en")` — `t!` is
+crate-local. Switch app-wide locale through `gpui_form::i18n`
+(`init(cx)`, `change_locale(cx, ...)`, `localize_message(cx, key)`); built-in
+runtime copy ships en/fr-FR/zh-CN. `#[gpui_form(koruma(fluent))]` and
+`#[select_item(fluent)]` resolve `<form>.<field>_label`, `validation.<kind>`,
+and `<enum>.<variant>` keys through the app's own locales, falling back to
+humanized keys or variant names. `t!` returns `Cow<str>` — deref rather than
+calling unstable `str` methods. Details: root `README.md` §Localization
+(rust-i18n).
 
-When the app needs to persist a form or ask whether the user edited it, enable
-the optional `serde` feature and use `gpui_form::FormState`. The feature is
-additive: it adds `Serialize`, `Deserialize`, and `PartialEq` to the generated
-`...FormValueHolder`, and the facade re-exports `FormState` (pure, GPUI-free
-logic from `gpui-form-core`).
+### Layout and section hints
 
-```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
-```
-
-```rust
-use gpui_form::{FormState, GpuiForm};
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Default, GpuiForm, Serialize, Deserialize, PartialEq)]
-pub struct Settings {
-    #[gpui_form(component(input))]
-    pub username: Option<String>,
-}
-
-// Save.
-let json = serde_json::to_string(&SettingsFormValueHolder::default()).unwrap();
-
-// Restore into a fresh state.
-let restored: SettingsFormValueHolder = serde_json::from_str(&json).unwrap();
-let mut state = FormState::new(restored);
-
-// Track edits, reset, or mark clean after a save.
-state.current_mut().username = Some("ada".into());
-assert!(state.is_dirty());
-state.sync_baseline();   // mark clean
-assert!(!state.is_dirty());
-```
-
-Scope notes to keep in mind when recommending this feature:
-
-- `FormState` stores holder **data** only, not runtime UI state (open menus,
-  scroll, `InfiniteSelectState` snapshots). No undo/redo in this feature.
-- Dirty/diff is **boolean-level** (`is_dirty()`, `diff_against(&other)`).
-  Field-level diff is backlog feature #9 and will build on the typed field
-  paths below.
-- A holder with `#[gpui_form(skip)]` fields round-trips through serde on its
-  own, but cannot fully reconstruct the source struct via `into_original`.
-  Per-field serde passthrough (rename/skip) is backlog feature #15.
-- `FormState` itself is available unconditionally from `gpui_form::FormState`;
-  only the holder serde derives need the `serde` feature.
-
-## Typed Field Paths
-
-Every `#[derive(GpuiForm)]` form also emits a `<Name>FormPath` type — a
-strongly-typed newtype around the shared headless primitive
-`gpui_form::FieldPath` — so validation, dirty tracking, focus, analytics, and
-schema export can refer to fields through ONE typed value instead of ad-hoc
-strings. `FieldPath` is re-exported unconditionally (no feature flag, no GPUI,
-no serde).
-
-```rust
-use gpui_form::{FieldPath, GpuiForm};
-
-#[derive(GpuiForm)]
-pub struct Settings {
-    #[gpui_form(component(input))]
-    pub username: String,
-
-    #[gpui_form(component(number_input))]
-    pub age: Option<u32>,
-
-    #[gpui_form(skip)]
-    pub internal_id: u32,
-}
-
-// One constructor per non-skipped field, named identically to the field.
-let username = SettingsFormPath::username();
-assert_eq!(username.to_string(), "username");
-
-// `Deref`/`AsRef`/`into_path` all reach the shared primitive.
-fn records(p: &FieldPath) -> &[&'static str] { p.segments() }
-assert_eq!(records(username.as_ref()), &["username"]);
-```
-
-Scope notes for this feature (FLAT v1):
-
-- Each constructor names a single flat field. Typed nested-path and
-  list-item-path constructors arrive with backlog features #2 ("Nested forms")
-  and #3 ("Repeated fields"). Hand-built multi-segment paths via
-  `SettingsFormPath::new(&["a", "b"])` work today; typed composition is later.
-- `#[gpui_form(skip)]` fields have NO constructor — they are absent from the
-  holder too.
-- `FieldPath` is the shared naming foundation for the upcoming field-level
-  validation (#6), field-level diff/delta reporting (#9), and schema export
-  (#14).
-
-## Localization (rust-i18n)
-
-Locale text is backed by `rust-i18n` 4 — the same backend `gpui-kit` widgets
-use, so widget and form text share one active locale.
-
-```toml
-[dependencies]
-rust-i18n = "4"
-```
-
-1. Give each crate that localizes its own `locales/<locale>.yml` files
-   (`locales/en.yml`, `locales/fr-FR.yml`, `locales/zh-CN.yml`) and call
-   `rust_i18n::i18n!("locales", fallback = "en")` at the crate root. `t!` is
-   crate-local: keys never resolve across crates.
-2. Switch the locale app-wide through `gpui_form::i18n`:
-   `gpui_form::i18n::init(cx)` once, then
-   `gpui_form::i18n::change_locale(cx, "fr-FR".parse()?)`. Built-in runtime
-   copy (date picker, file picker) ships en/fr-FR/zh-CN and follows the same
-   shared locale.
-3. `#[gpui_form(koruma(fluent))]` and `#[select_item(fluent)]` keep their
-   attribute grammar and resolve `<form>.<field>_label` / `validation.<kind>` /
-   `<enum>.<variant>` keys through the app's own locales; missed keys fall back
-   to a humanized key or the variant name.
-4. Look single strings up with `gpui_form::i18n::localize_message(cx, key)` or
-   plain `rust_i18n::t!(key)`; `t!` returns `Cow<str>`, so deref (`&*t`) rather
-   than calling unstable `str` methods on it.
-
-## Layout and Section Hints
-
-Fields can declare non-rendering layout hints that generated and prototyped
-forms consume. These are **metadata-only** in v1: they describe intent, they do
-not drive any GPUI rendering. Application code and prototyping generators
-decide how (or whether) to render each hint.
-
-```rust
-use gpui_form::GpuiForm;
-
-#[derive(GpuiForm)]
-pub struct AccountSettings {
-    #[gpui_form(section = "Account", label = "Username", component(input))]
-    pub username: String,
-
-    #[gpui_form(
-        label = "Enable experiments",
-        description = "Toggles unreleased features",
-        component(switch)
-    )]
-    pub enable_experimental: bool,
-
-    #[gpui_form(placeholder = "you@example.com", width = half, component(input))]
-    pub email: String,
-}
-```
-
-Supported hints (all optional):
-
-- `section = "<str>"` — groups consecutive fields under a named section.
-  Order-preserving: consecutive same-section fields form one group and fields
-  are never reordered across the form.
-- `label = "<str>"` — preferred human-readable label. Defaults to the field
-  name at consumption time when absent.
-- `description = "<str>"` — help text / comment hint shown alongside the field.
-- `placeholder = "<str>"` — placeholder text for inputs that support one.
-- `width = full | half | third` — relative width hint. Accepts a bare ident
-  (`width = half`) or a quoted string (`width = "half"`). This is a **hint, not
-  a layout engine**: consumers may ignore it or map it onto their own grid.
-
-Scope notes for this feature (METADATA-FIRST v1):
-
-- The generated form code itself is **unchanged**. Hints ride along on the
-  field metadata that prototyping and tooling consume through
-  `gpui_form::schema::FieldVariant::layout` (`FieldLayout`). The width enum is
-  also re-exported at the facade root as `gpui_form::LayoutWidth`.
-- Hints on `#[gpui_form(skip)]` fields are **ignored** — skipped fields emit no
-  form metadata, so their hints never reach the schema.
-- The prototyping generator groups fields by `section`, prefers `label` over
-  the field name, and emits `description` where it already produces help text.
-  `placeholder` is reachable via `ResolvedField::layout().placeholder` for
-  consumers that own a richer input builder; the v1 generator does not render
-  it itself.
-- This is the foundation richer layout (columns, collapsible sections) can
-  build on later.
+`section`, `label`, `description`, `placeholder`, `width = full | half |
+third` are metadata-only in v1: they describe intent, they do not drive GPUI
+rendering. Section grouping is order-preserving. Hints on
+`#[gpui_form(skip)]` fields are ignored. Prototyping groups by `section`,
+prefers `label`, and emits `description` where it already produces help text;
+the width enum is re-exported as `gpui_form::LayoutWidth`. Details: root
+`README.md` §Layout and Section Hints.

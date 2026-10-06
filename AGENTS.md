@@ -71,6 +71,9 @@ Even README files for public-integration or internal crates should explain:
 Keep user-facing documentation example-first. Prefer Rust snippets over
 prose-only explanations when showing behavior changes.
 
+`crates/gpui-form/README.md` is deliberately a short stub that points at the
+root `README.md`; do not expand it (see Synchronization Rules).
+
 ### Internal Documentation
 
 Use the relevant `docs/ARCHITECTURE.md` file for internal documentation, such
@@ -98,22 +101,32 @@ syntax, runtime integration patterns, prototyping patterns, or recommended usage
 
 ## Synchronization Rules
 
+Documentation is single-sourced: the root `README.md` is the canonical
+user-facing surface for install, quick-start, component syntax, feature, and
+runtime re-export guidance.
+
 When a substantive change modifies a public derive attribute, supported
 component set, Koruma validation wiring, runtime re-export, custom component
 contract, prototyping workflow, or other user-visible API shape:
 
-1. Update the root `README.md`.
-2. Update `crates/gpui-form/README.md`.
-3. Update the affected crate `README.md` files.
-4. Update `examples/README.md` and the relevant example crates when showcased behavior changes.
-5. Update relevant in-repository `.agents/skills/*` guidance.
-6. Update the matching crate `docs/ARCHITECTURE.md` when boundaries or behavior change.
-7. Keep these surfaces aligned in the same change unless there is a documented reason not to.
+1. Update the root `README.md` — the single user-facing documentation surface.
+2. Update the affected crate `README.md` files for crate-specific scope.
+3. Update `examples/README.md` and the relevant example crates when showcased behavior changes.
+4. Update relevant in-repository `.agents/skills/*` guidance.
+5. Update the matching crate `docs/ARCHITECTURE.md` when boundaries or behavior change.
+6. Land these updates in the same change unless there is a documented reason not to.
+
+`crates/gpui-form/README.md` is intentionally a short stub: crate identity,
+compatibility table, feature list, install snippet, and pointers. Keep it a
+stub — do not re-grow full documentation there. When facade behavior changes,
+update the root `README.md`; edit the stub only when its compatibility table
+or feature list itself is stale.
+
+`.agents/skills/*` guidance references the root `README.md` (by section name)
+for install snippets, component syntax, and feature documentation instead of
+transcribing them.
 
 `examples/README.md` is the canonical index for runnable workspace examples.
-
-Keep the root `README.md` and `crates/gpui-form/README.md` aligned for install,
-quick-start, feature, and runtime re-export guidance.
 
 Keep supported-component docs aligned across the root `README.md` and
 `crates/gpui-form-derive/README.md`.
@@ -223,7 +236,7 @@ inventory or codegen workflows change.
 - Keep READMEs user-facing.
 - Move macro expansion details, parser internals, and subsystem design into `docs/ARCHITECTURE.md`.
 - Prefer examples over prose-only explanations.
-- Sync the root `README.md`, `crates/gpui-form/README.md`, `examples/README.md`, and `.agents/skills/*` guidance when the primary workflow changes.
+- Sync the root `README.md`, `examples/README.md`, and `.agents/skills/*` guidance when the primary workflow changes; refresh the `crates/gpui-form/README.md` stub only when its compatibility table or feature list went stale.
 
 ### When Editing Rust Crates
 
