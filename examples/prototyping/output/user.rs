@@ -60,9 +60,6 @@ const CONTEXT: &str = "UserForm";
 fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
     crate::i18n::localize_message(cx, key)
 }
-#[::gpui_storybook::story_init]
-pub fn init(_cx: &mut App) {}
-#[::gpui_storybook::story]
 pub struct UserForm {
     current_data: UserFormValueHolder,
     fields: UserFormFields,
@@ -72,14 +69,6 @@ pub struct UserForm {
 impl Focusable for UserForm {
     fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
-    }
-}
-impl ::gpui_storybook::Story for UserForm {
-    fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label(cx, "user_label")
-    }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl UserForm {
@@ -334,7 +323,7 @@ impl UserForm {
             }
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = UserFormValueHolder::default();
         let username_input = cx.new(|cx| UserFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| UserFormComponents::email_input(window, cx));
@@ -501,6 +490,7 @@ impl Render for UserForm {
             .p_4()
             .justify_start()
             .gap_3()
+            .child(v_flex().text_lg().font_semibold().child(localize(cx, "user_label")))
             .child(Separator::horizontal())
             .child(
                 v_form()
