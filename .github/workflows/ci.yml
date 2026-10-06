@@ -94,6 +94,8 @@ jobs:
 
   machete:
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: ""
 
     steps:
       - uses: actions/checkout@v6
