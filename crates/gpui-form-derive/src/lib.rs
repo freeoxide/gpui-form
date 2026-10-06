@@ -1,8 +1,5 @@
 mod derives;
 
-#[cfg(feature = "mcp")]
-mod mcp_submit;
-
 use proc_macro::TokenStream;
 
 use crate::derives::gpui_form::GpuiFormOptions;
@@ -13,19 +10,8 @@ pub fn gpui_form_derive(input: TokenStream) -> TokenStream {
         input,
         GpuiFormOptions {
             generate_shape: cfg!(feature = "inventory"),
-            generate_mcp: cfg!(feature = "mcp"),
         },
     )
-}
-
-/// Registers an async function as an MCP submit handler for generated forms.
-#[cfg(feature = "mcp")]
-#[proc_macro_attribute]
-pub fn mcp_submit(attr: TokenStream, item: TokenStream) -> TokenStream {
-    match mcp_submit::expand(attr.into(), item.into()) {
-        Ok(tokens) => tokens.into(),
-        Err(error) => error.to_compile_error().into(),
-    }
 }
 
 #[proc_macro_derive(SelectItem, attributes(select_item))]

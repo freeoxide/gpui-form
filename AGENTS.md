@@ -181,11 +181,6 @@ inventory or codegen workflows change.
   Docs: [README](crates/gpui-form-i18n/README.md)
   Role: rust-i18n-backed locale bridge (gpui `I18n` global, `init`, `change_locale`, `localize_message`) shared by the facade and story/example apps. Most users should consume it through `gpui_form::i18n`.
 
-- `crates/gpui-form-mcp`
-  Audience: **Public integration**
-  Docs: [README](crates/gpui-form-mcp/README.md)
-  Role: optional MCP integration exposing generated forms as MCP tools, resources, and prompts; enabled through the facade's `mcp` feature (`gpui_form::mcp`).
-
 ### Internal Crates
 
 - `crates/gpui-form-codegen`
@@ -208,11 +203,6 @@ inventory or codegen workflows change.
   Prototype generator that reads `GpuiFormShape` inventory data and emits form scaffolding.
 
   Run with `cargo run -p prototyping`.
-
-- `examples/mcp-submit`
-  stdio MCP server example for the facade `mcp` feature: generated submit/editor tools, schema metadata, resources, and prompts with an in-repo JSON-RPC test client.
-
-  Validate with `cargo test -p mcp-submit`.
 
 - `examples/forms-demo`
   Standalone GPUI demo app on the current stack: one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and `FormState` dirty tracking with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.

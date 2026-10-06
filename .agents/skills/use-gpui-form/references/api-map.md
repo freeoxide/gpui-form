@@ -15,7 +15,7 @@ the repository root `README.md` (single source) — do not transcribe them here.
 Install from git: `gpui-form = { git = "https://github.com/stayhydated/gpui-form" }`.
 The crates.io `gpui-form` package is the upstream `freeoxide/gpui-form`
 lineage, not this fork. Optional additive features: `inventory`, `serde`,
-`phone`, `mcp` (see the facade README feature list or root `README.md`
+`phone` (see the facade README feature list or root `README.md`
 §Installation).
 
 ## Facade Imports

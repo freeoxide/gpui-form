@@ -1,4 +1,0 @@
-mcp_submit:
-  kind_support_ticket: support_ticket
-  kind_tenant_note: tenant_note
-  tenant_context: provided-by-application-context

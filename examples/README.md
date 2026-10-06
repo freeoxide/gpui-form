@@ -44,18 +44,6 @@ Run it with:
 cargo run -p prototyping
 ```
 
-## mcp-submit
-
-stdio MCP server built on the facade's `mcp` feature: generated submit and
-editor tools, schema metadata, resources, and prompt templates for a
-`GpuiForm`-backed demo model, with an in-repo JSON-RPC test client.
-
-Run its tests with:
-
-```sh
-cargo test -p mcp-submit
-```
-
 ## forms-demo
 
 Standalone GPUI app built entirely on the current stack,

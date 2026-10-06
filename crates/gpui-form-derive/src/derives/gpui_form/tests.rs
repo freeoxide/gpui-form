@@ -70,7 +70,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -115,7 +114,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -165,7 +163,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -234,7 +231,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -282,7 +278,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -321,7 +316,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -358,7 +352,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -408,7 +401,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -464,7 +456,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -496,7 +487,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -544,7 +534,6 @@ mod gpui_form_tests {
             derive_input,
             structs::GpuiFormOptions {
                 generate_shape: true,
-                generate_mcp: false,
             },
         );
 
@@ -584,60 +573,6 @@ mod gpui_form_tests {
         assert!(
             result.is_err(),
             "unknown width value must be rejected by the attribute parser"
-        );
-    }
-
-    #[test]
-    fn test_mcp_attribute_requires_mcp_feature() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            #[gpui_form(mcp)]
-            struct TestForm {
-                value: String,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expand_gpui_form(
-            derive_input,
-            GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: false,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("requiresthe`gpui-form/mcp`feature"),
-            "mcp attribute should require the mcp feature: {compact}"
-        );
-    }
-
-    #[test]
-    fn test_mcp_attribute_rejects_generic_forms() {
-        let tokens = quote! {
-            #[derive(GpuiForm)]
-            #[gpui_form(mcp)]
-            struct TestForm<T> {
-                value: T,
-            }
-        };
-
-        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
-        let expanded = expand_gpui_form(
-            derive_input,
-            GpuiFormOptions {
-                generate_shape: true,
-                generate_mcp: true,
-            },
-        );
-
-        let compact = compact_tokens(&expanded.to_string());
-
-        assert!(
-            compact.contains("doesnotsupportgenericforms"),
-            "mcp attribute should reject generic forms: {compact}"
         );
     }
 }

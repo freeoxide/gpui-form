@@ -29,7 +29,6 @@ gpui-form = { git = "https://github.com/stayhydated/gpui-form" }
 
 - `derive` (default): the `GpuiForm`, `SelectItem`, and `CustomComponentState` proc macros.
 - `inventory`: register `GpuiFormShape` metadata for prototyping and code generation.
-- `mcp`: expose generated forms as MCP tools, resources, and prompts (`gpui_form::mcp`).
 - `phone`: parser-backed phone-number validation helpers (`gpui_form::phone`).
 - `serde`: `Serialize`/`Deserialize` on generated value holders, for persistence and dirty tracking.
 
