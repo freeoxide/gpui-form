@@ -91,14 +91,6 @@ impl FluentKvOptions {
             keys_this: self.keys_this || other.keys_this,
         }
     }
-
-    fn uses_type_label(self) -> bool {
-        self.has_label && self.keys_this
-    }
-
-    fn uses_type_description(self) -> bool {
-        self.has_description && self.keys_this
-    }
 }
 
 impl VariantInfo {
@@ -203,17 +195,9 @@ pub fn from(input: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
-    let type_label_impl = if fluent_kv.uses_type_label() {
-        quote! { stringify!(#enum_ident).into() }
-    } else {
-        quote! { stringify!(#enum_ident).into() }
-    };
+    let type_label_impl = quote! { stringify!(#enum_ident).into() };
 
-    let type_description_impl = if fluent_kv.uses_type_description() {
-        quote! { stringify!(#enum_ident).into() }
-    } else {
-        quote! { stringify!(#enum_ident).into() }
-    };
+    let type_description_impl = quote! { stringify!(#enum_ident).into() };
 
     let variants: Result<Vec<VariantInfo>, syn::Error> = match &args.data {
         darling::ast::Data::Enum(variants) => variants

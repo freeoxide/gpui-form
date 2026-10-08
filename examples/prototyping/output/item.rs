@@ -25,9 +25,6 @@ const CONTEXT: &str = "ItemForm";
 fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
     crate::i18n::localize_message(cx, key)
 }
-#[::gpui_storybook::story_init]
-pub fn init(_cx: &mut App) {}
-#[::gpui_storybook::story]
 pub struct ItemForm {
     current_data: ItemFormValueHolder,
     fields: ItemFormFields,
@@ -37,14 +34,6 @@ pub struct ItemForm {
 impl Focusable for ItemForm {
     fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
-    }
-}
-impl ::gpui_storybook::Story for ItemForm {
-    fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label(cx, "item_label")
-    }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl ItemForm {
@@ -105,7 +94,7 @@ impl ItemForm {
             }
         }
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = ItemFormValueHolder::default();
         let index_number_input = cx
             .new(|cx| ItemFormComponents::index_number_input(window, cx));
@@ -208,6 +197,7 @@ impl Render for ItemForm {
             .p_4()
             .justify_start()
             .gap_3()
+            .child(v_flex().text_lg().font_semibold().child(localize(cx, "item_label")))
             .child(Separator::horizontal())
             .child(
                 v_form()

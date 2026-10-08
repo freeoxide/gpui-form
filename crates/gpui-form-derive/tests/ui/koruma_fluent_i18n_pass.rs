@@ -14,6 +14,13 @@ struct SignupForm {
     note: String,
 }
 
+#[derive(GpuiForm)]
+#[gpui_form(koruma(fluent))]
+struct OptionalOnlyForm {
+    note: Option<String>,
+    kind: Option<u8>,
+}
+
 #[derive(Clone, Debug, PartialEq, SelectItem)]
 #[select_item(fluent)]
 enum PlanTier {
@@ -49,6 +56,25 @@ fn main() {
     assert_eq!(
         &*rust_i18n::t!("signup_form.note_label"),
         "Additional notes"
+    );
+    assert_eq!(
+        OptionalOnlyFormFormValueHolder::OPTIONAL_ONLY_FORM_I18N_KEY_PREFIX,
+        "optional_only_form"
+    );
+    assert_eq!(
+        OptionalOnlyFormFormValueHolder::NOTE_LABEL_KEY,
+        "optional_only_form.note_label"
+    );
+    assert_eq!(
+        OptionalOnlyFormFormValueHolder::validation_issue_key("RangeValidation"),
+        "validation.invalid",
+        "forms without validators emit only the fallback arm"
+    );
+    assert!(
+        OptionalOnlyFormFormValueHolder::default()
+            .validate()
+            .is_ok(),
+        "koruma(fluent) without validators must still derive a working validate()"
     );
     assert_eq!(&*PlanTier::Basic.title(), "Basic plan");
     assert_eq!(&*PlanTier::Professional.title(), "Professional plan");

@@ -42,4 +42,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `use-gpui-form` skill, and the codegen and schema architecture notes.
 - Marked the phone part of feature-backlog item #18 as shipped.
 
-[0.5.2]: https://github.com/freeoxide/gpui-form/releases/tag/v0.5.2
+[0.5.2]: https://github.com/stayhydated/gpui-form/releases/tag/v0.5.2

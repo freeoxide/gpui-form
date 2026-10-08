@@ -31,9 +31,6 @@ const CONTEXT: &str = "LocationFormForm";
 fn localize(cx: &impl ::std::borrow::Borrow<App>, key: &str) -> String {
     crate::i18n::localize_message(cx, key)
 }
-#[::gpui_storybook::story_init]
-pub fn init(_cx: &mut App) {}
-#[::gpui_storybook::story]
 pub struct LocationFormForm {
     current_data: LocationFormFormValueHolder,
     fields: LocationFormFormFields,
@@ -43,14 +40,6 @@ pub struct LocationFormForm {
 impl Focusable for LocationFormForm {
     fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
-    }
-}
-impl ::gpui_storybook::Story for LocationFormForm {
-    fn title(cx: &::gpui::App) -> String {
-        crate::i18n::localize_label(cx, "location_form_label")
-    }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        cx.new(|cx| Self::new(window, cx))
     }
 }
 impl LocationFormForm {
@@ -82,7 +71,7 @@ impl LocationFormForm {
     ) {
         self.current_data.location = event.value().clone();
     }
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let current_data = LocationFormFormValueHolder::default();
         let name_input = cx.new(|cx| LocationFormFormComponents::name_input(window, cx));
         let location_infinite_select = cx
@@ -185,6 +174,12 @@ impl Render for LocationFormForm {
             .p_4()
             .justify_start()
             .gap_3()
+            .child(
+                v_flex()
+                    .text_lg()
+                    .font_semibold()
+                    .child(localize(cx, "location_form_label")),
+            )
             .child(Separator::horizontal())
             .child(
                 v_form()

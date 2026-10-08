@@ -41,21 +41,6 @@ pub fn expand_gpui_form(
 
     let koruma_options = parsed.koruma.as_ref().map(|k| k.0.clone());
 
-    if parsed.mcp.is_some() && !options.generate_mcp {
-        return syn::Error::new_spanned(
-            &derive_input,
-            "`#[gpui_form(mcp)]` requires the `gpui-form/mcp` feature",
-        )
-        .to_compile_error();
-    }
-    if parsed.mcp.is_some() && !original_input.generics.params.is_empty() {
-        return syn::Error::new_spanned(
-            &derive_input,
-            "`#[gpui_form(mcp)]` does not support generic forms because MCP submit tools are registered in inventory",
-        )
-        .to_compile_error();
-    }
-
     if parsed.empty {
         let enable_koruma = koruma_options.is_some();
         let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
@@ -85,22 +70,6 @@ pub fn expand_gpui_form(
             quote! {}
         };
 
-        #[cfg(feature = "mcp")]
-        let mcp_impl = if options.generate_mcp && parsed.mcp.is_some() {
-            let facade_crate = crate::derives::gpui_form::mcp::resolve_facade_crate();
-            crate::derives::gpui_form::mcp::generate_mcp_impl(
-                &facade_crate,
-                &original_input,
-                &empty_fields,
-                enable_koruma,
-                parsed.mcp.as_ref(),
-            )
-        } else {
-            quote! {}
-        };
-        #[cfg(not(feature = "mcp"))]
-        let mcp_impl = quote! {};
-
         return quote! {
             #value_holder_tokens
             #field_path_tokens
@@ -109,8 +78,6 @@ pub fn expand_gpui_form(
             #shape_impl
 
             pub struct #components_base_declarations_name;
-
-            #mcp_impl
         };
     }
 
@@ -221,8 +188,6 @@ pub fn expand_gpui_form(
             override_type: field.r#type.as_ref().map(|ty| ty.0.clone()),
             into_expr: field.into.clone(),
             from_expr: field.from.clone(),
-            label: field.label.clone(),
-            description: field.description.clone(),
             skip: field.skip(),
         });
     }
@@ -392,22 +357,6 @@ pub fn expand_gpui_form(
         quote! {}
     };
 
-    #[cfg(feature = "mcp")]
-    let mcp_impl = if options.generate_mcp && parsed.mcp.is_some() {
-        let facade_crate = crate::derives::gpui_form::mcp::resolve_facade_crate();
-        crate::derives::gpui_form::mcp::generate_mcp_impl(
-            &facade_crate,
-            &original_input,
-            &field_optionality,
-            effective_enable_koruma,
-            parsed.mcp.as_ref(),
-        )
-    } else {
-        quote! {}
-    };
-    #[cfg(not(feature = "mcp"))]
-    let mcp_impl = quote! {};
-
     let expanded = quote! {
         #value_holder_tokens
         #field_path_tokens
@@ -422,8 +371,6 @@ pub fn expand_gpui_form(
         impl #components_base_declarations_name {
           #(#field_base_declarations_tokens)*
         }
-
-        #mcp_impl
     };
 
     expanded

@@ -60,7 +60,7 @@ Responsibilities:
 - serialize stable key paths to and from strings for persistence
 - report invalid stored paths with `InfiniteSelectPathError`
 - own the cascading root/child `SelectState`s through `InfiniteSelectState`
-- expose render-ready `InfiniteSelectLevel` / `InfiniteSelectSnapshot` views and
+- expose render-ready `InfiniteSelectLevel` views and
   `form_fields()` helpers for form code
 - reconstruct nested enum values from stored paths
 - emit `InfiniteSelectEvent<T>` with previous/current value state, both path
@@ -168,9 +168,7 @@ Responsibilities:
    `gpui_form::i18n`), so these strings follow the same locale as `gpui-kit`
    widgets.
 1. Caller-provided labels, prompts, placeholders, and event errors remain
-   caller-owned text.
-1. Story/demo text belongs to `gpui-form-component-story`, not this runtime
-   crate.
+   caller-owned text; story/demo-only text stays out of this runtime crate.
 
 ## Dependency Role
 

@@ -165,9 +165,6 @@ fn install(i18n: I18n, cx: &mut App) {
 }
 
 fn set_shared_locale(locale: &str) {
-    #[cfg(feature = "component")]
-    gpui_kit::component::set_locale(locale);
-    #[cfg(not(feature = "component"))]
     rust_i18n::set_locale(locale);
 }
 
@@ -193,48 +190,6 @@ pub fn humanize_key(key: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-#[cfg(feature = "component")]
-pub fn component_language(fallback: &str) -> LanguageIdentifier {
-    gpui_kit::component::locale()
-        .parse::<LanguageIdentifier>()
-        .or_else(|_| fallback.parse::<LanguageIdentifier>())
-        .expect("fallback language must be a valid language identifier")
-}
-
-#[cfg(feature = "component")]
-pub fn init_from_component_locale(cx: &mut App, fallback: &str) {
-    init_with_language(cx, component_language(fallback));
-}
-
-#[cfg(feature = "component")]
-pub fn set_component_locale(
-    cx: &mut App,
-    locale: impl AsRef<str>,
-    fallback: &str,
-) -> Result<LanguageIdentifier, LocalizationError> {
-    let language = locale
-        .as_ref()
-        .parse::<LanguageIdentifier>()
-        .unwrap_or_else(|_| {
-            fallback
-                .parse()
-                .expect("fallback language must be a valid language identifier")
-        });
-
-    gpui_kit::component::set_locale(&language.to_string());
-    replace_with_language(cx, language.clone());
-    Ok(language)
-}
-
-#[cfg(feature = "component")]
-pub fn sync_component_locale(cx: &impl Borrow<App>, fallback: &str) -> LanguageIdentifier {
-    let language = component_language(fallback);
-    if let Some(i18n) = cx.borrow().try_global::<I18n>() {
-        let _ = i18n.select_language(language.clone());
-    }
-    language
 }
 
 #[cfg(test)]

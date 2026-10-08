@@ -54,7 +54,6 @@ Useful runtime types:
 - `SearchableInfiniteSelectState<T>`
 - `InfiniteSelectEvent<T>`
 - `InfiniteSelectLevel<D>`
-- `InfiniteSelectSnapshot<T, D>`
 - `InfiniteSelectStateOptions`
 - `to_select_items::<T>()`
 - `path_from_value(&value)`
@@ -181,19 +180,6 @@ FilePicker::new(&picker)
 Use `FilePicker::directories()` or `FilePicker::files_or_directories()` when
 the dialog should select directories instead of files. Multiple selection is
 available through `FilePicker::multiple(true)`.
-
-## Component Stories
-
-This crate is library-only. The interactive infinite-select, date-picker, and
-file-picker storybook gallery lives in
-[`gpui-form-component-story`](../gpui-form-component-story/README.md), which
-owns the demo UI, launcher binary, and any story-only demo metadata.
-
-Launch the component gallery with:
-
-```sh
-cargo run -p gpui-form-component-story
-```
 
 ## Custom Components
 

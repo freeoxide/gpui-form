@@ -11,11 +11,9 @@ readme = "README.md"
 
 [features]
 default = []
-component = [ "dep:gpui-kit" ]
 
 [dependencies]
 gpui = { workspace = true }
-gpui-kit = { optional = true, workspace = true }
 rust-i18n = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }

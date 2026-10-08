@@ -9,9 +9,9 @@ rust_i18n::i18n!("locales", fallback = "en");
 // import targeted lib to get inventory registrations
 extern crate some_lib;
 
-struct StorybookLayout;
+struct ComponentLayout;
 
-impl FormLayout for StorybookLayout {
+impl FormLayout for ComponentLayout {
     fn generate_file(&self, parts: &FormParts) -> syn::File {
         let FormParts {
             struct_name_ident,
@@ -161,11 +161,21 @@ impl FormLayout for StorybookLayout {
 
         let title_key = format!("{}_label", struct_name_ident.to_string().to_snake_case());
 
+        let scaffold_imports = if *is_empty {
+            quote! {
+                use ::gpui::{App, Context, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, Styled, Window};
+            }
+        } else {
+            quote! {
+                use ::gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, Styled, Window};
+                use ::gpui_kit::component::Disableable as _;
+            }
+        };
+
         syn::parse2(quote! {
             #imports
             #i18n_key_items
-            use ::gpui::{App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, Styled, Window};
-            use ::gpui_kit::component::Disableable as _;
+            #scaffold_imports
             use ::gpui_kit::component::separator::Separator;
             use ::gpui_kit::component::form::v_form;
             use ::gpui_kit::component::v_flex;
@@ -177,10 +187,6 @@ impl FormLayout for StorybookLayout {
                 crate::i18n::localize_message(cx, key)
             }
 
-            #[::gpui_storybook::story_init]
-            pub fn init(_cx: &mut App) {}
-
-            #[::gpui_storybook::story]
             pub struct #form_ident {
                 #current_data_field
                 fields: #form_fields_ident,
@@ -194,20 +200,10 @@ impl FormLayout for StorybookLayout {
                 }
             }
 
-            impl ::gpui_storybook::Story for #form_ident {
-                fn title(cx: &::gpui::App) -> String {
-                    crate::i18n::localize_label(cx, #title_key)
-                }
-
-                fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-                    cx.new(|cx| Self::new(window, cx))
-                }
-            }
-
             impl #form_ident {
                 #event_handlers
 
-                fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+                pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
                     #current_data_let
 
                     #component_creations
@@ -237,6 +233,12 @@ impl FormLayout for StorybookLayout {
                         .p_4()
                         .justify_start()
                         .gap_3()
+                        .child(
+                            v_flex()
+                                .text_lg()
+                                .font_semibold()
+                                .child(localize(cx, #title_key)),
+                        )
                         .child(Separator::horizontal())
                         .child(
                             v_form()
@@ -273,7 +275,7 @@ fn main() {
         println!("Shape: {:?}", shape);
 
         let syn_file = FormShapeAdapter::new(shape)
-            .generate_file(&StorybookLayout)
+            .generate_file(&ComponentLayout)
             .unwrap_or_else(|err| {
                 panic!(
                     "Failed to generate prototyping scaffold for {}: {err}",

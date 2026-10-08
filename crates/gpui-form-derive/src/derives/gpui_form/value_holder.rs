@@ -519,7 +519,10 @@ pub fn generate_value_holder(
         derives.push(quote! { ::serde::Deserialize });
     }
 
-    let derive_output = quote! { #[derive(#(#derives),*)] };
+    let derive_output = quote! {
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(#(#derives),*)]
+    };
     let builder_attr = if has_skipped_fields {
         quote! { #[builder(crate = ::gpui_form::bon)] }
     } else {

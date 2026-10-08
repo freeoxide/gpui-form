@@ -864,57 +864,6 @@ where
     }
 }
 
-/// An owned snapshot of the current infinite-select runtime state.
-#[derive(Clone)]
-pub struct InfiniteSelectSnapshot<T, D>
-where
-    D: SelectDelegate + 'static,
-{
-    value: T,
-    path: InfiniteSelectPath,
-    key_path: InfiniteSelectKeyPath,
-    levels: Vec<InfiniteSelectLevel<D>>,
-}
-
-impl<T, D> InfiniteSelectSnapshot<T, D>
-where
-    T: InfiniteSelect,
-    D: SelectDelegate + 'static,
-{
-    /// Returns the concrete selected value.
-    pub fn value(&self) -> &T {
-        &self.value
-    }
-
-    /// Returns the current index-based selection path.
-    pub fn path(&self) -> &InfiniteSelectPath {
-        &self.path
-    }
-
-    /// Returns the current key-based selection path.
-    pub fn key_path(&self) -> &InfiniteSelectKeyPath {
-        &self.key_path
-    }
-
-    /// Returns the rendered select levels in root-to-leaf order.
-    pub fn levels(&self) -> &[InfiniteSelectLevel<D>] {
-        &self.levels
-    }
-
-    /// Consumes the snapshot and returns the owned level list.
-    pub fn into_levels(self) -> Vec<InfiniteSelectLevel<D>> {
-        self.levels
-    }
-
-    /// Returns render-ready GPUI form fields for each select level.
-    pub fn form_fields(&self) -> Vec<Field> {
-        self.levels
-            .iter()
-            .map(InfiniteSelectLevel::to_form_field)
-            .collect()
-    }
-}
-
 /// Runtime state for a cascading infinite-select field.
 pub struct InfiniteSelectState<T, D = Vec<InfiniteSelectItem<T>>>
 where
@@ -1036,16 +985,6 @@ where
             &self.master_select,
             &self.child_selects,
         )
-    }
-
-    /// Returns an owned snapshot of the value, paths, and rendered levels.
-    pub fn snapshot(&self) -> InfiniteSelectSnapshot<T, D> {
-        InfiniteSelectSnapshot {
-            value: self.value.clone(),
-            path: self.path.clone(),
-            key_path: self.key_path.clone(),
-            levels: self.levels(),
-        }
     }
 
     /// Returns render-ready GPUI form fields for each visible select level.

@@ -43,9 +43,11 @@ shows the normal flow:
 1. render a file through a custom `FormLayout`
 1. clear stale generated modules and write the generated form files
 
-When the layout emits `gpui_storybook::Story`, pass the `cx: &gpui::App`
-provided by `Story::title` into the application i18n helper so generated form
-titles follow the active Storybook locale.
+The example's layout emits each form as a plain GPUI component: a `pub struct`
+with a `pub fn new(window, cx)` constructor and a `Render` implementation, with
+no story-app or `Story` trait glue. Route the form title through the consuming
+crate's i18n helper (for example `localize(cx, "<form>_label")`) so generated
+titles follow the active locale.
 
 Generated infinite-select and file-picker fields use the same runtime helpers
 that hand-written forms use. Generated text inputs use the form-side
