@@ -59,13 +59,24 @@ generated `SignupFormState` facade: inputs mark touched on blur and other
 component kinds on change, the footer lists the live changed/touched fields
 through `FieldPath` Display, and per-field errors render through
 `error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
-koruma validation or builds a throwaway dirty-check clone. Standalone runtime
+koruma validation or builds a throwaway dirty-check clone. The M2 submit
+lifecycle is wired end-to-end: a Submit button drives the opt-in
+`SignupFormSubmission` tracker (`#[gpui_form(submit)]`) through
+`begin()` → a spawned `SubmitAction` future with simulated latency →
+`finish()`, disables while submitting, syncs the baseline on success, and
+renders `last_error` banners by re-keying the typed koruma error through
+`SignupFormFieldErrors` into the localized `validation.*` keys; a simulated
+async availability check on the email field implements the
+`AsyncFieldValidation` contract with a generation guard against stale
+completions; and the facade's snapshot-compare validation cache feeds a live
+`is_valid` footer indicator. Standalone runtime
 components add a date picker and a multiple-mode file picker whose pluralized
 count text follows the locale. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,
-dirty/changed/touched state, picked paths count, and the typed field paths.
+dirty/changed/touched/valid/submitting state, submit attempts, picked paths
+count, and the typed field paths.
 
 Run it with:
 

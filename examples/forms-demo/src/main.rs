@@ -6,10 +6,12 @@ use gpui::{
 };
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_form::runtime::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
-use gpui_form::{GpuiForm, SelectItem};
+use gpui_form::{
+    AsyncFieldValidation, FieldPath, GpuiForm, SelectItem, SubmitAction, SubmitTracker,
+};
 use gpui_kit::assets::Assets;
 use gpui_kit::component::{
-    ActiveTheme as _, Sizable as _,
+    ActiveTheme as _, Disableable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
     checkbox::Checkbox,
     form::{field, v_form},
@@ -22,13 +24,14 @@ use gpui_kit::component::{
     switch::Switch,
 };
 use gpui_kit::*;
-use koruma::{Koruma, KorumaAllDisplay};
+use koruma::{Koruma, KorumaAllDisplay, ValidateExt};
 use koruma_collection::{
     collection::{LenValidation, NonEmptyValidation},
     format::EmailValidation,
     numeric::RangeValidation,
 };
 use rust_i18n::t;
+use std::time::Duration;
 use strum::EnumIter;
 use unic_langid::LanguageIdentifier;
 
@@ -86,7 +89,7 @@ impl std::fmt::Display for RequestCodeKorumaValidationError {
 
 #[derive(Clone, Debug, Default, GpuiForm, Koruma, KorumaAllDisplay)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[gpui_form(koruma(fluent))]
+#[gpui_form(koruma(fluent), submit)]
 pub struct Signup {
     #[gpui_form(label = "Username", placeholder = "ada", component(input))]
     #[koruma(NonEmptyValidation::<_>::builder())]
@@ -123,9 +126,70 @@ pub struct Signup {
     pub session_id: u32,
 }
 
+/// Live state of the simulated async availability check on the email field
+/// (M2 async-validation contract showcase; the driver is app code).
+#[derive(Clone, Debug, Default, PartialEq)]
+enum EmailCheck {
+    #[default]
+    Idle,
+    Pending,
+    Failed(&'static str),
+}
+
+/// App-owned async validator implementing the M2 headless contract
+/// (`AsyncFieldValidation`): one impl serves the whole form, returning
+/// `Ok(())` for fields it does not handle.
+struct EmailAvailability;
+
+impl AsyncFieldValidation<SignupFormValueHolder> for EmailAvailability {
+    type Error = &'static str;
+
+    async fn validate_field(
+        &self,
+        holder: &SignupFormValueHolder,
+        field: &FieldPath,
+    ) -> Result<(), Self::Error> {
+        if field.segments() != ["email"] {
+            return Ok(());
+        }
+        match holder.email.as_deref() {
+            Some(email) if email.eq_ignore_ascii_case("taken@example.com") => {
+                Err("app.email_taken")
+            },
+            _ => Ok(()),
+        }
+    }
+}
+
+/// App-owned submit hook implementing the M2 headless contract
+/// (`SubmitAction`): the submit failure type is the form's typed koruma
+/// error, so a failed validate-then-submit carries the field errors.
+struct SignupSubmit;
+
+impl SubmitAction<SignupFormValueHolder> for SignupSubmit {
+    type Output = ();
+    type Error = <SignupFormValueHolder as ValidateExt>::Error;
+
+    async fn submit(&mut self, holder: &SignupFormValueHolder) -> Result<(), Self::Error> {
+        match holder.validate() {
+            Ok(()) => Ok(()),
+            Err(errors) => Err(errors),
+        }
+    }
+}
+
 struct FormsDemo {
     form: SignupFormState,
-    validation: Option<SignupFormFieldErrors>,
+    /// Whether validation errors are displayed at all (app-owned display
+    /// policy: hidden until the first Validate click or submit attempt —
+    /// the facade's cache is independent of this flag).
+    errors_shown: bool,
+    /// Headless submit lifecycle (M2): the generated opt-in alias over the
+    /// core `SubmitTracker`, keyed on the typed koruma error.
+    submission: SignupFormSubmission,
+    /// Async email check driver state (latest-wins generation guard, D7).
+    email_check: EmailCheck,
+    email_check_generation: u64,
     fields: SignupFormFields,
     standalone_picker: Entity<DatePickerState>,
     file_picker: Entity<FilePickerState>,
@@ -137,7 +201,10 @@ struct FormsDemo {
 
 impl FormsDemo {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let form = SignupFormState::new(SignupFormValueHolder::default());
+        let mut form = SignupFormState::new(SignupFormValueHolder::default());
+        // Seed the validation cache so the footer's live `is_valid` reads
+        // are comparisons from the first frame, not per-frame koruma runs.
+        form.validate();
         let username_input = cx.new(|cx| SignupFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| SignupFormComponents::email_input(window, cx));
         let age_number_input = cx.new(|cx| SignupFormComponents::age_number_input(window, cx));
@@ -164,7 +231,10 @@ impl FormsDemo {
 
         Self {
             form,
-            validation: None,
+            errors_shown: false,
+            submission: SubmitTracker::new(),
+            email_check: EmailCheck::Idle,
+            email_check_generation: 0,
             fields: SignupFormFields {
                 username_input,
                 email_input,
@@ -183,11 +253,41 @@ impl FormsDemo {
         }
     }
 
-    /// Recompute the path-keyed validation map. Called from the Validate
-    /// button and (once validation is displayed) from change handlers, so
-    /// `render` never runs koruma validation per frame.
+    /// Refresh the facade's validation cache. Called from every change
+    /// handler and the Validate/Submit buttons, so `render` never runs
+    /// koruma validation per frame (the cached verdict serves `is_valid()`
+    /// and the error display for one `PartialEq` per read).
     fn revalidate(&mut self) {
-        self.validation = Some(self.form.current().validate_fields());
+        self.form.validate();
+    }
+
+    /// Kick off the simulated async availability check on the email field:
+    /// a spawned task drives the `AsyncFieldValidation` future after a
+    /// latency timer, and the generation guard ignores completions that a
+    /// newer edit superseded (latest-wins, the D7 pattern in app code).
+    fn start_email_check(&mut self, cx: &mut Context<Self>) {
+        self.email_check_generation += 1;
+        let generation = self.email_check_generation;
+        self.email_check = EmailCheck::Pending;
+        let holder = self.form.current().clone();
+        let field = FieldPath::new(&["email"]);
+        cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(Duration::from_millis(400))
+                .await;
+            let outcome = EmailAvailability.validate_field(&holder, &field).await;
+            _ = this.update(cx, |this, cx| {
+                if this.email_check_generation != generation {
+                    return; // stale completion: a newer edit superseded it
+                }
+                this.email_check = match outcome {
+                    Ok(()) => EmailCheck::Idle,
+                    Err(key) => EmailCheck::Failed(key),
+                };
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn on_username_change(
@@ -210,9 +310,7 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
-                if self.validation.is_some() {
-                    self.revalidate();
-                }
+                self.revalidate();
                 cx.notify();
             },
             _ => {},
@@ -238,9 +336,10 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
-                if self.validation.is_some() {
-                    self.revalidate();
-                }
+                self.revalidate();
+                // Async availability check (M2): every edit starts a fresh
+                // generation; the guard drops completions from older edits.
+                self.start_email_check(cx);
                 cx.notify();
             },
             _ => {},
@@ -262,9 +361,7 @@ impl FormsDemo {
             InputEvent::Change => {
                 let text = state.read(cx).value();
                 self.form.current_mut().age = text.parse::<u32>().ok();
-                if self.validation.is_some() {
-                    self.revalidate();
-                }
+                self.revalidate();
                 cx.notify();
             },
             _ => {},
@@ -295,9 +392,7 @@ impl FormsDemo {
         };
         self.form.current_mut().age = Some(next);
         self.form.touch(&SignupFormPath::age());
-        if self.validation.is_some() {
-            self.revalidate();
-        }
+        self.revalidate();
         state.update(cx, |input, cx| {
             input.set_value(next.to_string(), window, cx);
         });
@@ -316,9 +411,7 @@ impl FormsDemo {
         // Select-kind components mark touched on value change until their
         // blur surfaces are verified.
         self.form.touch(&SignupFormPath::country());
-        if self.validation.is_some() {
-            self.revalidate();
-        }
+        self.revalidate();
         cx.notify();
     }
 
@@ -333,9 +426,7 @@ impl FormsDemo {
         if let Some(value) = value {
             self.form.current_mut().language = value.clone();
             self.form.touch(&SignupFormPath::language());
-            if self.validation.is_some() {
-                self.revalidate();
-            }
+            self.revalidate();
             cx.notify();
         }
     }
@@ -359,9 +450,7 @@ impl FormsDemo {
                 } else {
                     text.parse::<RequestCode>().ok()
                 };
-                if self.validation.is_some() {
-                    self.revalidate();
-                }
+                self.revalidate();
                 cx.notify();
             },
             _ => {},
@@ -379,9 +468,7 @@ impl FormsDemo {
         self.form.current_mut().birth_date =
             date.and_then(gpui_form::runtime::date_picker::parse_form_date);
         self.form.touch(&SignupFormPath::birth_date());
-        if self.validation.is_some() {
-            self.revalidate();
-        }
+        self.revalidate();
         cx.notify();
     }
 
@@ -433,10 +520,50 @@ impl FormsDemo {
         cx.notify();
     }
 
+    /// The M2 submit protocol in app code: gate on live validity, begin the
+    /// attempt (re-entry guard), drive the `SubmitAction` future in a
+    /// spawned task, and feed its result back through `finish`. A success
+    /// re-syncs the baseline (the save protocol `sync_baseline` exists
+    /// for); a failure stays in `last_error` for the banner.
+    fn submit(&mut self, cx: &mut Context<Self>) {
+        self.revalidate();
+        self.errors_shown = true;
+        if !self.form.is_valid() {
+            self.status = Some(t!("app.invalid").to_string().into());
+            cx.notify();
+            return;
+        }
+        if !self.submission.begin() {
+            cx.notify();
+            return;
+        }
+        let holder = self.form.current().clone();
+        cx.spawn(async move |this, cx| {
+            // Simulated network latency so `is_submitting` is observable.
+            cx.background_executor()
+                .timer(Duration::from_millis(700))
+                .await;
+            let result = SignupSubmit.submit(&holder).await;
+            _ = this.update(cx, |this, cx| {
+                this.submission.finish(result.map(|_| ()));
+                if this.submission.is_submit_successful() {
+                    this.form.sync_baseline();
+                    this.status = Some(t!("app.saved").to_string().into());
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
     /// Localized error text for one field, selected through the typed path
     /// (`error_for`) instead of hand-matching koruma output per field.
     fn localized_path_error(&self, locale: &str, field: &SignupFormPath) -> Option<String> {
-        let errors = self.validation.as_ref()?;
+        if !self.errors_shown {
+            return None;
+        }
+        let errors = self.form.validation()?;
         let field_error = errors.error_for(field)?;
         if let SignupFormFieldError::Code(wrapper) = &field_error {
             // The invite code fails either its synthetic required rule or
@@ -494,9 +621,36 @@ impl Render for FormsDemo {
         let active_locale = rust_i18n::locale().to_string();
         let username_error = self.localized_path_error(&active_locale, &SignupFormPath::username());
         let email_error = self.localized_path_error(&active_locale, &SignupFormPath::email());
+        // Live async-check state rides next to the email field's sync error.
+        let email_async = match &self.email_check {
+            EmailCheck::Pending => Some(t!("app.checking").to_string()),
+            EmailCheck::Failed(key) => Some(t!(*key, locale = &active_locale).to_string()),
+            EmailCheck::Idle => None,
+        };
         let age_error = self.localized_path_error(&active_locale, &SignupFormPath::age());
         let code_error = self.localized_path_error(&active_locale, &SignupFormPath::code());
         let danger = cx.theme().danger;
+
+        // M2 readouts: live validity from the cached facade verdict, submit
+        // lifecycle from the headless tracker.
+        let is_valid = self.form.is_valid();
+        let submitting = self.submission.is_submitting();
+        let submit_attempts = self.submission.submit_count();
+        // The banner reuses M1's typed error access on the tracked failure:
+        // the koruma error stored by finish(Err) re-keys through the
+        // generated map and localizes via the same validation.* keys.
+        let submit_error_banner = self
+            .submission
+            .last_error()
+            .map(|error| {
+                SignupFormFieldErrors::from_koruma_errors(error)
+                    .failing_fields()
+                    .flat_map(|(_, field_error)| field_error.issue_keys())
+                    .map(|key| t!(key, locale = &active_locale).to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .filter(|text| !text.is_empty());
 
         let dirty = self.form.is_dirty();
         let changed = self
@@ -573,12 +727,15 @@ impl Render for FormsDemo {
                     .child(
                         field()
                             .label(t!(SignupFormValueHolder::EMAIL_LABEL_KEY).to_string())
-                            .description_fn(move |_, _| match &email_error {
-                                Some(error) => div()
+                            .description_fn(move |_, _| match (&email_error, &email_async) {
+                                (Some(error), _) => div()
                                     .text_color(danger)
                                     .child(error.clone())
                                     .into_any_element(),
-                                None => div().into_any_element(),
+                                (None, Some(async_state)) => {
+                                    div().child(async_state.clone()).into_any_element()
+                                },
+                                (None, None) => div().into_any_element(),
                             })
                             .child(Input::new(&self.fields.email_input)),
                     )
@@ -613,9 +770,7 @@ impl Render for FormsDemo {
                                     .on_click(cx.listener(|this, checked: &bool, _, cx| {
                                         this.form.current_mut().newsletter = *checked;
                                         this.form.touch(&SignupFormPath::newsletter());
-                                        if this.validation.is_some() {
-                                            this.revalidate();
-                                        }
+                                        this.revalidate();
                                         cx.notify();
                                     })),
                             ),
@@ -629,9 +784,7 @@ impl Render for FormsDemo {
                                     .on_click(cx.listener(|this, checked: &bool, _, cx| {
                                         this.form.current_mut().notifications = *checked;
                                         this.form.touch(&SignupFormPath::notifications());
-                                        if this.validation.is_some() {
-                                            this.revalidate();
-                                        }
+                                        this.revalidate();
                                         cx.notify();
                                     })),
                             ),
@@ -688,8 +841,9 @@ impl Render for FormsDemo {
                             .label(t!("app.validate").to_string())
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.revalidate();
+                                this.errors_shown = true;
                                 this.status = Some(
-                                    if this.validation.as_ref().is_some_and(|e| e.is_empty()) {
+                                    if this.form.is_valid() {
                                         t!("app.all_valid").to_string()
                                     } else {
                                         t!("app.invalid").to_string()
@@ -700,11 +854,32 @@ impl Render for FormsDemo {
                             })),
                     )
                     .child(
+                        // Submit lifecycle (M2): the button gates on the
+                        // tracker's re-entry guard, and the spawned task
+                        // drives the SubmitAction future to completion.
+                        Button::new("submit")
+                            .primary()
+                            .disabled(!self.submission.can_submit())
+                            .label(if submitting {
+                                t!("app.submitting").to_string()
+                            } else {
+                                t!("app.submit").to_string()
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.submit(cx);
+                            })),
+                    )
+                    .child(
                         Button::new("reset")
                             .label(t!("app.reset").to_string())
                             .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
                     ),
             )
+            .children(submit_error_banner.map(|text| {
+                div()
+                    .text_color(danger)
+                    .child(format!("{}: {text}", t!("app.submit_failed")))
+            }))
             .child(
                 v_flex()
                     .gap_1()
@@ -714,6 +889,9 @@ impl Render for FormsDemo {
                     .child(format!("{}: {dirty}", t!("app.dirty")))
                     .child(format!("{}: {changed}", t!("app.changed")))
                     .child(format!("{}: {touched}", t!("app.touched")))
+                    .child(format!("{}: {is_valid}", t!("app.valid")))
+                    .child(format!("{}: {submitting}", t!("app.submitting_state")))
+                    .child(format!("{}: {submit_attempts}", t!("app.submit_count")))
                     .child(format!(
                         "{}: {}",
                         t!("app.paths"),
@@ -784,6 +962,15 @@ mod tests {
         "app.changed",
         "app.touched",
         "app.paths_note",
+        "app.submit",
+        "app.submitting",
+        "app.submitting_state",
+        "app.submit_count",
+        "app.saved",
+        "app.submit_failed",
+        "app.valid",
+        "app.email_taken",
+        "app.checking",
         "signup.username_label",
         "signup.email_label",
         "signup.age_label",
@@ -1037,5 +1224,121 @@ mod field_level_state_tests {
         assert_eq!(SignupFormPath::FIELD_COUNT, 9);
         assert_eq!(SignupFormPath::all_paths().count(), 9);
         assert!(!SignupFormPath::FIELD_NAMES.contains(&"session_id"));
+    }
+}
+
+#[cfg(test)]
+mod submit_lifecycle_tests {
+    use crate::{
+        EmailAvailability, EmailCheck, SignupFormFieldErrors, SignupFormPath, SignupFormState,
+        SignupFormSubmission, SignupFormValueHolder,
+    };
+    use gpui_form::AsyncFieldValidation;
+    use gpui_form::core::FormFieldErrors;
+    use gpui_form::{FieldPath, SubmitTracker};
+    use std::future::Future;
+    use std::task::Poll;
+
+    fn block_on<F: Future>(future: F) -> F::Output {
+        let mut future = std::pin::pin!(future);
+        let waker = std::task::Waker::noop();
+        let mut cx = std::task::Context::from_waker(waker);
+        loop {
+            match future.as_mut().poll(&mut cx) {
+                Poll::Ready(output) => return output,
+                Poll::Pending => continue,
+            }
+        }
+    }
+
+    #[test]
+    fn facade_cache_serves_live_validity() {
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        assert!(state.validation().is_none());
+        assert!(!state.is_valid());
+
+        state.validate();
+        assert!(state.validation().is_some());
+        assert!(!state.is_valid(), "default holder fails required fields");
+
+        state.current_mut().username = Some("ada".to_string());
+        state.current_mut().code = Some("AB12".parse().unwrap());
+        state.current_mut().age = Some(30);
+        assert!(state.validation().is_none(), "edits invalidate the cache");
+        assert!(state.is_valid(), "complete valid holder passes");
+        state.validate();
+        assert!(state.validation().is_some());
+
+        // A failed path-keyed lookup still flows through the cache.
+        state.current_mut().age = Some(200);
+        state.validate();
+        let age = state
+            .error_for(&SignupFormPath::age())
+            .expect("out-of-range age must fail");
+        assert_eq!(age.issue_keys(), vec!["validation.range"]);
+    }
+
+    #[test]
+    fn submit_alias_is_a_submit_tracker_over_the_koruma_error() {
+        let mut tracker: SignupFormSubmission = SubmitTracker::new();
+        assert!(tracker.can_submit());
+
+        // A failed validate-then-submit stores the typed koruma error.
+        let failure = SignupFormValueHolder::default()
+            .validate()
+            .err()
+            .expect("default holder must fail");
+        tracker.begin();
+        tracker.finish(Err(failure));
+        assert!(!tracker.is_submit_successful());
+
+        let last = tracker.last_error().expect("recorded failure");
+        let errors = SignupFormFieldErrors::from_koruma_errors(last);
+        let paths = errors
+            .failing_paths()
+            .iter()
+            .map(|path| path.to_string())
+            .collect::<Vec<_>>();
+        assert!(paths.contains(&"username".to_string()));
+
+        tracker.begin();
+        tracker.finish(Ok(()));
+        assert!(tracker.is_submit_successful());
+
+        // The generation guard: a completion after reset is ignored.
+        tracker.begin();
+        tracker.reset();
+        tracker.finish(Ok(()));
+        assert!(!tracker.is_submitted());
+    }
+
+    #[test]
+    fn email_availability_check_rejects_taken_addresses_only() {
+        let taken = SignupFormValueHolder {
+            email: Some("TAKEN@example.com".to_string()),
+            ..Default::default()
+        };
+        let free = SignupFormValueHolder {
+            email: Some("ada@example.com".to_string()),
+            ..Default::default()
+        };
+        let email = FieldPath::new(&["email"]);
+
+        assert_eq!(
+            block_on(EmailAvailability.validate_field(&taken, &email)),
+            Err("app.email_taken")
+        );
+        assert_eq!(
+            block_on(EmailAvailability.validate_field(&free, &email)),
+            Ok(())
+        );
+        // One impl serves the whole form: other fields fall through.
+        assert_eq!(
+            block_on(EmailAvailability.validate_field(&free, &FieldPath::new(&["username"]))),
+            Ok(())
+        );
+
+        // The driver state maps outcomes deterministically.
+        assert_eq!(EmailCheck::default(), EmailCheck::Idle);
     }
 }
