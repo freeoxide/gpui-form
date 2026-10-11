@@ -1055,6 +1055,86 @@ pub state: Option<UsState>,
 Both attributes require a `component(...)` on the same field — the schema
 `FieldVariant` that records them exists only for component fields.
 
+## Schema Export
+
+Every `#[derive(GpuiForm)]` form also emits a `<Name>FormSchema` type whose
+`schema()` accessor returns an owned, serializable description of the form —
+component kinds and behaviour payloads, value and conversion types, validation
+rules, layout hints, nested/list composition, and field dependencies. It is a
+read-only projection of the same metadata the `inventory` feature registers
+for prototyping, so the export can never drift from what the derive builds.
+
+```rs
+use gpui_form::FormSchema;
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct UserProfile {
+    #[gpui_form(component(input), section = "Identity")]
+    pub username: String,
+
+    #[gpui_form(component(input), required_if = subscribe)]
+    pub email: Option<String>,
+
+    #[gpui_form(component(switch))]
+    pub subscribe: bool,
+
+    #[gpui_form(component(nested))]
+    pub address: Address,
+
+    #[gpui_form(component(list(item = input)))]
+    pub tags: Vec<String>,
+}
+
+let schema: FormSchema = UserProfileFormSchema::schema();
+
+assert_eq!(schema.form, "UserProfile");
+assert_eq!(
+    schema.field_names().collect::<Vec<_>>(),
+    vec!["username", "email", "subscribe", "address", "tags"]
+);
+
+let email = schema.field("email").unwrap();
+assert_eq!(email.required_if.as_deref(), Some("subscribe"));
+
+let address = schema.field("address").unwrap();
+assert!(address.is_nested()); // composes the `Address` form
+
+let tags = schema.field("tags").unwrap();
+assert!(tags.is_list()); // item kind: input
+```
+
+The document round-trips through serde out of the box — no feature flag —
+which makes it a fit for documentation generation, test fixtures, and
+non-GPUI consumers that want to inspect a form's shape without running the
+GPUI runtime:
+
+```rs
+let json = serde_json::to_string_pretty(&schema).unwrap();
+let restored: FormSchema = serde_json::from_str(&json).unwrap();
+assert_eq!(restored, schema);
+```
+
+Notes:
+
+- Field entries carry the layout hints (`section`/`label`/`description`/
+  `placeholder`/`width`), the `depends_on`/`required_if` siblings, mirrored
+  koruma rule names, `default`/`from`/`into` expressions, and custom
+  component hints.
+- Component payloads are spelled like the attribute syntax: a select entry
+  records `searchable`/`partial`, a nested entry the nested form struct, a
+  list entry its item kind and `add_label`.
+- Skipped fields are absent from the export; the document flags
+  `has_skipped_fields` so tooling can explain why.
+- The `inventory` feature is not required: only the inventory *registration*
+  is feature-gated; the export always emits. `#[gpui_form(empty)]` forms
+  export an empty field list.
+- `gpui_form::FormSchema` is the facade re-export; the field/component/layout
+  entry types live under `gpui_form::schema::registry`.
+- For human-readable output, `gpui-form-prototyping-core` ships
+  `schema_markdown(&schema)`, which renders the document as a Markdown
+  reference table.
+
 ## Custom Components
 
 There are two supported custom-component workflows.

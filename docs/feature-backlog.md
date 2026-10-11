@@ -385,6 +385,17 @@ field paths are the likely foundation.
 
 ### 14. Schema export
 
+> **Status: shipped (M5).** Every `#[derive(GpuiForm)]` form emits
+> `<Name>FormSchema::schema()`, returning the owned, serializable
+> `gpui_form::FormSchema` document — component kinds and behaviour payloads,
+> value and conversion types, validation rules, layout hints, nested/list
+> composition (M3), and field dependencies (M4). It is a read-only projection
+> of the same `FieldVariant`/`FieldLayout` chain the inventory feature
+> registers (single metadata source; no `inventory` feature needed for the
+> export), round-trips through serde with no feature flag, and
+> `gpui-form-prototyping-core`'s `schema_markdown` renders it for docs.
+> Worked example: root `README.md` §Schema Export.
+
 Export a structured description of a form's fields, component kinds, defaults,
 validation metadata, sections, steps, and custom component hints.
 
@@ -557,11 +568,11 @@ creating a parallel validation system.
 9. Repeated fields — **shipped (M3 v1, scalar items)**; nested item forms
    and reorder arrive in the follow-up milestone.
 10. Partial form holders — **closed by #9** (D10: the patch tri-state already
-   expresses cleared-vs-unchanged; no separate holder type).
+    expresses cleared-vs-unchanged; no separate holder type).
 11. Wizard and step metadata.
 12. Field dependency metadata and conditional requiredness — **shipped (M4
     field dependencies)**.
-13. Schema export.
+13. Schema export — **shipped (M5)**.
 14. Async/select provider contracts.
 15. Phone, email, URL, and typed text validation.
 16. Thin component mappings such as textarea, radio, and slider.

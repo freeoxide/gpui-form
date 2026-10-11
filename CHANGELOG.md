@@ -5,7 +5,54 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0] - 2026-10-11
+## [0.10.0] - 2026-10-11
+
+Milestone 5 of the form feature-parity plan: schema export (backlog #14). A
+read-only projection of the finished metadata model — the same
+`FieldVariant`/`FieldLayout` chain the `inventory` feature registers — into an
+owned, serializable document for documentation generation, test fixtures,
+prototyping tools, and non-GPUI consumers. All additions are additive; the
+minor bump follows the plan's one-minor-per-milestone rule.
+
+### Added
+
+- `<Name>FormSchema::schema()` (backlog #14): every `#[derive(GpuiForm)]`
+  form — including `#[gpui_form(empty)]` forms, and with no `inventory`
+  feature enabled — emits a `<Name>FormSchema` unit type whose `schema()`
+  accessor projects the form's shape chain into a
+  `gpui_form::schema::registry::FormSchema` document. The derive passes the
+  identical `GpuiFormShape` construction tokens to both the
+  `inventory::submit!` registration and the export's `SHAPE` const, so the
+  export cannot drift from the registered metadata.
+- Export view types in `gpui-form-schema` (`registry::FormSchema`,
+  `FormSchemaField`, `FormSchemaComponent`, `FormSchemaLayout`) with
+  `From<&GpuiFormShape>`/`From<&FieldVariant>` conversions and convenience
+  accessors (`field`, `field_names`, `has_validations`, `is_nested`,
+  `is_list`, `kind`). Field entries cover component behaviour payloads
+  (select flags, phone country sibling, number validation type, nested form
+  struct, list item kind/add label), value and conversion types, validation
+  rule names, defaults, custom component hints, layout hints, the async
+  validator path, and the M4 `depends_on`/`required_if` payloads.
+- `gpui_form::FormSchema` root re-export on the facade (entry types stay
+  under `gpui_form::schema::registry`).
+- `schema_markdown(&FormSchema)` in `gpui-form-prototyping-core`: renders the
+  exported document as a Markdown reference table (docs/fixture generation).
+- forms-demo: a footer "Schema" debug toggle printing the exported signup
+  schema — the devtools seed — plus the `app.schema` locale key in
+  en/fr-FR/zh-CN.
+
+### Changed
+
+- `serde` is now a direct (non-optional) dependency of `gpui-form-schema`:
+  the export view types — and `ComponentKind`, `NumberInputKind`, and
+  `LayoutWidth` — derive `Serialize`/`Deserialize` unconditionally, so
+  schema export round-trips with no feature flag anywhere in the chain.
+  This is deliberately separate from the facade's opt-in `serde` feature,
+  which remains about holder persistence. The wire format uses snake_case
+  component tags matching `ComponentKind`'s `Display` and omits absent
+  `Option` hints (`skip_serializing_if` + `default`).
+- Every form's expansion gains the additive `<Name>FormSchema` item; the
+  flat-form expansion snapshots were regenerated accordingly.
 
 Milestone 4 of the form feature-parity plan: field dependency metadata
 (backlog #12) and conditional requiredness (backlog #13). The partial-holder

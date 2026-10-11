@@ -125,6 +125,13 @@ Full syntax inventory: root `README.md` §Component Syntax, or
   `state.patch()` by `state.touched_fields()` — the patch tri-state
   (absent/null/value) already expresses cleared-vs-unchanged, so no separate
   partial-holder type is needed.
+- For documentation generation, test fixtures, or inspecting a form's shape
+  without the GPUI runtime, call `<Name>FormSchema::schema()`: an owned,
+  serializable `gpui_form::FormSchema` covering component kinds and payloads,
+  validation rules, layout hints, nested/list composition, and field
+  dependencies. It round-trips through serde with no feature flag, and
+  `gpui-form-prototyping-core`'s `schema_markdown(&schema)` renders it as a
+  Markdown reference table.
 - Keep consumer code focused on app models, form state, rendering, and
   app-owned components.
 

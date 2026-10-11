@@ -134,6 +134,7 @@ UserProfileFormState
 UserProfileFormPatch
 UserProfileFormFieldErrors   // koruma forms only
 UserProfileFormSubmission    // #[gpui_form(submit)] only
+UserProfileFormSchema        // milestone M5: schema export
 ```
 
 Use the generated value holder for editable form data, defaults, and conversion
@@ -159,7 +160,11 @@ on list fields with `each(...)` validators, `add_<field>` /
 additive `index: Option<usize>` slot on `<Name>FormValueHolderConversionError`.
 `#[gpui_form(submit)]` adds `UserProfileFormSubmission`, an alias over
 `gpui_form::SubmitTracker` keyed on the koruma error type (`BoxError`
-without koruma).
+without koruma). Milestone M5 adds `UserProfileFormSchema::schema()`, which
+returns the owned, serializable `gpui_form::FormSchema` document (component
+kinds and payloads, validation rules, layout hints, nested/list composition,
+`depends_on`/`required_if` dependencies) — always emitted, no `inventory`
+feature needed, and serde round-trips with no flag.
 
 ## Select Pattern
 
