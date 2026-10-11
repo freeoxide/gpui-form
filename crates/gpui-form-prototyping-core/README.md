@@ -91,6 +91,16 @@ lists every key a shape needs, so generators can scaffold the locale files.
 This crate's own `locales/{en,fr-FR,zh-CN}.yml` double as the reference
 template.
 
+## Field Dependencies (milestone M4)
+
+When a `FieldVariant` records `depends_on = <field>` (from
+`#[gpui_form(depends_on = ...)]`), the scaffold wires
+reset-on-parent-change placeholders: the parent component's generated change
+handling resets every dependent field's holder value (`None` for
+Option-wrapped holders, `Default` otherwise). Re-syncing the dependent's
+widget stays app-authored — clear it from the parent's change handler in the
+generated (or hand-written) consumer.
+
 ## Most Users Should Use Instead
 
 - [`gpui-form`](../gpui-form/README.md) for hand-written forms plus derives

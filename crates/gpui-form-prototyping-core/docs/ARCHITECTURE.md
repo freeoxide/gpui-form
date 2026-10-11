@@ -118,6 +118,19 @@ bare identifier. That is important because inventory metadata may carry:
 Each field is resolved once into a typed internal representation before any
 component-specific generation runs.
 
+## Dependent-Field Resets (M4, backlog #12)
+
+`implementations/mod.rs` exposes `dependent_reset_statements(field, shape,
+receiver)`: for every field whose `FieldVariant::depends_on` names this field,
+it emits a reset of the dependent's HOLDER value (`None` for Option-wrapped
+holders, `Default` otherwise). The value-component generators (input,
+number_input, phone_input via input, select, infinite_select, date_picker,
+file_picker, switch, checkbox) splice these statements into their change
+handling, so scaffolds get reset-on-parent-change wiring — [D5]: scaffolds
+may wire events; the derive never does. Re-syncing the dependent's WIDGET
+stays app-authored; the reset statements are empty for fields without
+dependents, so existing shapes emit identical tokens.
+
 ## Current Custom Component Behavior
 
 For `ComponentsBehaviour::Custom`:

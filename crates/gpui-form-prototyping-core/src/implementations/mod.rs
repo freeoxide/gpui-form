@@ -196,6 +196,20 @@ impl<'a> ResolvedField<'a> {
         self.validation_rules().contains(&rule)
     }
 
+    /// Milestone M4 (backlog #12): the sibling field this field depends on
+    /// (`depends_on = <field>`), if any.
+    pub fn depends_on(&self) -> Option<&'static str> {
+        self.field.depends_on()
+    }
+
+    /// Milestone M4 (backlog #13): the controlling sibling field for this
+    /// field's conditional-required rule (`required_if = <field>`), if any.
+    /// The rule itself is enforced by the generated koruma validator; this
+    /// only exposes the recorded relationship.
+    pub fn required_if(&self) -> Option<&'static str> {
+        self.field.required_if()
+    }
+
     pub fn uses_optional_inner_validation_errors(&self) -> bool {
         self.optional()
             && (self.has_validation_rule("NewtypeValidation")
@@ -345,6 +359,38 @@ pub fn generate_entity_creation(
         let #var_name_ident =
             cx.new(|cx| #form_components_struct_ident::#fn_name_ident(window, cx));
     }
+}
+
+/// Milestone M4 (backlog #12): the statements a field's change handling
+/// appends to reset its DEPENDENT fields — every field whose `depends_on`
+/// names this field (reset-on-parent-change scaffolding).
+///
+/// The scaffold resets each dependent's HOLDER value (`None` for
+/// Option-wrapped holders, `Default` otherwise); re-syncing the dependent's
+/// WIDGET stays app-authored ([D5]: scaffolds may wire events, the derive
+/// never does), which the emitted placeholder statement documents. Empty
+/// tokens for fields with no dependents, so existing shapes see zero diff.
+pub fn dependent_reset_statements(
+    field: &ResolvedField<'_>,
+    component: &GpuiFormShape,
+    receiver: &syn::Ident,
+) -> TokenStream {
+    component
+        .components
+        .iter()
+        .filter(|dependent| dependent.depends_on() == Some(field.field_name()))
+        .map(|dependent| {
+            let dependent_ident = format_ident!("{}", dependent.field_name);
+            let reset_value = if dependent.value_holder_wraps_in_option() {
+                quote! { ::core::option::Option::None }
+            } else {
+                quote! { ::core::default::Default::default() }
+            };
+            quote! {
+                #receiver.current_data.#dependent_ident = #reset_value;
+            }
+        })
+        .collect()
 }
 
 pub fn generate_entity_field_initializer(field: &ResolvedField<'_>) -> TokenStream {

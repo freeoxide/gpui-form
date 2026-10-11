@@ -3,13 +3,14 @@ use gpui_form_schema::{
     registry::{FieldVariant, GpuiFormShape},
 };
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
-    generate_entity_field_initializer, generate_entity_focus, render_component_entity_field,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    generate_entity_creation, generate_entity_field_initializer, generate_entity_focus,
+    render_component_entity_field,
 };
 
 pub struct SelectCodeGenerator;
@@ -72,7 +73,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
     fn generate_subscription(
         &self,
         field: &ResolvedField<'_>,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_type = field.value_type();
         let searchable = if let ComponentsBehaviour::Select(dropdown_config) = field.behaviour() {
@@ -82,6 +83,9 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         };
         let field_var_name_ident = field.field_ident_with_behaviour();
         let event_handler_fn_name_ident = field.event_handler_ident("select_event");
+        // M4 (backlog #12): reset dependent fields when the selection changes
+        // (the country -> state cascading-select shape).
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let calls = vec![
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
@@ -110,6 +114,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
                     match event {
                         SelectEvent::Confirm(value) => {
                             self.current_data.#field_name_ident = value.clone();
+                            #dependent_resets
                         },
                     }
                 }
@@ -128,6 +133,7 @@ impl FieldCodeGenerator for SelectCodeGenerator {
                             if let Some(value) = value {
                                 self.current_data.#field_name_ident = value.clone();
                             }
+                            #dependent_resets
                         },
                     }
                 }
@@ -177,6 +183,79 @@ mod tests {
         assert!(
             compact.contains("Entity<SelectState<Vec<::some_lib::country::Country>>>"),
             "subscription handler should keep the fully-qualified type path: {compact}"
+        );
+    }
+
+    #[test]
+    fn select_change_resets_fields_that_depend_on_it() {
+        // M4 (backlog #12): the parent's Confirm arm resets every dependent
+        // field's holder value (reset-on-parent-change scaffolding; the
+        // widget re-sync stays app-authored per [D5]).
+        const FIELDS: [FieldVariant; 2] = [
+            FieldVariant::new(
+                "country",
+                "::some_lib::country::Country",
+                true,
+                ComponentsBehaviour::Select(SelectBehaviour {
+                    partial: false,
+                    searchable: false,
+                }),
+            ),
+            FieldVariant::new(
+                "state",
+                "::some_lib::country::State",
+                true,
+                ComponentsBehaviour::Select(SelectBehaviour {
+                    partial: false,
+                    searchable: false,
+                }),
+            )
+            .with_depends_on(Some("country")),
+        ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        let generator = SelectCodeGenerator;
+        let parent = crate::implementations::ResolvedField::new(&FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&parent, &SHAPE)
+            .expect("select fields should generate subscriptions");
+        let parent_handler = compact(&generated.handlers[0].to_string());
+        assert!(
+            parent_handler.contains("self.current_data.state=::core::option::Option::None;"),
+            "confirming the parent must reset the dependent holder value: {parent_handler}"
+        );
+
+        // The dependent's own handler is untouched.
+        let dependent = crate::implementations::ResolvedField::new(&FIELDS[1]).unwrap();
+        let generated = generator
+            .generate_subscription(&dependent, &SHAPE)
+            .expect("select fields should generate subscriptions");
+        let dependent_handler = compact(&generated.handlers[0].to_string());
+        assert!(
+            !dependent_handler.contains("self.current_data.country="),
+            "the dependent resets nothing itself: {dependent_handler}"
+        );
+
+        // Shapes without dependencies see zero diff (semver/additive rule).
+        const PLAIN_FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "country",
+            "::some_lib::country::Country",
+            true,
+            ComponentsBehaviour::Select(SelectBehaviour {
+                partial: false,
+                searchable: false,
+            }),
+        )];
+        const PLAIN_SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &PLAIN_FIELDS, "src/demo.rs", false);
+        let plain = crate::implementations::ResolvedField::new(&PLAIN_FIELDS[0]).unwrap();
+        let generated = generator
+            .generate_subscription(&plain, &PLAIN_SHAPE)
+            .expect("select fields should generate subscriptions");
+        let plain_handler = compact(&generated.handlers[0].to_string());
+        assert!(
+            !plain_handler.contains("self.current_data.state"),
+            "no dependency, no reset statements: {plain_handler}"
         );
     }
 }
