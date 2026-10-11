@@ -43,6 +43,12 @@ Useful facade paths:
 - `gpui_form::FormState` (dirty tracking / reset / diff helper)
 - `gpui_form::TouchedFields` (touched-field bitset composed by the generated
   `<Name>FormState` facade)
+- `gpui_form::ValidationCache` (snapshot-compare validation-outcome cache
+  composed by koruma-gated facades)
+- `gpui_form::SubmitTracker`, `gpui_form::SubmitAction`,
+  `gpui_form::submit` (headless submit lifecycle; `BoxError` default error)
+- `gpui_form::AsyncFieldValidation` (executor-free async per-field
+  validation contract; no `Send` bound)
 - `gpui_form::custom_component_shape!`
 
 ## Supported Component Syntax
@@ -64,11 +70,14 @@ Components (`component(...)`):
 - `custom(shape = my::Shape, value_binding)`
 
 Field attributes: `default = <expr>`, `skip`, `type = <form_type>`,
-`from = <expr>`, `into = <expr>`, and the layout hints `section = "<str>"`,
+`from = <expr>`, `into = <expr>`, the layout hints `section = "<str>"`,
 `label = "<str>"`, `description = "<str>"`, `placeholder = "<str>"`,
-`width = full | half | third`.
+`width = full | half | third`, and `validate(async_fn = <path>)`
+(metadata-only today: the path is recorded on `FieldVariant`, nothing
+executes until the reserved `async-validation` wiring lands).
 
-Struct attributes: `empty`, `koruma`, `koruma(fluent)`.
+Struct attributes: `empty`, `koruma`, `koruma(fluent)`, `submit` (bare
+word; emits the `<Name>FormSubmission` tracker alias).
 
 Layout hints are metadata-only: they attach a `gpui_form::schema::FieldLayout`
 to each field for generators/prototyping to consume and do not change
@@ -112,6 +121,7 @@ UserProfileFormPath
 UserProfileFormState
 UserProfileFormPatch
 UserProfileFormFieldErrors   // koruma forms only
+UserProfileFormSubmission    // #[gpui_form(submit)] only
 ```
 
 Use the generated value holder for editable form data, defaults, and conversion
@@ -123,7 +133,11 @@ across validation, dirty tracking, focus, analytics, and schema export. Use
 dirty, `patch()`); it composes `gpui_form::FormState` + `gpui_form::TouchedFields`
 and leaves the holder plain data. Koruma forms also emit
 `UserProfileFormFieldErrors` + `validate_fields()`/`error_for(&path)` for
-path-keyed typed error access.
+path-keyed typed error access, and their facades gain the cached-validation
+methods (`validate`/`validation`/`is_valid`/`invalidate_validation`).
+`#[gpui_form(submit)]` adds `UserProfileFormSubmission`, an alias over
+`gpui_form::SubmitTracker` keyed on the koruma error type (`BoxError`
+without koruma).
 
 ## Select Pattern
 
@@ -246,3 +260,42 @@ nested/list composition arrives with backlog #2 ("Nested forms") and #3
 `field_error.issue_keys()` (`validation.*` keys; inner newtype/nested
 failures report `validation.invalid`). Worked example: root `README.md`
 §Typed Field Paths and §Validation With Koruma.
+
+## Submit Lifecycle and Live Validation Pattern
+
+Opt in per form, drive the futures yourself (the derive emits no
+subscriptions), and keep the holder plain data:
+
+```rust
+#[derive(GpuiForm, koruma::Koruma)]
+#[gpui_form(submit)]
+pub struct Signup {
+    #[gpui_form(component(input))]
+    #[koruma(koruma_collection::collection::NonEmptyValidation::<_>::builder())]
+    pub username: String,
+}
+
+// Live validity: refresh the cache from change handlers, read it in render.
+let mut state = SignupFormState::new(SignupFormValueHolder::default());
+state.validate();
+let valid = state.is_valid();
+
+// Submit: gate, begin, drive, finish; success re-syncs the baseline.
+let mut submission: SignupFormSubmission = gpui_form::SubmitTracker::new();
+if state.is_valid() && submission.begin() {
+    let result = save(&state.current()).await;
+    submission.finish(result.map(|_: ()| ()));
+    if submission.is_submit_successful() {
+        state.sync_baseline();
+    }
+}
+```
+
+Behavior notes: `begin()` is the re-entry guard (false while in flight) and
+the only thing that counts an attempt; stale completions (after `reset()`,
+or post-`abandon()`) are ignored via the generation guard; `set_error`/
+`clear_error` inject server-side errors without rewriting terminal
+verdicts. Async checks implement `gpui_form::AsyncFieldValidation<Holder>`
+(one impl per form, `Ok(())` for unhandled fields); debounce and
+latest-wins cancellation are app-owned. Worked example: root `README.md`
+§Submit Lifecycle and Live Validation.

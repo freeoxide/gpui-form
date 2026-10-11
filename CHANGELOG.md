@@ -5,6 +5,105 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-11
+
+Milestone 2 of the form feature-parity plan: validation and submit lifecycle
+(validation-state cache with a live `is_valid`, the submit lifecycle tracker,
+and the async validation contract). All additions are additive; the minor bump
+follows the plan's one-minor-per-milestone rule.
+
+### Added
+
+- `SubmitTracker<E>` in `gpui-form-core` (`gpui_form::SubmitTracker` from the
+  facade, module `gpui_form::submit`): the headless submit lifecycle state —
+  `begin()` re-entry guard (false while a submit is in flight, and the only
+  thing that counts an attempt via `submit_count()`), `is_submitting()` /
+  `is_submitted()` / `is_submit_successful()` / `can_submit()`,
+  `last_error()` / `take_last_error()`, `abandon()`, `set_error` / `clear_error`
+  for server-side error injection, and `reset()`. A generation/epoch guard
+  ignores stale async completions: a `finish` arriving after `reset()` (or with
+  no attempt in flight) changes nothing.
+- `SubmitAction<H>` in `gpui-form-core` (`gpui_form::SubmitAction`): the
+  executor-free submit hook contract (`async fn submit(&mut self, holder: &H)`
+  with `Output`/`Error` associated types, no `Send` bound). Neither type runs
+  futures — driving them (GPUI `cx.spawn`, tokio) is application code, and the
+  holder flows through submit by `&H` untouched.
+- `submit::BoxError` (`gpui_form::BoxError`): the default submit-failure alias
+  for forms without a koruma error type.
+- `#[gpui_form(submit)]` (opt-in, no feature flag): emits
+  `pub type <Name>FormSubmission = SubmitTracker<E>;` per form, spliced into
+  both expansion branches (empty forms included). `E` is the holder's typed
+  koruma error (`<Name>FormValueHolder as koruma::ValidateExt>::Error`) when
+  the holder derives `Koruma` and the struct is non-generic, and `BoxError`
+  otherwise. Forms that do not opt in see zero emitted diff; the holder stays
+  plain data.
+- `ValidationCache<H, O>` in `gpui-form-core`
+  (`gpui_form::ValidationCache`): the outcome cache behind a live `is_valid`.
+  Freshness is snapshot-compare — the cache stores the validated holder
+  snapshot next to the outcome and a read is fresh iff `current == snapshot` —
+  so it stays sound under every mutation route (including `&mut` escapes) with
+  zero invalidation discipline. `stored()` is the exact-read companion that
+  skips the comparison (a holder containing NaN never compares equal to its
+  own clone). No serde surface; the cache is transient by construction.
+- Cached validation methods on koruma-gated `<Name>FormState` facades (gated
+  on `needs_koruma_derive` — either koruma enablement route — and non-generic
+  source structs, the same combined gate as the `<Name>FormFieldErrors` map
+  the cache stores; empty forms never emit it): a `validation` slot of
+  `ValidationCache<Holder, <Name>FormFieldErrors>` plus
+  `validate(&mut self) -> &<Name>FormFieldErrors` (compute, store, return),
+  `validation(&self)` (fresh-only cached read), `is_valid(&self)` (cached
+  verdict when fresh, otherwise a fresh compute WITHOUT caching — safe in
+  render paths), `invalidate_validation(&mut self)`, and
+  `error_for(&mut self, &path)` (validate-and-cache on miss).
+- `AsyncFieldValidation<H>` in `gpui-form-core`
+  (`gpui_form::AsyncFieldValidation`, module
+  `gpui_form::async_validation`): the executor-free async per-field
+  validation contract — `async fn validate_field(&self, holder: &H, field:
+  &FieldPath) -> Result<(), Self::Error>`, no `Send` bound. One impl can
+  serve a whole form by returning `Ok(())` for unhandled fields. Debounce,
+  latest-wins cancellation, and merging async outcomes into the sync error
+  map are deliberately deferred to the driving layer.
+- `validate(async_fn = <path>)` field attribute (emission sketch): parses and
+  records the async validator path as metadata on
+  `FieldVariant::async_validator` (new public field, `Option<&'static str>`,
+  default `None`) via the const-callable `with_async_validator` builder.
+  Nothing executes the path yet; the reserved `async-validation` feature
+  flag (default off) exists in the facade and derive crates so the future
+  wiring has a stable name.
+- Facade re-exports: `SubmitTracker`, `SubmitAction`, `BoxError`,
+  `ValidationCache`, `AsyncFieldValidation`, and the `submit` /
+  `async_validation` modules.
+
+### Changed
+
+- Koruma-gated facades invalidate the validation cache explicitly in
+  `current_mut()`, `replace_current()`, and both reset variants (a
+  reverted-to-same-value form does not keep the old verdict);
+  `sync_baseline()` deliberately does not invalidate, and `state_mut()`
+  remains the documented escape hatch that the snapshot comparison keeps
+  sound (with `invalidate_validation()` as the manual recourse).
+- The `forms-demo` example wires the M2 surface end to end: a Submit button
+  drives the opt-in `SignupFormSubmission` tracker (`begin()` → a spawned
+  `SubmitAction` future with simulated latency → `finish()`), disables while
+  submitting, syncs the baseline on success, and renders `last_error`
+  banners by re-keying the typed koruma error through
+  `SignupFormFieldErrors::from_koruma_errors` into localized `validation.*`
+  keys; a simulated async availability check on the email field implements
+  the `AsyncFieldValidation` contract with a generation guard against stale
+  completions; and the facade's validation cache feeds a live `is_valid`
+  footer indicator without running koruma validation in render.
+
+### Documentation
+
+- Documented the submit lifecycle and live validation in the root README
+  (new §Submit Lifecycle and Live Validation), the core and facade READMEs,
+  the core/facade/derive architecture notes, the `use-gpui-form` skill and
+  its API map, and `examples/README.md`.
+- Marked feature-backlog item #7 (submit lifecycle helpers) as shipped and
+  refreshed the suggested order.
+
+[0.7.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.7.0
+
 ## [0.6.0] - 2026-10-11
 
 Milestone 1 of the form feature-parity plan: the field-level state model

@@ -622,6 +622,153 @@ cleared, value = set.
 UI-session state and is never serialized. Blur/change wiring stays
 app-authored: call `state.touch(&path)` from your component event handlers.
 
+## Submit Lifecycle and Live Validation
+
+Koruma-gated `<Name>FormState` facades also compose a validation-outcome
+cache for a live `is_valid`, and every form can opt into a headless submit
+tracker through `#[gpui_form(submit)]`. No feature flag, no new
+dependencies; the holder stays plain data in both cases.
+
+### Live `is_valid` (validation-state cache)
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm, koruma::Koruma)]
+pub struct Signup {
+    #[gpui_form(component(input))]
+    #[koruma(koruma_collection::collection::NonEmptyValidation::<_>::builder())]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(120))]
+    pub age: Option<u32>,
+}
+
+let mut state = SignupFormState::new(SignupFormValueHolder::default());
+assert!(!state.is_valid());          // fresh compute, nothing cached yet
+
+state.validate();                    // re-run koruma, cache the outcome
+assert!(state.validation().is_some());
+
+state.current_mut().age = Some(42);  // edits invalidate the cache...
+assert!(state.validation().is_none());
+assert!(state.is_valid());          // ...but is_valid never lies (recomputes)
+
+let field_error = state.error_for(&SignupFormPath::age()); // validates + caches on miss
+```
+
+Freshness is **snapshot-compare**: the cache stores the holder snapshot it
+validated and a read is fresh iff `current == snapshot`. That makes it sound
+under every mutation route — including the raw `state_mut()` escape hatch —
+with zero invalidation discipline. The facade's own mutators
+(`current_mut`, `replace_current`, both resets) invalidate up front,
+`sync_baseline()` deliberately does not (validity depends only on `current`),
+and `invalidate_validation()` is the manual escape. Render paths are safe:
+`is_valid()` serves the cached verdict when fresh (one `PartialEq`) and
+otherwise recomputes without caching.
+
+The underlying `gpui_form::ValidationCache<H, O>` is a standalone core
+primitive (like `FormState` and `TouchedFields`), usable for non-derived
+holders with any outcome type. The cached method set emits only when the
+holder derives koruma and the source struct is non-generic — the same gate
+as the `<Name>FormFieldErrors` map it stores.
+
+### Submit lifecycle (`#[gpui_form(submit)]`)
+
+Add the opt-in attribute to get a per-form tracker alias over the headless
+`gpui_form::SubmitTracker`:
+
+```rs
+#[derive(GpuiForm, koruma::Koruma)]
+#[gpui_form(submit)]
+pub struct Signup { /* fields as above */ }
+
+let mut submission: SignupFormSubmission = gpui_form::SubmitTracker::new();
+
+// Gate, begin, drive your save, finish:
+if state.is_valid() && submission.begin() {
+    let result = my_save(&state.current()).await;   // your code drives the future
+    submission.finish(result.map(|_: Saved| ()));
+    if submission.is_submit_successful() {
+        state.sync_baseline();                       // the save protocol
+    }
+}
+```
+
+- `begin()` is the re-entry guard: it returns `false` while a submit is in
+  flight (double-click protection data), and only a successful `begin`
+  counts an attempt (`submit_count()`).
+- `finish(Err(e))` records `last_error()`; `finish(Ok(()))` clears it and
+  flips `is_submit_successful()`. **Stale completions are ignored** — a
+  `finish` arriving after `reset()` (or with no attempt in flight) changes
+  nothing, so a slow submit can never write its outcome into a tracker that
+  has moved on (the generation/epoch guard).
+- `is_submitted()`, `can_submit()` (`!is_submitting`), `abandon()`,
+  `set_error`/`clear_error` (manual server-error injection), `take_last_error()`
+  (one-shot banners), and `reset()` round out the surface.
+- On koruma forms the alias's error parameter is the form's typed koruma
+  error (`<Name>FormValueHolder as koruma::ValidateExt>::Error`), so a
+  failed validate-then-submit carries the typed field errors — re-key them
+  with `<Name>FormFieldErrors::from_koruma_errors(&error)` and render
+  through the same `validation.*` keys. Without koruma (and on generic
+  structs) the alias uses `gpui_form::submit::BoxError`.
+- Driving the submit is application code ([the derive emits no
+  subscriptions](#validation-with-koruma)): wrap `begin()` → your future →
+  `finish()` in `cx.spawn` or your own runtime. `SubmitAction<H>` is the
+  executor-free hook contract for exactly that shape:
+
+```rs
+use gpui_form::SubmitAction;
+
+struct SaveSignup;
+impl SubmitAction<SignupFormValueHolder> for SaveSignup {
+    type Output = ();
+    type Error = <SignupFormValueHolder as koruma::ValidateExt>::Error;
+
+    async fn submit(&mut self, holder: &SignupFormValueHolder)
+        -> Result<(), Self::Error>
+    {
+        match holder.validate() { Ok(()) => save(holder).await, Err(e) => Err(e) }
+    }
+}
+```
+
+### Async validation contract (metadata-only attribute)
+
+Async checks ("is this username taken?") have a headless contract,
+`gpui_form::AsyncFieldValidation<H>` — an async fn in a trait, path-keyed by
+`gpui_form::FieldPath`, with no executor and no `Send` bound. Implement it
+once per form and return `Ok(())` for fields you do not handle:
+
+```rs
+use gpui_form::{AsyncFieldValidation, FieldPath};
+
+struct EmailTaken;
+impl AsyncFieldValidation<SignupFormValueHolder> for EmailTaken {
+    type Error = &'static str;
+
+    async fn validate_field(&self, holder: &SignupFormValueHolder, field: &FieldPath)
+        -> Result<(), Self::Error>
+    {
+        if field.segments() != ["email"] { return Ok(()); }
+        match holder.email.as_deref() {
+            Some(email) if is_taken(email).await => Err("email taken"),
+            _ => Ok(()),
+        }
+    }
+}
+```
+
+Debounce, latest-wins cancellation, and merging async outcomes into the sync
+error map are owned by the driving layer (GPUI glue or the app), not the
+trait. The derive side is an attribute sketch in this milestone:
+`#[gpui_form(validate(async_fn = my_check), component(input))]` parses and
+records the validator path as field metadata (`FieldVariant::async_validator`)
+— nothing executes it yet; wiring lands behind the reserved
+`async-validation` feature later. The `forms-demo` example drives the
+contract by hand today (generation-guarded spawn per edit).
+
 ## Typed Field Paths
 
 Every `#[derive(GpuiForm)]` form also emits a `<Name>FormPath` type — a

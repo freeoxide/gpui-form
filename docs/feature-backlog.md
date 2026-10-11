@@ -180,6 +180,23 @@ so callers do not have to match validation output with ad hoc strings.
 
 ### 7. Submit lifecycle helpers
 
+> **Status: shipped (M2 validation + submit lifecycle).** The headless
+> `gpui_form::core::submit::SubmitTracker<E>` owns the full lifecycle —
+> `begin()` re-entry guard, `submit_count()`, `is_submitting()` /
+> `is_submitted()` / `is_submit_successful()` / `can_submit()`, `last_error()`
+> / `take_last_error()`, `abandon()`, `set_error` / `clear_error` for
+> server-side injection, and `reset()` — with a generation/epoch guard that
+> ignores stale async completions. `SubmitAction<H>` is the executor-free
+> submit hook contract. The opt-in `#[gpui_form(submit)]` attribute emits a
+> `<Name>FormSubmission` alias per form (koruma error type as the failure
+> type; `submit::BoxError` otherwise). Koruma-gated `<Name>FormState`
+> facades also compose a snapshot-compare validation cache for a live
+> `is_valid` (see the M1 field-level state notes), and
+> `AsyncFieldValidation<H>` is the executor-free async per-field validation
+> contract (`validate(async_fn = ...)` parses and records metadata only in
+> this milestone). Worked example: root `README.md` §Submit Lifecycle and
+> Live Validation.
+
 Add optional headless workflow state for common submit flows.
 
 ```rs
@@ -480,15 +497,17 @@ creating a parallel validation system.
 5. Validation/error metadata improvements — **shipped (M1 typed error
    access)**.
 6. Patch and delta generation — **shipped (M1 field-level state)**.
-7. Nested forms.
-8. Repeated fields.
-9. Partial form holders.
-10. Wizard and step metadata.
-11. Field dependency metadata and conditional requiredness.
-12. Schema export.
-13. Async/select provider contracts.
-14. Phone, email, URL, and typed text validation.
-15. Thin component mappings such as textarea, radio, and slider.
+7. Submit lifecycle helpers — **shipped (M2 validation + submit
+   lifecycle)**.
+8. Nested forms.
+9. Repeated fields.
+10. Partial form holders.
+11. Wizard and step metadata.
+12. Field dependency metadata and conditional requiredness.
+13. Schema export.
+14. Async/select provider contracts.
+15. Phone, email, URL, and typed text validation.
+16. Thin component mappings such as textarea, radio, and slider.
 
 This order keeps the early work mostly headless and additive, then moves into
 larger code-generation features after the metadata and state model are stronger.

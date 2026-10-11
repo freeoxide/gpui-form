@@ -82,6 +82,18 @@ Full syntax inventory: root `README.md` §Component Syntax, or
   `UserProfileFormPath::username()`; skipped fields have no constructor.
 - For layout intent, attach non-rendering hints with `section`, `label`,
   `description`, `placeholder`, and `width`.
+- For submit flows, add `#[gpui_form(submit)]` and drive the generated
+  `<Name>FormSubmission` tracker yourself: `begin()` → your async save →
+  `finish(result)`. Gate the button on `can_submit()` plus the facade's
+  `is_valid()`; render failures through `last_error()` re-keyed with
+  `<Name>FormFieldErrors::from_koruma_errors`.
+- For live validity, call `state.validate()` from change handlers and read
+  `state.is_valid()` in render (cached verdict when fresh, accurate
+  recompute when stale — safe in render paths).
+- For async checks ("is this username taken?"), implement
+  `gpui_form::AsyncFieldValidation<Holder>` (one impl per form, `Ok(())` for
+  unhandled fields) and drive it from your own spawn; own debounce and
+  latest-wins cancellation app-side.
 - Keep consumer code focused on app models, form state, rendering, and
   app-owned components.
 
@@ -133,6 +145,26 @@ error access: `holder.validate_fields()` →
 (`validation.*` keys; inner newtype/nested failures report
 `validation.invalid`). Details: root `README.md` §Typed Field Paths and
 §Validation With Koruma.
+
+### Submit lifecycle and live validation
+
+`#[gpui_form(submit)]` (opt-in, no feature flag) emits a
+`<Name>FormSubmission` alias over the headless core `SubmitTracker` —
+koruma forms alias over the typed koruma error (`ValidateExt::Error`),
+others over `gpui_form::submit::BoxError`. The tracker never runs futures:
+wrap `begin()` → your future → `finish(result)` in `cx.spawn` yourself.
+`begin()` returns `false` while a submit is in flight (double-click guard),
+stale completions (after `reset()`, or with no attempt in flight) are
+ignored via the generation guard, and `set_error`/`clear_error` inject
+server-side errors. Koruma-gated `<Name>FormState` facades additionally
+compose `gpui_form::ValidationCache`: call `state.validate()` when
+validation should refresh, read `state.is_valid()` anywhere (never lies),
+`state.validation()` for the cached map, `invalidate_validation()` as the
+manual escape; resets invalidate, `sync_baseline()` does not. Async
+validation is contract-only (`gpui_form::AsyncFieldValidation`) — the
+`validate(async_fn = ...)` attribute parses/records metadata but nothing
+executes it yet. Details: root `README.md` §Submit Lifecycle and Live
+Validation.
 
 ### Localization (rust-i18n 4)
 
