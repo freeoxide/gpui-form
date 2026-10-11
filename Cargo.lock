@@ -2485,7 +2485,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -2500,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-codegen"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "darling",
  "derive_more",
@@ -2513,7 +2513,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "gpui-form-component-derive",
@@ -2532,7 +2532,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component-derive"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -2543,14 +2543,14 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "phonenumber",
 ]
 
 [[package]]
 name = "gpui-form-derive"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "darling",
  "gpui-form",
@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-i18n"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gpui-pre",
  "rust-i18n",
@@ -2585,7 +2585,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-prototyping-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gpui-form-schema",
  "heck 0.5.0",
@@ -2597,7 +2597,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-schema"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "heck 0.5.0",
  "inventory",
