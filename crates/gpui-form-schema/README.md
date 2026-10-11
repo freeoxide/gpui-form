@@ -18,6 +18,9 @@ prototyping flows around generated form metadata.
 - `registry::GpuiFormShape`
 - `registry::FieldVariant`
 - `registry::inventory`
+- `registry::FormSchema` (+ `FormSchemaField`, `FormSchemaComponent`,
+  `FormSchemaLayout`): the owned, serializable schema-export document
+  `<Name>FormSchema::schema()` returns
 
 `FieldVariant` records both source-model and form-side value types, generated
 value-holder wrapping, conversion expressions, custom component shape paths,
@@ -27,6 +30,12 @@ generators. `FieldLayout` is metadata-first: it describes intent and leaves
 rendering to the consumer. All string hints are `&'static str` and both
 `FieldLayout` and `LayoutWidth` are `const`-constructible so the derive can
 build them inside `inventory::submit!` blocks.
+
+The schema-export view types are a read-only projection of that model into
+owned data: `FormSchema::from(&shape)` converts an inventory shape into a
+document that derives `Serialize`/`Deserialize` unconditionally (this crate
+depends on `serde` directly — exporting is not gated behind the facade's
+`serde` feature, which is about holder persistence).
 
 ## Example
 

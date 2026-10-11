@@ -2601,6 +2601,8 @@ version = "0.9.0"
 dependencies = [
  "heck 0.5.0",
  "inventory",
+ "serde",
+ "serde_json",
  "strum 0.28.0",
 ]
 

@@ -19,8 +19,9 @@ not own proc-macro parsing or token emission.
 - `src/lib.rs`: exports `components`, `layout`, and `registry`
 - `src/components.rs`: component identity and behavior payload types
 - `src/layout.rs`: non-rendering layout hints (`FieldLayout`, `LayoutWidth`)
-- `src/registry.rs`: `GpuiFormShape`, `FieldVariant`, and `inventory`
-  collection
+- `src/registry.rs`: `GpuiFormShape`, `FieldVariant`, `inventory`
+  collection, and the M5 schema-export view types (`FormSchema`,
+  `FormSchemaField`, `FormSchemaComponent`, `FormSchemaLayout`)
 
 ## Metadata Model
 
@@ -109,6 +110,36 @@ representation a `FieldPath` name segment carries — through const builders
 (`with_depends_on` / `with_required_if`), keeping the `inventory::submit!`
 contract (const-callable, `Copy`/`&'static str` payloads only).
 
+### Schema-export view types (M5, backlog #14)
+
+`registry.rs` also owns the export-facing projection of the metadata model:
+`FormSchema` (one per form), `FormSchemaField` (one per non-skipped field),
+`FormSchemaComponent` (an owned mirror of `ComponentsBehaviour` payloads), and
+`FormSchemaLayout` (an owned mirror of `FieldLayout`). Design rules:
+
+- **Read-only projection.** `From<&GpuiFormShape>`/`From<&FieldVariant>`
+  convert the `&'static` inventory model into owned `String` data; there is no
+  builder surface and no path back. The derive's `<Name>FormSchema::schema()`
+  emits the SAME `FieldVariant`/`FieldLayout` chain the inventory submits and
+  converts at runtime, so the export cannot drift from the registered shape
+  (the layers do not invent a parallel runtime model).
+- **Serializable unconditionally.** The view types (and `ComponentKind` /
+  `NumberInputKind` / `LayoutWidth`) derive `Serialize`/`Deserialize`
+  unconditionally — `serde` is a plain dependency of this crate, NOT an
+  optional one, so schema export round-trips with no feature flag anywhere in
+  the chain. This is deliberately different from the holder's opt-in serde
+  story: the export is tooling-facing metadata, not persisted user values.
+  Wire style: snake_case component tags matching `ComponentKind`'s `Display`
+  (`{"component":"number_input",...}`), absent `Option` hints omitted with
+  `skip_serializing_if` + `default` so documents stay readable and round-trip.
+- **Coverage.** Field entries include everything `FieldVariant` carries:
+  component payload details (select flags, phone country sibling, number
+  validation type, nested form struct, list item kind), validations, value
+  and conversion types, defaults, custom component hints, layout, the async
+  validator path, and the M4 dependency payloads. Element validators
+  (`each(...)`) stay element-scoped and do not appear in `validations` — the
+  export projects what the inventory records, no more.
+
 ### `FieldLayout` and `LayoutWidth`
 
 Non-rendering layout hints attached to each `FieldVariant` (METADATA-FIRST v1,
@@ -143,9 +174,12 @@ backlog feature #4). Key properties:
    `FieldVariant` metadata, alongside a `FieldLayout` built from the field's
    layout hints (`section`/`label`/`description`/`placeholder`/`width`).
 1. When inventory registration is enabled, `gpui-form-derive` submits a
-   `GpuiFormShape`.
+   `GpuiFormShape`. Independently of that feature, the derive's
+   `<Name>FormSchema::schema()` converts the identical shape chain into a
+   `FormSchema` document (M5) for docs, fixtures, and non-GPUI consumers.
 1. `gpui-form-prototyping-core` reads that metadata (including layout hints)
-   and generates scaffolded code.
+   and generates scaffolded code; its `schema_markdown` helper renders the
+   exported `FormSchema` as a Markdown reference table.
 
 ## Boundary Rules
 
@@ -179,3 +213,5 @@ Update this file when:
 - `FieldLayout` / `LayoutWidth` shape, builders, or serialization change
 - component behavior payloads change
 - inventory ownership or registration semantics change
+- schema-export view types, their serde wire format, or their projection
+  coverage change

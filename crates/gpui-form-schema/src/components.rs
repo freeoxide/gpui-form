@@ -1,7 +1,21 @@
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, IntoStaticStr};
 
-#[derive(Clone, Copy, Debug, Default, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Display,
+    EnumString,
+    Eq,
+    IntoStaticStr,
+    PartialEq,
+    Serialize,
+    Deserialize,
+)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum ComponentKind {
     #[default]
     Input,
@@ -85,7 +99,8 @@ pub struct InfiniteSelectBehaviour {
     pub max_depth: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum NumberInputKind {
     #[default]
     Float,

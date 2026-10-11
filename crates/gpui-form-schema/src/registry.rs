@@ -328,9 +328,320 @@ impl FieldVariant {
 
 pub use inventory;
 
+/// Owned, serializable mirror of a [`ComponentsBehaviour`] payload
+/// (schema export, backlog #14).
+///
+/// One variant per component kind, carrying the same payload data as the
+/// inventory-side behaviour structs but with owned `String`s so exported
+/// documents outlive the `const` registry chain they were projected from.
+/// Serialized as an internally-tagged enum on `"component"` with snake_case
+/// variant names — the same wire spelling as
+/// [`crate::components::ComponentKind`]'s `Display`.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "component")]
+pub enum FormSchemaComponent {
+    Input,
+    NumberInput {
+        /// Optional `as = ...` override recorded for numeric validation.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        validation_type: Option<String>,
+        kind: crate::components::NumberInputKind,
+    },
+    PhoneInput {
+        /// Sibling field whose selected country constrains the phone number
+        /// (`phone_input(country = <field>)`), when recorded.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        country_field: Option<String>,
+    },
+    Checkbox,
+    Switch,
+    Select {
+        searchable: bool,
+        partial: bool,
+    },
+    InfiniteSelect {
+        searchable: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_depth: Option<usize>,
+    },
+    Custom,
+    DatePicker,
+    FilePicker,
+    /// Milestone M3 (backlog #2): the field composes another
+    /// `#[derive(GpuiForm)]` struct.
+    Nested {
+        /// The nested form struct name (e.g. `"Address"`).
+        form_struct: String,
+    },
+    /// Milestone M3 (backlog #3): an editable `Vec<T>` field.
+    List {
+        /// The scalar component kind rendered per item.
+        item: crate::components::ComponentKind,
+        /// The nested item form struct name; `None` for scalar items (the
+        /// only shipped shape in v1 — nested item forms are reserved).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        item_struct: Option<String>,
+        /// Optional add-button label override from `list(add_label = "...")`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        add_label: Option<String>,
+    },
+}
+
+impl FormSchemaComponent {
+    /// The component kind of this behaviour, mirroring
+    /// [`crate::components::ComponentsBehaviour::kind`].
+    pub fn kind(&self) -> crate::components::ComponentKind {
+        match self {
+            Self::Input => crate::components::ComponentKind::Input,
+            Self::NumberInput { .. } => crate::components::ComponentKind::NumberInput,
+            Self::PhoneInput { .. } => crate::components::ComponentKind::PhoneInput,
+            Self::Checkbox => crate::components::ComponentKind::Checkbox,
+            Self::Switch => crate::components::ComponentKind::Switch,
+            Self::Select { .. } => crate::components::ComponentKind::Select,
+            Self::InfiniteSelect { .. } => crate::components::ComponentKind::InfiniteSelect,
+            Self::Custom => crate::components::ComponentKind::Custom,
+            Self::DatePicker => crate::components::ComponentKind::DatePicker,
+            Self::FilePicker => crate::components::ComponentKind::FilePicker,
+            Self::Nested { .. } => crate::components::ComponentKind::Nested,
+            Self::List { .. } => crate::components::ComponentKind::List,
+        }
+    }
+}
+
+impl From<&crate::components::ComponentsBehaviour> for FormSchemaComponent {
+    fn from(behaviour: &crate::components::ComponentsBehaviour) -> Self {
+        use crate::components::ComponentsBehaviour;
+        match behaviour {
+            ComponentsBehaviour::Input => Self::Input,
+            ComponentsBehaviour::NumberInput(options) => Self::NumberInput {
+                validation_type: options.validation_type.map(str::to_string),
+                kind: options.kind,
+            },
+            ComponentsBehaviour::PhoneInput(options) => Self::PhoneInput {
+                country_field: options.country_field.map(str::to_string),
+            },
+            ComponentsBehaviour::Checkbox => Self::Checkbox,
+            ComponentsBehaviour::Switch => Self::Switch,
+            ComponentsBehaviour::Select(options) => Self::Select {
+                searchable: options.searchable,
+                partial: options.partial,
+            },
+            ComponentsBehaviour::InfiniteSelect(options) => Self::InfiniteSelect {
+                searchable: options.searchable,
+                max_depth: options.max_depth,
+            },
+            ComponentsBehaviour::Custom => Self::Custom,
+            ComponentsBehaviour::DatePicker => Self::DatePicker,
+            ComponentsBehaviour::FilePicker => Self::FilePicker,
+            ComponentsBehaviour::Nested(options) => Self::Nested {
+                form_struct: options.form_struct.to_string(),
+            },
+            ComponentsBehaviour::List(options) => Self::List {
+                item: options.item,
+                item_struct: options.item_struct.map(str::to_string),
+                add_label: options.add_label.map(str::to_string),
+            },
+        }
+    }
+}
+
+/// Owned, serializable mirror of a [`FieldLayout`] (schema export).
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct FormSchemaLayout {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    pub width: crate::layout::LayoutWidth,
+}
+
+impl From<&FieldLayout> for FormSchemaLayout {
+    fn from(layout: &FieldLayout) -> Self {
+        Self {
+            section: layout.section.map(str::to_string),
+            label: layout.label.map(str::to_string),
+            description: layout.description.map(str::to_string),
+            placeholder: layout.placeholder.map(str::to_string),
+            width: layout.width,
+        }
+    }
+}
+
+/// Owned, serializable export of one [`FieldVariant`] (schema export,
+/// backlog #14).
+///
+/// A stable consumer shape for documentation generation, test fixtures,
+/// prototyping tools, and non-GPUI consumers: every `&'static str` payload of
+/// the inventory variant is projected to an owned `String`, and the component
+/// behaviour becomes a [`FormSchemaComponent`]. Includes the nested/list
+/// composition metadata from M3 and the dependency metadata from M4
+/// (`depends_on` / `required_if`).
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct FormSchemaField {
+    pub name: String,
+    /// The component behaviour, including kind-specific payload details.
+    pub component: FormSchemaComponent,
+    /// Rust type path for the field's form-side base value type.
+    pub value_type: String,
+    /// Rust type path for the source model's base value type.
+    pub source_value_type: String,
+    /// Whether the source field was `Option<T>`.
+    pub optional: bool,
+    /// Whether the generated value holder wraps this field in `Option<T>`
+    /// because of component behavior.
+    pub wraps_in_option: bool,
+    /// Validation rule identifiers applied to this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validations: Vec<String>,
+    /// Default value expression, if specified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_expr: Option<String>,
+    /// Source-to-form conversion expression, if specified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_expr: Option<String>,
+    /// Form-to-source conversion expression, if specified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub into_expr: Option<String>,
+    /// Custom component shape type path, if specified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_shape: Option<String>,
+    /// Custom UI component type path, if specified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_component: Option<String>,
+    /// Whether the custom component opted into value binding generation.
+    #[serde(default)]
+    pub custom_value_binding: bool,
+    /// Non-rendering layout hints.
+    #[serde(default)]
+    pub layout: FormSchemaLayout,
+    /// Async validator path recorded from `validate(async_fn = ...)`
+    /// (metadata-only in this milestone).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub async_validator: Option<String>,
+    /// Milestone M4 (backlog #12): the sibling field this field depends on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depends_on: Option<String>,
+    /// Milestone M4 (backlog #13): the controlling sibling field for the
+    /// conditional-required rule (also lowered to a koruma validator).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_if: Option<String>,
+}
+
+impl FormSchemaField {
+    /// The component kind of this field.
+    pub fn kind(&self) -> crate::components::ComponentKind {
+        self.component.kind()
+    }
+
+    /// Milestone M3 (backlog #2): this field composes another generated form.
+    pub fn is_nested(&self) -> bool {
+        matches!(self.component, FormSchemaComponent::Nested { .. })
+    }
+
+    /// Milestone M3 (backlog #3): this field is an editable `Vec<T>` field.
+    pub fn is_list(&self) -> bool {
+        matches!(self.component, FormSchemaComponent::List { .. })
+    }
+}
+
+impl From<&FieldVariant> for FormSchemaField {
+    fn from(variant: &FieldVariant) -> Self {
+        Self {
+            name: variant.field_name.to_string(),
+            component: FormSchemaComponent::from(&variant.behaviour),
+            value_type: variant.value_type.to_string(),
+            source_value_type: variant.source_value_type.to_string(),
+            optional: variant.optional,
+            wraps_in_option: variant.wraps_in_option,
+            validations: variant
+                .validations
+                .iter()
+                .map(|rule| rule.to_string())
+                .collect::<Vec<_>>(),
+            default_expr: variant.default_expr.map(str::to_string),
+            from_expr: variant.from_expr.map(str::to_string),
+            into_expr: variant.into_expr.map(str::to_string),
+            custom_shape: variant.custom_shape.map(str::to_string),
+            custom_component: variant.custom_component.map(str::to_string),
+            custom_value_binding: variant.custom_value_binding,
+            layout: FormSchemaLayout::from(&variant.layout),
+            async_validator: variant.async_validator.map(str::to_string),
+            depends_on: variant.depends_on.map(str::to_string),
+            required_if: variant.required_if.map(str::to_string),
+        }
+    }
+}
+
+/// Owned, serializable export of a [`GpuiFormShape`] (schema export,
+/// backlog #14).
+///
+/// Generated per form as `<Name>FormSchema::schema()` — a read-only
+/// projection over the same `FieldVariant`/`FieldLayout` chain the inventory
+/// path builds (single metadata source; no parallel runtime model). Consumed
+/// by documentation generation, test fixtures, prototyping tools, and
+/// non-GPUI consumers that want to inspect a form's shape without running
+/// the GPUI runtime.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct FormSchema {
+    /// The source struct name (e.g. `"UserProfile"`).
+    pub form: String,
+    /// The source file path where the struct is declared (`file!()`).
+    pub source_path: String,
+    /// Whether the struct has koruma validation enabled.
+    #[serde(default)]
+    pub koruma_enabled: bool,
+    /// Whether the source struct contains `#[gpui_form(skip)]` fields.
+    #[serde(default)]
+    pub has_skipped_fields: bool,
+    /// One entry per non-skipped component field, in declaration order.
+    pub fields: Vec<FormSchemaField>,
+}
+
+impl FormSchema {
+    /// Look up an exported field entry by field name.
+    pub fn field(&self, name: &str) -> Option<&FormSchemaField> {
+        self.fields.iter().find(|field| field.name == name)
+    }
+
+    /// Field names in declaration order (skipped fields are absent).
+    pub fn field_names(&self) -> impl Iterator<Item = &str> {
+        self.fields.iter().map(|field| field.name.as_str())
+    }
+
+    /// True when koruma validation is enabled and at least one field carries
+    /// validation rules — mirrors [`GpuiFormShape::has_validations`].
+    pub fn has_validations(&self) -> bool {
+        self.koruma_enabled
+            && self
+                .fields
+                .iter()
+                .any(|field| !field.validations.is_empty())
+    }
+}
+
+impl From<&GpuiFormShape> for FormSchema {
+    fn from(shape: &GpuiFormShape) -> Self {
+        Self {
+            form: shape.struct_name.to_string(),
+            source_path: shape.source_path.to_string(),
+            koruma_enabled: shape.koruma_enabled,
+            has_skipped_fields: shape.has_skipped_fields,
+            fields: shape
+                .components
+                .iter()
+                .map(FormSchemaField::from)
+                .collect::<Vec<_>>(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FieldVariant, GpuiFormShape};
+    use super::{FieldVariant, FormSchema, FormSchemaComponent, GpuiFormShape};
     use crate::components::ComponentsBehaviour;
 
     #[test]
@@ -412,7 +723,225 @@ mod tests {
         .with_required_if(Some("subscribe"))
         .with_depends_on(None)
         .with_required_if(None);
-        assert_eq!(cleared.depends_on(), None);
-        assert_eq!(cleared.required_if(), None);
+        assert_eq!(cleared.depends_on, None);
+        assert_eq!(cleared.required_if, None);
+    }
+
+    /// The M5 export fixture: a shape covering flat, nested (M3), list (M3),
+    /// and dependency (M4) fields, plus layout hints and behaviour payloads.
+    fn export_fixture() -> GpuiFormShape {
+        const FIELDS: [FieldVariant; 4] = [
+            FieldVariant::new("country", "u8", true, ComponentsBehaviour::Input).with_layout(
+                crate::layout::FieldLayout::new()
+                    .with_section(Some("Location"))
+                    .with_label(Some("Country"))
+                    .with_width(crate::layout::LayoutWidth::Half),
+            ),
+            FieldVariant::new(
+                "state",
+                "u8",
+                true,
+                ComponentsBehaviour::Select(crate::components::SelectBehaviour {
+                    searchable: true,
+                    partial: false,
+                }),
+            )
+            .with_validations(&["RequiredIfValidation"])
+            .with_depends_on(Some("country"))
+            .with_required_if(Some("country")),
+            FieldVariant::new(
+                "address",
+                "Address",
+                false,
+                ComponentsBehaviour::Nested(crate::components::NestedBehaviour {
+                    form_struct: "Address",
+                }),
+            )
+            .with_validations(&["NestedValidation"]),
+            FieldVariant::new(
+                "tags",
+                "String",
+                false,
+                ComponentsBehaviour::List(crate::components::ListBehaviour {
+                    item: crate::components::ComponentKind::Input,
+                    item_struct: None,
+                    add_label: Some("Add tag"),
+                }),
+            )
+            .with_validations(&["LenValidation"]),
+        ];
+        GpuiFormShape::new("Profile", &FIELDS, "src/profile.rs", true).with_skipped_fields(true)
+    }
+
+    #[test]
+    fn form_schema_projects_shape_metadata_faithfully() {
+        let shape = export_fixture();
+        let schema = FormSchema::from(&shape);
+
+        assert_eq!(schema.form, "Profile");
+        assert_eq!(schema.source_path, "src/profile.rs");
+        assert!(schema.koruma_enabled);
+        assert!(schema.has_skipped_fields);
+        assert!(schema.has_validations());
+        assert_eq!(
+            schema.field_names().collect::<Vec<_>>(),
+            vec!["country", "state", "address", "tags"]
+        );
+
+        // Layout hints survive projection.
+        let country = schema.field("country").expect("country entry");
+        assert_eq!(country.layout.section.as_deref(), Some("Location"));
+        assert_eq!(country.layout.label.as_deref(), Some("Country"));
+        assert_eq!(country.layout.width, crate::layout::LayoutWidth::Half);
+        assert!(country.layout.description.is_none());
+
+        // M4 dependency metadata (backlog #12/#13).
+        let state = schema.field("state").expect("state entry");
+        assert_eq!(state.depends_on.as_deref(), Some("country"));
+        assert_eq!(state.required_if.as_deref(), Some("country"));
+        assert_eq!(state.validations, vec!["RequiredIfValidation".to_string()]);
+        assert_eq!(
+            state.component,
+            FormSchemaComponent::Select {
+                searchable: true,
+                partial: false
+            }
+        );
+
+        // M3 nested metadata (backlog #2).
+        let address = schema.field("address").expect("address entry");
+        assert!(address.is_nested());
+        assert_eq!(address.kind(), crate::components::ComponentKind::Nested);
+        assert_eq!(
+            address.component,
+            FormSchemaComponent::Nested {
+                form_struct: "Address".to_string()
+            }
+        );
+
+        // M3 list metadata (backlog #3): item kind + add-label override.
+        let tags = schema.field("tags").expect("tags entry");
+        assert!(tags.is_list());
+        assert!(!tags.is_nested());
+        assert_eq!(
+            tags.component,
+            FormSchemaComponent::List {
+                item: crate::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: Some("Add tag".to_string()),
+            }
+        );
+
+        // Unknown fields return None (no panics for hand-built lookups).
+        assert!(schema.field("missing").is_none());
+    }
+
+    #[test]
+    fn behaviour_payloads_project_to_their_mirror_variants() {
+        use crate::components::{
+            ComponentsBehaviour, NumberInputBehaviour, NumberInputKind, PhoneInputBehaviour,
+        };
+
+        let number =
+            FormSchemaComponent::from(&ComponentsBehaviour::NumberInput(NumberInputBehaviour {
+                validation_type: Some("f64"),
+                kind: NumberInputKind::SignedInteger,
+            }));
+        assert_eq!(
+            number,
+            FormSchemaComponent::NumberInput {
+                validation_type: Some("f64".to_string()),
+                kind: NumberInputKind::SignedInteger,
+            }
+        );
+
+        let phone =
+            FormSchemaComponent::from(&ComponentsBehaviour::PhoneInput(PhoneInputBehaviour {
+                country_field: Some("country"),
+            }));
+        assert_eq!(
+            phone,
+            FormSchemaComponent::PhoneInput {
+                country_field: Some("country".to_string()),
+            }
+        );
+        assert_eq!(phone.kind(), crate::components::ComponentKind::PhoneInput);
+    }
+
+    #[test]
+    fn form_schema_round_trips_through_serde_json() {
+        let schema = FormSchema::from(&export_fixture());
+
+        let json = serde_json::to_string(&schema).expect("serialize FormSchema");
+        let restored: FormSchema = serde_json::from_str(&json).expect("deserialize FormSchema");
+        assert_eq!(restored, schema, "exported schema must round-trip");
+
+        // The nested/list/dependency metadata from M3/M4 survives the wire.
+        assert_eq!(
+            restored.field("state").expect("state entry").required_if,
+            Some("country".to_string())
+        );
+        assert!(
+            restored
+                .field("address")
+                .expect("address entry")
+                .is_nested()
+        );
+        assert!(restored.field("tags").expect("tags entry").is_list());
+    }
+
+    #[test]
+    fn form_schema_json_uses_snake_case_component_tags() {
+        // The wire format spells components like the attribute syntax
+        // (`number_input`, `nested`, `list`) — the same names consumers match
+        // on today via ComponentKind's Display.
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "age",
+            "u32",
+            false,
+            ComponentsBehaviour::NumberInput(crate::components::NumberInputBehaviour {
+                validation_type: None,
+                kind: crate::components::NumberInputKind::Float,
+            }),
+        )];
+        let shape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+        let json = serde_json::to_string(&FormSchema::from(&shape)).unwrap();
+        assert!(
+            json.contains(r#""component":"number_input""#),
+            "component tag must be snake_case in {json}"
+        );
+        assert!(
+            json.contains(r#""kind":"float""#),
+            "number kind must be snake_case in {json}"
+        );
+    }
+
+    #[test]
+    fn form_schema_wire_format_omits_absent_hints() {
+        // Option payloads with `skip_serializing_if` keep exported documents
+        // readable for docs/fixture generation: absent hints are simply
+        // missing from the JSON, and deserialization defaults them back.
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "name",
+            "String",
+            false,
+            ComponentsBehaviour::Input,
+        )];
+        let shape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+        let json = serde_json::to_string(&FormSchema::from(&shape)).unwrap();
+        assert!(
+            !json.contains("section"),
+            "absent hint must be omitted: {json}"
+        );
+        assert!(
+            !json.contains("depends_on"),
+            "absent dependency must be omitted: {json}"
+        );
+
+        let restored: FormSchema = serde_json::from_str(&json).unwrap();
+        let field = restored.field("name").unwrap();
+        assert_eq!(field.layout.section, None);
+        assert_eq!(field.depends_on, None);
+        assert_eq!(field.layout.width, crate::layout::LayoutWidth::Full);
     }
 }

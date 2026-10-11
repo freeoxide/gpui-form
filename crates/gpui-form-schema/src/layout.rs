@@ -33,6 +33,7 @@
 //! the form. This keeps v1 minimal and gives richer layouts (columns,
 //! collapsible sections) a stable foundation to build on later.
 
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, IntoStaticStr};
 
 /// Relative width hint for a single field.
@@ -48,8 +49,21 @@ use strum::{Display, EnumString, IntoStaticStr};
 ///
 /// Defaults to [`LayoutWidth::Full`] — fields take their natural width unless a
 /// narrower hint is provided.
-#[derive(Clone, Copy, Debug, Default, Display, EnumString, Eq, IntoStaticStr, PartialEq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Display,
+    EnumString,
+    Eq,
+    IntoStaticStr,
+    PartialEq,
+    Serialize,
+    Deserialize,
+)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum LayoutWidth {
     /// Full available width (the default).
     #[default]
