@@ -12,7 +12,7 @@ the repository root `README.md` (single source) — do not transcribe them here.
 | **git** | | |
 | `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
 
-Install from git: `gpui-form = { git = "https://github.com/stayhydated/gpui-form" }`.
+Install from git: `freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }` (the package publishes under the `freeoxide-` names; the lib stays `gpui_form`, so imports are `use gpui_form::...`).
 The crates.io `gpui-form` package is the upstream `freeoxide/gpui-form`
 lineage, not this fork. Optional additive features: `inventory`, `serde`,
 `phone` (see the facade README feature list or root `README.md`

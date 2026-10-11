@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form"
+name = "freeoxide-gpui-form"
 description = """
 The gpui-form crate
 """
@@ -11,6 +11,11 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 keywords = [ "gpui", "gpui-component", "form" ]
+
+# The package is published as `freeoxide-gpui-form`; the lib target keeps
+# its historical name so `::gpui_form::...` paths compile unchanged.
+[lib]
+name = "gpui_form"
 
 [features]
 default = [ "derive" ]

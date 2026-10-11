@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-core"
+name = "freeoxide-gpui-form-core"
 description = """
 Core helpers for gpui-form.
 """
@@ -10,6 +10,12 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
+
+# The package is published as `freeoxide-gpui-form-core`; the lib target
+# keeps its historical name so `::gpui_form_core::...` paths compile
+# unchanged.
+[lib]
+name = "gpui_form_core"
 
 [lints]
 workspace = true

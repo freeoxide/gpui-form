@@ -21,7 +21,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 publish = true
 readme = "README.md"
-repository = "https://github.com/stayhydated/gpui-form"
+repository = "https://github.com/freeoxide/gpui-form"
 rust-version = "1.95"
 version = "0.10.0"
 
@@ -32,15 +32,18 @@ chrono = "0.4"
 darling = "0.23"
 derive_more = "2.1"
 gpui = { package = "gpui-pre", version = "0.3.7" }
-gpui-form = { path = "crates/gpui-form", version = "0.10.0" }
-gpui-form-codegen = { path = "crates/gpui-form-codegen", version = "0.10.0" }
-gpui-form-component = { path = "crates/gpui-form-component", version = "0.10.0" }
-gpui-form-component-derive = { path = "crates/gpui-form-component-derive", version = "0.10.0" }
-gpui-form-core = { path = "crates/gpui-form-core", version = "0.10.0" }
-gpui-form-derive = { path = "crates/gpui-form-derive", version = "0.10.0" }
-gpui-form-i18n = { path = "crates/gpui-form-i18n", version = "0.10.0" }
-gpui-form-prototyping-core = { path = "crates/gpui-form-prototyping-core", version = "0.10.0" }
-gpui-form-schema = { path = "crates/gpui-form-schema", version = "0.10.0" }
+# The packages publish under `freeoxide-` names; the dependency keys keep
+# their historical names (via `package =`) so member manifests and all
+# `::gpui_form*::` extern-crate paths stay unchanged.
+gpui-form = { package = "freeoxide-gpui-form", path = "crates/gpui-form", version = "0.10.0" }
+gpui-form-codegen = { package = "freeoxide-gpui-form-codegen", path = "crates/gpui-form-codegen", version = "0.10.0" }
+gpui-form-component = { package = "freeoxide-gpui-form-component", path = "crates/gpui-form-component", version = "0.10.0" }
+gpui-form-component-derive = { package = "freeoxide-gpui-form-component-derive", path = "crates/gpui-form-component-derive", version = "0.10.0" }
+gpui-form-core = { package = "freeoxide-gpui-form-core", path = "crates/gpui-form-core", version = "0.10.0" }
+gpui-form-derive = { package = "freeoxide-gpui-form-derive", path = "crates/gpui-form-derive", version = "0.10.0" }
+gpui-form-i18n = { package = "freeoxide-gpui-form-i18n", path = "crates/gpui-form-i18n", version = "0.10.0" }
+gpui-form-prototyping-core = { package = "freeoxide-gpui-form-prototyping-core", path = "crates/gpui-form-prototyping-core", version = "0.10.0" }
+gpui-form-schema = { package = "freeoxide-gpui-form-schema", path = "crates/gpui-form-schema", version = "0.10.0" }
 gpui-kit = "0.7.0"
 gpui-kit-assets = "0.7.0"
 gpui_platform = { features = [

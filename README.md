@@ -1,6 +1,6 @@
-[![Build Status](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml/badge.svg)](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml)
-[![Docs](https://docs.rs/gpui-form/badge.svg)](https://docs.rs/gpui-form/)
-[![Crates.io](https://img.shields.io/crates/v/gpui-form.svg)](https://crates.io/crates/gpui-form)
+[![Build Status](https://github.com/freeoxide/gpui-form/actions/workflows/ci.yml/badge.svg)](https://github.com/freeoxide/gpui-form/actions/workflows/ci.yml)
+[![Docs](https://docs.rs/freeoxide-gpui-form/badge.svg)](https://docs.rs/freeoxide-gpui-form/)
+[![Crates.io](https://img.shields.io/crates/v/freeoxide-gpui-form.svg)](https://crates.io/crates/freeoxide-gpui-form)
 
 # gpui-form
 
@@ -17,7 +17,7 @@ It is designed for three things:
 
 ## Compatibility
 
-| `gpui-form` | `gpui-kit` | `gpui` |
+| `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
 | `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
@@ -29,23 +29,25 @@ It is designed for three things:
 gpui = { package = "gpui-pre", version = "0.3.7" }
 gpui-kit = "0.7.0"
 
-gpui-form = { git = "https://github.com/stayhydated/gpui-form" }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 
 # Optional: inventory registration for prototyping/code generation
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["inventory"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["inventory"] }
 
 # Optional: form-state persistence + dirty tracking (serde on the holder)
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
 
 # Optional: parser-backed phone-number validation helpers
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["phone"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["phone"] }
 
 # Optional: your crate's own locale files (required when the crate calls t!)
 # rust-i18n = "4"
 ```
 
-The `gpui-form` package on crates.io is the upstream `freeoxide/gpui-form`
-lineage, not this fork — install from git to pick up this workspace.
+The packages publish to crates.io under the `freeoxide-` names
+(`freeoxide-gpui-form` and friends); every lib target keeps its historical
+name (`gpui_form`, `gpui_form_core`, ...), so `use gpui_form::...` code
+compiles unchanged.
 
 ## Quick Start
 
@@ -150,7 +152,7 @@ field and headless validation helpers that centralize the strict validation
 logic so every phone field uses the same rules.
 
 ```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["derive", "phone"] }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["derive", "phone"] }
 ```
 
 ### As a generated form field
@@ -515,7 +517,7 @@ Enable the optional `serde` feature to make generated forms saveable/restorable
 and to know whether the user edited them. The feature is additive and opt-in.
 
 ```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
 ```
 
 With the feature on, `#[derive(GpuiForm)]` adds `Serialize` and `Deserialize`

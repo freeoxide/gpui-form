@@ -146,10 +146,33 @@ where
         .collect()
 }
 
-fn crate_tokens(found_crate: FoundCrate) -> proc_macro2::TokenStream {
+/// The lib target names of the two runtime packages. The packages publish
+/// as `freeoxide-gpui-form[-component]` while their lib targets keep the
+/// historical `gpui_form[_component]` names, so `use gpui_form::...`
+/// consumer code compiles against either dependency spelling.
+fn runtime_lib_name(pkg: &str) -> Option<&'static str> {
+    match pkg {
+        "freeoxide-gpui-form" | "gpui-form" => Some("gpui_form"),
+        "freeoxide-gpui-form-component" | "gpui-form-component" => Some("gpui_form_component"),
+        _ => None,
+    }
+}
+
+fn crate_tokens(pkg: &str, found_crate: FoundCrate) -> proc_macro2::TokenStream {
     match found_crate {
         FoundCrate::Itself => quote! { crate },
-        FoundCrate::Name(name) => {
+        FoundCrate::Name(found) => {
+            // `proc-macro-crate` returns the caller's dependency KEY. That
+            // key is the extern crate name only when the dependency was
+            // RENAMED (`gpui-form = { package = "freeoxide-gpui-form" }`).
+            // When the key equals the package name (the un-renamed
+            // spelling a fresh consumer writes), cargo registers the crate
+            // under the package's LIB TARGET name — `gpui_form`, not the
+            // `freeoxide_gpui_form` the key implies — so correct it.
+            let name = match runtime_lib_name(pkg) {
+                Some(lib) if found == pkg.replace('-', "_") => lib,
+                _ => found.as_str(),
+            };
             let ident = format_ident!("{}", name.replace('-', "_"));
             quote! { ::#ident }
         },
@@ -157,21 +180,30 @@ fn crate_tokens(found_crate: FoundCrate) -> proc_macro2::TokenStream {
 }
 
 fn resolve_runtime_crate() -> syn::Result<proc_macro2::TokenStream> {
-    let facade_error = match crate_name("gpui-form") {
-        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
-        Err(err) => err,
-    };
-
-    let runtime_error = match crate_name("gpui-form-component") {
-        Ok(found_crate) => return Ok(crate_tokens(found_crate)),
-        Err(err) => err,
-    };
+    // The packages publish under `freeoxide-` names; workspace members and
+    // legacy git consumers keep the historical dependency keys via
+    // `package =` renames. Probe each runtime surface under both
+    // spellings: `proc-macro-crate` matches the caller's manifest by
+    // PACKAGE name, and `crate_tokens` maps the found dependency key to
+    // the extern crate name cargo actually registers.
+    let mut resolution_errors = Vec::new();
+    for name in [
+        "freeoxide-gpui-form",
+        "gpui-form",
+        "freeoxide-gpui-form-component",
+        "gpui-form-component",
+    ] {
+        match crate_name(name) {
+            Ok(found_crate) => return Ok(crate_tokens(name, found_crate)),
+            Err(err) => resolution_errors.push(format!("`{name}`: {err}")),
+        }
+    }
 
     Err(syn::Error::new(
         proc_macro2::Span::call_site(),
         format!(
-            "InfiniteSelect derive could not resolve the runtime crate. Add either `gpui-form` or `gpui-form-component` as a dependency. Resolution errors: `gpui-form`: {}; `gpui-form-component`: {}",
-            facade_error, runtime_error,
+            "InfiniteSelect derive could not resolve the runtime crate. Add `freeoxide-gpui-form` (or `gpui-form`) or `freeoxide-gpui-form-component` (or `gpui-form-component`) as a dependency. Resolution errors: {}",
+            resolution_errors.join("; "),
         ),
     ))
 }

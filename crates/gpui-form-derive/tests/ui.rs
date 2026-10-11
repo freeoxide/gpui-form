@@ -124,10 +124,13 @@ fn seed_trybuild_locales() {
     use std::path::PathBuf;
 
     let target_dir = resolve_cargo_target_dir();
+    // trybuild names the sandbox project after this crate's PACKAGE name,
+    // so the seed must follow it (the package publishes as
+    // `freeoxide-gpui-form-derive`).
     let locales_dir = target_dir
         .join("tests")
         .join("trybuild")
-        .join("gpui-form-derive")
+        .join(env!("CARGO_PKG_NAME"))
         .join("locales");
     fs::create_dir_all(&locales_dir).expect("trybuild project locales dir");
 

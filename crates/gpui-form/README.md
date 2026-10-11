@@ -6,12 +6,13 @@
 and `schema`, and keeps compatibility re-exports such as `custom`,
 `date_picker`, `file_picker`, `infinite_select`, and `numeric`.
 
-The `gpui-form` package on crates.io is the upstream `freeoxide/gpui-form`
-lineage, not this fork — install from git to pick up this workspace.
+The package publishes as `freeoxide-gpui-form`; the lib target keeps its
+historical name (`gpui_form`), so `use gpui_form::...` code compiles
+unchanged.
 
 ## Compatibility
 
-| `gpui-form` | `gpui-kit` | `gpui` |
+| `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
 | `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
@@ -22,7 +23,7 @@ lineage, not this fork — install from git to pick up this workspace.
 [dependencies]
 gpui = { package = "gpui-pre", version = "0.3.7" }
 gpui-kit = "0.7.0"
-gpui-form = { git = "https://github.com/stayhydated/gpui-form" }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 ```
 
 ## Feature Flags

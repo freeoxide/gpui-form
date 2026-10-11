@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-i18n"
+name = "freeoxide-gpui-form-i18n"
 description = "GPUI global-state i18n bridge backed by rust-i18n"
 version.workspace = true
 rust-version.workspace = true
@@ -8,6 +8,12 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
+
+# The package is published as `freeoxide-gpui-form-i18n`; the lib target
+# keeps its historical name so `::gpui_form_i18n::...` paths compile
+# unchanged.
+[lib]
+name = "gpui_form_i18n"
 
 [features]
 default = []

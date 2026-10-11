@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-derive"
+name = "freeoxide-gpui-form-derive"
 description = """
 Macro crate for gpui-form
 """
@@ -11,7 +11,10 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
+# The package is published as `freeoxide-gpui-form-derive`; the proc-macro
+# lib target keeps its historical name.
 [lib]
+name = "gpui_form_derive"
 proc-macro = true
 
 [dependencies]
@@ -40,7 +43,7 @@ serde = [ "dep:serde" ]
 
 [dev-dependencies]
 gpui = { workspace = true }
-gpui-form = { default-features = false, path = "../gpui-form" }
+gpui-form = { default-features = false, package = "freeoxide-gpui-form", path = "../gpui-form" }
 gpui-kit = { workspace = true }
 koruma = { workspace = true }
 koruma-collection = { workspace = true }

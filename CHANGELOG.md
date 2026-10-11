@@ -53,8 +53,22 @@ minor bump follows the plan's one-minor-per-milestone rule.
   `Option` hints (`skip_serializing_if` + `default`).
 - Every form's expansion gains the additive `<Name>FormSchema` item; the
   flat-form expansion snapshots were regenerated accordingly.
+- Package rename for publishing under the `freeoxide` account: all nine
+  workspace packages now publish as `freeoxide-gpui-form`,
+  `freeoxide-gpui-form-core`, `freeoxide-gpui-form-codegen`,
+  `freeoxide-gpui-form-component`, `freeoxide-gpui-form-component-derive`,
+  `freeoxide-gpui-form-derive`, `freeoxide-gpui-form-i18n`,
+  `freeoxide-gpui-form-prototyping-core`, and `freeoxide-gpui-form-schema`
+  (versions stay `0.10.0`; the fresh names have no crates.io collision).
+  Zero source churn by design: every crate keeps its current lib target
+  name (`gpui_form`, `gpui_form_core`, `gpui_form_component`, ...), so all
+  `::gpui_form::...` paths in generated code, examples, and user code
+  compile unchanged, and in-workspace dependency keys keep their
+  historical names through `package =` remaps in the workspace dependency
+  table. The repository URL is now
+  https://github.com/freeoxide/gpui-form.
 
-[0.10.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.10.0
+[0.10.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.10.0
 
 ## [0.9.0] - 2026-10-11
 
@@ -156,7 +170,7 @@ plan's one-minor-per-milestone rule.
   M4 showcase; `docs/feature-backlog.md` marks #12/#13 shipped (M4),
   closes #10 by #9 per [D10], and updates the suggested order.
 
-[0.9.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.9.0
+[0.9.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.9.0
 
 ## [0.8.0] - 2026-10-11
 
@@ -295,7 +309,7 @@ additions), which is why it takes the minor bump on its own.
 - `docs/feature-backlog.md`: backlog #2 and #3 marked shipped (M3 v1) with
   scope notes; suggested order updated.
 
-[0.8.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.8.0
+[0.8.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.8.0
 
 ## [0.7.0] - 2026-10-11
 
@@ -394,7 +408,7 @@ follows the plan's one-minor-per-milestone rule.
 - Marked feature-backlog item #7 (submit lifecycle helpers) as shipped and
   refreshed the suggested order.
 
-[0.7.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.7.0
+[0.7.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.7.0
 
 ## [0.6.0] - 2026-10-11
 
@@ -469,7 +483,7 @@ the plan's one-minor-per-milestone rule.
 - Marked feature-backlog items #6 (typed error access) and #9 (patch and
   delta generation) as shipped and refreshed the suggested order.
 
-[0.6.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.6.0
+[0.6.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.6.0
 
 ## [0.5.2] - 2026-06-30
 
@@ -508,4 +522,4 @@ the plan's one-minor-per-milestone rule.
   `use-gpui-form` skill, and the codegen and schema architecture notes.
 - Marked the phone part of feature-backlog item #18 as shipped.
 
-[0.5.2]: https://github.com/stayhydated/gpui-form/releases/tag/v0.5.2
+[0.5.2]: https://github.com/freeoxide/gpui-form/releases/tag/v0.5.2

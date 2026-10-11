@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-component"
+name = "freeoxide-gpui-form-component"
 description = """
 Custom components for gpui-form, including InfiniteSelect for nested enum support
 """
@@ -10,6 +10,12 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
+
+# The package is published as `freeoxide-gpui-form-component`; the lib
+# target keeps its historical name so `::gpui_form_component::...` paths
+# compile unchanged.
+[lib]
+name = "gpui_form_component"
 
 [features]
 default = [  ]
@@ -29,7 +35,20 @@ rust-i18n = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]
-gpui-form-component-derive = { workspace = true }
+# Integration tests derive `InfiniteSelect`; the derive resolves the
+# runtime crate through `proc-macro-crate`, which maps a crate's own
+# package name to the sanitized PACKAGE name — no longer the lib name
+# under the `freeoxide-` package rename. Depending on the facade here
+# gives the tests a resolvable runtime surface (`::gpui_form::infinite_select`
+# re-exports this crate's module).
+#
+# Both intra-set dev-deps are deliberately PATH-ONLY (no `version`): cargo
+# drops path-only dev-dependencies from the packaged manifest, so they
+# never resolve against crates.io during `cargo publish`. A version-
+# carrying dev-dep on the facade would publish-order-cycle (the facade
+# depends on this crate) and deadlock the first publish of the set.
+gpui-form = { package = "freeoxide-gpui-form", path = "../gpui-form" }
+gpui-form-component-derive = { package = "freeoxide-gpui-form-component-derive", path = "../gpui-form-component-derive" }
 serde_json = { workspace = true }
 unic-langid = { workspace = true }
 
