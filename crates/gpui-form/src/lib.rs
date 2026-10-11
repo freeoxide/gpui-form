@@ -37,5 +37,10 @@ pub use gpui_form_schema as schema;
 // and tooling, parallel to `FieldVariant`), but `LayoutWidth` is the simple
 // enum an application reaches for when building layouts by hand.
 pub use gpui_form_schema::LayoutWidth;
+// Root re-export of the schema-export document type (backlog #14): the value
+// `<Name>FormSchema::schema()` returns. The field/component/layout entry
+// types stay under `gpui_form::schema::registry` — they are reached through
+// the document, parallel to `FieldVariant`.
+pub use gpui_form_schema::registry::FormSchema;
 
 pub use bon;

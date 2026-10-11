@@ -42,6 +42,11 @@ power the rest of the ecosystem.
   dirty/patch; M2: the koruma-gated validation cache slot and its methods)
 - `src/derives/gpui_form/submit.rs`: the opt-in `#[gpui_form(submit)]`
   `<Name>FormSubmission` alias (backlog #7, M2)
+- `src/derives/gpui_form/schema_export.rs`: the `<Name>FormSchema` unit type
+  and its `schema()` accessor (backlog #14, M5) — projects the SAME
+  `GpuiFormShape` construction chain the inventory path builds into the owned,
+  serializable `::gpui_form::schema::registry::FormSchema` document via
+  `From<&GpuiFormShape>`
 - `src/derives/gpui_form/errors.rs`: generated `<Name>FormFieldErrors` map,
   `<Name>FormFieldError` borrowing enum, and the holder's `validate_fields()`
   (backlog #6 typed error access, koruma-gated; M3 adds nested-slot routing
@@ -86,6 +91,9 @@ power the rest of the ecosystem.
      return and the main expansion)
    - `FormFieldErrors` + `FormFieldError` + the holder's `validate_fields()`
      (from `errors.rs`; gated on `needs_koruma_derive` in `value_holder.rs`)
+   - `FormSchema` + its `schema()` accessor (from `schema_export.rs`;
+     unconditional, spliced into BOTH return sites like the facade — the
+     export needs only the registry types, not the `inventory` feature)
    - conversions between the original type and the holder
    - optional inventory metadata
 
@@ -380,6 +388,13 @@ When the `inventory` feature is enabled:
    `FieldVariant`-construction `filter_map` returns `None` for skipped fields
    before any layout tokens are built, so no variant (and no layout) is emitted.
 
+The shape-construction chain (a single `TokenStream` built once in
+`expansion.rs`) feeds TWO consumers: the `inventory::submit!` registration
+(feature-gated) and the M5 `<Name>FormSchema::SHAPE` const behind the
+`schema()` accessor (always emitted). Passing the identical tokens to both is
+the single-metadata-source contract — nested/list (M3) and dependency (M4)
+payloads cannot drift between the inventory surface and the export.
+
 ## Other Derives
 
 ### `SelectItem`
@@ -457,6 +472,13 @@ change.
   end-to-end; `tests/ui/submit_attr_takes_no_args.rs` and
   `tests/ui/async_validate_bad_args.rs` (+ `.stderr` snapshots) pin the
   parse-time rejections (`submit = foo`, `async_fn = 123`, bare `validate()`).
+- `tests/schema_export.rs` exercises the M5 export end-to-end: the document
+  carries nested/list (M3) and dependency (M4) metadata plus layout hints and
+  skipped-field semantics, round-trips through serde_json, covers the
+  empty-form branch, and the nested form exports its own schema. The
+  token-level companion (`schema_export_reuses_the_inventory_shape_chain` in
+  `src/derives/gpui_form/tests.rs`) pins that the export is unconditional
+  (inventory-off) and reuses the registry shape chain.
 
 ## When To Update This Document
 

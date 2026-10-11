@@ -55,6 +55,13 @@ This crate exists to:
   re-export of the width-hint enum; `FieldLayout` itself stays under
   `gpui_form::schema` alongside `FieldVariant` since it is field-level
   metadata consumed by generators)
+- `gpui_form_schema::registry::FormSchema` as `gpui_form::FormSchema` (M5,
+  backlog #14): the owned, serializable schema-export document returned by the
+  generated `<Name>FormSchema::schema()`. The field/component/layout entry
+  types stay under `gpui_form::schema::registry`, reached through the
+  document. Serialization is unconditional (the schema crate depends on serde
+  directly) — the export is tooling metadata, deliberately outside the
+  holder-persistence `serde` feature story
 - `bon` as `gpui_form::bon`
 
 The explicit namespaces (`core`, `runtime`, `schema`) are the preferred public

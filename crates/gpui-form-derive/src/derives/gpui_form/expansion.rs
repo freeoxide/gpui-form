@@ -10,6 +10,7 @@ use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
 use crate::derives::gpui_form::components::generate_component_field;
 use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::form_state::generate_form_state;
+use crate::derives::gpui_form::schema_export::generate_schema_export;
 use crate::derives::gpui_form::structs::{
     ComponentStruct, FieldComposition, FieldOptionality, GpuiFormOptions, RequiredIfCondition,
     RequiredIfRule,
@@ -73,26 +74,34 @@ pub fn expand_gpui_form(
         // error type.
         let submit_alias_tokens =
             generate_submit_alias(&original_input, parsed.submit, needs_koruma_derive);
+        // Schema export (M5, backlog #14): the same empty shape chain feeds
+        // both the inventory submission and the export accessor (single
+        // metadata source); the export itself needs no inventory feature.
+        let empty_shape_construction = quote! {
+            ::gpui_form::schema::registry::GpuiFormShape::new(
+                stringify!(#struct_name),
+                &[],
+                file!(),
+                #enable_koruma
+            ).with_skipped_fields(false)
+        };
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::schema::registry::inventory::submit! {
-                    ::gpui_form::schema::registry::GpuiFormShape::new(
-                        stringify!(#struct_name),
-                        &[],
-                        file!(),
-                        #enable_koruma
-                    ).with_skipped_fields(false)
+                    #empty_shape_construction
                 }
             }
         } else {
             quote! {}
         };
+        let schema_export_tokens = generate_schema_export(&parsed.ident, empty_shape_construction);
 
         return quote! {
             #value_holder_tokens
             #field_path_tokens
             #form_state_tokens
             #submit_alias_tokens
+            #schema_export_tokens
             pub struct #components_holder_name;
 
             #shape_impl
@@ -613,28 +622,39 @@ pub fn expand_gpui_form(
         })
         .collect();
 
+    // Schema export (M5, backlog #14): one construction chain, two consumers
+    // — the inventory submission (behind the derive crate's `inventory`
+    // feature) and the `<Name>FormSchema::SHAPE` constant the `schema()`
+    // accessor projects from. Feeding both the identical tokens is the
+    // "single metadata source" contract: nested/list (M3) and dependency
+    // (M4) payloads can never drift between the two surfaces.
+    let shape_construction = quote! {
+        ::gpui_form::schema::registry::GpuiFormShape::new(
+            stringify!(#struct_name),
+            &[
+                #(#field_variant_construction_code),*
+            ],
+            file!(),
+            #effective_enable_koruma
+        ).with_skipped_fields(#has_skipped_fields)
+    };
     let shape_impl = if options.generate_shape {
         quote! {
             ::gpui_form::schema::registry::inventory::submit! {
-                ::gpui_form::schema::registry::GpuiFormShape::new(
-                    stringify!(#struct_name),
-                    &[
-                        #(#field_variant_construction_code),*
-                    ],
-                    file!(),
-                    #effective_enable_koruma
-                ).with_skipped_fields(#has_skipped_fields)
+                #shape_construction
             }
         }
     } else {
         quote! {}
     };
+    let schema_export_tokens = generate_schema_export(&parsed.ident, shape_construction);
 
     let expanded = quote! {
         #value_holder_tokens
         #field_path_tokens
         #form_state_tokens
         #submit_alias_tokens
+        #schema_export_tokens
         pub struct #components_holder_name {
             #(#field_structure_tokens)*
         }

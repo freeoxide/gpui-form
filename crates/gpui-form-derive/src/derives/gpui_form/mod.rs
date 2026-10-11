@@ -5,6 +5,7 @@ pub mod expansion;
 pub mod field_path;
 pub mod form_state;
 pub mod koruma;
+pub mod schema_export;
 pub mod structs;
 pub mod submit;
 pub mod tests;
