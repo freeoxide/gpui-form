@@ -16,20 +16,30 @@ At the moment the crate is intentionally narrow:
 - `fields::TouchedFields` for touched-field tracking (field-level state, M1)
 - `validation::FormFieldErrors`, the generic contract behind the derive's
   generated per-form error maps (backlog #6, M1)
+- `validation::ValidationCache<H, O>`, the snapshot-compare outcome cache
+  behind a live `is_valid` (validation-state model, M2)
+- `submit::SubmitTracker<E>` + `submit::SubmitAction<H>` for the headless
+  submit lifecycle (backlog #7, M2), plus the `submit::BoxError` default
+  error alias
+- `async_validation::AsyncFieldValidation<H>`, the executor-free async
+  per-field validation contract (M2)
 - `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
 
 ## Modules
 
 - `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormFieldErrors`,
-  `FormState`, `TouchedFields`, and the `fields`/`path`/`state`/`validation`
-  modules)
+  `FormState`, `TouchedFields`, `ValidationCache`, `SubmitTracker`,
+  `SubmitAction`, `AsyncFieldValidation`, `BoxError`, and the
+  `async_validation`/`fields`/`path`/`state`/`submit`/`validation` modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
 - `src/phone.rs`: optional parser-backed phone validation helpers behind the
   `phone` feature
 - `src/path.rs`: `FieldPath` typed field-path primitive
 - `src/state.rs`: `FormState<H>` form-state helper
 - `src/fields.rs`: `TouchedFields` touched-field bitset
-- `src/validation.rs`: `FormFieldErrors` trait
+- `src/validation.rs`: `FormFieldErrors` trait + `ValidationCache<H, O>`
+- `src/submit.rs`: `SubmitTracker<E>`, `SubmitAction<H>`, `BoxError`
+- `src/async_validation.rs`: `AsyncFieldValidation<H>` trait
 
 ## Phone Validation
 
@@ -114,6 +124,72 @@ using the shared `FieldPath` primitive. The concrete map (koruma typed error
 structs re-keyed by typed paths, `error_for`, `issue_keys`) is generated in
 the derive crate; core owns only the generic contract.
 
+## ValidationCache (M2)
+
+`validation.rs` also defines `ValidationCache<H, O>`, the outcome cache behind
+a live `is_valid`. The freshness rule is **snapshot-compare** (feature-parity
+plan [D6]): the cache stores `(validated snapshot, outcome)` and `get` returns
+the outcome iff `current == snapshot`. Consequences:
+
+- Sound under every mutation route — `&mut` escapes included — with zero
+  invalidation discipline: a changed holder stops comparing equal.
+- Cost profile: one holder clone per `store` and one `PartialEq` per `get`
+  (form-scale data, no per-field allocation).
+- Non-reflexive `PartialEq` values (NaN) make `get` conservatively report
+  stale — never wrong, just uncached. `stored()` is the exact-read companion
+  used by generated facades right after their own `store`, precisely to
+  avoid that trap.
+- No serde surface: the cache is transient by construction; it never lives
+  on the value holder.
+
+The koruma-gated generated `<Name>FormState` facade composes it as the
+`validation` slot and adds `validate`/`validation`/`is_valid`/
+`invalidate_validation`/`error_for` (see the derive crate's architecture
+doc). The facade's reset-style mutators invalidate explicitly (a
+reverted-to-same-value form must not keep the old verdict); `sync_baseline`
+does not invalidate (validity depends only on `current`).
+
+## SubmitTracker / SubmitAction (M2)
+
+`submit.rs` defines the headless submit lifecycle (backlog #7):
+
+- `SubmitTracker<E>`: `submitting`, `submit_count`, `last_error`, a
+  monotonic `generation`, the in-flight attempt's `active_generation`, and
+  the last terminal verdict. The generation/epoch guard ([D7]/R12) is the
+  load-bearing piece: `begin()` bumps the generation and pins the attempt as
+  active; `reset()` bumps the generation and clears everything; `finish()`
+  is honored only while the in-flight attempt matches — completions arriving
+  after a reset (or with no attempt in flight, e.g. after `abandon()`) are
+  ignored entirely. `set_error`/`clear_error` inject server-side errors
+  without rewriting terminal verdicts.
+- `SubmitAction<H>`: the executor-free submit hook (`async fn submit(&mut
+  self, holder: &H)`; `Output`/`Error` associated types; no `Send` bound —
+  GPUI futures are typically non-Send, plan OQ 3).
+- `BoxError`: the default error alias for forms without a koruma error
+  type.
+
+Scope boundaries: the tracker stores state and runs nothing — driving the
+future (GPUI `cx.spawn`, tokio) is glue; the holder flows through submit by
+`&H` and is never mutated; the save protocol (`sync_baseline`) is the
+application's. The derive exposes `SubmitTracker` per form through the
+opt-in `#[gpui_form(submit)]` attribute as `<Name>FormSubmission`.
+
+## AsyncFieldValidation (M2)
+
+`async_validation.rs` defines `AsyncFieldValidation<H>` —
+`async fn validate_field(&self, holder: &H, field: &FieldPath) ->
+Result<(), Self::Error>` — the executor-free async per-field validation
+contract. Placement rationale: an async fn in a trait adds no dependency and
+no executor, so the contract belongs with the other headless primitives and
+is implementable by tokio revalidation, tests, and GPUI glue alike.
+Deliberately excluded from core (the module doc states it): anything that
+runs, times, or cancels a future — no clock, no debounce timer, no
+cancellation token. Those belong to the driving layer (the future GPUI glue
+in `gpui-form-component`, or the app via natural drop-based cancellation).
+Async outcomes are NOT merged into the generated `<Name>FormFieldErrors`
+maps in this phase (merge semantics deferred, plan OQ 5). The derive-side
+`validate(async_fn = ...)` attribute parses and records metadata only.
+
 ## FieldPath
 
 `path.rs` defines `FieldPath`, the headless, GPUI-free, serde-free typed
@@ -187,8 +263,9 @@ the text shape or also verifies that the text can parse into `T`.
    before committing parsed values into the holder.
 1. Application code wraps a generated `...FormValueHolder` in `FormState` to
    track edits, reset, or diff against a restored value, or in the generated
-   `<Name>FormState` facade to also get touched tracking and the field-level
-   diff (the facade composes `FormState` + `TouchedFields`).
+   `<Name>FormState` facade to also get touched tracking, the field-level
+   diff, and (koruma forms) the cached validation verdict (the facade
+   composes `FormState` + `TouchedFields` + `ValidationCache`).
 1. Generated `<Name>FormPath` types wrap `FieldPath` so validation, dirty
    tracking, analytics, and schema export share ONE typed way to name fields.
 
@@ -214,3 +291,6 @@ Update this file when:
 - `FormState` API, trait bounds, or scope boundaries change
 - the `FieldPath` public surface, trait impls, representation, or FLAT-v1
   scope boundary changes
+- the `ValidationCache` freshness rule, the `SubmitTracker` generation
+  guard semantics, or the `AsyncFieldValidation` contract (bounds, path
+  keying) change
