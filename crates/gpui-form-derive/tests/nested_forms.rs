@@ -16,7 +16,7 @@ use koruma_collection::collection::NonEmptyValidation;
 
 /// The nested form: derives GpuiForm itself, so `AddressFormValueHolder`
 /// and `AddressFormPath` exist for the outer form to compose with.
-#[derive(Clone, Debug, Default, GpuiForm, PartialEq, koruma::Koruma)]
+#[derive(Clone, Debug, Default, Eq, GpuiForm, PartialEq, koruma::Koruma)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Address {
     #[gpui_form(component(input))]

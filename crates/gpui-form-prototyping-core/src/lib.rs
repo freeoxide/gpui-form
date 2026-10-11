@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn every_key_resolves_in_every_locale() {
-        for key in KEYS.iter().copied() {
+        for &key in KEYS {
             for locale in ["en", "fr-FR", "zh-CN"] {
                 let translated = t!(key, locale = locale);
                 assert_ne!(
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn shipped_values_match_the_ported_fluent_strings() {
         for locale in ["en", "fr-FR", "zh-CN"] {
-            for (key, expected) in table_for(locale).iter().copied() {
+            for &(key, expected) in table_for(locale) {
                 assert_eq!(
                     &*t!(key, locale = locale),
                     expected,

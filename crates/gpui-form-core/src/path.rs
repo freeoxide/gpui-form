@@ -478,7 +478,7 @@ mod tests {
         assert_ne!(by_index, by_name);
 
         let mut set = HashSet::new();
-        set.insert(by_index.clone());
+        set.insert(by_index);
         assert!(set.contains(&FieldPath::new(&["tags"]).push_index(2)));
         assert!(!set.contains(&by_name));
     }

@@ -238,8 +238,8 @@ mod tests {
         let validated = Holder::sample("a");
         cache.store(validated.clone(), false);
 
-        // Same value (fresh clone): fresh.
-        let same = validated.clone();
+        // Same value again: fresh.
+        let same = validated;
         assert_eq!(cache.get(&same), Some(&false));
 
         // Different value: stale, even though only one field differs.

@@ -88,8 +88,7 @@ fn alias_exists_and_keys_on_needs_koruma_derive() {
     let failure: <SeatsFormFormValueHolder as koruma::ValidateExt>::Error =
         SeatsFormFormValueHolder::default()
             .validate()
-            .err()
-            .expect("absent default must fail");
+            .expect_err("absent default must fail");
     tracker.begin();
     tracker.finish(Err(failure));
     assert!(tracker.last_error().is_some());

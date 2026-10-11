@@ -216,8 +216,8 @@ mod tests {
 
     #[test]
     fn every_key_resolves_in_every_locale() {
-        for key in KEYS.iter().copied() {
-            for locale in LOCALES.iter().copied() {
+        for &key in KEYS {
+            for &locale in LOCALES {
                 let translated = rust_i18n::t!(key, locale = locale);
                 assert_ne!(
                     &*translated, key,

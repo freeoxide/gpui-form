@@ -28,8 +28,8 @@ const KEYS: &[&str] = &[
 
 #[test]
 fn every_key_resolves_in_every_locale() {
-    for key in KEYS.iter().copied() {
-        for locale in LOCALES.iter().copied() {
+    for &key in KEYS {
+        for &locale in LOCALES {
             let translated = rust_i18n::t!(key, locale = locale);
             assert_ne!(
                 &*translated, key,
@@ -73,7 +73,7 @@ fn email_message_is_ported_from_koruma_collection_ftl() {
 
 #[test]
 fn len_message_interpolates_bounds_in_every_locale() {
-    for locale in LOCALES.iter().copied() {
+    for &locale in LOCALES {
         let translated = rust_i18n::t!("validation.len", min = 3, max = 8, locale = locale);
         let rendered = translated.to_string();
         assert!(

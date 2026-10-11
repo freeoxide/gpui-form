@@ -917,7 +917,7 @@ pub fn from(input: TokenStream) -> TokenStream {
 #[cfg(test)]
 mod tests {
     use super::{FluentKvOptions, VariantArgs};
-    use darling::FromVariant;
+    use darling::FromVariant as _;
 
     #[test]
     fn fluent_kv_options_merge_across_attributes() {
