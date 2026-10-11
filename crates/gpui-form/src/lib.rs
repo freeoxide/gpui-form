@@ -11,16 +11,23 @@ pub use gpui_form_component::file_picker;
 pub use gpui_form_component::i18n;
 pub use gpui_form_component::infinite_select;
 pub use gpui_form_core as core;
+pub use gpui_form_core::AsyncFieldValidation;
+pub use gpui_form_core::BoxError;
 pub use gpui_form_core::FieldPath;
 pub use gpui_form_core::FormFieldErrors;
 pub use gpui_form_core::FormState;
+pub use gpui_form_core::SubmitAction;
+pub use gpui_form_core::SubmitTracker;
 pub use gpui_form_core::TouchedFields;
+pub use gpui_form_core::ValidationCache;
+pub use gpui_form_core::async_validation;
 pub use gpui_form_core::fields;
 pub use gpui_form_core::numeric;
 pub use gpui_form_core::path;
 #[cfg(feature = "phone")]
 pub use gpui_form_core::phone;
 pub use gpui_form_core::state;
+pub use gpui_form_core::submit;
 pub use gpui_form_core::validation;
 pub use gpui_form_schema as schema;
 // Ergonomic root re-export of the width hint enum. `FieldLayout` itself stays

@@ -113,6 +113,19 @@ fn mirrored_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
     mirrored
 }
 
+/// Whether a field participates in the generated field-error map: koruma
+/// generates a top-level error getter (and per-field error struct) only for
+/// holder fields that actually carry koruma attrs, and `value_holder`
+/// mirrors attrs onto exactly these fields. Shared with the facade emitter
+/// so both surfaces agree on which fields can fail.
+pub(crate) fn participates_in_field_errors(field: &FieldOptionality) -> bool {
+    !field.skip
+        && (field.needs_required_validation()
+            || !field.validation.field_validators.is_empty()
+            || !field.validation.element_validators.is_empty()
+            || field.validation.is_newtype)
+}
+
 /// Generates `<Name>FormFieldErrors`, `<Name>FormFieldError<'a>`, and the
 /// holder's `validate_fields()`. Returns an empty stream for generic source
 /// structs (see module docs).
@@ -139,13 +152,7 @@ pub fn generate_field_errors(
     // fields are simply absent from the map; they can never fail.)
     let participating: Vec<&FieldOptionality> = fields
         .iter()
-        .filter(|f| {
-            !f.skip
-                && (f.needs_required_validation()
-                    || !f.validation.field_validators.is_empty()
-                    || !f.validation.element_validators.is_empty()
-                    || f.validation.is_newtype)
-        })
+        .filter(|f| participates_in_field_errors(f))
         .collect();
 
     struct FieldSlots {

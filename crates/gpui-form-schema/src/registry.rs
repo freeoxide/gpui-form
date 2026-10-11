@@ -101,6 +101,12 @@ pub struct FieldVariant {
     /// Metadata-only (METADATA-FIRST v1): consumers decide how to render.
     /// Defaults to an empty [`FieldLayout`] (all hints absent, width full).
     pub layout: FieldLayout,
+    /// Async validator path recorded from `#[gpui_form(validate(async_fn = ...))]`.
+    ///
+    /// Metadata-only (M2 emission sketch): the attribute parses and records
+    /// the path, but nothing executes it yet — async wiring is deferred to
+    /// the reserved `async-validation` feature. Prototyping consumers no-op.
+    pub async_validator: Option<&'static str>,
 }
 
 impl FieldVariant {
@@ -125,6 +131,7 @@ impl FieldVariant {
             custom_component: None,
             custom_value_binding: false,
             layout: FieldLayout::new(),
+            async_validator: None,
         }
     }
 
@@ -192,6 +199,23 @@ impl FieldVariant {
         self
     }
 
+    /// Record the async validator path parsed from
+    /// `#[gpui_form(validate(async_fn = ...))]`.
+    ///
+    /// Metadata-only (M2 emission sketch): stays `const`-callable with a
+    /// `&'static str` payload so `inventory::submit!` chains keep working.
+    /// `None` (also explicit) clears it.
+    pub const fn with_async_validator(mut self, path: Option<&'static str>) -> Self {
+        self.async_validator = path;
+        self
+    }
+
+    /// The async validator path recorded for this field, if any
+    /// (`validate(async_fn = ...)`; metadata-only in this milestone).
+    pub const fn async_validator(&self) -> Option<&'static str> {
+        self.async_validator
+    }
+
     /// Returns true when the generated value holder stores this field as `Option<T>`.
     pub const fn value_holder_wraps_in_option(&self) -> bool {
         self.optional || self.wraps_in_option
@@ -231,3 +255,36 @@ impl FieldVariant {
 }
 
 pub use inventory;
+
+#[cfg(test)]
+mod tests {
+    use super::{FieldVariant, GpuiFormShape};
+    use crate::components::ComponentsBehaviour;
+
+    #[test]
+    fn async_validator_defaults_to_none_and_builder_round_trips() {
+        // Builder default: every existing construction site keeps compiling
+        // and records no async validator.
+        let plain = FieldVariant::new("email", "String", false, ComponentsBehaviour::Input);
+        assert_eq!(plain.async_validator, None);
+        assert_eq!(plain.async_validator(), None);
+
+        // The builder records the path and stays const-callable with
+        // &'static str payloads (the inventory contract).
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("email", "String", false, ComponentsBehaviour::Input)
+                    .with_async_validator(Some("my_check")),
+            ];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        assert_eq!(FIELDS[0].async_validator, Some("my_check"));
+        assert_eq!(SHAPE.components[0].async_validator(), Some("my_check"));
+
+        // Explicit None clears it back.
+        let cleared = FieldVariant::new("email", "String", false, ComponentsBehaviour::Input)
+            .with_async_validator(Some("my_check"))
+            .with_async_validator(None);
+        assert_eq!(cleared.async_validator, None);
+    }
+}

@@ -11,6 +11,7 @@ use crate::derives::gpui_form::components::generate_component_field;
 use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::form_state::generate_form_state;
 use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
+use crate::derives::gpui_form::submit::generate_submit_alias;
 use crate::derives::gpui_form::utils::extract_option_inner_type;
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
 
@@ -46,7 +47,7 @@ pub fn expand_gpui_form(
         let enable_koruma = koruma_options.is_some();
         let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
         let empty_fields: Vec<FieldOptionality> = Vec::new();
-        let (value_holder_tokens, _) = generate_value_holder(
+        let (value_holder_tokens, _, needs_koruma_derive) = generate_value_holder(
             &original_input,
             &empty_fields,
             enable_koruma,
@@ -58,7 +59,13 @@ pub fn expand_gpui_form(
         let field_path_tokens = generate_field_path(&original_input, &empty_fields);
         // Field-level state model (M1): the facade + patch are emitted for
         // empty forms too, over an empty holder (zero per-field accessors).
-        let form_state_tokens = generate_form_state(&original_input, &empty_fields);
+        // No validation cache: there is nothing to validate.
+        let form_state_tokens = generate_form_state(&original_input, &empty_fields, false);
+        // Submit lifecycle (M2, backlog #7): the opt-in alias is legal on
+        // empty forms too — an empty koruma form still has a ValidateExt
+        // error type.
+        let submit_alias_tokens =
+            generate_submit_alias(&original_input, parsed.submit, needs_koruma_derive);
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::schema::registry::inventory::submit! {
@@ -78,6 +85,7 @@ pub fn expand_gpui_form(
             #value_holder_tokens
             #field_path_tokens
             #form_state_tokens
+            #submit_alias_tokens
             pub struct #components_holder_name;
 
             #shape_impl
@@ -214,18 +222,32 @@ pub fn expand_gpui_form(
 
     let effective_enable_koruma =
         enable_koruma || (has_fields_needing_required && has_any_koruma_validations);
-    let (value_holder_tokens, fields_requiring_required) = generate_value_holder(
-        &original_input,
-        &field_optionality,
-        effective_enable_koruma,
-        enable_koruma_fluent,
-    );
+    let (value_holder_tokens, fields_requiring_required, needs_koruma_derive) =
+        generate_value_holder(
+            &original_input,
+            &field_optionality,
+            effective_enable_koruma,
+            enable_koruma_fluent,
+        );
     // Feature #8 (FLAT v1): emit the typed `<Name>FormPath` next to the value
     // holder. One constructor per non-skipped field; skipped fields are absent.
     let field_path_tokens = generate_field_path(&original_input, &field_optionality);
     // Field-level state model (M1): `<Name>FormState` facade + `<Name>FormPatch`
     // next to the path type, keyed by the typed paths above.
-    let form_state_tokens = generate_form_state(&original_input, &field_optionality);
+    //
+    // Validation-state cache (M2, [D6]): gated on `needs_koruma_derive` —
+    // the same gate that derives Koruma on the holder, NOT
+    // `koruma_options.is_some()`, so field-attr-only koruma forms keep the
+    // surface (hazard 6) — restricted to non-generic structs because the
+    // `<Name>FormFieldErrors` map it stores is not emitted for generics.
+    let enable_validation_cache = needs_koruma_derive && original_input.generics.params.is_empty();
+    let form_state_tokens =
+        generate_form_state(&original_input, &field_optionality, enable_validation_cache);
+    // Submit lifecycle (M2, backlog #7): the opt-in
+    // `<Name>FormSubmission` alias, gated on the attribute and
+    // `needs_koruma_derive` for its error type.
+    let submit_alias_tokens =
+        generate_submit_alias(&original_input, parsed.submit, needs_koruma_derive);
 
     let field_variant_construction_code: Vec<TokenStream> = fields_iter
         .iter()
@@ -279,6 +301,17 @@ pub fn expand_gpui_form(
                 let custom_value_binding_tokens = component_def.custom_value_binding_tokens();
                 let from_expr_tokens = option_expr_string_tokens(&field.from);
                 let into_expr_tokens = option_expr_string_tokens(&field.into);
+                // Async-validation attribute surface (M2 emission sketch):
+                // `validate(async_fn = <path>)` records the validator path as
+                // metadata only — nothing executes it until the reserved
+                // `async-validation` wiring phase.
+                let async_validator_tokens = match &field.validate {
+                    Some(async_validate) => {
+                        let path_str = async_validate.async_fn.0.to_token_stream().to_string();
+                        quote! { .with_async_validator(Some(#path_str)) }
+                    },
+                    None => quote! {},
+                };
 
                 // Feature #4 (METADATA-FIRST v1): emit non-rendering layout
                 // hints. Each string hint contributes a builder call only when
@@ -341,6 +374,7 @@ pub fn expand_gpui_form(
                     #custom_shape_tokens
                     #custom_value_binding_tokens
                     #layout_tokens
+                    #async_validator_tokens
                 })
             } else {
                 None
@@ -369,6 +403,7 @@ pub fn expand_gpui_form(
         #value_holder_tokens
         #field_path_tokens
         #form_state_tokens
+        #submit_alias_tokens
         pub struct #components_holder_name {
             #(#field_structure_tokens)*
         }

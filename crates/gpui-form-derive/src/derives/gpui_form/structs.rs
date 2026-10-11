@@ -143,6 +143,54 @@ pub struct KorumaOptions {
     pub fluent: bool,
 }
 
+/// `validate(async_fn = <path>)`: the async validator path, parsed with the
+/// same custom-`FromMeta` pattern as `TypeOverride` (bare path, or a quoted
+/// string parsed as a path). Anything else (e.g. an integer literal) is a
+/// darling error at parse time.
+#[derive(Clone, Debug)]
+pub struct AsyncFnPath(pub syn::Path);
+
+impl FromMeta for AsyncFnPath {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        match expr {
+            Expr::Path(expr_path) => Ok(AsyncFnPath(expr_path.path.clone())),
+            Expr::Group(group) => Self::from_expr(&group.expr),
+            Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
+            _ => Err(DarlingError::unexpected_expr_type(expr)),
+        }
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<syn::Path>(value)
+            .map(AsyncFnPath)
+            .map_err(|_| DarlingError::unknown_value(value))
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        if let Lit::Str(v) = value {
+            v.parse::<syn::Path>()
+                .map(AsyncFnPath)
+                .map_err(|_| DarlingError::unknown_value(&v.value()).with_span(v))
+        } else {
+            Err(DarlingError::unexpected_lit_type(value))
+        }
+    }
+}
+
+/// `validate(async_fn = ..., debounce = ...)` — the async-validation
+/// attribute surface (M2 emission sketch). The attr parses and records
+/// metadata only in this milestone; execution wiring is deferred to the
+/// GPUI-glue phase behind the reserved `async-validation` feature.
+#[derive(Clone, Debug, FromMeta)]
+pub struct AsyncValidate {
+    pub async_fn: AsyncFnPath,
+    // Parsed (grammar is accepted today) but not yet read by any emitter:
+    // the debounce policy belongs to the future driving layer.
+    #[allow(dead_code)]
+    #[darling(default)]
+    pub debounce: Option<Expr>,
+}
+
 #[derive(Clone, Debug)]
 pub struct KorumaField(pub KorumaOptions);
 
@@ -184,6 +232,12 @@ pub struct ComponentField {
     pub placeholder: Option<String>,
     #[darling(default)]
     pub width: Option<LayoutWidthMeta>,
+    // Async-validation attribute surface (M2 emission sketch):
+    // `#[gpui_form(validate(async_fn = my_check), component(input))]`.
+    // Parse + metadata only; nothing executes until the reserved
+    // `async-validation` wiring phase.
+    #[darling(default)]
+    pub validate: Option<AsyncValidate>,
     #[darling(default)]
     pub skip: bool,
 }
@@ -203,6 +257,11 @@ pub struct ComponentStruct {
     pub empty: bool,
     #[darling(default)]
     pub koruma: Option<KorumaField>,
+    // Backlog #7 (submit lifecycle): opt-in `#[gpui_form(submit)]` — a bare
+    // word. Parse-time only; it drives the `<Name>FormSubmission` alias
+    // emitter (see `submit.rs`), never holder state.
+    #[darling(default)]
+    pub submit: bool,
 }
 
 pub struct ComponentFieldContent {

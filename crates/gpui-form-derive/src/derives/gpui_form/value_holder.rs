@@ -411,12 +411,19 @@ pub fn parse_field_default(field: &ComponentField) -> Option<syn::Expr> {
 }
 
 /// Generates the FormValueHolder struct and its implementations.
+///
+/// Returns the emitted tokens, the fields that received a synthetic
+/// `RequiredValidation`, and `needs_koruma_derive` — the resolved gate that
+/// put `#[derive(Koruma)]` on the holder. Downstream emitters (typed field
+/// errors, the validation cache, the submit alias) must key on that flag,
+/// NOT on `koruma_options.is_some()`, which would silently drop
+/// field-attr-only koruma forms (pipeline hazard 6).
 pub fn generate_value_holder(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
     enable_koruma: bool,
     enable_koruma_fluent: bool,
-) -> (TokenStream, Vec<String>) {
+) -> (TokenStream, Vec<String>, bool) {
     let has_skipped_fields = fields.iter().any(|f| f.skip);
     let fields_requiring_required: Vec<String> = fields
         .iter()
@@ -724,7 +731,7 @@ pub fn generate_value_holder(
         };
     }
 
-    (tokens, fields_requiring_required)
+    (tokens, fields_requiring_required, needs_koruma_derive)
 }
 
 pub fn validation_issue_key_for_kind(kind: &str) -> String {

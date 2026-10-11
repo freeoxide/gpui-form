@@ -31,6 +31,10 @@ workspace = true
 
 [features]
 default = [  ]
+# Reserved for the async-validation wiring phase (forwarded from the facade's
+# `async-validation` feature): the `validate(async_fn = ...)` attribute parses
+# and records metadata only today, so nothing keys on this flag yet.
+async-validation = [ ]
 inventory = [  ]
 serde = [ "dep:serde" ]
 

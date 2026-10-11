@@ -22,10 +22,13 @@ power the rest of the ecosystem.
 
 - `src/derives/gpui_form/mod.rs`: `GpuiForm` entry module
 - `src/derives/gpui_form/structs.rs`: `darling` option model for field/struct
-  attributes (`GpuiFormOptions`, `ComponentField`), including the layout hints
-  (`section`/`label`/`description`/`placeholder` as `Option<String>` and
-  `width` via a custom `FromMeta` on `LayoutWidthMeta` that accepts a bare
-  ident `full|half|third` or a quoted string, modeled on `TypeOverride`)
+  attributes (`GpuiFormOptions`, `ComponentField`, `ComponentStruct`),
+  including the layout hints (`section`/`label`/`description`/`placeholder`
+  as `Option<String>` and `width` via a custom `FromMeta` on
+  `LayoutWidthMeta` that accepts a bare ident `full|half|third` or a quoted
+  string, modeled on `TypeOverride`), the bare-word `submit` struct flag
+  (backlog #7), and `validate(async_fn = <path>, debounce = <expr>)` via
+  `AsyncValidate`/`AsyncFnPath` (M2 emission sketch; metadata only)
 - `src/derives/gpui_form/expansion.rs`: top-level `GpuiForm` expansion
   pipeline; also builds the per-field `FieldLayout` tokens and appends them to
   the emitted `FieldVariant` builder chain via `.with_layout(...)` using the
@@ -36,7 +39,9 @@ power the rest of the ecosystem.
   conversion logic, and skip-field handling
 - `src/derives/gpui_form/form_state.rs`: generated `<Name>FormState` facade +
   `<Name>FormPatch` (field-level state model, M1: touched tracking + per-field
-  dirty/patch)
+  dirty/patch; M2: the koruma-gated validation cache slot and its methods)
+- `src/derives/gpui_form/submit.rs`: the opt-in `#[gpui_form(submit)]`
+  `<Name>FormSubmission` alias (backlog #7, M2)
 - `src/derives/gpui_form/errors.rs`: generated `<Name>FormFieldErrors` map,
   `<Name>FormFieldError` borrowing enum, and the holder's `validate_fields()`
   (backlog #6 typed error access, koruma-gated)
@@ -205,6 +210,51 @@ types so it can be generics-free; the facade names the holder
 (`FormState<<Name>FormValueHolder<..>>`) and a generics-free facade would
 break generic source structs that compile today.
 
+### Validation-State Cache (M2: live `is_valid`)
+
+`form_state.rs` (same generator, `enable_validation` flag) additionally emits,
+under `needs_koruma_derive` AND non-generic source structs — the same combined
+gate as the `<Name>FormFieldErrors` map the cache stores (koruma's generated
+error types for generic structs carry a usage-analysis generics subset that
+cannot be reconstructed here):
+
+- a `validation` slot of
+  `::gpui_form::core::ValidationCache<<Name>FormValueHolder, <Name>FormFieldErrors>`;
+- `validate(&mut self) -> &<Name>FormFieldErrors` (compute, store, return —
+  via `ValidationCache::stored()` so a NaN-bearing holder can never trip the
+  equality path), `validation(&self)` (fresh read: `Some` iff
+  `current == validated snapshot`), `is_valid(&self)` (cached verdict when
+  fresh, fresh compute WITHOUT caching otherwise — render-safe),
+  `invalidate_validation(&mut self)`, and `error_for(&mut self, &path)`
+  (validate-and-cache on miss, then the map's lookup);
+- explicit invalidation in the facade's own mutators (`current_mut`,
+  `replace_current`, both resets) so a reverted-to-same-value form does not
+  keep the old verdict; `sync_baseline` deliberately does not invalidate;
+  `state_mut()` is the documented escape hatch (snapshot-compare keeps it
+  sound, `invalidate_validation()` the recourse).
+
+### Submit Alias (backlog #7, M2)
+
+`submit.rs` owns `generate_submit_alias(original_input, emit, koruma_enabled)`,
+spliced into BOTH expansion branches. When `#[gpui_form(submit)]` is present
+it emits exactly one item:
+
+- `pub type <Name>FormSubmission = ::gpui_form::core::submit::SubmitTracker<E>;`
+
+`E` is `<#holder as ::koruma::ValidateExt>::Error` when the holder derives
+koruma and the struct is non-generic (note `ValidateExt`, which owns the
+associated `Error` type — `Validate<T>` is the validator trait and has no
+associated types), else the core `submit::BoxError`. No holder state, no
+button wiring ([D5]): forms that do not opt in see zero emitted diff.
+
+### Async-Validator Metadata (M2 emission sketch)
+
+`expansion.rs` appends `.with_async_validator(Some("<path>"))` to the
+`FieldVariant` builder chain when a field carries
+`validate(async_fn = <path>)`. Parse-and-record only: nothing executes the
+path, and no cfg keys on the reserved `async-validation` feature yet (the
+flag exists in both Cargo.tomls so the future wiring has a stable name).
+
 ### Typed Field Errors (backlog #6, M1)
 
 `errors.rs` owns `generate_field_errors(original_input, fields)`, invoked from
@@ -345,6 +395,20 @@ change.
   compile and behave with the `serde` feature OFF.
 - `tests/ui/error_for_koruma_pass.rs` is a trybuild pass fixture compiling the
   whole M1 surface (facade + patch + `error_for`) end-to-end in one binary.
+- `tests/validation_cache.rs` exercises the M2 validation cache (fresh
+  compute does not cache; `validate` stores and serves; the `state_mut`
+  escape is caught by the snapshot comparison; resets invalidate even a
+  matching snapshot; `sync_baseline` keeps the cache; `error_for` caches on
+  miss) over both koruma enablement routes.
+- `tests/submit_state.rs` exercises the M2 submit alias (typed koruma error
+  parameter on both koruma routes, `BoxError` on plain/empty forms,
+  begin→finish(Err)→finish(Ok) transitions, stale-generation completions
+  ignored, `SubmitAction` driving leaves the holder unchanged, and the
+  submit gate composing with the facade cache).
+- `tests/ui/submit_attr_pass.rs` is a trybuild pass fixture for the alias
+  end-to-end; `tests/ui/submit_attr_takes_no_args.rs` and
+  `tests/ui/async_validate_bad_args.rs` (+ `.stderr` snapshots) pin the
+  parse-time rejections (`submit = foo`, `async_fn = 123`, bare `validate()`).
 
 ## When To Update This Document
 
