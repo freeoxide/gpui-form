@@ -37,6 +37,10 @@ for shape in inventory::iter::<GpuiFormShape>() {
 - `FormShapeAdapter::generate_file(&impl FormLayout)` renders a full file with
   your chosen layout
 - `FormLayout` lets callers define the overall file structure
+- `schema_markdown(&gpui_form::FormSchema)` renders the M5 schema-export
+  document (what `<Name>FormSchema::schema()` returns) as a Markdown
+  reference table — docs/fixture generation over the same metadata the
+  scaffolds consume
 - `PrototypingError` reports malformed metadata without panicking
 
 ## Example Workflow

@@ -13,9 +13,11 @@ pub mod code_gen;
 pub mod error;
 pub mod implementations;
 pub mod imports;
+pub mod schema_docs;
 
 pub use code_gen::{FormLayout, FormParts, FormShapeAdapter};
 pub use error::{PrototypingError, PrototypingResult};
+pub use schema_docs::schema_markdown;
 
 #[cfg(test)]
 mod tests {
