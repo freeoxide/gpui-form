@@ -94,6 +94,20 @@ Important fields:
 - `layout` (`FieldLayout`): non-rendering hints — `section`, `label`,
   `description`, `placeholder` (all `Option<&'static str>`), and `width`
   (`LayoutWidth`)
+- `async_validator` (`Option<&'static str>`): metadata-only async validator
+  path (M2 emission sketch)
+- `depends_on` (`Option<&'static str>`): the sibling field this field
+  depends on (M4, backlog #12) — metadata-only; reset-on-parent-change is
+  consumer-authored
+- `required_if` (`Option<&'static str>`): the controlling sibling for this
+  field's conditional-required rule (M4, backlog #13) — recorded for
+  tooling; the rule itself is enforced by a generated koruma validator in
+  the derive, not by this metadata
+
+Both M4 payloads store the sibling's field name — the same `&'static str`
+representation a `FieldPath` name segment carries — through const builders
+(`with_depends_on` / `with_required_if`), keeping the `inventory::submit!`
+contract (const-callable, `Copy`/`&'static str` payloads only).
 
 ### `FieldLayout` and `LayoutWidth`
 

@@ -107,6 +107,25 @@ pub struct FieldVariant {
     /// the path, but nothing executes it yet — async wiring is deferred to
     /// the reserved `async-validation` feature. Prototyping consumers no-op.
     pub async_validator: Option<&'static str>,
+    /// Milestone M4 (backlog #12): the sibling field this field depends on,
+    /// recorded from `#[gpui_form(depends_on = <field>)]`.
+    ///
+    /// Stored as the sibling's field name — the same `&'static str`
+    /// representation a [`crate::FieldPath`] name segment carries — so the
+    /// payload stays `const`-constructible for `inventory::submit!` chains
+    /// (the `FieldLayout` precedent: `&'static str`/`Copy` payloads only).
+    /// Metadata-only: conditional loading and reset-on-parent-change
+    /// behavior is consumer-authored (the derive emits no event wiring).
+    pub depends_on: Option<&'static str>,
+    /// Milestone M4 (backlog #13): the controlling sibling field recorded
+    /// from `#[gpui_form(required_if = <field>)]`.
+    ///
+    /// Unlike `depends_on`, this rule is NOT display-only: the derive also
+    /// desugars it to a generated koruma validator closure on the holder
+    /// field, so violations surface through the typed field-error surface.
+    /// This payload records the relationship for tooling (schema export,
+    /// prototyping, docs) alongside that runtime behavior.
+    pub required_if: Option<&'static str>,
 }
 
 impl FieldVariant {
@@ -132,6 +151,8 @@ impl FieldVariant {
             custom_value_binding: false,
             layout: FieldLayout::new(),
             async_validator: None,
+            depends_on: None,
+            required_if: None,
         }
     }
 
@@ -214,6 +235,44 @@ impl FieldVariant {
     /// (`validate(async_fn = ...)`; metadata-only in this milestone).
     pub const fn async_validator(&self) -> Option<&'static str> {
         self.async_validator
+    }
+
+    /// Record the controlling sibling field parsed from
+    /// `#[gpui_form(depends_on = <field>)]` (backlog #12).
+    ///
+    /// Stays `const`-callable with a `&'static str` payload so
+    /// `inventory::submit!` chains keep working (the inventory contract).
+    /// `None` (also explicit) clears it.
+    pub const fn with_depends_on(mut self, sibling: Option<&'static str>) -> Self {
+        self.depends_on = sibling;
+        self
+    }
+
+    /// The controlling sibling field for `depends_on`, if any. The value is
+    /// the sibling's field name — the `FieldPath` name-segment
+    /// representation — not a free-form string.
+    pub const fn depends_on(&self) -> Option<&'static str> {
+        self.depends_on
+    }
+
+    /// Record the controlling sibling field parsed from
+    /// `#[gpui_form(required_if = <field>)]` (backlog #13). The derive also
+    /// lowers this attribute to a generated koruma validator, so the rule is
+    /// enforced at validation time, not just recorded here.
+    ///
+    /// Stays `const`-callable with a `&'static str` payload so
+    /// `inventory::submit!` chains keep working (the inventory contract).
+    /// `None` (also explicit) clears it.
+    pub const fn with_required_if(mut self, sibling: Option<&'static str>) -> Self {
+        self.required_if = sibling;
+        self
+    }
+
+    /// The controlling sibling field for `required_if`, if any. The value is
+    /// the sibling's field name — the `FieldPath` name-segment
+    /// representation — not a free-form string.
+    pub const fn required_if(&self) -> Option<&'static str> {
+        self.required_if
     }
 
     /// Returns true when the generated value holder stores this field as `Option<T>`.
@@ -299,5 +358,61 @@ mod tests {
             .with_async_validator(Some("my_check"))
             .with_async_validator(None);
         assert_eq!(cleared.async_validator, None);
+    }
+
+    #[test]
+    fn dependency_payloads_default_to_none_and_round_trip() {
+        // Milestone M4 (backlog #12/#13): builder defaults keep every
+        // existing construction site compiling with no dependencies, and
+        // the builders stay const-callable with &'static str payloads (the
+        // inventory contract — same shape as with_async_validator).
+        let plain = FieldVariant::new(
+            "state",
+            "State",
+            true,
+            ComponentsBehaviour::Select(crate::components::SelectBehaviour {
+                searchable: false,
+                partial: false,
+            }),
+        );
+        assert_eq!(plain.depends_on, None);
+        assert_eq!(plain.required_if, None);
+        assert_eq!(plain.depends_on(), None);
+        assert_eq!(plain.required_if(), None);
+
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "state",
+            "State",
+            true,
+            ComponentsBehaviour::Select(crate::components::SelectBehaviour {
+                searchable: false,
+                partial: false,
+            }),
+        )
+        .with_depends_on(Some("country"))
+        .with_required_if(Some("subscribe"))];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", true);
+
+        assert_eq!(FIELDS[0].depends_on(), Some("country"));
+        assert_eq!(FIELDS[0].required_if(), Some("subscribe"));
+        assert_eq!(SHAPE.components[0].depends_on(), Some("country"));
+        assert_eq!(SHAPE.components[0].required_if(), Some("subscribe"));
+
+        // Explicit None clears them back.
+        let cleared = FieldVariant::new(
+            "state",
+            "State",
+            true,
+            ComponentsBehaviour::Select(crate::components::SelectBehaviour {
+                searchable: false,
+                partial: false,
+            }),
+        )
+        .with_depends_on(Some("country"))
+        .with_required_if(Some("subscribe"))
+        .with_depends_on(None)
+        .with_required_if(None);
+        assert_eq!(cleared.depends_on(), None);
+        assert_eq!(cleared.required_if(), None);
     }
 }
