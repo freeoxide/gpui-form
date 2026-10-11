@@ -44,9 +44,14 @@ power the rest of the ecosystem.
   `<Name>FormSubmission` alias (backlog #7, M2)
 - `src/derives/gpui_form/errors.rs`: generated `<Name>FormFieldErrors` map,
   `<Name>FormFieldError` borrowing enum, and the holder's `validate_fields()`
-  (backlog #6 typed error access, koruma-gated)
+  (backlog #6 typed error access, koruma-gated; M3 adds nested-slot routing
+  over `<field>...` paths, the `<field>_errors()` recursion accessor over the
+  nested form's own map, list-slot routing for `<field>` and typed-index
+  `<field>.<i>` paths, and the `<field>_element_error(index)` accessor)
 - `src/derives/gpui_form/field_path.rs`: generated `<Name>FormPath` typed
-  field-path newtype (backlog feature #8, FLAT v1)
+  field-path newtype (backlog feature #8, FLAT v1; M3 adds the
+  `<field>_root()` constructors plus nested consuming appenders, typed-index
+  list constructors, and cross-form `join`)
 - `src/derives/gpui_form/koruma.rs`: Koruma metadata mirroring helpers
 - `src/derives/gpui_form/cfg_attr.rs`: `cfg_attr` flattening before parse-time
   inspection
@@ -60,6 +65,13 @@ power the rest of the ecosystem.
    `#[gpui_form(...)]` data.
 1. Parse struct-level and field-level `#[gpui_form(...)]` data with `darling`.
 1. Parse Koruma field metadata through `koruma-derive-core`.
+1. Resolve each field's composed holder shape (M3): `component(nested)`
+   resolves the nested form's `<Name>FormValueHolder` by naming convention
+   (Plain storage, `From` conversion composition); `component(list(...))`
+   requires `Vec<T>` (or `Option<Vec<T>>`) and stores the plain item Vec
+   plus the generated `add_<field>`/`remove_<field>`/`<field>_items`
+   operations. Element validators stay element-scoped (`each(..)`) on list
+   holder fields so koruma reports failures per item index.
 1. For each component field, delegate component-specific modeling to
    `gpui-form-codegen`.
 1. Emit:

@@ -10,9 +10,13 @@ use crate::derives::gpui_form::cfg_attr::flatten_cfg_attr_in_derive_input;
 use crate::derives::gpui_form::components::generate_component_field;
 use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::form_state::generate_form_state;
-use crate::derives::gpui_form::structs::{ComponentStruct, FieldOptionality, GpuiFormOptions};
+use crate::derives::gpui_form::structs::{
+    ComponentStruct, FieldComposition, FieldOptionality, GpuiFormOptions,
+};
 use crate::derives::gpui_form::submit::generate_submit_alias;
-use crate::derives::gpui_form::utils::extract_option_inner_type;
+use crate::derives::gpui_form::utils::{
+    extract_option_inner_type, extract_vec_inner_type, nested_form_holder_type,
+};
 use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
 
 fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
@@ -175,6 +179,7 @@ pub fn expand_gpui_form(
         .multiunzip();
 
     let mut field_optionality = Vec::new();
+    let mut composition_errors: Vec<syn::Error> = Vec::new();
     for field in fields_iter {
         let field_name = field.ident.clone().unwrap();
         let field_name_str = field_name.to_string();
@@ -190,6 +195,41 @@ pub fn expand_gpui_form(
             .map(|info| info.validation.clone())
             .unwrap_or_default();
         let default_expr = parse_field_default(field);
+
+        // Milestone M3 (backlog #2/#3): resolve the composed holder shape.
+        // Flat keeps the pre-M3 behavior byte-for-byte.
+        let composition = if field.is_nested() {
+            match nested_form_holder_type(&inner_type) {
+                Some(holder) => FieldComposition::Nested { holder },
+                None => {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &field.ty,
+                        format!(
+                            "`component(nested)` on field `{field_name_str}` requires a named \
+                             struct type; found a non-path type"
+                        ),
+                    ));
+                    FieldComposition::Flat
+                },
+            }
+        } else if field.is_list() {
+            match extract_vec_inner_type(&inner_type) {
+                Some(item) => FieldComposition::List { item },
+                None => {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &field.ty,
+                        format!(
+                            "`component(list(...))` on field `{field_name_str}` requires the \
+                             field type to be Vec<T> (or Option<Vec<T>>)"
+                        ),
+                    ));
+                    FieldComposition::Flat
+                },
+            }
+        } else {
+            FieldComposition::Flat
+        };
+
         field_optionality.push(FieldOptionality {
             field_name,
             original_type: field.ty.clone(),
@@ -202,7 +242,15 @@ pub fn expand_gpui_form(
             into_expr: field.into.clone(),
             from_expr: field.from.clone(),
             skip: field.skip(),
+            composition,
         });
+    }
+
+    if let Some(first) = composition_errors.into_iter().reduce(|mut all, next| {
+        all.combine(next);
+        all
+    }) {
+        return first.to_compile_error();
     }
 
     let has_fields_needing_required = field_optionality.iter().any(|f| {

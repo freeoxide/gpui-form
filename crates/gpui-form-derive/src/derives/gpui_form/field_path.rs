@@ -8,12 +8,15 @@
 //!
 //! # Scope
 //!
-//! This generator ships **FLAT v1 only**: each constructor names a single
-//! field. Typed nested-path and list-item-path constructors arrive with
-//! backlog features #2 ("Nested forms") and #3 ("Repeated fields").
-//! Hand-built multi-segment paths via
-//! [`FieldPath::new(&["a", "b"])`](::gpui_form::core::FieldPath::new) work
-//! today; typed composition of paths is later.
+//! Milestone M3 (backlog #2 "Nested forms" and #3 "Repeated fields", decision
+//! [D8]) adds typed composition on top of the flat constructors:
+//!
+//! - nested fields emit `<field>_root()` plus a consuming appender
+//!   `fn <field>(self)`;
+//! - list fields emit `<field>_root()` plus `fn <field>(index: usize)`
+//!   carrying a typed [`::gpui_form::core::PathSegment::Index`] segment;
+//! - every form gains `join` for cross-form composition
+//!   (`UserFormPath::address_root().join(&AddressFormPath::city())`).
 //!
 //! # Rules
 //!
@@ -34,7 +37,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::DeriveInput;
 
-use crate::derives::gpui_form::structs::FieldOptionality;
+use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 
 /// Generates the `<Name>FormPath` newtype plus its impls for a single form.
 ///
@@ -48,19 +51,67 @@ pub fn generate_field_path(
     let form_path_ident = format_ident!("{}FormPath", original_input.ident);
 
     // One freestanding `pub fn <field>() -> Self` constructor per non-skipped
-    // field. Named identically to the field, callable as
+    // FLAT field. Named identically to the field, callable as
     // `<Name>FormPath::<field>()`. `stringify!` yields the field ident as a
     // `&'static str`, matching the call shape `FieldPath::new(&[&'static str])`.
+    //
+    // Milestone M3 composition (backlog #2/#3, decision [D8]):
+    // - nested fields emit `<field>_root()` (the field itself) plus a
+    //   consuming appender `fn <field>(self)` that pushes the field name
+    //   onto any path;
+    // - list fields emit `<field>_root()` plus `fn <field>(index: usize)`
+    //   producing `[Name("<field>"), Index(index)]` — a typed index segment,
+    //   never a formatted string;
+    // - every form gains `join` for cross-form composition:
+    //   `UserFormPath::address_root().join(&AddressFormPath::city())`
+    //   -> `address.city`.
     let constructors: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
         .map(|f| {
             let field_name = &f.field_name;
-            quote! {
-                /// Build a path naming this field.
-                pub fn #field_name() -> Self {
-                    Self(::gpui_form::core::FieldPath::new(&[stringify!(#field_name)]))
-                }
+            match &f.composition {
+                FieldComposition::Nested { .. } => {
+                    let root_ident = format_ident!("{}_root", field_name);
+                    quote! {
+                        /// Root path naming this nested field itself.
+                        pub fn #root_ident() -> Self {
+                            Self(::gpui_form::core::FieldPath::new(&[stringify!(#field_name)]))
+                        }
+
+                        /// Consuming appender: push this nested field's name
+                        /// onto an existing path.
+                        pub fn #field_name(self) -> Self {
+                            Self(self.into_path().push_name(stringify!(#field_name)))
+                        }
+                    }
+                },
+                FieldComposition::List { .. } => {
+                    let root_ident = format_ident!("{}_root", field_name);
+                    quote! {
+                        /// Root path naming this list field itself.
+                        pub fn #root_ident() -> Self {
+                            Self(::gpui_form::core::FieldPath::new(&[stringify!(#field_name)]))
+                        }
+
+                        /// Path naming one list item: a typed index segment,
+                        /// never a formatted string.
+                        pub fn #field_name(index: usize) -> Self {
+                            Self(::gpui_form::core::FieldPath::from_segments(&[
+                                ::gpui_form::core::PathSegment::Name(stringify!(#field_name)),
+                                ::gpui_form::core::PathSegment::Index(index),
+                            ]))
+                        }
+                    }
+                },
+                FieldComposition::Flat => {
+                    quote! {
+                        /// Build a path naming this field.
+                        pub fn #field_name() -> Self {
+                            Self(::gpui_form::core::FieldPath::new(&[stringify!(#field_name)]))
+                        }
+                    }
+                },
             }
         })
         .collect();
@@ -79,9 +130,16 @@ pub fn generate_field_path(
         .enumerate()
         .map(|(index, f)| {
             let field_name = &f.field_name;
+            // Composed fields have no zero-argument constructor — their
+            // root constructor names the field for dense-index state.
+            let root_ctor = if f.composition.is_flat() {
+                field_name.clone()
+            } else {
+                format_ident!("{}_root", field_name)
+            };
             let index_token = proc_macro2::Literal::usize_unsuffixed(index);
             quote! {
-                #index_token => Some(Self::#field_name()),
+                #index_token => Some(Self::#root_ctor()),
             }
         })
         .collect();
@@ -109,12 +167,14 @@ pub fn generate_field_path(
                     .map(|index| Self::path_for_index(index).expect("index < FIELD_COUNT"))
             }
 
-            /// Dense declaration-order index for FLAT v1 single-segment paths
-            /// naming a non-skipped field. `None` for hand-built multi-segment
-            /// or unknown paths.
+            /// Dense declaration-order index for single-segment root paths
+            /// naming a non-skipped field (flat constructors and
+            /// nested/list `_root()` constructors). `None` for hand-built
+            /// multi-segment paths and list-item paths — item-level touched
+            /// tracking has no dense index in v1.
             pub fn field_index(&self) -> Option<usize> {
                 match self.path().segments() {
-                    [name] => Self::FIELD_NAMES
+                    [::gpui_form::core::PathSegment::Name(name)] => Self::FIELD_NAMES
                         .iter()
                         .copied()
                         .position(|candidate| candidate == *name),
@@ -134,10 +194,28 @@ pub fn generate_field_path(
             /// Build a path from an explicit slice of static segments.
             ///
             /// Mirrors [`::gpui_form::core::FieldPath::new`]; useful for
-            /// hand-built multi-segment paths until typed nested/list
-            /// constructors land with features #2/#3.
+            /// hand-built multi-segment paths. Typed nested/list
+            /// composition landed with milestone M3 (features #2/#3): prefer
+            /// the per-field constructors, the `_root()` constructors, and
+            /// [`Self::join`].
             pub fn new(segments: &[&'static str]) -> Self {
                 Self(::gpui_form::core::FieldPath::new(segments))
+            }
+
+            /// Compose this path with any other form's path: append all of
+            /// `other`'s segments (milestone M3 typed composition).
+            ///
+            /// `UserFormPath::address_root().join(&AddressFormPath::city())`
+            /// names `address.city`; a list item composes the same way
+            /// (`PostEditorFormPath::contacts(2).join(&ContactFormPath::name())`
+            /// names `contacts.2.name`). The result keeps THIS form's type,
+            /// so wrong-form composition still cannot mix path types at the
+            /// roots.
+            pub fn join(
+                self,
+                other: &impl ::core::convert::AsRef<::gpui_form::core::FieldPath>,
+            ) -> Self {
+                Self(self.into_path().join(other.as_ref()))
             }
 
             #(#constructors)*

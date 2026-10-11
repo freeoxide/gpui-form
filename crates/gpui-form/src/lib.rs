@@ -16,6 +16,7 @@ pub use gpui_form_core::BoxError;
 pub use gpui_form_core::FieldPath;
 pub use gpui_form_core::FormFieldErrors;
 pub use gpui_form_core::FormState;
+pub use gpui_form_core::PathSegment;
 pub use gpui_form_core::SubmitAction;
 pub use gpui_form_core::SubmitTracker;
 pub use gpui_form_core::TouchedFields;

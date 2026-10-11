@@ -124,6 +124,40 @@ pub struct FieldOptionality {
     pub into_expr: Option<Expr>,
     pub from_expr: Option<Expr>,
     pub skip: bool,
+    /// Milestone M3 (backlog #2/#3): which composed holder shape this field
+    /// uses. `Flat` keeps the pre-M3 behavior byte-for-byte; `Nested` stores
+    /// the nested form's own generated value holder; `List` stores the plain
+    /// item `Vec` plus generated add/remove/items operations.
+    pub composition: FieldComposition,
+}
+
+/// Milestone M3: the composed holder shape of a field.
+#[derive(Clone, Debug)]
+pub enum FieldComposition {
+    /// Pre-M3 single-field shape (input/select/checkbox/...).
+    Flat,
+    /// `component(nested)` — `holder` is the resolved
+    /// `<NestedName>FormValueHolder` type; conversions compose through the
+    /// nested form's own `From` impls.
+    Nested { holder: Type },
+    /// `component(list(item = ...))` — `item` is the scalar item base type;
+    /// the holder stores `Vec<item>` (or `Option<Vec<item>>` for
+    /// originally-optional fields).
+    List { item: Type },
+}
+
+impl FieldComposition {
+    pub fn is_nested(&self) -> bool {
+        matches!(self, Self::Nested { .. })
+    }
+
+    pub fn is_list(&self) -> bool {
+        matches!(self, Self::List { .. })
+    }
+
+    pub fn is_flat(&self) -> bool {
+        matches!(self, Self::Flat)
+    }
 }
 
 impl FieldOptionality {
@@ -133,7 +167,11 @@ impl FieldOptionality {
     /// - Were not originally Optional in the source struct
     /// - Are not nested structs (nested fields have their own validation)
     pub fn needs_required_validation(&self) -> bool {
-        !self.skip && self.wrap_in_option && !self.was_optional && !self.validation.is_nested
+        !self.skip
+            && self.wrap_in_option
+            && !self.was_optional
+            && !self.validation.is_nested
+            && matches!(self.composition, FieldComposition::Flat)
     }
 }
 
@@ -245,6 +283,16 @@ pub struct ComponentField {
 impl ComponentField {
     pub fn skip(&self) -> bool {
         self.skip
+    }
+
+    /// Milestone M3 (backlog #2): `component(nested)` on this field.
+    pub fn is_nested(&self) -> bool {
+        matches!(self.component, Some(Components::Nested(_)))
+    }
+
+    /// Milestone M3 (backlog #3): `component(list(...))` on this field.
+    pub fn is_list(&self) -> bool {
+        matches!(self.component, Some(Components::List(_)))
     }
 }
 

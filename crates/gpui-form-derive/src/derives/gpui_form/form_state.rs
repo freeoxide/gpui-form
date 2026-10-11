@@ -46,7 +46,7 @@ use quote::{format_ident, quote};
 use syn::DeriveInput;
 
 use crate::derives::gpui_form::errors::participates_in_field_errors;
-use crate::derives::gpui_form::structs::FieldOptionality;
+use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 use crate::derives::gpui_form::value_holder::form_field_type_tokens;
 
 /// Generates `<Name>FormState` and `<Name>FormPatch` for a single form.
@@ -253,9 +253,25 @@ pub fn generate_form_state(
         .map(|f| {
             let field_name = &f.field_name;
             let field_name_str = field_name.to_string();
-            quote! {
-                [#field_name_str] => {
-                    self.state.current().#field_name != self.state.baseline().#field_name
+            let compare = quote! {
+                self.state.current().#field_name != self.state.baseline().#field_name
+            };
+            match &f.composition {
+                // Flat fields: exact single-segment match.
+                FieldComposition::Flat => quote! {
+                    [::gpui_form::core::PathSegment::Name(#field_name_str)] => {
+                        #compare
+                    },
+                },
+                // Nested/list fields: the facade cannot see inside the
+                // composed value (its fields belong to another form's
+                // holder), so any path rooted at the field compares the
+                // composed value as a whole — a conservative superset that
+                // never asserts on legitimately deeper paths.
+                FieldComposition::Nested { .. } | FieldComposition::List { .. } => quote! {
+                    [::gpui_form::core::PathSegment::Name(#field_name_str), ..] => {
+                        #compare
+                    },
                 },
             }
         })
@@ -318,9 +334,16 @@ pub fn generate_form_state(
         .iter()
         .map(|f| {
             let field_name = &f.field_name;
+            // Composed fields name their root (`<field>_root()`); flat fields
+            // keep the same-named constructor.
+            let ctor_ident = if f.composition.is_flat() {
+                field_name.clone()
+            } else {
+                format_ident!("{}_root", field_name)
+            };
             quote! {
                 if self.#field_name.is_some() {
-                    changed.push(#path_ident::#field_name());
+                    changed.push(#path_ident::#ctor_ident());
                 }
             }
         })

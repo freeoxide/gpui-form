@@ -28,8 +28,10 @@ This crate exists to:
 - `gpui_form_component::infinite_select`
 - `gpui_form_core` as `gpui_form::core`
 - `gpui_form_core::numeric`
-- `gpui_form_core::path` and `gpui_form_core::FieldPath` for the pure,
-  GPUI-free, serde-free typed field-path primitive (feature #8, FLAT v1)
+- `gpui_form_core::path`, `gpui_form_core::FieldPath`, and
+  `gpui_form_core::PathSegment` for the pure, GPUI-free, serde-free typed
+  field-path primitive (feature #8; milestone M3 typed the segment
+  representation so list-item indices are values, not strings)
 - `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
   form-state dirty tracking / reset / diff (feature #1)
 - `gpui_form_core::fields` and `gpui_form_core::TouchedFields` for the pure,
@@ -125,7 +127,8 @@ lower crates and is only re-exported here.
 
 - `gpui_form::bon` is re-exported because generated value holders with skipped
   fields derive `::gpui_form::bon::Builder`
-- `gpui_form::FieldPath` and `gpui_form::path` are re-exported because
+- `gpui_form::FieldPath`, `gpui_form::PathSegment`, and `gpui_form::path`
+  are re-exported because
   generated `<Name>FormPath` types reach the shared primitive via the facade
   path `::gpui_form::core::FieldPath`, mirroring how value holders reach
   `::gpui_form::bon`

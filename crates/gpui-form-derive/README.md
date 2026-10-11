@@ -55,6 +55,12 @@ Supported component forms:
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, value_binding)))]`
+- `#[gpui_form(component(nested))]` — compose another `#[derive(GpuiForm)]`
+  struct (milestone M3; the holder stores the nested form's
+  `<Name>FormValueHolder` and converts through its `From` impls)
+- `#[gpui_form(component(list(item = input)))]` — an editable `Vec<T>` with a
+  scalar item component (milestone M3; optional `add_label = "..."` overrides
+  the add-control label). v1 rejects `item = nested` and `item = custom(...)`
 
 Supporting field attributes:
 
