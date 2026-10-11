@@ -701,4 +701,199 @@ mod gpui_form_tests {
             );
         }
     }
+
+    // token-level: submit alias gating (backlog #7, M2)
+    #[test]
+    fn submit_alias_emits_only_with_the_attribute() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        // Without the attribute: no alias at all (perfect opt-in).
+        let plain = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        });
+        let plain = compact_tokens(&plain);
+        assert!(
+            !plain.contains("FormSubmission"),
+            "non-opted forms must see zero submit diff: {plain}"
+        );
+
+        // Struct-level koruma + submit: the alias resolves its error type
+        // through ValidateExt (NOT Validate — the associated Error type
+        // lives on ValidateExt).
+        let koruma = expand(quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(koruma, submit)]
+            struct K {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        });
+        let koruma = compact_tokens(&koruma);
+        assert!(
+            koruma.contains(
+                "pubtypeKFormSubmission=::gpui_form::core::submit::SubmitTracker<<KFormValueHolderas::koruma::ValidateExt>::Error>;"
+            ),
+            "koruma forms alias over the holder's ValidateExt::Error: {koruma}"
+        );
+
+        // Field-attr-only koruma + submit: the at-risk shape for a wrong
+        // `koruma_options.is_some()` gate (hazard 6) keeps the typed alias.
+        let field_only = expand(quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(submit)]
+            struct F {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(1).max(9))]
+                seats: u32,
+            }
+        });
+        let field_only = compact_tokens(&field_only);
+        assert!(
+            field_only.contains("as::koruma::ValidateExt>::Error>"),
+            "field-attr-only koruma forms keep the typed alias: {field_only}"
+        );
+
+        // Submit without koruma: the BoxError fallback alias.
+        let no_koruma = expand(quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(submit)]
+            struct N {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        });
+        let no_koruma = compact_tokens(&no_koruma);
+        assert!(
+            no_koruma.contains("SubmitTracker<::gpui_form::core::submit::BoxError>"),
+            "non-koruma forms alias over BoxError: {no_koruma}"
+        );
+        assert!(!no_koruma.contains("ValidateExt"));
+    }
+
+    // token-level: the validation cache follows the needs_koruma_derive gate
+    #[test]
+    fn validation_cache_facade_follows_the_koruma_derive_gate() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        // No koruma anywhere: no cache field and none of its methods.
+        let plain = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        });
+        let plain = compact_tokens(&plain);
+        assert!(
+            !plain.contains("ValidationCache")
+                && !plain.contains("pubfnvalidate")
+                && !plain.contains("pubfnis_valid")
+                && !plain.contains("invalidate_validation"),
+            "non-koruma facades see zero validation-cache diff: {plain}"
+        );
+
+        // Field-attr-only koruma (the hazard-6 at-risk shape): the facade
+        // gains the cache field and its methods.
+        let field_only = expand(quote! {
+            #[derive(GpuiForm)]
+            struct FieldAttr {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(1).max(9))]
+                seats: u32,
+            }
+        });
+        let field_only = compact_tokens(&field_only);
+        assert!(
+            field_only.contains("::gpui_form::core::ValidationCache<FieldAttrFormValueHolder,FieldAttrFormFieldErrors>"),
+            "field-attr-only koruma facades gain the validation cache: {field_only}"
+        );
+        assert!(
+            field_only.contains("pubfnvalidate(&mutself)->&FieldAttrFormFieldErrors")
+                && field_only.contains("pubfnis_valid(&self)->bool")
+                && field_only.contains("pubfninvalidate_validation(&mutself)"),
+            "the cached-validation method set must emit: {field_only}"
+        );
+
+        // Generic source structs: the `<Name>FormFieldErrors` map is not
+        // emitted (koruma generics cannot be reconstructed), so the facade
+        // must not reference it either.
+        let generic = expand(quote! {
+            #[derive(GpuiForm)]
+            struct G<T> {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(1).max(9))]
+                seats: Option<T>,
+            }
+        });
+        let generic = compact_tokens(&generic);
+        assert!(
+            !generic.contains("ValidationCache"),
+            "generic koruma forms keep compiling without the cache: {generic}"
+        );
+    }
+
+    // token-level: async-validator metadata (M2 emission sketch)
+    #[test]
+    fn async_validator_metadata_records_the_path() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        let with_attr = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(validate(async_fn = my_check), component(input))]
+                username: String,
+            }
+        });
+        let with_attr = compact_tokens(&with_attr);
+        assert!(
+            with_attr.contains(".with_async_validator(Some(\"my_check\"))"),
+            "the FieldVariant chain must record the parsed path: {with_attr}"
+        );
+
+        // Absent attr: no builder call, and the default stays None (the
+        // schema unit test covers the default itself).
+        let without_attr = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(input))]
+                username: String,
+            }
+        });
+        let without_attr = compact_tokens(&without_attr);
+        assert!(
+            !without_attr.contains("with_async_validator"),
+            "forms without the attr must see zero metadata diff: {without_attr}"
+        );
+    }
 }

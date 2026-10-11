@@ -29,6 +29,30 @@ fn gpui_form_compiles_field_level_state_end_to_end() {
 }
 
 #[test]
+fn gpui_form_compiles_submit_attr_end_to_end() {
+    // Backlog #7 (submit lifecycle): `#[gpui_form(submit)]` emits the
+    // `<Name>FormSubmission` alias — koruma error type on koruma forms,
+    // BoxError otherwise — usable end to end. No `koruma(fluent)` here, so
+    // no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/submit_attr_pass.rs");
+}
+
+#[test]
+fn submit_attr_takes_no_arguments() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/submit_attr_takes_no_args.rs");
+}
+
+#[test]
+fn async_validate_attr_rejects_malformed_arguments() {
+    // M2 emission sketch: `validate(async_fn = <path>)` parses strictly —
+    // non-path literals and argument-less words are darling errors.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/async_validate_bad_args.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 
