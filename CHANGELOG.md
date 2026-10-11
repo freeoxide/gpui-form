@@ -54,6 +54,10 @@ minor bump follows the plan's one-minor-per-milestone rule.
 - Every form's expansion gains the additive `<Name>FormSchema` item; the
   flat-form expansion snapshots were regenerated accordingly.
 
+[0.10.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.10.0
+
+## [0.9.0] - 2026-10-11
+
 Milestone 4 of the form feature-parity plan: field dependency metadata
 (backlog #12) and conditional requiredness (backlog #13). The partial-holder
 item (backlog #10) is closed WITHOUT new surface: decision [D10] evaluated
@@ -151,6 +155,8 @@ plan's one-minor-per-milestone rule.
 - `examples/README.md` covers the new some-lib shapes and the forms-demo
   M4 showcase; `docs/feature-backlog.md` marks #12/#13 shipped (M4),
   closes #10 by #9 per [D10], and updates the suggested order.
+
+[0.9.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.9.0
 
 ## [0.8.0] - 2026-10-11
 
@@ -288,6 +294,8 @@ additions), which is why it takes the minor bump on its own.
   generators, i18n keys, FormParts), and the facade (re-exports).
 - `docs/feature-backlog.md`: backlog #2 and #3 marked shipped (M3 v1) with
   scope notes; suggested order updated.
+
+[0.8.0]: https://github.com/stayhydated/gpui-form/releases/tag/v0.8.0
 
 ## [0.7.0] - 2026-10-11
 
