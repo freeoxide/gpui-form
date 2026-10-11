@@ -30,6 +30,7 @@ app:
   save_changes: "保存更改（仅已触字段）"
   nothing_touched: "没有已触字段——无需发送。"
   touched_payload: "仅含已触字段的载荷"
+  schema: "架构"
 signup:
   address_city_label: "城市"
   address_label: "地址（嵌套表单）"

@@ -30,6 +30,7 @@ app:
   save_changes: "Save changes (touched only)"
   nothing_touched: "No touched fields — nothing to send."
   touched_payload: "touched-only payload"
+  schema: "Schema"
 signup:
   address_city_label: "City"
   address_label: "Address (nested form)"

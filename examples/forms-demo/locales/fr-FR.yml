@@ -30,6 +30,7 @@ app:
   save_changes: "Enregistrer les modifications (champs touchés)"
   nothing_touched: "Aucun champ touché — rien à envoyer."
   touched_payload: "charge utile limitée aux champs touchés"
+  schema: "Schéma"
 signup:
   address_city_label: "Ville"
   address_label: "Adresse (formulaire imbriqué)"

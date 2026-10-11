@@ -93,7 +93,11 @@ conditionally required by the newsletter checkbox through
 `required_if = newsletter` (the localized `validation.required` error appears
 and disappears live as the checkbox flips), and a "Save changes (touched
 only)" button printing the PATCH tri-state filtered to the touched fields —
-the plan's D10 outcome: the patch IS the partial payload. Validation errors render through `validation.*`
+the plan's D10 outcome: the patch IS the partial payload. Milestone M5 adds a
+footer "Schema" debug toggle printing the exported `SignupFormSchema::schema()`
+document (component kinds, validations, dependencies, nested/list composition)
+— the devtools seed; its tests prove the document reads without the GPUI
+runtime. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,

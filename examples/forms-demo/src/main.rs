@@ -251,6 +251,10 @@ struct FormsDemo {
     file_picker: Entity<FilePickerState>,
     picked_date: Option<SharedString>,
     status: Option<SharedString>,
+    /// M5 (backlog #14): footer debug toggle for the exported form schema
+    /// (the devtools seed — gap 8). The document itself is plain data read
+    /// through `SignupFormSchema::schema()`, no GPUI runtime involved.
+    show_schema: bool,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -315,6 +319,7 @@ impl FormsDemo {
             file_picker,
             picked_date: None,
             status: None,
+            show_schema: false,
             focus_handle: cx.focus_handle(),
             _subscriptions: subscriptions,
         }
@@ -767,6 +772,64 @@ impl FormsDemo {
         plain_slot!(tags);
 
         entries.join(", ")
+    }
+
+    /// M5 (backlog #14): compact debug rendering of the exported signup
+    /// schema — the devtools seed (parity gap 8). Reads the same owned,
+    /// serializable document non-GPUI consumers get from
+    /// `SignupFormSchema::schema()`; the content is code identifiers, so it
+    /// stays untranslated like the footer's typed-path listing.
+    fn schema_debug_lines() -> Vec<String> {
+        use gpui_form::schema::registry::FormSchemaComponent;
+
+        let schema = SignupFormSchema::schema();
+        let mut lines = vec![format!(
+            "{} · {} fields · koruma: {} · skipped fields: {}",
+            schema.form,
+            schema.fields.len(),
+            if schema.koruma_enabled { "on" } else { "off" },
+            if schema.has_skipped_fields {
+                "yes"
+            } else {
+                "no"
+            },
+        )];
+
+        for field in &schema.fields {
+            let mut line = format!("{}: {}", field.name, field.kind().component_name());
+            match &field.component {
+                FormSchemaComponent::Nested { form_struct } => {
+                    line.push_str(&format!(" ({form_struct})"));
+                },
+                FormSchemaComponent::List {
+                    item, add_label, ..
+                } => {
+                    line.push_str(&format!(" (item: {item})"));
+                    if let Some(add_label) = add_label {
+                        line.push_str(&format!(" [add: {add_label}]"));
+                    }
+                },
+                _ => {},
+            }
+            if field.optional || field.wraps_in_option {
+                line.push_str(" (Option)");
+            }
+            if !field.validations.is_empty() {
+                line.push_str(&format!(" [{}]", field.validations.join(", ")));
+            }
+            if let Some(depends_on) = field.depends_on.as_deref() {
+                line.push_str(&format!(" (depends_on: {depends_on})"));
+            }
+            if let Some(required_if) = field.required_if.as_deref() {
+                line.push_str(&format!(" (required_if: {required_if})"));
+            }
+            if let Some(section) = field.layout.section.as_deref() {
+                line.push_str(&format!(" §{section}"));
+            }
+            lines.push(line);
+        }
+
+        lines
     }
 
     /// Localized error text for one field, selected through the typed path
@@ -1253,6 +1316,16 @@ impl Render for FormsDemo {
                                 );
                                 cx.notify();
                             })),
+                    )
+                    .child(
+                        // M5 (backlog #14): footer debug toggle printing the
+                        // form's exported schema — the devtools seed.
+                        Button::new("schema-toggle")
+                            .label(t!("app.schema").to_string())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.show_schema = !this.show_schema;
+                                cx.notify();
+                            })),
                     ),
             )
             .children(submit_error_banner.map(|text| {
@@ -1297,6 +1370,17 @@ impl Render for FormsDemo {
                     )
                     .children(self.status.clone().map(|s| div().child(s))),
             )
+            .children(self.show_schema.then(|| {
+                v_flex()
+                    .gap_1()
+                    .text_sm()
+                    .child(format!("{}:", t!("app.schema")))
+                    .children(
+                        Self::schema_debug_lines()
+                            .into_iter()
+                            .map(|line| div().child(line)),
+                    )
+            }))
     }
 }
 
@@ -1361,6 +1445,7 @@ mod tests {
         "app.save_changes",
         "app.nothing_touched",
         "app.touched_payload",
+        "app.schema",
         "signup.username_label",
         "signup.email_label",
         "signup.age_label",
@@ -1998,5 +2083,93 @@ mod nested_and_list_tests {
         assert!(SignupFormPath::tags(2).field_index().is_none());
         // M4 shifted the dense indices by one (`state` joined the form).
         assert_eq!(SignupFormPath::tags_root().field_index(), Some(11));
+    }
+}
+
+#[cfg(test)]
+mod schema_export_tests {
+    use crate::{FormsDemo, SignupFormSchema};
+    use gpui_form::FormSchema;
+    use gpui_form::schema::registry::FormSchemaComponent;
+
+    /// The M5 showcase backing test: the exported schema document is plain,
+    /// non-GPUI data (no window/entity construction anywhere) and carries
+    /// the nested/list (M3) and dependency (M4) metadata.
+    #[test]
+    fn exported_schema_reads_without_the_gpui_runtime() {
+        let schema: FormSchema = SignupFormSchema::schema();
+
+        assert_eq!(schema.form, "Signup");
+        assert!(schema.koruma_enabled);
+        assert!(schema.has_validations());
+        assert_eq!(
+            schema.field_names().collect::<Vec<_>>(),
+            vec![
+                "username",
+                "email",
+                "age",
+                "country",
+                "state",
+                "language",
+                "newsletter",
+                "notifications",
+                "code",
+                "birth_date",
+                "address",
+                "tags",
+            ]
+        );
+
+        // M4: the cascading state select records its country dependency.
+        let state = schema.field("state").expect("state entry");
+        assert_eq!(state.depends_on.as_deref(), Some("country"));
+
+        // M3: nested + list composition.
+        assert_eq!(
+            schema.field("address").expect("address entry").component,
+            FormSchemaComponent::Nested {
+                form_struct: "Address".to_string(),
+            }
+        );
+        assert_eq!(
+            schema.field("tags").expect("tags entry").component,
+            FormSchemaComponent::List {
+                item: gpui_form::schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }
+        );
+    }
+
+    #[test]
+    fn footer_debug_lines_render_the_exported_schema() {
+        let lines = FormsDemo::schema_debug_lines();
+
+        // Header + one line per field, declaration order.
+        assert_eq!(lines.len(), 1 + 12);
+        assert!(
+            lines[0].starts_with("Signup · 12 fields · koruma: on · skipped fields: yes"),
+            "{lines:?}"
+        );
+        assert!(
+            lines[1].contains("username: input (Option) [RequiredValidation"),
+            "{lines:?}"
+        );
+        // M4 dependencies: the cascading select and the conditional email.
+        assert!(
+            lines[5].contains("state: select (Option) (depends_on: country)"),
+            "{lines:?}"
+        );
+        assert!(
+            lines[2].contains("email: input (Option)")
+                && lines[2].contains("(required_if: newsletter)"),
+            "{lines:?}"
+        );
+        // M3 composition: nested group and repeated field.
+        assert!(
+            lines[11].contains("address: nested (Address) [NestedValidation]"),
+            "{lines:?}"
+        );
+        assert!(lines[12].contains("tags: list (item: input)"), "{lines:?}");
     }
 }
