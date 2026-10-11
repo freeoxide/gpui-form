@@ -25,11 +25,11 @@ fn field_storage(field: &FieldOptionality) -> FieldStorage {
     }
 }
 
-fn should_wrap(field: &FieldOptionality) -> bool {
+pub(crate) fn should_wrap(field: &FieldOptionality) -> bool {
     !field.skip && !matches!(field_storage(field), FieldStorage::Plain)
 }
 
-fn form_base_type(field: &FieldOptionality) -> Type {
+pub(crate) fn form_base_type(field: &FieldOptionality) -> Type {
     if let Some(override_type) = &field.override_type {
         extract_option_inner_type(override_type).1
     } else {
@@ -37,7 +37,7 @@ fn form_base_type(field: &FieldOptionality) -> Type {
     }
 }
 
-fn form_field_type_tokens(field: &FieldOptionality) -> TokenStream {
+pub(crate) fn form_field_type_tokens(field: &FieldOptionality) -> TokenStream {
     let base_type = form_base_type(field);
     if should_wrap(field) {
         quote! { Option<#base_type> }
@@ -680,6 +680,17 @@ pub fn generate_value_holder(
         quote! {}
     };
 
+    // Backlog #6 (typed field errors): gated on `needs_koruma_derive` — the
+    // same gate that puts `#[derive(Koruma)]` on the holder — so every
+    // koruma error type the emitter references is guaranteed to exist. This
+    // covers field-attr-only koruma forms (no struct-level
+    // `#[gpui_form(koruma)]`) too.
+    let field_errors_impl = if needs_koruma_derive {
+        crate::derives::gpui_form::errors::generate_field_errors(original_input, fields)
+    } else {
+        quote! {}
+    };
+
     let mut tokens = quote! {
         #conversion_error_type
         #derive_output
@@ -701,6 +712,8 @@ pub fn generate_value_holder(
         #skipped_fields_impl
 
         #i18n_impl
+
+        #field_errors_impl
     };
 
     if has_custom_defaults {

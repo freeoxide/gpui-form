@@ -32,6 +32,12 @@ This crate exists to:
   GPUI-free, serde-free typed field-path primitive (feature #8, FLAT v1)
 - `gpui_form_core::state` and `gpui_form_core::FormState` for pure, GPUI-free
   form-state dirty tracking / reset / diff (feature #1)
+- `gpui_form_core::fields` and `gpui_form_core::TouchedFields` for the pure,
+  GPUI-free touched-field bitset the generated `<Name>FormState` facade
+  composes (field-level state model, M1)
+- `gpui_form_core::validation` and `gpui_form_core::FormFieldErrors`, the
+  generic contract implemented by the generated `<Name>FormFieldErrors` maps
+  (backlog #6, M1)
 - `gpui_form_schema` as `gpui_form::schema`
 - `gpui_form_schema::LayoutWidth` as `gpui_form::LayoutWidth` (ergonomic root
   re-export of the width-hint enum; `FieldLayout` itself stays under

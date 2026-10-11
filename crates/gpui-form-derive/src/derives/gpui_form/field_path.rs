@@ -65,6 +65,27 @@ pub fn generate_field_path(
         })
         .collect();
 
+    // Feature #8 FLAT v1 + field-level state (M1): the declaration-order name
+    // table and dense index mapping that touched/dirty/error state keys on.
+    // Skipped fields are absent (they have no constructor and no holder slot).
+    let non_skipped: Vec<&FieldOptionality> = fields.iter().filter(|f| !f.skip).collect();
+    let field_name_literals: Vec<String> = non_skipped
+        .iter()
+        .map(|f| f.field_name.to_string())
+        .collect();
+    let field_count = non_skipped.len();
+    let path_for_index_arms: Vec<TokenStream> = non_skipped
+        .iter()
+        .enumerate()
+        .map(|(index, f)| {
+            let field_name = &f.field_name;
+            let index_token = proc_macro2::Literal::usize_unsuffixed(index);
+            quote! {
+                #index_token => Some(Self::#field_name()),
+            }
+        })
+        .collect();
+
     quote! {
         /// Typed path to a field on this form.
         ///
@@ -75,6 +96,41 @@ pub fn generate_field_path(
         pub struct #form_path_ident(::gpui_form::core::FieldPath);
 
         impl #form_path_ident {
+            /// All non-skipped field names in declaration order.
+            pub const FIELD_NAMES: &'static [&'static str] = &[#(#field_name_literals),*];
+
+            /// Number of non-skipped fields; the dense index space used by
+            /// field-level state (touched/dirty/errors).
+            pub const FIELD_COUNT: usize = #field_count;
+
+            /// Every field path in declaration order.
+            pub fn all_paths() -> impl Iterator<Item = Self> {
+                (0..Self::FIELD_COUNT)
+                    .map(|index| Self::path_for_index(index).expect("index < FIELD_COUNT"))
+            }
+
+            /// Dense declaration-order index for FLAT v1 single-segment paths
+            /// naming a non-skipped field. `None` for hand-built multi-segment
+            /// or unknown paths.
+            pub fn field_index(&self) -> Option<usize> {
+                match self.path().segments() {
+                    [name] => Self::FIELD_NAMES
+                        .iter()
+                        .copied()
+                        .position(|candidate| candidate == *name),
+                    _ => None,
+                }
+            }
+
+            /// Inverse of [`Self::field_index`]: the path for a dense index,
+            /// or `None` when `index >= FIELD_COUNT`.
+            pub fn path_for_index(index: usize) -> Option<Self> {
+                match index {
+                    #(#path_for_index_arms)*
+                    _ => None,
+                }
+            }
+
             /// Build a path from an explicit slice of static segments.
             ///
             /// Mirrors [`::gpui_form::core::FieldPath::new`]; useful for

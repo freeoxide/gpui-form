@@ -34,6 +34,12 @@ power the rest of the ecosystem.
   codegen layouts
 - `src/derives/gpui_form/value_holder.rs`: generated holder types, defaults,
   conversion logic, and skip-field handling
+- `src/derives/gpui_form/form_state.rs`: generated `<Name>FormState` facade +
+  `<Name>FormPatch` (field-level state model, M1: touched tracking + per-field
+  dirty/patch)
+- `src/derives/gpui_form/errors.rs`: generated `<Name>FormFieldErrors` map,
+  `<Name>FormFieldError` borrowing enum, and the holder's `validate_fields()`
+  (backlog #6 typed error access, koruma-gated)
 - `src/derives/gpui_form/field_path.rs`: generated `<Name>FormPath` typed
   field-path newtype (backlog feature #8, FLAT v1)
 - `src/derives/gpui_form/koruma.rs`: Koruma metadata mirroring helpers
@@ -55,7 +61,14 @@ power the rest of the ecosystem.
    - `FormFields`
    - `FormComponents`
    - `FormValueHolder`
-   - `FormPath` (typed field-path newtype wrapping `::gpui_form::core::FieldPath`)
+   - `FormPath` (typed field-path newtype wrapping `::gpui_form::core::FieldPath`,
+     plus the `FIELD_NAMES`/`FIELD_COUNT`/`all_paths()`/`field_index()`/
+     `path_for_index()` tables added in M1)
+   - `FormState` + `FormPatch` (the field-level state facade and patch type from
+     `form_state.rs`; unconditional, spliced into BOTH the empty-form early
+     return and the main expansion)
+   - `FormFieldErrors` + `FormFieldError` + the holder's `validate_fields()`
+     (from `errors.rs`; gated on `needs_koruma_derive` in `value_holder.rs`)
    - conversions between the original type and the holder
    - optional inventory metadata
 
@@ -68,6 +81,12 @@ power the rest of the ecosystem.
 - `type`/`from`/`into` conversions
 - `#[gpui_form(skip)]` reconstruction behavior
 - Koruma mirroring for holder validation
+
+The holder stays PLAIN DATA: the only member M1 adds is the pure
+`validate_fields()` method (koruma-gated, a function of the value like
+koruma's own `validate()`). Touched/dirty/error/submit state never lives on
+the holder — it lives on the generated `<Name>FormState` facade and the core
+primitives it composes.
 
 Important behaviors:
 
@@ -140,6 +159,93 @@ FLAT v1 scope: each constructor names a single field. Typed nested-path and
 list-item-path constructors arrive with backlog features #2 ("Nested forms")
 and #3 ("Repeated fields"); hand-built multi-segment paths via
 `<Name>FormPath::new(&["a", "b"])` work today.
+
+M1 extends the same impl with the declaration-order tables the field-level
+state model keys on: `FIELD_NAMES` (`&'static [&'static str]`, non-skipped
+fields only), `FIELD_COUNT`, `all_paths()` (declaration order),
+`field_index()` (dense index, `Some` only for FLAT v1 single-segment paths
+naming a real field), and `path_for_index()` (the inverse, a generated
+`match`). Iteration for touched/dirty/error surfaces comes from
+`all_paths()` — never from ad-hoc per-field string lists — so M3's
+multi-segment paths extend one surface.
+
+### Field-Level State Facade + Patch (M1: touched, per-field dirty, patch)
+
+`form_state.rs` owns `generate_form_state(original_input, fields)`, spliced
+into BOTH expansion branches next to the path tokens. It emits:
+
+- `<Name>FormState`: a facade COMPOSING the standalone core primitives —
+  `::gpui_form::core::FormState<<Name>FormValueHolder>` (baseline/current)
+  and `::gpui_form::core::TouchedFields` (sized from `FIELD_COUNT`) — never
+  new state fields on the holder or on core `FormState<H>` (which stays a
+  frozen two-slot generic). Facade methods: value accessors and
+  escapes (`state()`/`state_mut()`), reset semantics
+  (`reset_to_baseline` clears touched; `reset_to_baseline_keeping_touched`
+  and `sync_baseline`/`replace_current` keep it), touched accessors
+  (`touch`/`is_touched`/`touched_fields`/`clear_touched`/`clear_all_touched`,
+  all path-keyed and inert for unknown paths), and per-field dirty
+  (`is_field_dirty` — a generated `match` on path segments comparing holder
+  fields, `false` + `debug_assert!` for unknown paths; empty forms emit a
+  plain `false` arm since they have no valid paths at all),
+  `changed_fields`, `patch`.
+- `<Name>FormPatch`: one `Option<holder-field-type>` slot per non-skipped
+  field (so wrapped/originally-optional fields read as `Option<Option<T>>`;
+  `Some(None)` = changed-to-cleared). `between`/`is_empty`/`changed_fields`/
+  `apply_to` are pure holder-typed operations — comparison happens on holder
+  field types, which all implement `PartialEq` because the holder derives it,
+  so `type`/`from`/`into` conversion fields need no special handling. Under
+  the derive crate's `serde` feature the patch also derives
+  `Serialize`/`Deserialize` with
+  `#[serde(skip_serializing_if = "Option::is_none", default)]` per field
+  (the PATCH tri-state wire format).
+
+Generics note: the facade and patch carry the source struct's generics
+verbatim, diverging from `<Name>FormPath`'s no-generics rule. A path names no
+types so it can be generics-free; the facade names the holder
+(`FormState<<Name>FormValueHolder<..>>`) and a generics-free facade would
+break generic source structs that compile today.
+
+### Typed Field Errors (backlog #6, M1)
+
+`errors.rs` owns `generate_field_errors(original_input, fields)`, invoked from
+`value_holder.rs` under `needs_koruma_derive` — the SAME gate that puts
+`#[derive(Koruma)]` on the holder (NOT `koruma_options.is_some()`, which
+would silently drop field-attr-only koruma forms). It emits:
+
+- `<Name>FormFieldErrors`: one private `Option<..>` slot per koruma-
+  participating non-skipped field. Koruma only generates a top-level error
+  getter for holder fields that carry koruma attrs, so the emitter filters on
+  the exact predicate `value_holder.rs` uses to mirror attrs
+  (synthetic-required OR field validators OR element validators OR newtype).
+  Slots hold owned clones of koruma error structs.
+- `<Name>FormFieldError<'a>`: a borrowing enum, one variant per participating
+  field, with `path()` and `issue_keys()` (the failed field-level validators'
+  `validation.*` keys, mirrored from the holder's koruma attr list — the same
+  getter-name computation koruma uses, snake of the last path segment with a
+  full-path fallback on collisions). A single uniform `all()` method is NOT
+  emitted: the per-field koruma validator enums are distinct types, so a
+  per-variant return type cannot exist on one method; koruma's `all()`
+  stays reachable through the variant payloads.
+- the holder's `validate_fields()`: runs koruma `validate()` once and re-keys
+  the result; `map.is_empty()` == `validate().is_ok()`.
+
+Slot shapes mirror koruma's top-level getters: regular fields and
+newtype-with-validators expose `&<Holder><Field>KorumaValidationError`;
+`#[koruma(nested)]` fields expose `Option<&<Inner as ValidateExt>::Error>`;
+bare newtypes expose the inner error directly (behind `Option` when the
+holder field is option-wrapped). Inner failures (newtype `Inner`, nested)
+report the generic `validation.invalid` key in `issue_keys()` — inner
+validator kinds live on the inner type and are invisible to this crate.
+`error_for`/`failing_fields` match on the FULL single-segment path, so
+unknown and multi-segment paths return `None`.
+
+Generic source structs are excluded (the emitter returns an empty stream):
+koruma's generated error types carry a subset of the source generics chosen
+by usage analysis that cannot be reconstructed here. Generic koruma forms
+keep compiling exactly as before, minus this opt-in surface.
+
+`gpui-form-core::validation::FormFieldErrors` is the form-agnostic trait the
+generated map implements (`is_empty`, `failing_paths`).
 
 ## Koruma Integration
 
@@ -224,6 +330,21 @@ change.
   ctors, skip exclusion, `Display`/`Deref`/`AsRef`/`into_path`, empty-form
   branch, distinct types per form). It is NOT gated — `FieldPath` is
   unconditional.
+- `tests/form_state_facade.rs` exercises the M1 facade + path tables (touched
+  lifecycle, reset semantics, `FIELD_COUNT`/`all_paths`/`field_index`
+  round-trips, skipped-field exclusion, empty-form branch).
+- `tests/patch_diff.rs` exercises the M1 patch (storage tri-state coverage:
+  `WrappedOption`/`OriginallyOptional`/`Plain`, conversion fields, `apply_to`,
+  declaration-order `changed_fields`). Deliberately not serde-gated.
+- `tests/error_for.rs` exercises the koruma-gated typed error surface
+  (field-attr-only koruma forms, struct-level koruma forms, newtype
+  wrapper/bare getter shapes, `issue_keys`, the `FormFieldErrors` trait).
+- `tests/field_level_state_without_serde.rs` is the R13 default-features
+  regression test for the M1 emission (mirrors
+  `form_state_dirty_without_serde.rs`): the facade/patch/error surface must
+  compile and behave with the `serde` feature OFF.
+- `tests/ui/error_for_koruma_pass.rs` is a trybuild pass fixture compiling the
+  whole M1 surface (facade + patch + `error_for`) end-to-end in one binary.
 
 ## When To Update This Document
 

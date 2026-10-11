@@ -106,13 +106,37 @@ Behavior notes:
   around `gpui_form::core::FieldPath` — with one same-named constructor per
   NON-skipped field (`SettingsFormPath::username()`). Skipped fields have NO
   constructor (mirroring the holder). `<Name>FormPath` carries no generics,
-  reaches the shared primitive via `Deref`/`AsRef`/`into_path`, and is the
-  typed naming foundation for future field-level validation (#6), field-level
-  diff (#9), schema export (#14), and nested/list paths (#2/#3). FLAT v1: each
+  reaches the shared primitive via `Deref`/`AsRef`/`into_path`, and also
+  exposes the declaration-order tables `FIELD_NAMES` / `FIELD_COUNT` /
+  `all_paths()` / `field_index()` / `path_for_index()` that field-level state
+  keys on (dense indices exist only for FLAT v1 single-segment paths naming a
+  real field; hand-built multi-segment or unknown paths return `None`). It is
+  the typed naming foundation for the field-level validation (#6) and
+  field-level diff (#9) surfaces below, and for the upcoming schema export
+  (#14) and nested/list paths (#2/#3). FLAT v1: each
   constructor names a single field; typed nested/list composition arrives with
   #2/#3 (hand-built multi-segment paths via `new(&["a","b"])` work today).
   `FieldPath` is unconditional — the path type is emitted without any feature
   flag
+- every form also emits a `<Name>FormState` facade and a `<Name>FormPatch`
+  type (field-level state model): the facade composes
+  `gpui_form::core::FormState` + `gpui_form::core::TouchedFields` behind
+  typed path accessors (`touch`, `is_touched`, `touched_fields`,
+  `is_field_dirty`, `changed_fields`, `patch`, plus reset semantics where
+  `reset_to_baseline()` clears touched while
+  `reset_to_baseline_keeping_touched()` and `sync_baseline()` keep it), and
+  the patch holds one `Option<holder-field-type>` slot per non-skipped field
+  (`between`/`is_empty`/`changed_fields`/`apply_to`; with the derive crate's
+  `serde` feature it also serializes as the PATCH tri-state). Holders stay
+  plain data — all state lives on the facade. See the root README
+  §Saving, Restoring, and Dirty Tracking
+- koruma-enabled forms (any route: struct-level `#[gpui_form(koruma)]` or
+  field-level `#[koruma(...)]` attrs) additionally gain typed error access:
+  `holder.validate_fields()` returns a `<Name>FormFieldErrors` map re-keying
+  koruma's typed per-field error structs by `<Name>FormPath`, with
+  `error_for(&path)`, per-field `issue_keys()` (`validation.*` keys), typed
+  accessors, and the `gpui_form::core::FormFieldErrors` trait for generic
+  code. See the root README §Validation With Koruma
 - `section`, `label`, `description`, `placeholder`, and `width` are
   **metadata-only** layout hints. They do not change generated form rendering;
   they attach a `FieldLayout` to each emitted `FieldVariant` so downstream
