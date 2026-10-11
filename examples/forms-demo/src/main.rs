@@ -370,7 +370,10 @@ impl FormsDemo {
         cx: &mut Context<Self>,
     ) {
         match event {
-            // Input family: touched on blur (verified InputEvent surface).
+            // Input family: touched on blur AND on change. Blur alone never
+            // fires when the next interaction is a button click (gpui-kit
+            // buttons prevent focus on mouse-down), so tracking must not
+            // depend on it; the touched bitset is idempotent.
             InputEvent::Blur => {
                 self.form.touch(&SignupFormPath::username());
                 cx.notify();
@@ -382,6 +385,7 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
+                self.form.touch(&SignupFormPath::username());
                 self.revalidate();
                 cx.notify();
             },
@@ -408,6 +412,7 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
+                self.form.touch(&SignupFormPath::email());
                 self.revalidate();
                 // Async availability check (M2): every edit starts a fresh
                 // generation; the guard drops completions from older edits.
@@ -433,6 +438,7 @@ impl FormsDemo {
             InputEvent::Change => {
                 let text = state.read(cx).value();
                 self.form.current_mut().age = text.parse::<u32>().ok();
+                self.form.touch(&SignupFormPath::age());
                 self.revalidate();
                 cx.notify();
             },
@@ -548,6 +554,7 @@ impl FormsDemo {
                 } else {
                     text.parse::<RequestCode>().ok()
                 };
+                self.form.touch(&SignupFormPath::code());
                 self.revalidate();
                 cx.notify();
             },
@@ -572,8 +579,12 @@ impl FormsDemo {
 
     /// Milestone M3 (backlog #2): change/blur handlers for the nested
     /// `Address` form's inputs. The writes go through the nested form's own
-    /// holder field; touched tracking uses the composed typed path
-    /// (`address.city`), which the facade keys through the nested root.
+    /// holder field; touched tracking keys through the nested ROOT path
+    /// (`SignupFormPath::address_root()`) — composed multi-segment paths
+    /// such as `address.city` have no dense field index in v1, so `touch`
+    /// on them is a documented no-op. Like the flat inputs, blur AND change
+    /// both mark touched (blur never fires when the next click is a
+    /// button).
     fn on_address_city_change(
         &mut self,
         state: &Entity<InputState>,
@@ -581,10 +592,9 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let city_path = SignupFormPath::address_root().join(&AddressFormPath::city());
         match event {
             InputEvent::Blur => {
-                self.form.touch(&city_path);
+                self.form.touch(&SignupFormPath::address_root());
                 cx.notify();
             },
             InputEvent::Change => {
@@ -594,6 +604,7 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
+                self.form.touch(&SignupFormPath::address_root());
                 self.revalidate();
                 cx.notify();
             },
@@ -608,10 +619,9 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let zip_path = SignupFormPath::address_root().join(&AddressFormPath::zip());
         match event {
             InputEvent::Blur => {
-                self.form.touch(&zip_path);
+                self.form.touch(&SignupFormPath::address_root());
                 cx.notify();
             },
             InputEvent::Change => {
@@ -621,6 +631,7 @@ impl FormsDemo {
                 } else {
                     Some(text.to_string())
                 };
+                self.form.touch(&SignupFormPath::address_root());
                 self.revalidate();
                 cx.notify();
             },
@@ -676,20 +687,25 @@ impl FormsDemo {
         cx.notify();
     }
 
-    /// The M2 submit protocol in app code: gate on live validity, begin the
-    /// attempt (re-entry guard), drive the `SubmitAction` future in a
-    /// spawned task, and feed its result back through `finish`. A success
-    /// re-syncs the baseline (the save protocol `sync_baseline` exists
-    /// for); a failure stays in `last_error` for the banner.
+    /// The M2 submit protocol in app code: revalidate and reveal errors,
+    /// begin the attempt (the re-entry guard is the ONLY gate — every
+    /// attempted submit counts, matching the tracker's contract and
+    /// react-hook-form's `submitCount`: an invalid form finishes the
+    /// attempt immediately with the typed koruma error), then drive the
+    /// `SubmitAction` future in a spawned task and feed its result back
+    /// through `finish`. A success re-syncs the baseline (the save protocol
+    /// `sync_baseline` exists for); a failure stays in `last_error` for the
+    /// banner.
     fn submit(&mut self, cx: &mut Context<Self>) {
         self.revalidate();
         self.errors_shown = true;
-        if !self.form.is_valid() {
-            self.status = Some(t!("app.invalid").to_string().into());
+        if !self.submission.begin() {
             cx.notify();
             return;
         }
-        if !self.submission.begin() {
+        if !self.form.is_valid() {
+            self.submission.finish(self.form.current().validate());
+            self.status = Some(t!("app.invalid").to_string().into());
             cx.notify();
             return;
         }
@@ -1132,8 +1148,8 @@ impl Render for FormsDemo {
             .child(
                 // Milestone M3 (backlog #2): the nested `Address` form. The
                 // holder stores an `AddressFormValueHolder`; these two
-                // app-owned inputs write into it and track touched state on
-                // the composed `address.city` / `address.zip` paths.
+                // app-owned inputs write into it and track touched state
+                // through the nested root path (`address_root()`).
                 v_flex()
                     .gap_2()
                     .border_1()
@@ -1206,6 +1222,7 @@ impl Render for FormsDemo {
                                         .label(t!("app.remove_tag").to_string())
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.form.current_mut().remove_tags(index);
+                                            this.form.touch(&SignupFormPath::tags_root());
                                             this.revalidate();
                                             cx.notify();
                                         })),
@@ -1213,21 +1230,28 @@ impl Render for FormsDemo {
                         },
                     ))
                     .child(
-                        h_flex().gap_2().child(
-                            Button::new("tags-add")
-                                .label(t!("app.add_tag").to_string())
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    let text = this.new_tag_input.read(cx).value();
-                                    if !text.is_empty() {
-                                        this.form.current_mut().add_tags(text.to_string());
-                                        this.revalidate();
-                                        this.new_tag_input.update(cx, |state, cx| {
-                                            state.set_value("", window, cx);
-                                        });
-                                        cx.notify();
-                                    }
-                                })),
-                        ),
+                        // The new-tag editor must be part of the render tree:
+                        // an unrendered input can never gain focus or text,
+                        // so the Add button would always read "".
+                        h_flex()
+                            .gap_2()
+                            .child(Input::new(&self.new_tag_input))
+                            .child(
+                                Button::new("tags-add")
+                                    .label(t!("app.add_tag").to_string())
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        let text = this.new_tag_input.read(cx).value();
+                                        if !text.is_empty() {
+                                            this.form.current_mut().add_tags(text.to_string());
+                                            this.form.touch(&SignupFormPath::tags_root());
+                                            this.revalidate();
+                                            this.new_tag_input.update(cx, |state, cx| {
+                                                state.set_value("", window, cx);
+                                            });
+                                            cx.notify();
+                                        }
+                                    })),
+                            ),
                     ),
             )
             .child(
@@ -1913,6 +1937,42 @@ mod submit_lifecycle_tests {
     }
 
     #[test]
+    fn every_submit_attempt_counts_even_when_the_form_is_invalid() {
+        // The demo's submit protocol: `begin()` runs BEFORE the validity
+        // check (the re-entry guard is the only gate), so every attempted
+        // submit increments `submit_count` — react-hook-form's `submitCount`
+        // semantics. An invalid form finishes the attempt immediately with
+        // the typed koruma error instead of pre-gating on `is_valid()`.
+        let mut tracker: SignupFormSubmission = SubmitTracker::new();
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        state.validate();
+
+        // Attempt 1: the default holder is invalid, but the attempt still
+        // begins, counts, and finishes as a tracked failure.
+        assert!(tracker.begin());
+        assert!(!state.is_valid());
+        tracker.finish(state.current().validate());
+        assert_eq!(tracker.submit_count(), 1);
+        assert!(!tracker.is_submit_successful());
+        assert!(
+            tracker.last_error().is_some(),
+            "the invalid attempt's koruma error feeds the failure banner"
+        );
+
+        // Attempt 2: a valid holder completes through the SubmitAction path.
+        state.current_mut().username = Some("ada".to_string());
+        state.current_mut().code = Some("AB12".parse().unwrap());
+        state.current_mut().age = Some(30);
+        state.current_mut().address.city = Some("Paris".to_string());
+        state.validate();
+        assert!(state.is_valid());
+        assert!(tracker.begin());
+        tracker.finish(Ok(()));
+        assert_eq!(tracker.submit_count(), 2);
+        assert!(tracker.is_submit_successful());
+    }
+
+    #[test]
     fn submit_alias_is_a_submit_tracker_over_the_koruma_error() {
         let mut tracker: SignupFormSubmission = SubmitTracker::new();
         assert!(tracker.can_submit());
@@ -2056,6 +2116,42 @@ mod nested_and_list_tests {
             .map(|path| path.to_string())
             .collect();
         assert_eq!(names, vec!["tags.1"]);
+    }
+
+    #[test]
+    fn nested_inputs_mark_touched_through_the_root_path() {
+        // The demo's address inputs mark touched on blur AND on change
+        // (blur alone never fires when the next interaction is a button
+        // click — gpui-kit buttons prevent focus on mouse-down), keyed
+        // through the nested ROOT path.
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        state.current_mut().address.city = Some("Paris".to_string());
+        state.touch(&SignupFormPath::address_root());
+        assert!(state.is_touched(&SignupFormPath::address_root()));
+        assert_eq!(
+            state
+                .touched_fields()
+                .iter()
+                .map(|path| path.to_string())
+                .collect::<Vec<_>>(),
+            vec!["address"]
+        );
+        // The blur arm firing after the change arm stays a single mark.
+        state.touch(&SignupFormPath::address_root());
+        assert_eq!(state.touched_fields().len(), 1);
+
+        // The composed `address.city` path still routes error lookups, but
+        // it has no dense field index in v1: touching through it is a
+        // documented no-op, which is why the demo wires the root path.
+        let composed = SignupFormPath::address_root().join(&AddressFormPath::city());
+        assert_eq!(composed.to_string(), "address.city");
+        assert_eq!(composed.field_index(), None);
+        let mut untouched = SignupFormState::new(SignupFormValueHolder::default());
+        untouched.touch(&composed);
+        assert!(
+            untouched.touched_fields().is_empty(),
+            "composed multi-segment paths have no dense index in v1"
+        );
     }
 
     #[test]

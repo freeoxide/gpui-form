@@ -717,19 +717,29 @@ pub struct Signup { /* fields as above */ }
 
 let mut submission: SignupFormSubmission = gpui_form::SubmitTracker::new();
 
-// Gate, begin, drive your save, finish:
-if state.is_valid() && submission.begin() {
-    let result = my_save(&state.current()).await;   // your code drives the future
-    submission.finish(result.map(|_: Saved| ()));
-    if submission.is_submit_successful() {
-        state.sync_baseline();                       // the save protocol
+// Begin, gate, drive your save, finish — begin() FIRST, so every
+// attempted submit counts (valid or not):
+if submission.begin() {
+    if !state.is_valid() {
+        // A failed-validation attempt still counts; finish it with the
+        // typed koruma error so last_error carries the field errors.
+        submission.finish(state.current().validate());
+    } else {
+        let result = my_save(&state.current()).await;   // your code drives the future
+        submission.finish(result.map(|_: Saved| ()));
+        if submission.is_submit_successful() {
+            state.sync_baseline();                       // the save protocol
+        }
     }
 }
 ```
 
 - `begin()` is the re-entry guard: it returns `false` while a submit is in
   flight (double-click protection data), and only a successful `begin`
-  counts an attempt (`submit_count()`).
+  counts an attempt (`submit_count()`). Call it before any validity gate:
+  like react-hook-form's `submitCount`, every attempted submit counts,
+  success or failure — pre-gating on `is_valid()` would silently freeze
+  the counter on invalid forms.
 - `finish(Err(e))` records `last_error()`; `finish(Ok(()))` clears it and
   flips `is_submit_successful()`. **Stale completions are ignored** — a
   `finish` arriving after `reset()` (or with no attempt in flight) changes

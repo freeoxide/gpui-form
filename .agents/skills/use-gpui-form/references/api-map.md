@@ -307,19 +307,29 @@ let mut state = SignupFormState::new(SignupFormValueHolder::default());
 state.validate();
 let valid = state.is_valid();
 
-// Submit: gate, begin, drive, finish; success re-syncs the baseline.
+// Submit: begin FIRST (every attempted submit counts), gate, drive,
+// finish; success re-syncs the baseline.
 let mut submission: SignupFormSubmission = gpui_form::SubmitTracker::new();
-if state.is_valid() && submission.begin() {
-    let result = save(&state.current()).await;
-    submission.finish(result.map(|_: ()| ()));
-    if submission.is_submit_successful() {
-        state.sync_baseline();
+if submission.begin() {
+    if !state.is_valid() {
+        // Failed-validation attempts still count; finish with the typed
+        // koruma error so last_error carries the field errors.
+        submission.finish(state.current().validate());
+    } else {
+        let result = save(&state.current()).await;
+        submission.finish(result.map(|_: ()| ()));
+        if submission.is_submit_successful() {
+            state.sync_baseline();
+        }
     }
 }
 ```
 
 Behavior notes: `begin()` is the re-entry guard (false while in flight) and
-the only thing that counts an attempt; stale completions (after `reset()`,
+the only thing that counts an attempt — call it before any validity gate,
+because like react-hook-form's `submitCount` every attempted submit counts,
+success or failure (pre-gating on `is_valid()` freezes the counter on
+invalid forms); stale completions (after `reset()`,
 or post-`abandon()`) are ignored via the generation guard; `set_error`/
 `clear_error` inject server-side errors without rewriting terminal
 verdicts. Async checks implement `gpui_form::AsyncFieldValidation<Holder>`

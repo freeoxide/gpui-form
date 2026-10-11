@@ -64,15 +64,20 @@ a newtype-backed field with inner koruma validation (`#[koruma(newtype)]` invite
 code whose `Inner` error is mapped to a localized key), a form-bound
 `component(date_picker)` field, and a `#[gpui_form(skip)]` field that is absent
 from the holder and typed paths (shown live in the footer). The app drives the
-generated `SignupFormState` facade: inputs mark touched on blur and other
-component kinds on change, the footer lists the live changed/touched fields
+generated `SignupFormState` facade: inputs mark touched on blur and on
+change (blur alone never fires when the next interaction is a button —
+gpui-kit buttons prevent focus on mouse-down), other component kinds on
+change, the footer lists the live changed/touched fields
 through `FieldPath` Display, and per-field errors render through
 `error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
 koruma validation or builds a throwaway dirty-check clone. The M2 submit
 lifecycle is wired end-to-end: a Submit button drives the opt-in
 `SignupFormSubmission` tracker (`#[gpui_form(submit)]`) through
 `begin()` → a spawned `SubmitAction` future with simulated latency →
-`finish()`, disables while submitting, syncs the baseline on success, and
+`finish()`, counting every attempted submit (the re-entry guard is the only
+gate; an invalid form finishes the attempt immediately with the typed
+koruma error, so `submit_count()` increments on failed attempts too),
+disables while submitting, syncs the baseline on success, and
 renders `last_error` banners by re-keying the typed koruma error through
 `SignupFormFieldErrors` into the localized `validation.*` keys; a simulated
 async availability check on the email field implements the
@@ -82,8 +87,10 @@ completions; and the facade's snapshot-compare validation cache feeds a live
 components add a date picker and a multiple-mode file picker whose pluralized
 count text follows the locale. Milestone M3 adds a nested `Address` form
 (two app-owned inputs writing into the nested
-`AddressFormValueHolder`, touched tracking on the composed `address.city`
-path) and a tags list with add/remove buttons over the generated
+`AddressFormValueHolder`, touched tracking keyed through the nested root
+path `address_root()` — composed `address.city`-style paths have no dense
+field index in v1) and a tags list with a rendered new-tag editor plus
+add/remove buttons over the generated
 `add_tags`/`remove_tags`/`tags_items` holder API — per-item `each(...)`
 failures render with their failing indices, and the count text follows the
 app's localized-count pattern. Milestone M4 adds the field-dependency
