@@ -1,6 +1,6 @@
 # Feature backlog
 
-Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline.
+Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline. The state/validation/submission subset has an executable delivery plan in [`form-feature-parity-plan.md`](form-feature-parity-plan.md).
 
 ## Scope boundary
 
