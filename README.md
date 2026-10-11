@@ -110,6 +110,13 @@ These component forms are currently supported:
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, value_binding)))]`
+- `#[gpui_form(component(nested))]` — compose another `#[derive(GpuiForm)]`
+  struct as a nested form (see
+  [Nested Forms and Repeated Fields](#nested-forms-and-repeated-fields))
+- `#[gpui_form(component(list(item = input)))]` — an editable `Vec<T>` with
+  scalar item components (`input`, `number_input`, `select`, `checkbox`,
+  `switch`, `phone_input`, `infinite_select`, `date_picker`, `file_picker`),
+  plus optional `add_label = "..."` for the generated add control
 
 Common field-level helpers:
 
@@ -800,11 +807,15 @@ assert_ne!(username, age);
 
 // `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
 // that takes a `&FieldPath` (the validation/diff/schema surfaces)
-// also accepts the typed newtype.
-fn records(path: &FieldPath) -> &[&'static str] {
+// also accepts the typed newtype. Segments are the typed `PathSegment`
+// enum — names plus list-item indices — since milestone M3.
+fn records(path: &FieldPath) -> &[gpui_form::PathSegment] {
     path.segments()
 }
-assert_eq!(records(username.as_ref()), &["username"]);
+assert_eq!(
+    records(username.as_ref()),
+    &[gpui_form::PathSegment::Name("username")]
+);
 
 // Declaration-order tables and dense index mapping feed field-level state
 // (touched/dirty/errors) and generic iteration:
@@ -815,25 +826,138 @@ assert_eq!(username.field_index(), Some(0));
 assert_eq!(SettingsFormPath::path_for_index(0).as_ref(), Some(&username));
 ```
 
-Scope of this feature (FLAT v1):
+Scope of this feature:
 
-- Each constructor names a single flat field. Typed nested-path and
-  list-item-path constructors arrive with backlog features #2 ("Nested forms")
-  and #3 ("Repeated fields"). Hand-built multi-segment paths via
-  `SettingsFormPath::new(&["a", "b"])` work today; typed composition is later.
+- Each flat field has one constructor named identically to the field.
+  Milestone M3 (backlog #2/#3) added typed composition on top: nested fields
+  get `<field>_root()` plus a consuming appender `fn <field>(self)`, list
+  fields get `<field>_root()` plus `fn <field>(index: usize)` carrying a
+  typed index segment, and every form gets `join` for cross-form composition
+  (`SettingsFormPath::address_root().join(&AddressFormPath::city())` names
+  `address.city`). Hand-built multi-segment names-only paths via
+  `SettingsFormPath::new(&["a", "b"])` keep working.
 - `#[gpui_form(skip)]` fields have NO constructor — they are absent from the
   holder too, and from `FIELD_NAMES`/`all_paths()`/`field_index()`.
-- `field_index()` maps only FLAT v1 single-segment paths naming a real field;
-  hand-built multi-segment or unknown paths return `None` (the field-level
-  state accessors treat them as inert).
+- `field_index()` maps only single-segment root paths naming a real field
+  (flat constructors and nested/list `_root()` constructors); hand-built
+  multi-segment paths and list-item paths return `None` (the field-level
+  state accessors treat them as inert — item-level touched tracking is
+  sequenced after v1).
 - `FieldPath` is a headless primitive: no GPUI, no `serde`, no feature flag.
   It is the shared naming foundation for the field-level validation (#6) and
   field-level diff/delta reporting (#9) surfaces shipped on the
   `<Name>FormState` facade and `error_for`, and for the upcoming schema
   export (#14).
 
-`FieldPath` is available unconditionally from `gpui_form::FieldPath` (or
-`gpui-form-core` directly).
+`FieldPath` and `PathSegment` are available unconditionally from
+`gpui_form::{FieldPath, PathSegment}` (or `gpui-form-core` directly). The
+segment representation is the typed `PathSegment` enum
+(`Name(&'static str)` / `Index(usize)`) — decision [D8] of the
+feature-parity plan — so list-item paths like `tags.2` are one uniform
+`FieldPath`; indices are stored typed, never formatted into strings.
+
+## Nested Forms and Repeated Fields
+
+`component(nested)` composes another generated form, and
+`component(list(item = ...))` edits a `Vec<T>`. Both store composed values in
+the holder — no leaf widget is generated for them (like checkbox/switch), so
+rendering the group stays application- or prototyping-authored.
+
+### Nested forms (`component(nested)`)
+
+The nested struct derives `GpuiForm` itself; the outer holder stores the
+nested form's own generated value holder and converts through its `From`
+impls. `#[koruma(nested)]` on the source field runs the nested form's
+validators through the outer `validate()`:
+
+```rust
+#[derive(Clone, Debug, Default, GpuiForm, Koruma)]
+pub struct Address {
+    #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>::builder())]
+    pub city: String,
+
+    #[gpui_form(component(input))]
+    pub zip: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, GpuiForm, Koruma)]
+pub struct Resident {
+    #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>::builder())]
+    pub name: String,
+
+    #[gpui_form(component(nested))]
+    #[koruma(nested)]
+    pub address: Address,
+}
+```
+
+Typed paths compose across the forms — the outer form names the nested root,
+`join` appends the nested form's own field paths:
+
+```rust
+let city = ResidentFormPath::address_root().join(&AddressFormPath::city());
+assert_eq!(city.to_string(), "address.city");
+
+// Errors route over composed paths, and the generated recursion accessor
+// re-keys into the nested form's own error map for the inner validator
+// kinds:
+let errors = holder.validate_fields();
+let Some(city_error) = errors
+    .error_for(&city)
+    .map(|_| ()) // any `address...` path routes to the nested slot
+else { unreachable!() };
+let inner = errors.address_errors() // Option<AddressFormFieldErrors>
+    .unwrap()
+    .error_for(&AddressFormPath::city())
+    .unwrap();
+```
+
+### Repeated fields (`component(list(item = ...))`)
+
+The holder stores the plain item `Vec` (v1: no per-item `Option`) and gains a
+typed add/remove/items API. `each(...)` element validators stay
+element-scoped so koruma reports failures per item index:
+
+```rust
+#[derive(GpuiForm, Koruma)]
+struct PostEditor {
+    #[gpui_form(component(list(item = input)))]
+    #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
+    tags: Vec<String>,
+}
+
+let mut holder = PostEditorFormValueHolder::default();
+holder.add_tags("gpui".to_string());
+holder.remove_tags(0);
+let items: &[String] = holder.tags_items();
+```
+
+List-item paths carry a typed index segment — never a formatted string:
+
+```rust
+assert_eq!(PostEditorFormPath::tags(2).to_string(), "tags.2");
+
+let errors = holder.validate_fields();
+// Some only when item 2 failed its `each(...)` validators:
+let item = errors.error_for(&PostEditorFormPath::tags(2));
+// Index-addressable element errors:
+let element = errors.tags_element_error(2);
+```
+
+The M1 field-level state surface keys composed fields by their root paths
+(`tags_root()` / `address_root()`): touched, per-field dirty, and patch slots
+track the composed value as a whole.
+
+### v1 boundaries
+
+Per the backlog's conservative-first rules, v1 ships:
+
+- `Vec<T>` only (no other collections),
+- add/remove — no reorder,
+- scalar item components — `item = nested` and `item = custom(...)` are
+  rejected at parse time until the follow-up milestone.
 
 ## Custom Components
 

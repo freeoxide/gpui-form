@@ -48,6 +48,18 @@ state.diff_against(&initial_holder);
 
 ### 2. Nested forms
 
+> **Status: shipped (M3 v1).** `#[gpui_form(component(nested))]` composes
+> another `#[derive(GpuiForm)]` struct: the holder stores the nested form's
+> `<Name>FormValueHolder`, conversions compose through its `From` impls, and
+> `#[koruma(nested)]` on the source field runs the nested validators through
+> the outer `validate()`. Typed paths compose (`address_root()` +
+> `join(&AddressFormPath::city())` -> `address.city`), `error_for` routes
+> any `address...` path to the nested slot, and `<field>_errors()` re-keys
+> into the nested form's own error map for the inner validator kinds.
+> Value-only: the group renders no leaf control; rendering is app- or
+> prototyping-authored. Worked example: root `README.md` §Nested Forms and
+> Repeated Fields.
+
 Support composing generated forms from other generated forms.
 
 ```rs
@@ -73,6 +85,18 @@ Key design questions:
   rendering metadata?
 
 ### 3. Repeated fields
+
+> **Status: shipped (M3 v1, conservative scope).** `#[gpui_form(component(list(item = <scalar kind>)))]`
+> edits a `Vec<T>`: the holder stores the plain item Vec and gains
+> `add_<field>` / `remove_<field>` / `<field>_items`; `each(...)` element
+> validators stay element-scoped so koruma reports failures per item index,
+> surfaced through `error_for(&Path::tags(2))` (typed-index routing) and
+> `tags_element_error(2)`. List-item paths carry a typed
+> `PathSegment::Index` — never a formatted string. v1 boundaries per this
+> item's own conservatism list: `Vec` only, add/remove only (no reorder),
+> scalar item components only (`item = nested` and `item = custom(...)` are
+> parse-time rejections until the follow-up milestone). Worked example:
+> root `README.md` §Nested Forms and Repeated Fields.
 
 Support editable collections such as `Vec<T>`.
 
@@ -499,8 +523,9 @@ creating a parallel validation system.
 6. Patch and delta generation — **shipped (M1 field-level state)**.
 7. Submit lifecycle helpers — **shipped (M2 validation + submit
    lifecycle)**.
-8. Nested forms.
-9. Repeated fields.
+8. Nested forms — **shipped (M3 v1)**.
+9. Repeated fields — **shipped (M3 v1, scalar items)**; nested item forms
+   and reorder arrive in the follow-up milestone.
 10. Partial form holders.
 11. Wizard and step metadata.
 12. Field dependency metadata and conditional requiredness.

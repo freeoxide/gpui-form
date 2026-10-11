@@ -68,6 +68,11 @@ Components (`component(...)`):
 - `custom(shape = my::Shape, component = my::ui::Widget)`
 - `custom(shape = my::Shape, wraps_in_option = false)`
 - `custom(shape = my::Shape, value_binding)`
+- `nested` — compose another `#[derive(GpuiForm)]` struct (milestone M3)
+- `list(item = input)`, `list(item = <scalar kind>, add_label = "Add")` —
+  editable `Vec<T>` (milestone M3; scalar item kinds only in v1:
+  `input`, `number_input`, `phone_input`, `checkbox`, `switch`, `select`,
+  `infinite_select`, `date_picker`, `file_picker`)
 
 Field attributes: `default = <expr>`, `skip`, `type = <form_type>`,
 `from = <expr>`, `into = <expr>`, the layout hints `section = "<str>"`,
@@ -126,15 +131,25 @@ UserProfileFormSubmission    // #[gpui_form(submit)] only
 
 Use the generated value holder for editable form data, defaults, and conversion
 back into the original model. Use `UserProfileFormPath` (one same-named
-constructor per non-skipped field, plus `FIELD_NAMES`/`FIELD_COUNT`/
-`all_paths()`/`field_index()`/`path_for_index()`) for typed field naming
-across validation, dirty tracking, focus, analytics, and schema export. Use
+constructor per non-skipped flat field, `<field>_root()` + `fn <field>(self)`
+appenders for nested fields, `<field>_root()` + `fn <field>(index: usize)`
+for list fields, plus `join` for cross-form composition,
+`FIELD_NAMES`/`FIELD_COUNT`/`all_paths()`/`field_index()`/`path_for_index()`)
+for typed field naming across validation, dirty tracking, focus, analytics,
+and schema export. Segments are the typed `gpui_form::PathSegment` enum
+(`Name(&'static str)` / `Index(usize)`) since milestone M3 — list-item
+indices are stored typed, never formatted into strings. Use
 `UserProfileFormState` for field-level state (touched tracking, per-field
 dirty, `patch()`); it composes `gpui_form::FormState` + `gpui_form::TouchedFields`
 and leaves the holder plain data. Koruma forms also emit
 `UserProfileFormFieldErrors` + `validate_fields()`/`error_for(&path)` for
 path-keyed typed error access, and their facades gain the cached-validation
 methods (`validate`/`validation`/`is_valid`/`invalidate_validation`).
+Milestone M3 adds: `<field>_errors()` recursion accessors on nested fields
+(re-key into the nested form's own error map), `<field>_element_error(index)`
+on list fields with `each(...)` validators, `add_<field>` /
+`remove_<field>` / `<field>_items` holder operations on list fields, and the
+additive `index: Option<usize>` slot on `<Name>FormValueHolderConversionError`.
 `#[gpui_form(submit)]` adds `UserProfileFormSubmission`, an alias over
 `gpui_form::SubmitTracker` keyed on the koruma error type (`BoxError`
 without koruma).

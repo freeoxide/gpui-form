@@ -62,6 +62,13 @@ sections by name instead of transcribing them.
   `PathBuf` fields.
 - `custom(...)` when the app owns the state/widget contract (state derive,
   `custom_component_shape!`, optional `value_binding`).
+- `nested` to compose another `#[derive(GpuiForm)]` struct: the holder stores
+  the nested form's `<Name>FormValueHolder`; add `#[koruma(nested)]` on the
+  source field to run the nested validators through the outer `validate()`.
+- `list(item = <scalar kind>)` to edit a `Vec<T>`: the holder gains
+  `add_<field>` / `remove_<field>` / `<field>_items`, and `each(...)`
+  element validators report failures per item index. v1 is scalar items
+  only (`item = nested` and `item = custom(...)` are parse errors).
 
 Full syntax inventory: root `README.md` §Component Syntax, or
 `references/api-map.md`.
@@ -80,6 +87,17 @@ Full syntax inventory: root `README.md` §Component Syntax, or
 - For typed field naming (validation, dirty tracking, focus, analytics, schema
   export), use the generated `<Name>FormPath` constructors such as
   `UserProfileFormPath::username()`; skipped fields have no constructor.
+- For nested forms, name the root with `<field>_root()` and compose deeper
+  paths with `join`:
+  `UserFormPath::address_root().join(&AddressFormPath::city())` names
+  `address.city`. Route nested errors with `error_for` over any
+  `<field>...` path, and re-key into the nested form's own map with
+  `<field>_errors()` when you need the inner validator kinds.
+- For repeated fields, name an item with `<field>(index)` — a typed index
+  segment, never a formatted string (`tags.2`). `error_for(&TagsFormPath::tags(2))`
+  is `Some` only when item 2 failed; `tags_element_error(2)` exposes the
+  element error directly. Touched/dirty track the whole list through
+  `<field>_root()` in v1.
 - For layout intent, attach non-rendering hints with `section`, `label`,
   `description`, `placeholder`, and `width`.
 - For submit flows, add `#[gpui_form(submit)]` and drive the generated
@@ -128,6 +146,21 @@ non-skipped field; `Some(None)` = changed-to-cleared). Reset semantics:
 and `sync_baseline()` keep it. Call `touch(&path)` from app-authored blur or
 change handlers — the derive does not wire events. Details: root `README.md`
 §Saving, Restoring, and Dirty Tracking.
+
+### Nested forms and repeated fields
+
+- The nested form must derive `GpuiForm` itself and resolve by the
+  `<Name>FormValueHolder` naming convention — a nested field whose type is
+  not a derived form fails at name resolution in YOUR crate (the derive
+  cannot check it).
+- Nested error recursion (`<field>_errors()`) requires the nested form to be
+  a non-generic koruma form; plain `error_for` routing over the nested slot
+  works for every nested field.
+- v1 list boundary: `Vec<T>` only, add/remove only (no reorder), scalar item
+  components only. Per-item input entities are app-authored — the derive
+  emits holder operations and metadata, not per-item subscriptions.
+- List-item paths have no dense touched index in v1; item-level touched
+  tracking arrives with the post-v1 milestone.
 
 ### Typed field paths
 

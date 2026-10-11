@@ -5,6 +5,143 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-11
+
+Milestone 3 of the form feature-parity plan: nested forms (backlog #2) and
+repeated `Vec` fields (backlog #3) with typed composed paths. This milestone
+carries the plan's two budgeted breaking changes (decision [D8]'s core
+`PathSegment` representation and the `gpui-form-schema` enum-variant
+additions), which is why it takes the minor bump on its own.
+
+### Added
+
+- `component(nested)` (backlog #2): composes another `#[derive(GpuiForm)]`
+  struct. The generated holder stores the nested form's own
+  `<Name>FormValueHolder` (Plain storage; `Option<Nested>` stays
+  `Option`), conversions compose through the nested form's `From` impls,
+  and `#[koruma(nested)]` on the source field runs the nested form's
+  validators through the outer `validate()` — including bare
+  `#[koruma(nested)]` with no other validators. Value-only: no leaf
+  widget/entity is generated (like checkbox/switch); rendering the group is
+  application- or prototyping-authored.
+- `component(list(item = <scalar kind>, add_label = "..."))` (backlog #3):
+  edits a `Vec<T>` (or `Option<Vec<T>>`). The holder stores the plain item
+  `Vec` (v1: no per-item `Option`) and gains `add_<field>(value)`,
+  `remove_<field>(index)` (same semantics as `Vec::remove`), and
+  `<field>_items() -> &[T]`. `each(...)` element validators stay
+  element-scoped on the holder so koruma reports failures per item index
+  (`element_errors`). v1 boundaries (parse-time rejections): `item` is
+  required, `item = nested` and `item = custom(...)` are not supported yet,
+  and only scalar item kinds parse (`input`, `number_input`, `phone_input`,
+  `checkbox`, `switch`, `select`, `infinite_select`, `date_picker`,
+  `file_picker`).
+- Typed path composition on `<Name>FormPath`: nested fields emit
+  `<field>_root()` plus a consuming appender `fn <field>(self)`; list fields
+  emit `<field>_root()` plus `fn <field>(index: usize)` carrying a typed
+  index segment; every form gains `join(&impl AsRef<FieldPath>)` for
+  cross-form composition —
+  `UserFormPath::address_root().join(&AddressFormPath::city())` names
+  `address.city`, a list item composes the same way (`tags.2.name`). The
+  M1 field-level state surface (touched, per-field dirty, patch) keys
+  composed fields by their root paths.
+- Nested/list typed error access on koruma forms: `error_for` routes any
+  `<field>...` path to the nested slot and `<field>` / `<field>.<index>`
+  paths on list fields (`Some` for an item path only when that item failed
+  its `each(...)` validators — the typed index segment is extracted and
+  used, never a string); `<field>_errors()` re-keys a nested field's error
+  into the nested form's own `FormFieldErrors` map for the inner validator
+  kinds; `<field>_element_error(index)` exposes a list field's element
+  error directly; `failing_paths()` expands per failing item index
+  (`tags.1`). Flat koruma forms with a bare `#[koruma(nested)]` and no
+  other validators keep their exact pre-0.7 emission (no mirrored marker,
+  no slot, no new `validate()` failures) — the composed surface is opted
+  into with `component(nested)`.
+- `PathSegment` in `gpui-form-core` (re-exported as `gpui_form::PathSegment`):
+  the typed path-segment enum `Name(&'static str) | Index(usize)` with
+  `as_name`/`as_index` and `Display`. `FieldPath` gains the additive
+  composition constructors `from_segments`, `push_name`, `push_index`, and
+  `join`, plus `AsRef<FieldPath> for FieldPath`; `FieldPath::new` stays the
+  names-only constructor so flat-path call sites keep compiling.
+- `<Name>FormValueHolderConversionError` gained an additive
+  `index: Option<usize>` slot: list-field conversion failures can name the
+  failing item (`Display` renders "Failed to convert item N of field X").
+  v1 scalar items never fail conversion, so every emitted construction site
+  passes `None`; the slot exists for the per-item conversion paths sequenced
+  after v1.
+- `gpui-form-schema`: `ComponentKind::Nested`/`List` and
+  `ComponentsBehaviour::Nested(NestedBehaviour { form_struct })` /
+  `List(ListBehaviour { item, item_struct, add_label })` metadata payloads
+  (Copy, const-constructible — the inventory contract), plus
+  `FieldVariant::is_nested()`/`is_list()` conveniences. Both new kinds are
+  value-only, non-subscribable, non-focusable, and never Option-wrap.
+  `ComponentKind` also derives `Default` (`Input`) so `ListBehaviour` can
+  derive `Default`.
+- `gpui-form-prototyping-core`: two composed-field generators — nested
+  fields host the nested form's own scaffold as an `Entity<<Nested>Form>`
+  scaffold-level struct field inside a bordered group (imported by the
+  `crate::<snake>::<Nested>Form` convention through the new
+  `ImportItem::owned_path`), and list fields emit a
+  `<field>_list_control` member rendering repeatable rows over
+  `<field>_items()` with per-row Remove buttons and an Add button appending
+  a typed default. Both manage no subscriptions ([D5]/R17 — per-item entity
+  churn stays app-authored), and the shared section-heading logic skips
+  them. `FormParts` gained the `composed_struct_fields`,
+  `composed_struct_inits`, and `composed_impl_members` fragments for
+  layouts to splice. `collect_i18n_keys` emits index-free keys for the
+  composed fields (a nested group contributes `{form}.{field}_label`; a
+  list adds `{form}.{field}_item_label`, `{form}.{field}_add`, and
+  `{form}.{field}_remove`).
+
+### Changed
+
+- **Breaking (decision [D8]):** `gpui_form::core::FieldPath::segments()` now
+  returns `&[PathSegment]` instead of `&[&'static str]`. Code that compared
+  segments against strings (`path.segments() != ["email"]`) must compare
+  against `PathSegment::Name("email")`; code that only builds paths through
+  `FieldPath::new`/`<Name>FormPath` constructors, renders them, or
+  hashes/compares whole paths is unchanged. `Debug` output changed shape
+  (`[Name("address")]` instead of `["address"]`); `Display` output for
+  name-only paths is identical, and list items render their index
+  (`tags.2`). This is the representation change the feature-parity plan
+  budgeted to this milestone.
+- **Breaking (exhaustive matches):** `gpui-form-schema`'s public
+  `ComponentKind` and `ComponentsBehaviour` enums gained the `Nested`/`List`
+  variants (pipeline hazard 9). Downstream exhaustive `match`s over either
+  enum must add arms or a wildcard; workspace consumers (derive, codegen,
+  prototyping-core) were updated in the same change.
+- Generated flat-form token shape: the routing matches emitted for
+  `error_for`, `is_field_dirty`, and `field_index` now pattern-match
+  `PathSegment::Name(..)` instead of bare strings (the D8 consequence); all
+  other flat emission is unchanged, pinned by a new flat-form expansion
+  snapshot test (`crates/gpui-form-derive/tests/snapshots/`, one golden per
+  feature state of the derive crate).
+- `gpui-form-prototyping-core`'s `FormParts` gained public fields
+  (`composed_struct_fields`, `composed_struct_inits`,
+  `composed_impl_members`); layouts that destructure with `..` are
+  unaffected.
+
+### Documentation
+
+- Root `README.md`: new "Nested Forms and Repeated Fields" section
+  (worked examples for both components, composed paths, per-item error
+  access, and the v1 boundaries), component-syntax inventory, and the typed
+  field paths scope note updated for `PathSegment` and composition.
+- `crates/gpui-form-derive/README.md` and
+  `crates/gpui-form-prototyping-core/README.md` updated for the new syntax
+  and scaffold fragments; `examples/README.md` covers the new some-lib
+  shapes and forms-demo sections.
+- `.agents/skills/use-gpui-form`: Component Selection and Common Patterns
+  entries for nested/list fields, a gotchas subsection (v1 boundaries,
+  naming-convention failure mode, error-recursion requirements), and
+  `references/api-map.md` syntax/generated-name updates.
+- ARCHITECTURE notes updated in `gpui-form-core` (path module scope),
+  `gpui-form-derive` (composition resolution, error routing),
+  `gpui-form-codegen` (component model), `gpui-form-schema` (behaviour
+  payloads + semver note), `gpui-form-prototyping-core` (composed
+  generators, i18n keys, FormParts), and the facade (re-exports).
+- `docs/feature-backlog.md`: backlog #2 and #3 marked shipped (M3 v1) with
+  scope notes; suggested order updated.
+
 ## [0.7.0] - 2026-10-11
 
 Milestone 2 of the form feature-parity plan: validation and submit lifecycle
