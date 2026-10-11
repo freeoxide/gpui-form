@@ -405,6 +405,39 @@ When validation is enabled:
 - builder-chain Koruma attrs are mirrored
 - generated value-holder validation uses the same validator set as the source
   struct
+- the holder gains path-keyed typed error access: `validate_fields()` returns
+  a `<Name>FormFieldErrors` map re-keying koruma's typed per-field error
+  structs by `<Name>FormPath` (see the next section)
+
+### Typed error access (`error_for`)
+
+Instead of hand-matching koruma output per field, select errors through the
+typed path and read the failed validators' i18n keys directly:
+
+```rs
+use gpui_form::core::FormFieldErrors;
+
+let errors = holder.validate_fields();
+if let Some(field_error) = errors.error_for(&SignupFormPath::username()) {
+    assert_eq!(field_error.issue_keys(), vec!["validation.required"]);
+    assert_eq!(field_error.path().to_string(), "username");
+}
+
+// Declaration-ordered failing paths, generic over any koruma form:
+let failing: Vec<String> = errors
+    .failing_paths()
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+```
+
+`error_for` returns `None` for valid fields and for unknown paths. Each
+`<Name>FormFieldError` variant borrows that field's koruma error struct, so
+koruma's own typed surface (`.all()`, `.inner()`, per-validator getters) stays
+reachable through the variant payload. `issue_keys()` names the field-level
+validators the derive can see; failures nested inside `#[koruma(newtype)]` or
+`#[koruma(nested)]` inner types report the generic `"validation.invalid"` key
+and remain readable through the typed accessors.
 
 With `koruma(fluent)`, the generated holder also resolves validation text
 through `rust-i18n`: it emits a `<FORM>_I18N_KEY_PREFIX` const, a
@@ -516,10 +549,10 @@ Scope of this feature:
 
 - `FormState` stores holder **data** only — not component runtime UI state such
   as open menus, scroll positions, or `InfiniteSelectState` snapshots.
-- Dirty/diff is **boolean-level**: `is_dirty()` and `diff_against(&other)` tell
-  you *whether* the holder changed, not which fields. Field-level diff is
-  backlog feature #9 and will build on the [typed field paths](#typed-field-paths)
-  foundation shipped as FLAT v1.
+- `FormState`'s own dirty/diff stays **boolean-level**: `is_dirty()` and
+  `diff_against(&other)` tell you *whether* the holder changed. The
+  field-level diff (which fields changed, typed patches, touched tracking)
+  lives on the generated `<Name>FormState` facade below.
 - A holder carrying `#[gpui_form(skip)]` fields round-trips through serde on its
   own, but cannot fully reconstruct the source struct via `into_original`, since
   skipped values are not on the holder. This mirrors the existing
@@ -530,6 +563,64 @@ Scope of this feature:
 `FormState` is available unconditionally from `gpui_form::FormState` (or
 `gpui-form-core` directly); only the holder serde derives require the `serde`
 feature.
+
+### Field-level state: `<Name>FormState`, patches, and touched tracking
+
+Every `#[derive(GpuiForm)]` form also emits a `<Name>FormState` facade that
+*composes* the standalone core primitives — `FormState<H>` for baseline/current
+values and `TouchedFields` for engagement tracking — behind typed
+`<Name>FormPath` accessors. The holder itself stays plain data; all state
+lives on the facade.
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+}
+
+let mut state = SettingsFormState::new(SettingsFormValueHolder::default());
+assert!(!state.is_dirty());
+
+state.current_mut().username = Some("ada".into());
+state.touch(&SettingsFormPath::username());          // from a blur/change handler
+
+// Per-field dirty + changed fields, in declaration order.
+assert!(state.is_field_dirty(&SettingsFormPath::username()));
+assert_eq!(state.changed_fields(), vec![SettingsFormPath::username()]);
+
+// Touched tracking is independent of value deltas.
+assert!(state.is_touched(&SettingsFormPath::username()));
+assert_eq!(state.touched_fields(), vec![SettingsFormPath::username()]);
+
+// Typed patch: one Option<holder-field-type> slot per non-skipped field
+// (Some(None) = "changed to cleared" for option-backed fields).
+let patch = state.patch();
+assert_eq!(patch.username, Some(Some("ada".to_string())));
+assert!(patch.age.is_none());
+patch.apply_to(&mut SettingsFormValueHolder::default()); // replay the diff
+
+// Reset semantics: default reset is a fresh canvas (values + touched clear);
+// the keeping-touched variant is an undo-style revert; a save via
+// sync_baseline() never un-visits fields.
+state.reset_to_baseline();
+assert!(!state.is_dirty() && !state.is_any_touched());
+```
+
+With the derive crate's `serde` feature on, `<Name>FormPatch` also derives
+`Serialize`/`Deserialize` with `skip_serializing_if = "Option::is_none"` per
+field, so the wire format is the PATCH tri-state: absent = unchanged, `null` =
+cleared, value = set.
+
+`TouchedFields` (the headless bitset the facade composes) is re-exported as
+`gpui_form::TouchedFields` for non-derived holders; touched state is transient
+UI-session state and is never serialized. Blur/change wiring stays
+app-authored: call `state.touch(&path)` from your component event handlers.
 
 ## Typed Field Paths
 
@@ -561,12 +652,20 @@ assert_eq!(username.to_string(), "username");
 assert_ne!(username, age);
 
 // `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
-// that takes a `&FieldPath` (the upcoming validation/diff/schema surfaces)
+// that takes a `&FieldPath` (the validation/diff/schema surfaces)
 // also accepts the typed newtype.
 fn records(path: &FieldPath) -> &[&'static str] {
     path.segments()
 }
 assert_eq!(records(username.as_ref()), &["username"]);
+
+// Declaration-order tables and dense index mapping feed field-level state
+// (touched/dirty/errors) and generic iteration:
+assert_eq!(SettingsFormPath::FIELD_NAMES, &["username", "age"]);
+assert_eq!(SettingsFormPath::FIELD_COUNT, 2);
+assert_eq!(SettingsFormPath::all_paths().count(), 2);
+assert_eq!(username.field_index(), Some(0));
+assert_eq!(SettingsFormPath::path_for_index(0).as_ref(), Some(&username));
 ```
 
 Scope of this feature (FLAT v1):
@@ -576,10 +675,15 @@ Scope of this feature (FLAT v1):
   and #3 ("Repeated fields"). Hand-built multi-segment paths via
   `SettingsFormPath::new(&["a", "b"])` work today; typed composition is later.
 - `#[gpui_form(skip)]` fields have NO constructor — they are absent from the
-  holder too.
+  holder too, and from `FIELD_NAMES`/`all_paths()`/`field_index()`.
+- `field_index()` maps only FLAT v1 single-segment paths naming a real field;
+  hand-built multi-segment or unknown paths return `None` (the field-level
+  state accessors treat them as inert).
 - `FieldPath` is a headless primitive: no GPUI, no `serde`, no feature flag.
-  It is the shared naming foundation for the upcoming field-level validation
-  (#6), field-level diff/delta reporting (#9), and schema export (#14).
+  It is the shared naming foundation for the field-level validation (#6) and
+  field-level diff/delta reporting (#9) surfaces shipped on the
+  `<Name>FormState` facade and `error_for`, and for the upcoming schema
+  export (#14).
 
 `FieldPath` is available unconditionally from `gpui_form::FieldPath` (or
 `gpui-form-core` directly).

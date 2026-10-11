@@ -104,19 +104,35 @@ Enable the facade `serde` feature and wrap the holder in
 `gpui_form::FormState` for save/restore and dirty tracking. `FormState` itself
 is re-exported unconditionally; only the holder serde derives need the
 feature. Scope: `FormState` stores holder data only (no runtime UI state, no
-undo/redo); dirty/diff is boolean-level (field-level diff is backlog #9);
-holders with `#[gpui_form(skip)]` fields round-trip through serde but cannot
-fully reconstruct the source struct (per-field passthrough is backlog #15).
-Details: root `README.md` §Saving, Restoring, and Dirty Tracking.
+undo/redo); its own dirty/diff is boolean-level; holders with
+`#[gpui_form(skip)]` fields round-trip through serde but cannot fully
+reconstruct the source struct (per-field passthrough is backlog #15). For
+field-level state, use the generated `<Name>FormState` facade instead: it
+composes `FormState` + `gpui_form::TouchedFields` and exposes `touch`,
+`is_touched`, `touched_fields`, `is_field_dirty`, `changed_fields`, and
+`patch()` (a `<Name>FormPatch` with one `Option<holder-field-type>` slot per
+non-skipped field; `Some(None)` = changed-to-cleared). Reset semantics:
+`reset_to_baseline()` clears touched, `reset_to_baseline_keeping_touched()`
+and `sync_baseline()` keep it. Call `touch(&path)` from app-authored blur or
+change handlers — the derive does not wire events. Details: root `README.md`
+§Saving, Restoring, and Dirty Tracking.
 
 ### Typed field paths
 
 Every form emits `<Name>FormPath`, a typed newtype over
 `gpui_form::FieldPath` (no feature flag, no GPUI, no serde). One constructor
-per non-skipped field; skipped fields have none. Hand-built multi-segment
-paths via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
-composition arrives with backlog #2/#3. Details: root `README.md` §Typed Field
-Paths.
+per non-skipped field; skipped fields have none. The same type carries
+`FIELD_NAMES`, `FIELD_COUNT`, `all_paths()`, `field_index()`, and
+`path_for_index()` for declaration-order iteration and dense index mapping
+(single-segment flat paths only; unknown or hand-built multi-segment paths map
+to `None` and are inert in field-level state). Hand-built multi-segment paths
+via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
+composition arrives with backlog #2/#3. Koruma forms also gain path-keyed
+error access: `holder.validate_fields()` →
+`errors.error_for(&<Name>FormPath::field())` with per-field `issue_keys()`
+(`validation.*` keys; inner newtype/nested failures report
+`validation.invalid`). Details: root `README.md` §Typed Field Paths and
+§Validation With Koruma.
 
 ### Localization (rust-i18n 4)
 

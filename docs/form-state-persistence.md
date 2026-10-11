@@ -45,8 +45,10 @@ and it is (de)serializable behind the `serde` feature:
   (`crates/gpui-form-core/src/state.rs`): `is_dirty`,
   `reset_to_baseline`, `sync_baseline`, `diff_against`, plus
   `current`/`baseline`/`current_mut`/`replace_current`/`into_current`. It
-  snapshots a `baseline` at construction and compares against it; there is no
-  field-level patch/delta (that is backlog feature #9).
+  snapshots a `baseline` at construction and compares against it; the
+  field-level diff/patch and touched tracking live on the generated
+  `<Name>FormState` facade (backlog feature #9, shipped) rather than on
+  `FormState` itself.
 - The `From<Original> for Holder` and `From<Holder> for Original` / `try_from`
   conversions exist (`value_holder.rs:641-657`, `:664-677`), so the holder is
   the natural serialization boundary.
@@ -88,12 +90,34 @@ at construction time rather than reconstructing it from defaults.
 - `reset_to_baseline()` — restores `current` from a clone of `baseline`.
 - `sync_baseline()` — snapshots `current` into `baseline` (call after a save).
 - `diff_against(&H)` — whole-value boolean comparison (`current != other`);
-  field-level patch/delta is backlog feature #9.
+  field-level patch/delta lives on the generated facade (below), not on
+  `FormState` itself.
 
 The application constructs it from the initial holder. This keeps the holder
 itself a plain data struct and centralizes the baseline problem in one place
 (rejected alternative: baking the baseline into the holder, which makes it
 heavier for everyone and couples a runtime concern into generated code).
+
+### 2b. Field-level state on the generated facade (backlog #9, shipped)
+
+The field-level diff and touched tracking build on the same baseline model
+without touching `FormState<H>` (which stays a frozen two-slot generic):
+
+- Every form emits a `<Name>FormState` facade composing
+  `FormState<<Name>FormValueHolder>` + `gpui_form::core::TouchedFields`,
+  with `is_field_dirty(path)`, `changed_fields()`, `patch()`, and
+  touched accessors. `reset_to_baseline()` on the facade also clears
+  touched (a fresh canvas); `reset_to_baseline_keeping_touched()` and
+  `sync_baseline()` keep it.
+- `<Name>FormPatch` holds one `Option<holder-field-type>` slot per
+  non-skipped field (`Some(None)` = "changed to cleared"). Under the derive
+  crate's `serde` feature it serializes as the PATCH tri-state
+  (`skip_serializing_if = "Option::is_none"` per field: absent = unchanged,
+  `null` = cleared, value = set), so "save only what changed" workflows can
+  send the patch directly.
+- The core "baseline obstacle" (parse-time-only `default_expr`) is
+  unchanged: per-field reset-to-default remains out of scope for the same
+  reason.
 
 ### 3. Edge cases
 
@@ -129,5 +153,7 @@ Not covered:
 2. Field-level `#[serde(...)]` attributes passable through
    `#[gpui_form(...)]` (backlog feature #15); default `serde` behavior is what
    ships today.
-3. Field-level diff/patch building on the typed field paths foundation
-   (backlog feature #9).
+3. Per-field reset-to-default (`resetField`-style): still blocked by
+   `default_expr` being parse-time only — the field-level diff/patch
+   (backlog feature #9, shipped as `<Name>FormPatch` + the
+   `<Name>FormState` facade) deliberately did not change that.

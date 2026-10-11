@@ -39,7 +39,10 @@ Useful facade paths:
 - `gpui_form::i18n` (rust-i18n locale bridge: `init`, `change_locale`,
   `localize_message`; built-in runtime copy ships en/fr-FR/zh-CN)
 - `gpui_form::FieldPath` (typed field-path primitive; no feature flag)
+- `gpui_form::FormFieldErrors` (generic per-form error-map contract; koruma forms)
 - `gpui_form::FormState` (dirty tracking / reset / diff helper)
+- `gpui_form::TouchedFields` (touched-field bitset composed by the generated
+  `<Name>FormState` facade)
 - `gpui_form::custom_component_shape!`
 
 ## Supported Component Syntax
@@ -106,12 +109,21 @@ UserProfileFormFields
 UserProfileFormComponents
 UserProfileFormValueHolder
 UserProfileFormPath
+UserProfileFormState
+UserProfileFormPatch
+UserProfileFormFieldErrors   // koruma forms only
 ```
 
 Use the generated value holder for editable form data, defaults, and conversion
 back into the original model. Use `UserProfileFormPath` (one same-named
-constructor per non-skipped field) for typed field naming across validation,
-dirty tracking, focus, analytics, and schema export.
+constructor per non-skipped field, plus `FIELD_NAMES`/`FIELD_COUNT`/
+`all_paths()`/`field_index()`/`path_for_index()`) for typed field naming
+across validation, dirty tracking, focus, analytics, and schema export. Use
+`UserProfileFormState` for field-level state (touched tracking, per-field
+dirty, `patch()`); it composes `gpui_form::FormState` + `gpui_form::TouchedFields`
+and leaves the holder plain data. Koruma forms also emit
+`UserProfileFormFieldErrors` + `validate_fields()`/`error_for(&path)` for
+path-keyed typed error access.
 
 ## Select Pattern
 
@@ -203,13 +215,18 @@ Value-bound custom widgets implement
 Enable the `serde` feature to make generated holders saveable/restorable and
 to use `gpui_form::FormState` for dirty tracking. The feature adds
 `Serialize`, `Deserialize`, and `PartialEq` to the generated
-`...FormValueHolder`. `FormState` itself is available unconditionally; only
+`...FormValueHolder` (and the PATCH tri-state serde form of
+`<Name>FormPatch`). `FormState` itself is available unconditionally; only
 the holder serde derives need the feature. Scope: holder data only (no
-runtime UI state), boolean-level dirty/diff (field-level diff is backlog #9,
-built on the typed field paths below), holders with `#[gpui_form(skip)]`
-fields round-trip through serde but cannot fully reconstruct the source struct
-(per-field serde passthrough is backlog #15), and there is no undo/redo.
-Worked example: root `README.md` §Saving, Restoring, and Dirty Tracking.
+runtime UI state), boolean-level dirty/diff on `FormState` itself, holders
+with `#[gpui_form(skip)]` fields round-trip through serde but cannot fully
+reconstruct the source struct (per-field serde passthrough is backlog #15),
+and there is no undo/redo. For field-level state — touched tracking,
+`is_field_dirty(path)`, `changed_fields()`, `patch()` — use the generated
+`<Name>FormState` facade, which composes `FormState` +
+`gpui_form::TouchedFields`; call `touch(&path)` from app-authored blur/change
+handlers. Worked example: root `README.md` §Saving, Restoring, and Dirty
+Tracking.
 
 ## Typed Field Paths Pattern
 
@@ -219,9 +236,13 @@ serde), so every consumer of a form (validation, dirty tracking, focus,
 analytics, schema export) can refer to fields through ONE typed value instead
 of ad-hoc strings. One constructor per non-skipped field, named identically to
 the field; `#[gpui_form(skip)]` fields have no constructor. `Deref`/`AsRef`/
-`into_path` reach the shared primitive. Hand-built multi-segment paths via
-`<Name>FormPath::new(&["a", "b"])` work today; typed nested/list composition
-arrives with backlog #2 ("Nested forms") and #3 ("Repeated fields").
-`FieldPath` is the shared naming foundation for upcoming field-level
-validation (#6), field-level diff/delta reporting (#9), and schema export
-(#14). Worked example: root `README.md` §Typed Field Paths.
+`into_path` reach the shared primitive, and the same type carries
+`FIELD_NAMES`/`FIELD_COUNT`/`all_paths()`/`field_index()`/`path_for_index()`
+for declaration-order iteration and dense index mapping. Hand-built
+multi-segment paths via `<Name>FormPath::new(&["a", "b"])` work today; typed
+nested/list composition arrives with backlog #2 ("Nested forms") and #3
+("Repeated fields"). Koruma forms pair the paths with typed error access:
+`holder.validate_fields()` → `errors.error_for(&path)` →
+`field_error.issue_keys()` (`validation.*` keys; inner newtype/nested
+failures report `validation.invalid`). Worked example: root `README.md`
+§Typed Field Paths and §Validation With Koruma.

@@ -153,6 +153,17 @@ Key design questions:
 
 ### 6. Validation and error metadata improvements
 
+> **Status: shipped (M1 typed error access).** Koruma-gated holders gain
+> `validate_fields()`, the `<Name>FormFieldErrors` map, and the
+> `<Name>FormFieldError` borrowing enum, keyed by `<Name>FormPath`:
+> `error_for(&UserProfileFormPath::username())`, per-field `issue_keys()`
+> (`validation.*` keys), typed accessors, and the
+> `gpui_form::core::FormFieldErrors` trait (`is_empty`/`failing_paths`) for
+> generic code. Inner newtype/nested validator kinds report the generic
+> `validation.invalid` key and stay reachable through the typed accessors;
+> per-item element paths wait on #3. Worked example: root `README.md`
+> §Validation With Koruma.
+
 Koruma integration already mirrors validator attributes onto generated value
 holders. The next step is better generated error access for UI code.
 
@@ -208,6 +219,14 @@ paths via `<Name>FormPath::new(&["a", "b"])` work today, and typed nested/list
 composition expands under #2/#3.
 
 ### 9. Patch and delta generation
+
+> **Status: shipped (M1 field-level state).** Every form emits a
+> `<Name>FormPatch` (one `Option<holder-field-type>` slot per non-skipped
+> field; `Some(None)` = changed-to-cleared) plus the `<Name>FormState`
+> facade accessors `patch()` / `changed_fields()` / `is_field_dirty(path)`.
+> Under the derive crate's `serde` feature the patch serializes as the PATCH
+> tri-state (absent = unchanged, `null` = cleared, value = set). Worked
+> example: root `README.md` §Saving, Restoring, and Dirty Tracking.
 
 Generate changed-field output from a holder and a baseline.
 
@@ -458,8 +477,9 @@ creating a parallel validation system.
    composition expands under #2/#3.
 4. Layout and section metadata — **shipped (METADATA-FIRST v1)**; richer
    layout (columns, collapsible sections) builds on this later.
-5. Validation/error metadata improvements.
-6. Patch and delta generation.
+5. Validation/error metadata improvements — **shipped (M1 typed error
+   access)**.
+6. Patch and delta generation — **shipped (M1 field-level state)**.
 7. Nested forms.
 8. Repeated fields.
 9. Partial form holders.
