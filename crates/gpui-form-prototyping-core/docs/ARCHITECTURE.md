@@ -43,6 +43,24 @@ This crate exists to:
    `<form>.<field>_label` / `<form>.<field>_description` keys unless
    `layout.label` / `layout.description` override them verbatim; a missed key
    falls back to the title-cased field name.
+   Milestone M3 adds two composed-field generators: nested fields
+   (`implementations/nested.rs`) host the nested form's own scaffold as an
+   `Entity<<Nested>Form>` scaffold-level struct field rendered inside a
+   bordered group (imported by the `crate::<snake>::<Nested>Form`
+   convention), and list fields (`implementations/list.rs`) emit a
+   `<field>_list_control` impl member rendering repeatable rows over
+   `<field>_items()` with per-row Remove buttons and one Add button appending
+   a typed default item — wired to the holder's `add_<field>` /
+   `remove_<field>` operations. Both manage no subscriptions of their own
+   ([D5]/R17: per-item entity churn stays app-authored), and the shared
+   section-heading logic skips them (they carry their own layout). Their
+   i18n keys stay index-free (hazard 11): a nested group contributes
+   `{form}.{field}_label`; a list contributes `{form}.{field}_label`,
+   `{form}.{field}_item_label`, `{form}.{field}_add`, and
+   `{form}.{field}_remove`.
+   `FormParts` exposes the composed surface as `composed_struct_fields`,
+   `composed_struct_inits`, and `composed_impl_members` for layouts to
+   splice.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`

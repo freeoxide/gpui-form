@@ -26,7 +26,14 @@ for shape in inventory::iter::<GpuiFormShape>() {
 ## Main API
 
 - `FormShapeAdapter::parts()` returns validated identifiers, imports, and form
-  fragments for one shape
+  fragments for one shape. Milestone M3 (nested forms and repeated fields)
+  adds three fragments layouts should splice: `composed_struct_fields` /
+  `composed_struct_inits` (nested fields host the nested form's own scaffold
+  as an `Entity<<Nested>Form>`) and `composed_impl_members` (list fields get
+  a `<field>_list_control` row/add/remove helper). Nested/list keys collected
+  by `collect_i18n_keys` stay index-free: `{form}.{field}_label` for a nested
+  group; `{form}.{field}_label`, `{form}.{field}_item_label`,
+  `{form}.{field}_add`, and `{form}.{field}_remove` for a list.
 - `FormShapeAdapter::generate_file(&impl FormLayout)` renders a full file with
   your chosen layout
 - `FormLayout` lets callers define the overall file structure

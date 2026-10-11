@@ -4,6 +4,8 @@ pub mod date_picker;
 pub mod file_picker;
 pub mod infinite_select;
 pub mod input;
+pub mod list;
+pub mod nested;
 pub mod number_input;
 pub mod phone_input;
 pub mod select;
@@ -39,6 +41,8 @@ static DATE_PICKER_GENERATOR: date_picker::DatePickerCodeGenerator =
     date_picker::DatePickerCodeGenerator;
 static FILE_PICKER_GENERATOR: file_picker::FilePickerCodeGenerator =
     file_picker::FilePickerCodeGenerator;
+static NESTED_GENERATOR: nested::NestedCodeGenerator = nested::NestedCodeGenerator;
+static LIST_GENERATOR: list::ListCodeGenerator = list::ListCodeGenerator;
 
 pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCodeGenerator {
     match behaviour {
@@ -52,6 +56,8 @@ pub fn field_generator(behaviour: &ComponentsBehaviour) -> &'static dyn FieldCod
         ComponentsBehaviour::Custom => &CUSTOM_GENERATOR,
         ComponentsBehaviour::DatePicker => &DATE_PICKER_GENERATOR,
         ComponentsBehaviour::FilePicker => &FILE_PICKER_GENERATOR,
+        ComponentsBehaviour::Nested(_) => &NESTED_GENERATOR,
+        ComponentsBehaviour::List(_) => &LIST_GENERATOR,
     }
 }
 
@@ -263,6 +269,38 @@ pub trait FieldCodeGenerator {
     ) -> Option<TokenStream> {
         None
     }
+
+    /// Extra `impl` members the scaffold needs for this field (milestone
+    /// M3: list row/add/remove control helpers). Emitted into the
+    /// scaffold's impl block next to the event handlers.
+    fn generate_impl_members(
+        &self,
+        _field: &ResolvedField<'_>,
+        _component: &GpuiFormShape,
+    ) -> Vec<TokenStream> {
+        Vec::new()
+    }
+
+    /// A struct field on the SCAFFOLD itself (not the generated
+    /// `<Name>FormFields`) for this field — milestone M3: nested fields host
+    /// the nested form's scaffold as an `Entity<<Nested>Form>`.
+    fn generate_scaffold_struct_field(
+        &self,
+        _field: &ResolvedField<'_>,
+        _component: &GpuiFormShape,
+    ) -> Option<TokenStream> {
+        None
+    }
+
+    /// The `Self { ... }` initializer matching
+    /// [`FieldCodeGenerator::generate_scaffold_struct_field`].
+    fn generate_scaffold_struct_init(
+        &self,
+        _field: &ResolvedField<'_>,
+        _component: &GpuiFormShape,
+    ) -> Option<TokenStream> {
+        None
+    }
 }
 
 pub trait ShapeIdentities {
@@ -391,7 +429,7 @@ pub fn generate_label_tokens(
 /// `::rust_i18n::t!` tokens for `<form_snake>.<field_name>_<suffix>`, falling
 /// back to the title-cased field name when the key is not translated. The `t!`
 /// expansion resolves against the CONSUMER crate's `rust_i18n::i18n!` backend.
-fn localized_text_tokens(
+pub(crate) fn localized_text_tokens(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
     suffix: &str,
@@ -427,14 +465,38 @@ pub fn collect_i18n_keys(component: &GpuiFormShape) -> Vec<String> {
         .components
         .iter()
         .flat_map(|field| {
-            let mut keys = Vec::with_capacity(2);
-            if field.layout.label.is_none() {
-                keys.push(format!("{form_key}.{}_label", field.field_name));
+            // Milestone M3 (hazard 11): nested/list keys stay index-free —
+            // per-item messages reuse the one item-label key, never a
+            // per-index key.
+            match &field.behaviour {
+                ComponentsBehaviour::Nested(_) => {
+                    let mut keys = Vec::with_capacity(1);
+                    if field.layout.label.is_none() {
+                        keys.push(format!("{form_key}.{}_label", field.field_name));
+                    }
+                    keys
+                },
+                ComponentsBehaviour::List(_) => {
+                    let mut keys = Vec::with_capacity(4);
+                    if field.layout.label.is_none() {
+                        keys.push(format!("{form_key}.{}_label", field.field_name));
+                    }
+                    keys.push(format!("{form_key}.{}_item_label", field.field_name));
+                    keys.push(format!("{form_key}.{}_add", field.field_name));
+                    keys.push(format!("{form_key}.{}_remove", field.field_name));
+                    keys
+                },
+                _ => {
+                    let mut keys = Vec::with_capacity(2);
+                    if field.layout.label.is_none() {
+                        keys.push(format!("{form_key}.{}_label", field.field_name));
+                    }
+                    if field.layout.description.is_none() {
+                        keys.push(format!("{form_key}.{}_description", field.field_name));
+                    }
+                    keys
+                },
             }
-            if field.layout.description.is_none() {
-                keys.push(format!("{form_key}.{}_description", field.field_name));
-            }
-            keys
         })
         .collect()
 }
@@ -811,6 +873,199 @@ mod tests {
                 "validation_errors.as_ref().and_then(|e|e.address()).map(|inner_error|inner_error.all()).filter(|errs|!errs.is_empty()).map(|errs|{"
             ),
             "optional nested errors should map/filter the inner errors before rendering: {compact}"
+        );
+    }
+
+    // ── M3: composed-field i18n keys stay index-free (hazard 11) ──────────
+
+    #[test]
+    fn collect_i18n_keys_list_fields_use_index_free_item_keys() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("PostEditor", &FIELDS, "src/demo.rs", false);
+
+        let keys = super::collect_i18n_keys(&SHAPE);
+
+        assert_eq!(
+            keys,
+            vec![
+                "post_editor.tags_label".to_string(),
+                "post_editor.tags_item_label".to_string(),
+                "post_editor.tags_add".to_string(),
+                "post_editor.tags_remove".to_string(),
+            ],
+            "list keys must be the group/item/add/remove set — no per-index keys"
+        );
+    }
+
+    #[test]
+    fn collect_i18n_keys_nested_fields_use_one_group_label_key() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "address",
+            "Address",
+            false,
+            ComponentsBehaviour::Nested(gpui_form_schema::components::NestedBehaviour {
+                form_struct: "Address",
+            }),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("PostEditor", &FIELDS, "src/demo.rs", false);
+
+        let keys = super::collect_i18n_keys(&SHAPE);
+
+        assert_eq!(
+            keys,
+            vec!["post_editor.address_label".to_string()],
+            "the nested group contributes only its label key; the nested form's own keys live in its own scaffold"
+        );
+    }
+
+    #[test]
+    fn collect_i18n_keys_composed_fields_respect_label_overrides() {
+        const LAYOUT: FieldLayout = FieldLayout::new().with_label(Some("Where you live"));
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "address",
+            "Address",
+            false,
+            ComponentsBehaviour::Nested(gpui_form_schema::components::NestedBehaviour {
+                form_struct: "Address",
+            }),
+        )
+        .with_layout(LAYOUT)];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new("Demo", &FIELDS, "src/demo.rs", false);
+
+        assert!(
+            super::collect_i18n_keys(&SHAPE).is_empty(),
+            "a layout.label override suppresses the composed group's label key too"
+        );
+    }
+
+    #[test]
+    fn list_generator_emits_row_scaffolding_over_holder_ops() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let members = generator.generate_impl_members(&field, &SHAPE);
+        assert_eq!(members.len(), 1, "one list-control helper per field");
+        let compact = compact(&members[0].to_string());
+
+        assert!(
+            compact.contains("fntags_list_control(&self,cx:&mutContext<Self>)->implIntoElement"),
+            "the control helper is a render-path method: {compact}"
+        );
+        assert!(
+            compact.contains("self.current_data.tags_items().iter().enumerate()"),
+            "rows iterate the generated items() accessor: {compact}"
+        );
+        assert!(
+            compact.contains("this.current_data.remove_tags(index);"),
+            "row Remove buttons call remove_<field>(index): {compact}"
+        );
+        assert!(
+            compact.contains("this.current_data.add_tags("),
+            "the Add button calls add_<field>(..): {compact}"
+        );
+        assert!(
+            compact.contains("<Stringas::core::default::Default>::default()"),
+            "Add appends a typed default item: {compact}"
+        );
+        assert!(
+            compact.contains("cx.notify();"),
+            "mutations notify the scaffold view: {compact}"
+        );
+        // No per-item entity churn in v1 ([D5]/R17).
+        assert!(
+            generator.generate_cx_new_call(&field, &SHAPE).is_none(),
+            "v1 list rows create no entities"
+        );
+    }
+
+    #[test]
+    fn nested_generator_emits_bordered_group_over_the_nested_scaffold() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "address",
+            "Address",
+            false,
+            ComponentsBehaviour::Nested(gpui_form_schema::components::NestedBehaviour {
+                form_struct: "Address",
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::nested::NestedCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let new_call = generator
+            .generate_cx_new_call(&field, &SHAPE)
+            .expect("nested fields host the nested form's scaffold entity");
+        let new_call = compact(&new_call.to_string());
+        assert!(
+            new_call.contains("letaddress_nested_form=cx.new(|cx|AddressForm::new(window,cx));"),
+            "the scaffold creates the nested form's entity: {new_call}"
+        );
+
+        let render = compact(&generator.generate_render_child(&field, &SHAPE).to_string());
+        assert!(
+            render.contains(".border_1()") && render.contains(".rounded_md()"),
+            "the group is bordered: {render}"
+        );
+        assert!(
+            render.contains("address_nested_form.clone()"),
+            "the group hosts the nested form entity: {render}"
+        );
+
+        let scaffold_field = generator
+            .generate_scaffold_struct_field(&field, &SHAPE)
+            .expect("scaffold-level struct field");
+        assert!(
+            compact(&scaffold_field.to_string())
+                .contains("address_nested_form:Entity<AddressForm>,"),
+            "the entity lives on the scaffold struct: {scaffold_field}"
+        );
+
+        assert!(
+            generator.generate_subscription(&field, &SHAPE).is_none(),
+            "nested manages its own subscriptions"
+        );
+
+        let imports = generator.generate_imports(&FIELDS[0]);
+        assert_eq!(
+            imports.len(),
+            1,
+            "the nested form scaffold is imported by convention"
         );
     }
 }

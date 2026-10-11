@@ -21,10 +21,12 @@ pub enum Alias {
 
 /// A single item to be imported into a generated file.
 ///
-/// Both `path` and the inner value of [`Alias::Rename`] are `&'static str`
-/// because all built-in paths are string literals and custom-component paths
-/// are stored as `&'static str` in
-/// [`FieldVariant::custom_component`](gpui_form_schema::registry::FieldVariant::custom_component).
+/// Built-in paths are string literals and custom-component paths are stored
+/// as `&'static str` in
+/// [`FieldVariant::custom_component`](gpui_form_schema::registry::FieldVariant::custom_component);
+/// milestone M3 added [`ImportItem::owned_path`] for the nested-form import,
+/// whose path is composed at generation time from the nested form's struct
+/// name.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportItem {
     /// Full path to the imported item, e.g. `"::gpui_kit::component::checkbox::Checkbox"`.
@@ -44,6 +46,20 @@ impl ImportItem {
         Self {
             path,
             alias: Some(alias),
+        }
+    }
+
+    /// An import whose path is composed at generation time (milestone M3:
+    /// the nested form's scaffold import `crate::<snake>::<Nested>Form`).
+    ///
+    /// The string is leaked into `'static` storage: the generator runs once
+    /// per process over a bounded set of shapes (the same bounded-by-usage
+    /// pattern the plan documents for path interning), so the leak is
+    /// reclaimed at process exit.
+    pub fn owned_path(path: String) -> Self {
+        Self {
+            path: Box::leak(path.into_boxed_str()),
+            alias: None,
         }
     }
 }
