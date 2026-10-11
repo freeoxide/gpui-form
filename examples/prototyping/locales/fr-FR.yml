@@ -1,3 +1,18 @@
+address:
+  city_description: Ville
+  city_label: Ville
+  zip_description: Code postal
+  zip_label: Code postal
+address_label: Adresse
+post_editor:
+  address_label: Adresse
+  tags_add: Ajouter un tag
+  tags_item_label: Tag
+  tags_label: Tags
+  tags_remove: Retirer
+  title_description: Titre
+  title_label: Titre
+post_editor_label: Éditeur d'article
 empty_label: Vide
 form_action:
   reset: Réinitialiser

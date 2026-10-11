@@ -13,6 +13,11 @@ Source structs and enums that demonstrate the supported derive surface:
   plus typed path-error reporting, custom persisted keys, and key-path string
   serialization
 - custom component state, local shapes, and cross-crate shapes
+- a nested form (`component(nested)` `Address` composed into `PostEditor`)
+  and a scalar-item repeated field (`component(list(item = input))` tags with
+  `each(...)` element validators) — milestone M3 shapes, exercised by the
+  `typed_paths` tests (composed `address.city` paths, typed `tags.2` item
+  paths)
 - Koruma validation wiring
 - newtype-backed numeric validation
 - `cfg_attr`-gated derive usage
@@ -71,7 +76,13 @@ async availability check on the email field implements the
 completions; and the facade's snapshot-compare validation cache feeds a live
 `is_valid` footer indicator. Standalone runtime
 components add a date picker and a multiple-mode file picker whose pluralized
-count text follows the locale. Validation errors render through `validation.*`
+count text follows the locale. Milestone M3 adds a nested `Address` form
+(two app-owned inputs writing into the nested
+`AddressFormValueHolder`, touched tracking on the composed `address.city`
+path) and a tags list with add/remove buttons over the generated
+`add_tags`/`remove_tags`/`tags_items` holder API — per-item `each(...)`
+failures render with their failing indices, and the count text follows the
+app's localized-count pattern. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,

@@ -87,6 +87,21 @@ impl std::fmt::Display for RequestCodeKorumaValidationError {
     }
 }
 
+/// Milestone M3 (backlog #2): the nested form composed into `Signup`. It
+/// derives `GpuiForm` itself, so `SignupFormValueHolder.address` stores an
+/// `AddressFormValueHolder` and typed paths compose through
+/// `SignupFormPath::address_root().join(&AddressFormPath::city())`.
+#[derive(Clone, Debug, Default, GpuiForm, Koruma)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Address {
+    #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>::builder())]
+    pub city: String,
+
+    #[gpui_form(component(input))]
+    pub zip: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, GpuiForm, Koruma, KorumaAllDisplay)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[gpui_form(koruma(fluent), submit)]
@@ -122,6 +137,18 @@ pub struct Signup {
     #[gpui_form(component(date_picker))]
     pub birth_date: Option<chrono::NaiveDate>,
 
+    /// Milestone M3 (backlog #2): the nested `Address` form (value-only —
+    /// the app owns the two input entities below).
+    #[gpui_form(component(nested))]
+    #[koruma(nested)]
+    pub address: Address,
+
+    /// Milestone M3 (backlog #3): a scalar-item list with `each(...)`
+    /// element validators — koruma reports failures per item index.
+    #[gpui_form(component(list(item = input)))]
+    #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
+    pub tags: Vec<String>,
+
     #[gpui_form(skip)]
     pub session_id: u32,
 }
@@ -149,7 +176,7 @@ impl AsyncFieldValidation<SignupFormValueHolder> for EmailAvailability {
         holder: &SignupFormValueHolder,
         field: &FieldPath,
     ) -> Result<(), Self::Error> {
-        if field.segments() != ["email"] {
+        if field.segments() != [gpui_form::PathSegment::Name("email")] {
             return Ok(());
         }
         match holder.email.as_deref() {
@@ -191,6 +218,12 @@ struct FormsDemo {
     email_check: EmailCheck,
     email_check_generation: u64,
     fields: SignupFormFields,
+    /// Milestone M3: app-owned input entities for the nested `Address`
+    /// form (the derive emits value-only state for `component(nested)` —
+    /// [D5]: event wiring is app-authored) and for the new-tag editor.
+    address_city_input: Entity<InputState>,
+    address_zip_input: Entity<InputState>,
+    new_tag_input: Entity<InputState>,
     standalone_picker: Entity<DatePickerState>,
     file_picker: Entity<FilePickerState>,
     picked_date: Option<SharedString>,
@@ -213,6 +246,9 @@ impl FormsDemo {
         let code_input = cx.new(|cx| SignupFormComponents::code_input(window, cx));
         let birth_date_date_picker =
             cx.new(|cx| SignupFormComponents::birth_date_date_picker(window, cx));
+        let address_city_input = cx.new(|cx| InputState::new(window, cx));
+        let address_zip_input = cx.new(|cx| InputState::new(window, cx));
+        let new_tag_input = cx.new(|cx| InputState::new(window, cx));
         let standalone_picker = cx.new(|cx| DatePickerState::new(window, cx));
         let file_picker = cx.new(|cx| FilePickerState::new(window, cx));
 
@@ -225,6 +261,8 @@ impl FormsDemo {
             cx.subscribe_in(&language_select, window, Self::on_language_confirm),
             cx.subscribe_in(&code_input, window, Self::on_code_change),
             cx.subscribe_in(&birth_date_date_picker, window, Self::on_birth_date_change),
+            cx.subscribe_in(&address_city_input, window, Self::on_address_city_change),
+            cx.subscribe_in(&address_zip_input, window, Self::on_address_zip_change),
             cx.subscribe_in(&standalone_picker, window, Self::on_standalone_pick),
             cx.subscribe_in(&file_picker, window, Self::on_file_pick),
         ];
@@ -244,6 +282,9 @@ impl FormsDemo {
                 code_input,
                 birth_date_date_picker,
             },
+            address_city_input,
+            address_zip_input,
+            new_tag_input,
             standalone_picker,
             file_picker,
             picked_date: None,
@@ -472,6 +513,64 @@ impl FormsDemo {
         cx.notify();
     }
 
+    /// Milestone M3 (backlog #2): change/blur handlers for the nested
+    /// `Address` form's inputs. The writes go through the nested form's own
+    /// holder field; touched tracking uses the composed typed path
+    /// (`address.city`), which the facade keys through the nested root.
+    fn on_address_city_change(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let city_path = SignupFormPath::address_root().join(&AddressFormPath::city());
+        match event {
+            InputEvent::Blur => {
+                self.form.touch(&city_path);
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().address.city = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
+                self.revalidate();
+                cx.notify();
+            },
+            _ => {},
+        }
+    }
+
+    fn on_address_zip_change(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let zip_path = SignupFormPath::address_root().join(&AddressFormPath::zip());
+        match event {
+            InputEvent::Blur => {
+                self.form.touch(&zip_path);
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().address.zip = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
+                self.revalidate();
+                cx.notify();
+            },
+            _ => {},
+        }
+    }
+
     fn on_standalone_pick(
         &mut self,
         _: &Entity<DatePickerState>,
@@ -584,6 +683,43 @@ impl FormsDemo {
         }
         Some(localized_issue_keys(&field_error.issue_keys(), locale))
     }
+
+    /// Milestone M3: localized error for the nested form's `city` field,
+    /// resolved through the generated recursion accessor
+    /// (`address_errors()` re-keys into the nested form's own map, whose
+    /// issue keys name the inner validator kinds — not the outer generic
+    /// `validation.invalid`).
+    fn localized_address_city_error(&self, locale: &str) -> Option<String> {
+        if !self.errors_shown {
+            return None;
+        }
+        let errors = self.form.validation()?;
+        let nested_errors = errors.address_errors()?;
+        let city_error = nested_errors.error_for(&AddressFormPath::city())?;
+        Some(localized_issue_keys(&city_error.issue_keys(), locale))
+    }
+
+    /// Milestone M3: localized error listing the failing tag indices, from
+    /// the element-error accessor the list surface generates.
+    fn localized_tags_error(&self, locale: &str) -> Option<String> {
+        if !self.errors_shown {
+            return None;
+        }
+        let errors = self.form.validation()?;
+        let wrapper = errors.tags()?;
+        let failing: Vec<usize> = wrapper.element_errors().iter().map(|(i, _)| *i).collect();
+        (!failing.is_empty()).then(|| {
+            format!(
+                "{}: {}",
+                t!("validation.len", locale = locale),
+                failing
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })
+    }
 }
 
 fn localized_field_error<E>(
@@ -629,6 +765,8 @@ impl Render for FormsDemo {
         };
         let age_error = self.localized_path_error(&active_locale, &SignupFormPath::age());
         let code_error = self.localized_path_error(&active_locale, &SignupFormPath::code());
+        let address_city_error = self.localized_address_city_error(&active_locale);
+        let tags_error = self.localized_tags_error(&active_locale);
         let danger = cx.theme().danger;
 
         // M2 readouts: live validity from the cached facade verdict, submit
@@ -808,6 +946,107 @@ impl Render for FormsDemo {
                     ),
             )
             .child(
+                // Milestone M3 (backlog #2): the nested `Address` form. The
+                // holder stores an `AddressFormValueHolder`; these two
+                // app-owned inputs write into it and track touched state on
+                // the composed `address.city` / `address.zip` paths.
+                v_flex()
+                    .gap_2()
+                    .border_1()
+                    .rounded_md()
+                    .p_2()
+                    .child(
+                        div()
+                            .font_semibold()
+                            .child(t!("signup.address_label").to_string()),
+                    )
+                    .child(
+                        field()
+                            .label(t!("signup.address_city_label").to_string())
+                            .description_fn({
+                                let error = address_city_error.clone();
+                                move |_, _| match &error {
+                                    Some(text) => div()
+                                        .text_color(danger)
+                                        .child(text.clone())
+                                        .into_any_element(),
+                                    None => div().into_any_element(),
+                                }
+                            })
+                            .child(Input::new(&self.address_city_input)),
+                    )
+                    .child(
+                        field()
+                            .label(t!("signup.address_zip_label").to_string())
+                            .child(Input::new(&self.address_zip_input)),
+                    ),
+            )
+            .child(
+                // Milestone M3 (backlog #3): the tags list. Rows render the
+                // current items with a Remove button each; the Add button
+                // appends the new-tag input's value. Count text rides the
+                // app's localized-count pattern.
+                v_flex()
+                    .gap_2()
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .font_semibold()
+                                    .child(t!("app.tags_section").to_string()),
+                            )
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!(
+                                        "{}: {}",
+                                        t!("app.tags_count"),
+                                        self.form.current().tags_items().len()
+                                    )),
+                            ),
+                    )
+                    .children(
+                        tags_error
+                            .clone()
+                            .map(|text| div().text_color(danger).child(text)),
+                    )
+                    .children(self.form.current().tags_items().iter().enumerate().map(
+                        |(index, tag)| {
+                            h_flex()
+                                .justify_between()
+                                .child(div().child(tag.to_string()))
+                                .child(
+                                    Button::new(format!("tags-remove-{index}"))
+                                        .label(t!("app.remove_tag").to_string())
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.form.current_mut().remove_tags(index);
+                                            this.revalidate();
+                                            cx.notify();
+                                        })),
+                                )
+                        },
+                    ))
+                    .child(
+                        h_flex().gap_2().child(
+                            Button::new("tags-add")
+                                .label(t!("app.add_tag").to_string())
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    let text = this.new_tag_input.read(cx).value();
+                                    if !text.is_empty() {
+                                        this.form.current_mut().add_tags(text.to_string());
+                                        this.revalidate();
+                                        this.new_tag_input.update(cx, |state, cx| {
+                                            state.set_value("", window, cx);
+                                        });
+                                        cx.notify();
+                                    }
+                                })),
+                        ),
+                    ),
+            )
+            .child(
                 field()
                     .label(t!("app.date_section").to_string())
                     .description_fn({
@@ -909,6 +1148,8 @@ impl Render for FormsDemo {
                             SignupFormPath::notifications().to_string(),
                             SignupFormPath::code().to_string(),
                             SignupFormPath::birth_date().to_string(),
+                            SignupFormPath::address_root().to_string(),
+                            SignupFormPath::tags_root().to_string(),
                         ]
                         .join(", "),
                     )
@@ -971,6 +1212,10 @@ mod tests {
         "app.valid",
         "app.email_taken",
         "app.checking",
+        "app.tags_section",
+        "app.tags_count",
+        "app.add_tag",
+        "app.remove_tag",
         "signup.username_label",
         "signup.email_label",
         "signup.age_label",
@@ -980,6 +1225,9 @@ mod tests {
         "signup.notifications_label",
         "signup.code_label",
         "signup.birth_date_label",
+        "signup.address_label",
+        "signup.address_city_label",
+        "signup.address_zip_label",
         "country.united_states",
         "country.france",
         "country.china",
@@ -1026,6 +1274,11 @@ mod tests {
         );
         assert_eq!(
             SignupFormValueHolder::validation_issue_key("LenValidation"),
+            "validation.len",
+            "M3: the tags each(LenValidation) element validator promotes LenValidation into the emitted kind match; kinds that live only inside newtype validators still fall back to validation.invalid"
+        );
+        assert_eq!(
+            SignupFormValueHolder::validation_issue_key("OnlyInsideNewtypeValidation"),
             "validation.invalid",
             "kinds declared inside newtype validators are not in the emitted match — the app maps Inner variants itself"
         );
@@ -1214,15 +1467,21 @@ mod field_level_state_tests {
 
         let paths = errors.failing_paths();
         let names: Vec<String> = paths.iter().map(|path| path.to_string()).collect();
-        // `age` is originally optional: its range rule skips `None`, so only
-        // the invite code fails.
-        assert_eq!(names, vec!["code"]);
+        // `age` is originally optional: its range rule skips `None`; the
+        // nested `address` fails (its city is empty); so the invite code and
+        // the nested root fail.
+        assert_eq!(names, vec!["code", "address"]);
     }
 
     #[test]
     fn path_tables_cover_every_non_skipped_field() {
-        assert_eq!(SignupFormPath::FIELD_COUNT, 9);
-        assert_eq!(SignupFormPath::all_paths().count(), 9);
+        assert_eq!(SignupFormPath::FIELD_COUNT, 11);
+        assert_eq!(SignupFormPath::all_paths().count(), 11);
+        // M3: the nested root and the list root are part of the dense index
+        // space (touched/dirty track them as whole composed values).
+        let names: Vec<&str> = SignupFormPath::FIELD_NAMES.to_vec();
+        assert!(names.contains(&"address"));
+        assert!(names.contains(&"tags"));
         assert!(!SignupFormPath::FIELD_NAMES.contains(&"session_id"));
     }
 }
@@ -1264,6 +1523,7 @@ mod submit_lifecycle_tests {
         state.current_mut().username = Some("ada".to_string());
         state.current_mut().code = Some("AB12".parse().unwrap());
         state.current_mut().age = Some(30);
+        state.current_mut().address.city = Some("Paris".to_string());
         assert!(state.validation().is_none(), "edits invalidate the cache");
         assert!(state.is_valid(), "complete valid holder passes");
         state.validate();
@@ -1340,5 +1600,113 @@ mod submit_lifecycle_tests {
 
         // The driver state maps outcomes deterministically.
         assert_eq!(EmailCheck::default(), EmailCheck::Idle);
+    }
+}
+
+#[cfg(test)]
+mod nested_and_list_tests {
+    use crate::{AddressFormPath, SignupFormPath, SignupFormState, SignupFormValueHolder};
+    use gpui_form::core::FormFieldErrors as _;
+
+    #[test]
+    fn nested_error_access_recurses_through_the_nested_form() {
+        // The nested city is empty: the outer map routes `address` and
+        // `address.city` to the nested slot; the recursion accessor
+        // (`address_errors()`) re-keys into the nested form's own map whose
+        // issue keys name the inner validator kinds.
+        let errors = SignupFormValueHolder::default().validate_fields();
+
+        let root = errors
+            .error_for(&SignupFormPath::address_root())
+            .expect("the nested root routes to the nested slot");
+        assert_eq!(root.issue_keys(), vec!["validation.invalid"]);
+
+        let composed = SignupFormPath::address_root().join(&AddressFormPath::city());
+        assert_eq!(composed.to_string(), "address.city");
+        let deep = errors
+            .error_for(&composed)
+            .expect("composed paths route through the nested root");
+        assert_eq!(deep.issue_keys(), vec!["validation.invalid"]);
+
+        let nested_errors = errors
+            .address_errors()
+            .expect("the nested map accessor rebuilds the nested form's map");
+        let city_error = nested_errors
+            .error_for(&AddressFormPath::city())
+            .expect("empty city fails the nested rules");
+        assert!(city_error.issue_keys().contains(&"validation.required"));
+
+        // A valid nested form clears the slot and the composed lookup.
+        let mut holder = SignupFormValueHolder::default();
+        holder.address.city = Some("Paris".to_string());
+        let errors = holder.validate_fields();
+        assert!(errors.error_for(&SignupFormPath::address_root()).is_none());
+        assert!(errors.error_for(&composed).is_none());
+    }
+
+    #[test]
+    fn list_element_errors_carry_indices() {
+        let mut holder = SignupFormValueHolder::default();
+        holder.username = Some("ada".to_string());
+        holder.address.city = Some("Paris".to_string());
+        holder.code = Some("AB12".parse().unwrap());
+        holder.age = Some(30);
+        holder.tags = vec!["ok".to_string(), "x".to_string(), "gpui".to_string()];
+
+        let errors = holder.validate_fields();
+        let failing: Vec<usize> = errors
+            .tags()
+            .expect("the tags wrapper slot is populated")
+            .element_errors()
+            .iter()
+            .map(|(index, _)| *index)
+            .collect();
+        assert_eq!(failing, vec![1], "only the too-short tag fails");
+
+        // Typed item paths route with per-item precision.
+        assert!(errors.error_for(&SignupFormPath::tags(0)).is_none());
+        let item = errors
+            .error_for(&SignupFormPath::tags(1))
+            .expect("item 1 failed its each(..) validators");
+        assert_eq!(item.issue_keys(), vec!["validation.len"]);
+        assert!(errors.error_for(&SignupFormPath::tags(2)).is_none());
+
+        // The index-addressable element-error accessor.
+        assert!(errors.tags_element_error(0).is_none());
+        assert!(errors.tags_element_error(1).is_some());
+
+        // The generic failing-path view expands per failing item index.
+        let names: Vec<String> = errors
+            .failing_paths()
+            .iter()
+            .map(|path| path.to_string())
+            .collect();
+        assert_eq!(names, vec!["tags.1"]);
+    }
+
+    #[test]
+    fn list_mutation_api_drives_the_demo_editor() {
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+
+        // The Add button appends the new-tag input's value.
+        state.current_mut().add_tags("gpui".to_string());
+        state.current_mut().add_tags("forms".to_string());
+        assert_eq!(state.current().tags_items(), &["gpui", "forms"]);
+
+        // The Remove buttons drop by index.
+        state.current_mut().remove_tags(0);
+        assert_eq!(state.current().tags_items(), &["forms"]);
+
+        // The composed roots participate in the M1 field-level state
+        // surface: whole-value dirty/touched keyed by the root path.
+        assert!(state.is_field_dirty(&SignupFormPath::tags_root()));
+        state.touch(&SignupFormPath::tags_root());
+        assert!(state.is_touched(&SignupFormPath::tags_root()));
+
+        // Item paths have no dense index in v1 (item-level touched tracking
+        // is sequenced after v1) but Display stays index-keyed.
+        assert_eq!(SignupFormPath::tags(2).to_string(), "tags.2");
+        assert!(SignupFormPath::tags(2).field_index().is_none());
+        assert_eq!(SignupFormPath::tags_root().field_index(), Some(10));
     }
 }

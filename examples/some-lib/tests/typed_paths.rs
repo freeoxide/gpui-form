@@ -11,8 +11,9 @@
 //! has NO ctor, and a hand-built multi-segment path still works (FLAT v1
 //! boundary — typed nested/list composition lands with #2/#3).
 
-use gpui_form::FieldPath;
+use gpui_form::{FieldPath, PathSegment};
 use gpui_form_derive::GpuiForm;
+use some_lib::structs::post::{AddressFormPath, PostEditorFormPath};
 use some_lib::structs::user::UserFormPath;
 
 /// A field-ctor path matches an explicit `new()` for the same segment.
@@ -55,13 +56,13 @@ fn user_path_display_renders_field_name() {
 fn user_path_deref_and_as_ref_reach_shared_primitive() {
     let path = UserFormPath::age();
 
-    fn takes_as_ref(p: &FieldPath) -> &[&'static str] {
+    fn takes_as_ref(p: &FieldPath) -> &[PathSegment] {
         p.segments()
     }
-    assert_eq!(takes_as_ref(path.as_ref()), &["age"]);
+    assert_eq!(takes_as_ref(path.as_ref()), &[PathSegment::Name("age")]);
 
     // Deref<Target = FieldPath> exposes `segments()` directly on the newtype.
-    assert_eq!(path.segments(), &["age"]);
+    assert_eq!(path.segments(), &[PathSegment::Name("age")]);
     assert!(!path.is_empty());
 }
 
@@ -79,14 +80,33 @@ fn user_skipped_field_has_no_ctor_but_others_remain() {
     assert_ne!(a.path(), b.path());
 }
 
-/// Hand-built multi-segment paths work today via `new(&["a", "b"])`, ahead of
-/// the typed nested/list ctors promised by backlog #2/#3.
+/// Hand-built multi-segment paths still work via `new(&["a", "b"])` — the
+/// names-only constructor — alongside the typed nested/list composition
+/// milestone M3 added (backlog #2/#3).
 #[test]
 fn user_hand_built_multi_segment_path_works_now() {
     let nested = UserFormPath::new(&["address", "city"]);
     assert_eq!(nested.to_string(), "address.city");
-    assert_eq!(nested.path().segments(), &["address", "city"]);
+    assert_eq!(
+        nested.path().segments(),
+        &[PathSegment::Name("address"), PathSegment::Name("city")]
+    );
     assert!(!nested.is_empty());
+}
+
+/// Milestone M3: the example `PostEditor` composes typed nested and
+/// list-item paths — `address.city` through `join`, `tags.2` through the
+/// typed-index constructor.
+#[test]
+fn post_editor_composes_nested_and_list_paths() {
+    let city = PostEditorFormPath::address_root().join(&AddressFormPath::city());
+    assert_eq!(city.to_string(), "address.city");
+
+    assert_eq!(PostEditorFormPath::tags(2).to_string(), "tags.2");
+    assert_eq!(
+        PostEditorFormPath::tags(2).path().segments(),
+        &[PathSegment::Name("tags"), PathSegment::Index(2)]
+    );
 }
 
 /// The empty-form branch of the derive must still emit a path type with
@@ -100,5 +120,5 @@ fn empty_form_still_emits_path_type_without_ctors() {
     // No per-field ctors exist, but the type, `new`, `path`, and `into_path` do.
     let p = EmptyFormFormPath::new(&["anything"]);
     assert_eq!(p.to_string(), "anything");
-    assert_eq!(p.into_path().segments(), &["anything"]);
+    assert_eq!(p.into_path().segments(), &[PathSegment::Name("anything")]);
 }
