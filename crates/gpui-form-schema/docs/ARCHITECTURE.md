@@ -44,6 +44,18 @@ Per-field runtime behavior metadata with payloads for:
 - phone-input behavior (`PhoneInputBehaviour`, carrying the optional
   `country_field` reference for `phone_input(country = ...)`)
 - file-picker behavior
+- nested-form behavior (milestone M3: `NestedBehaviour { form_struct }`,
+  naming the composed form struct for generators)
+- list behavior (milestone M3: `ListBehaviour { item, item_struct,
+  add_label }` — the scalar item component kind, the reserved
+  post-v1 nested item slot, and the optional add-button label override)
+
+Adding variants to `ComponentKind`/`ComponentsBehaviour` is a semver break
+for exhaustive downstream matches; the M3 variants landed with the
+milestone's minor bump and are called out in the CHANGELOG.
+`FieldVariant::is_nested()`/`is_list()` are the convenience predicates for
+composed fields, and both kinds are value-only (no leaf control, never
+Option-wrapped by the component).
 
 This is the metadata level that downstream consumers use; derive/codegen
 internals should not invent separate parallel runtime models.

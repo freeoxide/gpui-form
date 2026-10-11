@@ -221,6 +221,19 @@ impl FieldVariant {
         self.optional || self.wraps_in_option
     }
 
+    /// Milestone M3 (backlog #2): this field is a `component(nested)` field
+    /// whose holder stores the nested form's own generated value holder.
+    pub const fn is_nested(&self) -> bool {
+        matches!(self.behaviour, ComponentsBehaviour::Nested(_))
+    }
+
+    /// Milestone M3 (backlog #3): this field is a `component(list(...))`
+    /// field whose holder stores the plain item `Vec` plus generated
+    /// add/remove/items operations.
+    pub const fn is_list(&self) -> bool {
+        matches!(self.behaviour, ComponentsBehaviour::List(_))
+    }
+
     /// Returns true when generated code should subscribe to this field.
     pub const fn subscribable(&self) -> bool {
         self.behaviour.kind().subscribable() || self.custom_value_binding
