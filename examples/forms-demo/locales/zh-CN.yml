@@ -27,6 +27,9 @@ app:
   tags_count: "数量"
   add_tag: "添加标签"
   remove_tag: "移除"
+  save_changes: "保存更改（仅已触字段）"
+  nothing_touched: "没有已触字段——无需发送。"
+  touched_payload: "仅含已触字段的载荷"
 signup:
   address_city_label: "城市"
   address_label: "地址（嵌套表单）"
@@ -35,6 +38,7 @@ signup:
   email_label: "邮箱（可选）"
   age_label: "年龄"
   country_label: "国家"
+  state_label: "州（依赖于国家）"
   language_label: "语言"
   newsletter_label: "订阅新闻通讯"
   notifications_label: "启用通知"
@@ -44,6 +48,10 @@ country:
   united_states: "美国"
   france: "法国"
   china: "中国"
+us_state:
+  california: "加利福尼亚"
+  new_york: "纽约"
+  texas: "得克萨斯"
 language:
   english: "英语"
   french: "法语"

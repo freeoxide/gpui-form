@@ -43,5 +43,7 @@ user:
   preferred_label: Preferred
   subscribe_newsletter_description: Subscribe Newsletter
   subscribe_newsletter_label: Subscribe Newsletter
+  state_description: State
+  state_label: State
   username_description: Username
 user_label: User

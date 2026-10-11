@@ -57,6 +57,18 @@ pub enum Language {
     Chinese,
 }
 
+/// Milestone M4 (backlog #12): the dependent side of a `depends_on` pair —
+/// changing `country` resets the chosen state (see `on_country_confirm`).
+#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[select_item(fluent)]
+pub enum UsState {
+    #[default]
+    California,
+    NewYork,
+    Texas,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -110,7 +122,12 @@ pub struct Signup {
     #[koruma(NonEmptyValidation::<_>::builder())]
     pub username: String,
 
-    #[gpui_form(label = "Email", placeholder = "you@example.com", component(input))]
+    #[gpui_form(
+        label = "Email",
+        placeholder = "you@example.com",
+        component(input),
+        required_if = newsletter
+    )]
     #[koruma(EmailValidation::<_>::builder())]
     pub email: Option<String>,
 
@@ -120,6 +137,12 @@ pub struct Signup {
 
     #[gpui_form(component(select(searchable)), default = Country::France)]
     pub country: Option<Country>,
+
+    /// Milestone M4 (backlog #12): `depends_on = country` records the
+    /// dependency as metadata; the reset-on-parent-change wiring below is
+    /// app-authored ([D5]).
+    #[gpui_form(component(select), depends_on = country)]
+    pub state: Option<UsState>,
 
     #[gpui_form(component(select), default = Language::English)]
     pub language: Language,
@@ -242,6 +265,7 @@ impl FormsDemo {
         let email_input = cx.new(|cx| SignupFormComponents::email_input(window, cx));
         let age_number_input = cx.new(|cx| SignupFormComponents::age_number_input(window, cx));
         let country_select = cx.new(|cx| SignupFormComponents::country_select(window, cx));
+        let state_select = cx.new(|cx| SignupFormComponents::state_select(window, cx));
         let language_select = cx.new(|cx| SignupFormComponents::language_select(window, cx));
         let code_input = cx.new(|cx| SignupFormComponents::code_input(window, cx));
         let birth_date_date_picker =
@@ -258,6 +282,7 @@ impl FormsDemo {
             cx.subscribe_in(&age_number_input, window, Self::on_age_change),
             cx.subscribe_in(&age_number_input, window, Self::on_age_step),
             cx.subscribe_in(&country_select, window, Self::on_country_confirm),
+            cx.subscribe_in(&state_select, window, Self::on_state_confirm),
             cx.subscribe_in(&language_select, window, Self::on_language_confirm),
             cx.subscribe_in(&code_input, window, Self::on_code_change),
             cx.subscribe_in(&birth_date_date_picker, window, Self::on_birth_date_change),
@@ -278,6 +303,7 @@ impl FormsDemo {
                 email_input,
                 age_number_input,
                 country_select,
+                state_select,
                 language_select,
                 code_input,
                 birth_date_date_picker,
@@ -444,16 +470,42 @@ impl FormsDemo {
         &mut self,
         _: &Entity<SelectState<SearchableVec<Country>>>,
         event: &SelectEvent<SearchableVec<Country>>,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let SelectEvent::Confirm(value) = event;
         self.form.current_mut().country = value.clone();
+        // Milestone M4 (backlog #12): reset-on-parent-change for
+        // `depends_on = country` — the chosen state no longer matches the
+        // country, so clear both the holder value and the widget (the
+        // dependency is recorded as metadata; the wiring is app-authored,
+        // [D5]).
+        self.form.current_mut().state = None;
+        self.fields.state_select.update(cx, |state, cx| {
+            state.set_selected_index(None, window, cx);
+        });
         // Select-kind components mark touched on value change until their
         // blur surfaces are verified.
         self.form.touch(&SignupFormPath::country());
         self.revalidate();
         cx.notify();
+    }
+
+    /// Milestone M4: the dependent side of the `depends_on = country` pair.
+    fn on_state_confirm(
+        &mut self,
+        _: &Entity<SelectState<Vec<UsState>>>,
+        event: &SelectEvent<Vec<UsState>>,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let SelectEvent::Confirm(value) = event;
+        if let Some(value) = value {
+            self.form.current_mut().state = Some(value.clone());
+            self.form.touch(&SignupFormPath::state());
+            self.revalidate();
+            cx.notify();
+        }
     }
 
     fn on_language_confirm(
@@ -654,6 +706,67 @@ impl FormsDemo {
         })
         .detach();
         cx.notify();
+    }
+
+    /// Milestone M4 (backlog #10's workflow, closed by #9's patch): "save
+    /// only touched fields". The PATCH tri-state restricted to the touched
+    /// subset — no separate partial-holder type exists (plan decision D10:
+    /// the patch already distinguishes absent = unchanged, cleared, and a
+    /// set value, so filtering it by the touched set IS the partial
+    /// payload).
+    fn touched_patch_summary(&self) -> String {
+        let touched: std::collections::HashSet<String> = self
+            .form
+            .touched_fields()
+            .iter()
+            .map(|path| path.to_string())
+            .collect();
+        let patch = self.form.patch();
+        let mut entries: Vec<String> = Vec::new();
+
+        // Holder slots that store `Option<T>`: the patch reads
+        // `Option<Option<T>>` — `Some(None)` is "changed to cleared".
+        macro_rules! optional_slot {
+            ($field:ident) => {
+                if touched.contains(stringify!($field)) {
+                    if let Some(value) = &patch.$field {
+                        match value {
+                            Some(value) => {
+                                entries.push(format!("{} = {value:?}", stringify!($field)));
+                            },
+                            None => {
+                                entries.push(format!("{} = null (cleared)", stringify!($field)))
+                            },
+                        }
+                    }
+                }
+            };
+        }
+        // Holder slots that store the value directly: present = set.
+        macro_rules! plain_slot {
+            ($field:ident) => {
+                if touched.contains(stringify!($field)) {
+                    if let Some(value) = &patch.$field {
+                        entries.push(format!("{} = {value:?}", stringify!($field)));
+                    }
+                }
+            };
+        }
+
+        optional_slot!(username);
+        optional_slot!(email);
+        optional_slot!(age);
+        optional_slot!(country);
+        optional_slot!(state);
+        plain_slot!(language);
+        plain_slot!(newsletter);
+        plain_slot!(notifications);
+        optional_slot!(code);
+        optional_slot!(birth_date);
+        plain_slot!(address);
+        plain_slot!(tags);
+
+        entries.join(", ")
     }
 
     /// Localized error text for one field, selected through the typed path
@@ -895,6 +1008,14 @@ impl Render for FormsDemo {
                             .child(Select::new(&self.fields.country_select)),
                     )
                     .child(
+                        // Milestone M4 (backlog #12): the `depends_on =
+                        // country` dependent — cleared whenever the country
+                        // selection changes.
+                        field()
+                            .label(t!(SignupFormValueHolder::STATE_LABEL_KEY).to_string())
+                            .child(Select::new(&self.fields.state_select)),
+                    )
+                    .child(
                         field()
                             .label(t!(SignupFormValueHolder::LANGUAGE_LABEL_KEY).to_string())
                             .child(Select::new(&self.fields.language_select)),
@@ -1112,6 +1233,26 @@ impl Render for FormsDemo {
                         Button::new("reset")
                             .label(t!("app.reset").to_string())
                             .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
+                    )
+                    .child(
+                        // Milestone M4: "save only touched fields" — prints
+                        // the PATCH tri-state restricted to the touched
+                        // subset (the D10 outcome: the patch IS the partial
+                        // payload; no separate partial-holder type).
+                        Button::new("save-changes")
+                            .label(t!("app.save_changes").to_string())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let payload = this.touched_patch_summary();
+                                this.status = Some(
+                                    if payload.is_empty() {
+                                        t!("app.nothing_touched").to_string()
+                                    } else {
+                                        format!("{}: {payload}", t!("app.touched_payload"))
+                                    }
+                                    .into(),
+                                );
+                                cx.notify();
+                            })),
                     ),
             )
             .children(submit_error_banner.map(|text| {
@@ -1143,6 +1284,7 @@ impl Render for FormsDemo {
                             SignupFormPath::email().to_string(),
                             SignupFormPath::age().to_string(),
                             SignupFormPath::country().to_string(),
+                            SignupFormPath::state().to_string(),
                             SignupFormPath::language().to_string(),
                             SignupFormPath::newsletter().to_string(),
                             SignupFormPath::notifications().to_string(),
@@ -1216,10 +1358,14 @@ mod tests {
         "app.tags_count",
         "app.add_tag",
         "app.remove_tag",
+        "app.save_changes",
+        "app.nothing_touched",
+        "app.touched_payload",
         "signup.username_label",
         "signup.email_label",
         "signup.age_label",
         "signup.country_label",
+        "signup.state_label",
         "signup.language_label",
         "signup.newsletter_label",
         "signup.notifications_label",
@@ -1231,6 +1377,9 @@ mod tests {
         "country.united_states",
         "country.france",
         "country.china",
+        "us_state.california",
+        "us_state.new_york",
+        "us_state.texas",
         "language.english",
         "language.french",
         "language.chinese",
@@ -1475,14 +1624,154 @@ mod field_level_state_tests {
 
     #[test]
     fn path_tables_cover_every_non_skipped_field() {
-        assert_eq!(SignupFormPath::FIELD_COUNT, 11);
-        assert_eq!(SignupFormPath::all_paths().count(), 11);
+        assert_eq!(SignupFormPath::FIELD_COUNT, 12);
+        assert_eq!(SignupFormPath::all_paths().count(), 12);
         // M3: the nested root and the list root are part of the dense index
         // space (touched/dirty track them as whole composed values).
         let names: Vec<&str> = SignupFormPath::FIELD_NAMES.to_vec();
         assert!(names.contains(&"address"));
         assert!(names.contains(&"tags"));
+        assert!(names.contains(&"state"));
         assert!(!SignupFormPath::FIELD_NAMES.contains(&"session_id"));
+    }
+}
+
+#[cfg(test)]
+mod dependency_tests {
+    use crate::{SignupFormPath, SignupFormState, SignupFormValueHolder, UsState};
+    use gpui_form::core::FormFieldErrors as _;
+
+    #[test]
+    fn email_is_required_only_while_subscribing() {
+        // `required_if = newsletter`: the switch flips email between
+        // optional and required, and the violation surfaces as a typed,
+        // path-addressable error carrying the localized required key.
+        let mut holder = SignupFormValueHolder::default();
+        holder.username = Some("ada".to_string());
+        holder.code = Some("AB12".parse().unwrap());
+        holder.age = Some(30);
+        holder.address.city = Some("Paris".to_string());
+        holder.country = Some(crate::Country::France);
+
+        assert!(
+            holder.clone().validate().is_ok(),
+            "newsletter off: email stays optional"
+        );
+
+        holder.newsletter = true;
+        let errors = holder.validate_fields();
+        let error = errors
+            .error_for(&SignupFormPath::email())
+            .expect("newsletter on + absent email must fail");
+        assert_eq!(error.issue_keys(), vec!["validation.required"]);
+        assert_eq!(errors.failing_paths().len(), 1, "only email fails");
+
+        holder.email = Some("ada@example.com".to_string());
+        assert!(
+            holder.validate().is_ok(),
+            "newsletter on + present email passes"
+        );
+    }
+
+    #[test]
+    fn conditional_required_localizes_through_the_shared_key() {
+        // The desugared rule reuses `validation.required`, so the app's
+        // existing locale entries render it with zero new keys.
+        let mut holder = SignupFormValueHolder::default();
+        holder.newsletter = true;
+        let errors = holder.validate_fields();
+        let error = errors
+            .error_for(&SignupFormPath::email())
+            .expect("conditional violation");
+        let text = crate::localized_issue_keys(&error.issue_keys(), "fr-FR");
+        assert_eq!(text, "Ce champ est obligatoire.");
+    }
+
+    #[test]
+    fn touched_patch_summary_reports_only_touched_changes() {
+        // The D10 outcome in app code: the patch tri-state restricted to
+        // the touched subset IS the "save only touched fields" payload.
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        state.current_mut().email = Some("ada@example.com".to_string());
+        state.touch(&SignupFormPath::email());
+        state.current_mut().age = Some(42);
+
+        let summary = demo_touched_patch_summary(&mut state);
+        assert_eq!(
+            summary, "email = \"ada@example.com\"",
+            "untouched edits (age) are excluded; touched+changed fields ride along"
+        );
+
+        // A touched field edited back to its baseline is not part of the
+        // payload (the patch slot is `None`); clearing a touched optional
+        // field whose BASELINE carried a value reports the cleared state.
+        state.current_mut().email = None;
+        let summary = demo_touched_patch_summary(&mut state);
+        assert_eq!(summary, "", "back to baseline: nothing to send");
+
+        state.sync_baseline();
+        state.current_mut().email = Some("ada@example.com".to_string());
+        state.sync_baseline();
+        state.current_mut().email = None;
+        let summary = demo_touched_patch_summary(&mut state);
+        assert_eq!(summary, "email = null (cleared)");
+    }
+
+    /// The demo's `touched_patch_summary` logic, mirrored over a plain
+    /// facade (the render method borrows the whole view).
+    fn demo_touched_patch_summary(state: &mut SignupFormState) -> String {
+        let touched: std::collections::HashSet<String> = state
+            .touched_fields()
+            .iter()
+            .map(|path| path.to_string())
+            .collect();
+        let patch = state.patch();
+        let mut entries: Vec<String> = Vec::new();
+        if touched.contains("email") {
+            if let Some(value) = &patch.email {
+                match value {
+                    Some(value) => entries.push(format!("email = {value:?}")),
+                    None => entries.push("email = null (cleared)".to_string()),
+                }
+            }
+        }
+        if touched.contains("age") {
+            if let Some(value) = &patch.age {
+                match value {
+                    Some(value) => entries.push(format!("age = {value:?}")),
+                    None => entries.push("age = null (cleared)".to_string()),
+                }
+            }
+        }
+        entries.join(", ")
+    }
+
+    #[test]
+    fn state_field_tracks_country_dependency_metadata() {
+        // The dependent field is part of the typed surface (path table,
+        // patch slot), and its value is plain data the reset wiring owns.
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        state.current_mut().state = Some(UsState::Texas);
+        state.touch(&SignupFormPath::state());
+        assert!(state.is_field_dirty(&SignupFormPath::state()));
+        assert_eq!(
+            state
+                .touched_fields()
+                .iter()
+                .map(|path| path.to_string())
+                .collect::<Vec<_>>(),
+            vec!["state"]
+        );
+        // Save: the chosen state becomes the baseline the reset clears.
+        state.sync_baseline();
+        assert!(!state.is_field_dirty(&SignupFormPath::state()));
+
+        // The reset the demo wires into `on_country_confirm`: clearing a
+        // baseline value reports the changed-to-cleared tri-state.
+        state.current_mut().state = None;
+        let patch = state.patch();
+        let slot: Option<Option<UsState>> = patch.state;
+        assert_eq!(slot, Some(None), "changed-to-cleared tri-state");
     }
 }
 
@@ -1707,6 +1996,7 @@ mod nested_and_list_tests {
         // is sequenced after v1) but Display stays index-keyed.
         assert_eq!(SignupFormPath::tags(2).to_string(), "tags.2");
         assert!(SignupFormPath::tags(2).field_index().is_none());
-        assert_eq!(SignupFormPath::tags_root().field_index(), Some(10));
+        // M4 shifted the dense indices by one (`state` joined the form).
+        assert_eq!(SignupFormPath::tags_root().field_index(), Some(11));
     }
 }

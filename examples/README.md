@@ -18,6 +18,10 @@ Source structs and enums that demonstrate the supported derive surface:
   `each(...)` element validators) — milestone M3 shapes, exercised by the
   `typed_paths` tests (composed `address.city` paths, typed `tags.2` item
   paths)
+- field dependencies (milestone M4): `User.state` records
+  `depends_on = country`, and `User.email` is conditionally required via
+  `required_if = subscribe_newsletter` (a desugared koruma validator, so the
+  violation surfaces through the typed error surface)
 - Koruma validation wiring
 - newtype-backed numeric validation
 - `cfg_attr`-gated derive usage
@@ -82,7 +86,14 @@ count text follows the locale. Milestone M3 adds a nested `Address` form
 path) and a tags list with add/remove buttons over the generated
 `add_tags`/`remove_tags`/`tags_items` holder API — per-item `each(...)`
 failures render with their failing indices, and the count text follows the
-app's localized-count pattern. Validation errors render through `validation.*`
+app's localized-count pattern. Milestone M4 adds the field-dependency
+showcase: a `state` select recording `depends_on = country` that the country
+handler resets (holder value AND widget) on every change, an email field made
+conditionally required by the newsletter checkbox through
+`required_if = newsletter` (the localized `validation.required` error appears
+and disappears live as the checkbox flips), and a "Save changes (touched
+only)" button printing the PATCH tri-state filtered to the touched fields —
+the plan's D10 outcome: the patch IS the partial payload. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,

@@ -27,6 +27,9 @@ app:
   tags_count: "nombre"
   add_tag: "Ajouter un tag"
   remove_tag: "Retirer"
+  save_changes: "Enregistrer les modifications (champs touchés)"
+  nothing_touched: "Aucun champ touché — rien à envoyer."
+  touched_payload: "charge utile limitée aux champs touchés"
 signup:
   address_city_label: "Ville"
   address_label: "Adresse (formulaire imbriqué)"
@@ -35,6 +38,7 @@ signup:
   email_label: "E-mail (optionnel)"
   age_label: "Âge"
   country_label: "Pays"
+  state_label: "État (dépend du pays)"
   language_label: "Langue"
   newsletter_label: "S'abonner à la newsletter"
   notifications_label: "Activer les notifications"
@@ -44,6 +48,10 @@ country:
   united_states: "États-Unis"
   france: "France"
   china: "Chine"
+us_state:
+  california: "Californie"
+  new_york: "New York"
+  texas: "Texas"
 language:
   english: "Anglais"
   french: "Français"

@@ -27,6 +27,9 @@ app:
   tags_count: "count"
   add_tag: "Add tag"
   remove_tag: "Remove"
+  save_changes: "Save changes (touched only)"
+  nothing_touched: "No touched fields — nothing to send."
+  touched_payload: "touched-only payload"
 signup:
   address_city_label: "City"
   address_label: "Address (nested form)"
@@ -35,6 +38,7 @@ signup:
   email_label: "Email (optional)"
   age_label: "Age"
   country_label: "Country"
+  state_label: "State (depends on country)"
   language_label: "Language"
   newsletter_label: "Subscribe to the newsletter"
   notifications_label: "Enable notifications"
@@ -44,6 +48,10 @@ country:
   united_states: "United States"
   france: "France"
   china: "China"
+us_state:
+  california: "California"
+  new_york: "New York"
+  texas: "Texas"
 language:
   english: "English"
   french: "French"

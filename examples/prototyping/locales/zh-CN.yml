@@ -43,5 +43,7 @@ user:
   preferred_label: 首选
   subscribe_newsletter_description: 订阅简报
   subscribe_newsletter_label: 订阅简报
+  state_description: 州
+  state_label: 州
   username_description: 用户名
 user_label: 用户
