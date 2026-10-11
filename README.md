@@ -135,6 +135,12 @@ Common field-level helpers:
 - `#[gpui_form(section = ..., label = ..., description = ..., placeholder = ..., width = ...)]`
   attaches non-rendering layout hints. See
   [Layout and Section Hints](#layout-and-section-hints).
+- `#[gpui_form(depends_on = <field>)]` records a sibling-field dependency as
+  metadata. See
+  [Field Dependencies and Conditional Requiredness](#field-dependencies-and-conditional-requiredness).
+- `#[gpui_form(required_if = <field>)]` makes a field conditionally required.
+  See
+  [Field Dependencies and Conditional Requiredness](#field-dependencies-and-conditional-requiredness).
 
 ## Phone Number Validation
 
@@ -624,6 +630,24 @@ With the derive crate's `serde` feature on, `<Name>FormPatch` also derives
 field, so the wire format is the PATCH tri-state: absent = unchanged, `null` =
 cleared, value = set.
 
+The patch is also the "partial holder" workflow: filtering it by the touched
+set gives a save-only-touched-fields payload without a separate generated
+type (the feature-parity plan's decision D10 — the patch tri-state already
+expresses cleared-vs-unchanged).
+
+```rs
+// Only send what the user actually touched AND changed.
+let touched: std::collections::HashSet<String> = state
+    .touched_fields()
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+let mut patch = state.patch();
+if !touched.contains("username") {
+    patch.username = None; // unchanged: leave the slot out of the payload
+}
+```
+
 `TouchedFields` (the headless bitset the facade composes) is re-exported as
 `gpui_form::TouchedFields` for non-derived holders; touched state is transient
 UI-session state and is never serialized. Blur/change wiring stays
@@ -958,6 +982,78 @@ Per the backlog's conservative-first rules, v1 ships:
 - add/remove — no reorder,
 - scalar item components — `item = nested` and `item = custom(...)` are
   rejected at parse time until the follow-up milestone.
+
+## Field Dependencies and Conditional Requiredness
+
+Two field-level attributes describe relationships between fields. Both name a
+sibling field of the same struct — a bare ident (`depends_on = country`) or the
+quoted form (`required_if = "subscribe"`) — and the reference is
+existence-checked at derive time, so a typo is a compile-time error rather than
+a silently-dead rule. There is no expression language: the controlling sibling
+is a field, not a condition string.
+
+### `required_if = <field>` (conditional requiredness)
+
+`required_if` desugars to a generated koruma validator on the holder field, so
+a violation is a *typed, path-addressable error* — not display-only metadata:
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct Newsletter {
+    #[gpui_form(component(switch))]
+    pub subscribe: bool,
+
+    #[gpui_form(component(input), required_if = subscribe)]
+    pub email: Option<String>,
+}
+
+let holder = NewsletterFormValueHolder { subscribe: true, email: None };
+let errors = holder.validate_fields();
+let error = errors.error_for(&NewsletterFormPath::email()).unwrap();
+assert_eq!(error.issue_keys(), vec!["validation.required"]);
+```
+
+Rules of the desugaring:
+
+- The target field's holder value must be `Option<T>` (an `Option<T>` source
+  field, or a component that wraps in `Option`).
+- The controlling sibling holds a `bool` (required when `true`), an
+  `Option<bool>` (required when `Some(true)` — an explicit off does not
+  require), or any other `Option<T>` (required when set).
+- A `required_if` field never also gets the synthetic unconditional
+  `RequiredValidation`; the conditional rule supersedes it.
+- Failures reuse the localized `validation.required` key, so existing locale
+  entries render them with no new keys.
+- The rule composes with mirrored `#[koruma(...)]` validators on the same
+  field; each reports its own issue key.
+- The pure predicate is `gpui_form::required_when` (`required_when(requires,
+  present)`), re-exported from `gpui_form::core` for headless consumers.
+
+### `depends_on = <field>` (dependency metadata)
+
+`depends_on` records the sibling relationship as schema metadata — the
+`FieldVariant` payload is the sibling's field name, the same representation a
+`FieldPath` name segment carries — for conditional loading,
+reset-on-parent-change, and tooling. The derive emits no event wiring ([D5]):
+apps reset dependents from the parent's change handler, and the prototyping
+scaffold emits a placeholder reset of the dependent's holder value.
+
+```rs
+#[gpui_form(component(select(searchable)))]
+pub country: Option<Country>,
+
+#[gpui_form(component(select), depends_on = country)]
+pub state: Option<UsState>,
+
+// App-authored reset-on-parent-change (the demo wires exactly this):
+// on_country_confirm: self.form.current_mut().state = None;
+//                      state_select.update(cx, |s, cx| s.set_selected_index(None, window, cx));
+```
+
+Both attributes require a `component(...)` on the same field — the schema
+`FieldVariant` that records them exists only for component fields.
 
 ## Custom Components
 

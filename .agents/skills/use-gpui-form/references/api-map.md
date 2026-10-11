@@ -77,9 +77,16 @@ Components (`component(...)`):
 Field attributes: `default = <expr>`, `skip`, `type = <form_type>`,
 `from = <expr>`, `into = <expr>`, the layout hints `section = "<str>"`,
 `label = "<str>"`, `description = "<str>"`, `placeholder = "<str>"`,
-`width = full | half | third`, and `validate(async_fn = <path>)`
+`width = full | half | third`, `validate(async_fn = <path>)`
 (metadata-only today: the path is recorded on `FieldVariant`, nothing
-executes until the reserved `async-validation` wiring lands).
+executes until the reserved `async-validation` wiring lands),
+`depends_on = <field>` (sibling dependency metadata, milestone M4), and
+`required_if = <field>` (conditional requiredness, milestone M4 — desugars
+to a generated koruma validator, so violations surface through
+`error_for`/`issue_keys` with the shared `validation.required` key). Both
+dependency attributes name a sibling field of the same struct
+(existence-checked at derive time) and require a `component(...)` on the same
+field.
 
 Struct attributes: `empty`, `koruma`, `koruma(fluent)`, `submit` (bare
 word; emits the `<Name>FormSubmission` tracker alias).
@@ -314,3 +321,57 @@ verdicts. Async checks implement `gpui_form::AsyncFieldValidation<Holder>`
 (one impl per form, `Ok(())` for unhandled fields); debounce and
 latest-wins cancellation are app-owned. Worked example: root `README.md`
 §Submit Lifecycle and Live Validation.
+
+## Field Dependencies and Conditional Requiredness Pattern
+
+Milestone M4: name sibling fields (never condition strings), and reset
+dependents yourself from the parent's change handler.
+
+```rust
+#[derive(GpuiForm)]
+pub struct Signup {
+    #[gpui_form(component(select(searchable)))]
+    pub country: Option<Country>,
+
+    // Metadata: consumers read `depends_on` for reset-on-parent-change.
+    #[gpui_form(component(select), depends_on = country)]
+    pub state: Option<UsState>,
+
+    #[gpui_form(component(switch))]
+    pub subscribe: bool,
+
+    // Enforced: desugars to a koruma validator on the holder field.
+    #[gpui_form(component(input), required_if = subscribe)]
+    pub email: Option<String>,
+}
+
+// Typed, path-addressable conditional failure — no display-only metadata.
+let errors = holder.validate_fields();
+let error = errors.error_for(&SignupFormPath::email()).unwrap();
+assert_eq!(error.issue_keys(), vec!["validation.required"]);
+
+// Reset-on-parent-change is app-authored ([D5]): clear holder AND widget.
+// self.form.current_mut().state = None;
+// state_select.update(cx, |s, cx| s.set_selected_index(None, window, cx));
+
+// "Save only touched fields": filter the patch by the touched set (the
+// patch tri-state already expresses cleared-vs-unchanged — plan decision
+// D10; no separate partial-holder type).
+let touched: HashSet<String> = state
+    .touched_fields()
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+let mut patch = state.patch();
+if !touched.contains("state") {
+    patch.state = None;
+}
+```
+
+Constraints: the `required_if` target's holder field stores `Option<T>`;
+the controlling sibling holds `bool` (required when `true`), `Option<bool>`
+(required when `Some(true)`), or another `Option<T>` (required when set); a
+`required_if` field never also gets the synthetic unconditional
+`RequiredValidation`. The pure predicate behind the desugaring is
+`gpui_form::required_when`. Worked example: root `README.md` §Field
+Dependencies and Conditional Requiredness.

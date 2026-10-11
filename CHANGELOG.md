@@ -5,6 +5,106 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-11
+
+Milestone 4 of the form feature-parity plan: field dependency metadata
+(backlog #12) and conditional requiredness (backlog #13). The partial-holder
+item (backlog #10) is closed WITHOUT new surface: decision [D10] evaluated
+the 0.6.0 `<Name>FormPatch` tri-state (`None` = unchanged, `Some(None)` =
+cleared, `Some(value)` = set; serialized absent/`null`/value) and found it
+already expresses cleared-vs-unchanged, so "send only touched fields" is
+patch-filtering by `touched_fields()` — no `#[gpui_form(partial_holder)]`
+type is generated. All additions are additive; the minor bump follows the
+plan's one-minor-per-milestone rule.
+
+### Added
+
+- `#[gpui_form(required_if = <field>)]` (backlog #13): conditional
+  requiredness on flat fields whose holder stores `Option<T>`. The attribute
+  names a sibling field of the same struct — a bare ident
+  (`required_if = subscribe`) or the quoted form (`required_if =
+  "subscribe"`) — existence-checked at derive time, with no expression
+  language (the plan's R19). Controlling-sibling shapes resolved at derive
+  time: `bool` (required when `true`), `Option<bool>` (required when
+  `Some(true)` — an explicit off does not require), and any other
+  `Option<T>` (required when set). Both dependency attributes require a
+  `component(...)` on the carrying field.
+- The `required_if` desugaring: one generated koruma validator per form
+  (`<Name>FormRequiredIfValidation<T>`, following the reserved
+  `<Name>Form*` prefix), mirrored onto the holder field as
+  `#validator::<Option<_>>::builder().when(<sibling truthiness>)` so
+  koruma's own `validate()` constructs it with the controlling sibling's
+  live holder value. Violations surface through the M1 typed error surface
+  — `validate_fields()`, `error_for(&<Name>FormPath::field())`,
+  `issue_keys()` reporting the shared `validation.required` key (no new
+  locale keys) — not as display-only metadata. The rule composes with
+  mirrored `#[koruma(...)]` validators on the same field (each reports its
+  own key), forces the koruma derive for the form, and suppresses the
+  synthetic unconditional `RequiredValidation` (requiring the field always
+  would defeat the condition). Forms using it require `koruma` as a direct
+  dependency, like every koruma-gated form.
+- `gpui_form::core::required_when(requires, present)` — the pure
+  conditional-required predicate every desugared validator delegates to
+  (re-exported as `gpui_form::required_when`); core keeps no rule engine
+  and no expression evaluation.
+- `#[gpui_form(depends_on = <field>)]` (backlog #12): records the sibling
+  relationship as schema metadata — `FieldVariant::depends_on` stores the
+  sibling's field name (the `FieldPath` name-segment representation) — for
+  conditional loading, dependent validation, and reset-on-parent-change
+  consumers. The derive emits no event wiring ([D5]).
+- `gpui-form-schema`: `FieldVariant` gains `depends_on` /
+  `required_if` payloads with `with_depends_on` / `with_required_if` const
+  builders and getters (`&'static str`, `Copy` payloads only — the
+  `inventory::submit!` const-constructibility contract is preserved), and
+  the `"RequiredIfValidation"` rule kind rides the `FieldVariant`
+  validations list for required-if fields.
+- `gpui-form-prototyping-core`: scaffolds consume `depends_on` metadata for
+  reset-on-parent-change placeholders — the parent component's generated
+  change handling resets every dependent field's holder value (`None` for
+  Option-wrapped holders, `Default` otherwise) across the input,
+  number_input, phone_input, select, infinite_select, date_picker,
+  file_picker, switch, and checkbox generators. Re-syncing the dependent's
+  widget stays app-authored; fields without dependents emit identical
+  tokens.
+- `forms-demo`: a `state` select recording `depends_on = country` that the
+  country handler resets (holder value and widget) on every change; the
+  newsletter checkbox flipping email between optional and required through
+  `required_if = newsletter` with the localized typed error; and a "Save
+  changes (touched only)" button printing the PATCH tri-state filtered to
+  the touched fields (the [D10] outcome in app code). `some-lib`'s `User`
+  carries both attributes as the example shapes.
+
+### Changed
+
+- Nothing breaking. Generated emission for forms that use neither attribute
+  is byte-identical (pinned by the flat-form expansion snapshot plus a
+  zero-diff unit test); a form WITH `required_if` additionally derives
+  `Koruma` on its holder and gains the validator type in its module.
+- `FieldOptionality::needs_required_validation()` (derive-internal) returns
+  `false` for fields carrying `required_if`.
+
+### Documentation
+
+- Root `README.md`: new "Field Dependencies and Conditional Requiredness"
+  section (worked example, desugaring rules, reset-on-parent-change
+  sketch), attribute inventory entries, and the touched-filtered patch
+  payload documented in "Saving, Restoring, and Dirty Tracking" (the [D10]
+  outcome — no separate partial-holder section).
+- `crates/gpui-form-derive/README.md` attribute inventory;
+  `crates/gpui-form-core/README.md` helper list;
+  `crates/gpui-form-prototyping-core/README.md` field-dependency
+  scaffolding note.
+- `.agents/skills/use-gpui-form`: Common Patterns + a Feature Gotchas
+  subsection; `references/api-map.md` attribute list + a new pattern block.
+- ARCHITECTURE notes updated in `gpui-form-derive` (parsing, sibling
+  resolution, desugaring, D10 outcome), `gpui-form-codegen` (field-level
+  attribute placement scope note), `gpui-form-schema` (payloads),
+  `gpui-form-core` (`required_when`), and
+  `gpui-form-prototyping-core` (dependent resets).
+- `examples/README.md` covers the new some-lib shapes and the forms-demo
+  M4 showcase; `docs/feature-backlog.md` marks #12/#13 shipped (M4),
+  closes #10 by #9 per [D10], and updates the suggested order.
+
 ## [0.8.0] - 2026-10-11
 
 Milestone 3 of the form feature-parity plan: nested forms (backlog #2) and

@@ -112,6 +112,19 @@ Full syntax inventory: root `README.md` §Component Syntax, or
   `gpui_form::AsyncFieldValidation<Holder>` (one impl per form, `Ok(())` for
   unhandled fields) and drive it from your own spawn; own debounce and
   latest-wins cancellation app-side.
+- For fields that are required only while a sibling controls them
+  (`required_if = subscribe` on `email`), add the attribute next to the
+  component; violations flow through the normal typed error surface
+  (`error_for(&...FormPath::email())` → `issue_keys()` reports
+  `"validation.required"`), so existing locale entries render them.
+- For dependent fields (state follows country), add `depends_on = <field>` for
+  the metadata, and reset the dependent yourself from the parent's change
+  handler (clear the holder slot AND the widget) — the derive emits no event
+  wiring; prototyping scaffolds emit a holder-value reset placeholder.
+- For "save only touched fields" (PATCH payloads), filter
+  `state.patch()` by `state.touched_fields()` — the patch tri-state
+  (absent/null/value) already expresses cleared-vs-unchanged, so no separate
+  partial-holder type is needed.
 - Keep consumer code focused on app models, form state, rendering, and
   app-owned components.
 
@@ -161,6 +174,21 @@ change handlers — the derive does not wire events. Details: root `README.md`
   emits holder operations and metadata, not per-item subscriptions.
 - List-item paths have no dense touched index in v1; item-level touched
   tracking arrives with the post-v1 milestone.
+
+### Field dependencies and conditional requiredness
+
+`depends_on = <field>` (metadata-only: consumers read it for conditional
+loading and reset-on-parent-change) and `required_if = <field>` (enforced:
+desugared to a generated koruma validator) both name a SIBLING field of the
+same struct, existence-checked at derive time — bare ident or quoted string,
+never a condition expression (no rule DSL). Both need a `component(...)` on
+the same field. `required_if` constraints: the target's holder field stores
+`Option<T>`, and the controlling sibling holds `bool` (required when `true`),
+`Option<bool>` (required when `Some(true)` — an explicit off does not
+require), or another `Option<T>` (required when set). A `required_if` field
+never also gets the synthetic unconditional required rule, and its failures
+reuse the `validation.required` locale key. Details: root `README.md`
+§Field Dependencies and Conditional Requiredness.
 
 ### Typed field paths
 

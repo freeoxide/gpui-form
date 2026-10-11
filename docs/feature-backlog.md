@@ -284,6 +284,17 @@ events.
 
 ### 10. Partial form holders
 
+> **Status: closed by #9 (D10).** The milestone-4 gate evaluated the M1
+> `<Name>FormPatch` against this item's workflows and found it sufficient:
+> one `Option<holder-field-type>` slot per field already expresses the
+> tri-state ("unchanged / clear / set" — `None` / `Some(None)` /
+> `Some(value)`, serialized as absent / `null` / value), and filtering the
+> patch by `touched_fields()` covers "edit screens that only send touched
+> fields". A separate `#[gpui_form(partial_holder)]` type is therefore NOT
+> generated (feature-parity plan decision D10 and rejection 10); the
+> `t!`-friendly worked example lives in the root `README.md` §Saving,
+> Restoring, and Dirty Tracking.
+
 Generate an optional-field holder for partial updates.
 
 ```rs
@@ -326,6 +337,15 @@ and per-step validation.
 
 ### 12. Field dependency metadata
 
+> **Status: shipped (M4 field dependencies).** `#[gpui_form(depends_on =
+> <field>)]` records the sibling relationship on the schema `FieldVariant`
+> (the sibling's field name — the `FieldPath` name-segment representation —
+> through const builders), existence-checked at derive time. Prototyping
+> scaffolds consume it for reset-on-parent-change placeholders (holder-value
+> resets wired into the parent's generated change handling); widget re-sync
+> and conditional loading stay app-authored. Worked example: root
+> `README.md` §Field Dependencies and Conditional Requiredness.
+
 Represent relationships between fields without owning the UI behavior.
 
 ```rs
@@ -340,6 +360,16 @@ This should produce metadata that generated or application code can consume for
 conditional loading, dependent validation, and reset-on-parent-change behavior.
 
 ### 13. Conditional requiredness
+
+> **Status: shipped (M4 field dependencies).** `#[gpui_form(required_if =
+> <field>)]` desugars at derive time to a generated koruma validator
+> (`<Name>FormRequiredIfValidation`) whose `Validate` impl delegates to the
+> pure `gpui_form::required_when` — no expression language (the plan's R19).
+> The sibling reference is existence-checked and typed (bare ident or quoted
+> ident naming a sibling field; `bool` / `Option<bool>` / `Option<T>`
+> controlling shapes), violations surface through `validate_fields()` /
+> `error_for` / `issue_keys()` with the shared `validation.required` key, and
+> the relationship is recorded as `FieldVariant::required_if` metadata.
 
 Expose validation metadata for fields that are required only when another field
 has a particular state.
@@ -526,9 +556,11 @@ creating a parallel validation system.
 8. Nested forms — **shipped (M3 v1)**.
 9. Repeated fields — **shipped (M3 v1, scalar items)**; nested item forms
    and reorder arrive in the follow-up milestone.
-10. Partial form holders.
+10. Partial form holders — **closed by #9** (D10: the patch tri-state already
+   expresses cleared-vs-unchanged; no separate holder type).
 11. Wizard and step metadata.
-12. Field dependency metadata and conditional requiredness.
+12. Field dependency metadata and conditional requiredness — **shipped (M4
+    field dependencies)**.
 13. Schema export.
 14. Async/select provider contracts.
 15. Phone, email, URL, and typed text validation.
