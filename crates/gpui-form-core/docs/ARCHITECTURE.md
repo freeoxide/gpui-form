@@ -132,6 +132,14 @@ using the shared `FieldPath` primitive. The concrete map (koruma typed error
 structs re-keyed by typed paths, `error_for`, `issue_keys`) is generated in
 the derive crate; core owns only the generic contract.
 
+`validation.rs` also defines `required_when(requires, present)` — the pure
+conditional-required predicate (M4, backlog #13) every generated
+`required_if` koruma validator delegates to. Core owns no rule engine and no
+expression language (R19): the predicate is a bool function, and the
+sibling-shape decisions (`bool` / `Option<bool>` / `Option<T>`) happen at
+derive time in generated code. Re-exported at the crate root and through the
+facade as `gpui_form::required_when`.
+
 ## ValidationCache (M2)
 
 `validation.rs` also defines `ValidationCache<H, O>`, the outcome cache behind

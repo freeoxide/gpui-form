@@ -24,6 +24,9 @@ Today this crate is intentionally small and focused:
   `<Name>FormFieldErrors` maps implement for path-keyed error access
 - `ValidationCache<H, O>` for snapshot-compare validation-outcome caching
   (the live `is_valid` primitive the koruma-gated facade composes)
+- `required_when(requires, present)`, the pure conditional-required
+  predicate every generated `required_if` koruma validator delegates to
+  (the derive owns the desugaring; core owns no rule engine)
 - `SubmitTracker<E>` + `SubmitAction<H>` for the headless submit lifecycle
   (in-flight guard, attempt count, last error, generation-guarded completions)
 - `AsyncFieldValidation<H>`, the executor-free async per-field validation

@@ -13,4 +13,4 @@ pub use fields::TouchedFields;
 pub use path::{FieldPath, PathSegment};
 pub use state::FormState;
 pub use submit::{BoxError, SubmitAction, SubmitTracker};
-pub use validation::{FormFieldErrors, ValidationCache};
+pub use validation::{FormFieldErrors, ValidationCache, required_when};

@@ -1,6 +1,6 @@
 //! Pure, GPUI-free generic contracts and state for validation.
 //!
-//! Two surfaces live here:
+//! Three surfaces live here:
 //!
 //! - [`FormFieldErrors`]: the form-agnostic contract the derive's generated
 //!   `<Name>FormFieldErrors` maps implement, so GPUI glue, tests, and
@@ -9,6 +9,10 @@
 //! - [`ValidationCache`]: the outcome cache behind a live `is_valid`
 //!   (validation-state model, M2), kept honest by *snapshot comparison*
 //!   rather than staleness flags.
+//! - [`required_when`]: the pure conditional-required predicate (M4,
+//!   backlog #13) every generated `required_if` koruma validator delegates
+//!   to, so the rule integrates with the M1 typed error surface instead of
+//!   living as display-only metadata.
 
 use crate::FieldPath;
 
@@ -26,6 +30,37 @@ pub trait FormFieldErrors {
 
     /// Failing field paths in declaration order.
     fn failing_paths(&self) -> Vec<FieldPath>;
+}
+
+/// Pure conditional-required predicate (M4, backlog #13).
+///
+/// A `required_if = <field>` rule desugars at derive time to a generated
+/// koruma validator on the holder field (never to an expression language —
+/// feature-parity plan R19); this function is the single source of truth
+/// that validator delegates to. Because the rule runs *inside* koruma's
+/// `validate()`, a violation surfaces through the M1 typed error surface
+/// (`validate_fields()`, `error_for(<Name>FormPath::field())`,
+/// `issue_keys()` reporting `"validation.required"`) instead of living as
+/// display-only metadata.
+///
+/// Semantics: a value passes when the controlling field does **not** require
+/// it (`requires == false`), or when it is present (`present == true`).
+///
+/// # Example
+///
+/// ```
+/// use gpui_form_core::required_when;
+///
+/// // Not required: passes regardless of presence.
+/// assert!(required_when(false, false));
+/// assert!(required_when(false, true));
+///
+/// // Required: only presence passes.
+/// assert!(!required_when(true, false));
+/// assert!(required_when(true, true));
+/// ```
+pub const fn required_when(requires: bool, present: bool) -> bool {
+    !requires || present
 }
 
 /// Outcome cache for validation, keyed by value equality.
@@ -126,6 +161,16 @@ impl<H, O> Default for ValidationCache<H, O> {
 mod tests {
     use super::*;
     use crate::PathSegment;
+
+    #[test]
+    fn required_when_truth_table_passes_everything_but_required_and_absent() {
+        // The single failing combination: the controlling field makes the
+        // value required AND the value is absent.
+        assert!(required_when(false, false), "not required: absent is fine");
+        assert!(required_when(false, true), "not required: present is fine");
+        assert!(!required_when(true, false), "required + absent fails");
+        assert!(required_when(true, true), "required + present passes");
+    }
 
     struct ManualErrors {
         failing: Vec<&'static str>,
