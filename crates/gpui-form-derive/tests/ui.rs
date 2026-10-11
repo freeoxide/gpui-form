@@ -20,6 +20,15 @@ fn gpui_form_compiles_koruma_builder_attrs_end_to_end() {
 }
 
 #[test]
+fn gpui_form_compiles_field_level_state_end_to_end() {
+    // Backlog #6/#9 + touched tracking: the generated facade, patch, and
+    // typed error surface compile and behave in one binary. No
+    // `koruma(fluent)` here, so no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/error_for_koruma_pass.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 

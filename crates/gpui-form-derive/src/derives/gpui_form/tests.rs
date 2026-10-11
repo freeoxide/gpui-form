@@ -284,9 +284,13 @@ mod gpui_form_tests {
         let compact = compact_tokens(&expanded.to_string());
 
         assert!(
-            compact.contains("pubenabled:bool") && !compact.contains("pubenabled:Option<bool>"),
+            compact.contains("pubenabled:bool"),
             "wraps_in_option = false should keep value holder field non-optional"
         );
+        // (The M1 `<Name>FormPatch` legitimately wraps every slot in
+        // `Option<..>` — the tri-state patch surface — so the old negative
+        // `!contains("pubenabled:Option<bool>")` no longer distinguishes
+        // holder wrapping policy; the positive assertions carry it.)
         assert!(
             compact.contains("pubtags_custom:::gpui::Entity<")
                 && compact.contains(
@@ -574,5 +578,127 @@ mod gpui_form_tests {
             result.is_err(),
             "unknown width value must be rejected by the attribute parser"
         );
+    }
+
+    // token-level: mirrors `empty_form_still_emits_path_type` (tests/field_path.rs)
+    #[test]
+    fn empty_form_still_emits_state_facade_and_patch() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(empty)]
+            struct Blank {}
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("pubstructBlankFormState"),
+            "empty form must emit the facade: {compact}"
+        );
+        assert!(
+            compact.contains("pubstructBlankFormPatch"),
+            "empty form must emit the patch type: {compact}"
+        );
+        assert!(
+            compact.contains("FIELD_COUNT:usize=0"),
+            "empty form path table must count zero fields: {compact}"
+        );
+        assert!(
+            !compact.contains("BlankFormFieldErrors"),
+            "empty form without koruma must not emit the error surface: {compact}"
+        );
+    }
+
+    // token-level: gate check for the koruma error surface
+    #[test]
+    fn field_errors_surface_follows_the_koruma_derive_gate() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        // No koruma anywhere: no error surface, but facade + patch still emit.
+        let plain = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        });
+        let plain = compact_tokens(&plain);
+        assert!(
+            !plain.contains("PlainFormFieldErrors") && !plain.contains("validate_fields"),
+            "non-koruma forms must see zero error-surface diff: {plain}"
+        );
+        assert!(
+            plain.contains("pubstructPlainFormState") && plain.contains("pubstructPlainFormPatch"),
+            "facade + patch are unconditional: {plain}"
+        );
+
+        // Field-attr-only koruma (no struct-level #[gpui_form(koruma)]): the
+        // error surface must still emit — this is the
+        // needs_koruma_derive-vs-koruma_options gate distinction.
+        let field_only = expand(quote! {
+            #[derive(GpuiForm)]
+            struct FieldAttr {
+                #[gpui_form(component(number_input))]
+                #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(1).max(9))]
+                seats: u32,
+            }
+        });
+        let field_only = compact_tokens(&field_only);
+        assert!(
+            field_only.contains("pubstructFieldAttrFormFieldErrors")
+                && field_only.contains("validate_fields"),
+            "field-attr-only koruma forms must gain the error surface: {field_only}"
+        );
+    }
+
+    // token-level: patch serde derives follow the derive crate's serde feature
+    #[test]
+    fn patch_serde_derives_follow_the_serde_feature() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct P {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+        let compact = compact_tokens(&expanded.to_string());
+
+        // The patch derive list sits next to its struct; assert the whole
+        // emitted shape matches the feature state of THIS build.
+        if cfg!(feature = "serde") {
+            assert!(
+                compact.contains("skip_serializing_if=\"Option::is_none\""),
+                "serde builds emit the PATCH tri-state wire attrs: {compact}"
+            );
+        } else {
+            assert!(
+                !compact.contains("skip_serializing_if"),
+                "default builds must not emit serde attrs on the patch: {compact}"
+            );
+        }
     }
 }
