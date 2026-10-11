@@ -13,17 +13,23 @@ At the moment the crate is intentionally narrow:
 - numeric text-entry validation for generated `number_input` fields
 - optional phone-number parsing and selected-country validation helpers
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
+- `fields::TouchedFields` for touched-field tracking (field-level state, M1)
+- `validation::FormFieldErrors`, the generic contract behind the derive's
+  generated per-form error maps (backlog #6, M1)
 - `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
 
 ## Modules
 
-- `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormState`, and
-  the `path`/`state` modules)
+- `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormFieldErrors`,
+  `FormState`, `TouchedFields`, and the `fields`/`path`/`state`/`validation`
+  modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
 - `src/phone.rs`: optional parser-backed phone validation helpers behind the
   `phone` feature
 - `src/path.rs`: `FieldPath` typed field-path primitive
 - `src/state.rs`: `FormState<H>` form-state helper
+- `src/fields.rs`: `TouchedFields` touched-field bitset
+- `src/validation.rs`: `FormFieldErrors` trait
 
 ## Phone Validation
 
@@ -67,18 +73,54 @@ Scope boundaries (documented in rustdoc and user-facing docs):
   runtime UI state (open menus, scroll positions, `InfiniteSelectState`
   snapshots).
 - Dirty/diff is **boolean-level** (`current != baseline` / `current != other`).
-  Field-level patch and delta reporting is backlog feature #9 and will build on
-  the `FieldPath` naming primitive.
+  Field-level patch and delta reporting (backlog #9), touched tracking, and the
+  per-form facade that couples them live in the derive's generated
+  `<Name>FormState` (see the derive crate's architecture doc); `FormState<H>`
+  stays a frozen two-slot generic.
 - The holder's serde derives live on the derive crate behind its `serde`
   feature; `FormState` itself is unconditional (no feature gate, no new
   dependencies). The facade re-exports it as `gpui_form::FormState`.
+
+## TouchedFields
+
+`fields.rs` defines `TouchedFields`, the headless touched-field bitset for the
+field-level state model (M1): a dense `Box<[u64]>` keyed by declaration-order
+field index plus the field count it was sized for. Core stays form-agnostic —
+the generated `<Name>FormState` facade supplies the path-to-index mapping
+(`<Name>FormPath::field_index`) and sizes the bitset from
+`<Name>FormPath::FIELD_COUNT`.
+
+Behavioral contract:
+
+- Unknown indices are a no-op on every mutator and `false` on every query, so
+  hand-built paths that name no field can never corrupt the bitset.
+- `touched_indices()` iterates in ascending index order — declaration order
+  for declaration-order indices, so UI lists render deterministically.
+- Touched records user engagement, not value deltas: it is deliberately
+  independent of `FormState`'s baseline/current model.
+- No serde surface: touched state is transient UI-session state; persistence
+  stays holder-only. This mirrors the layering rule that keeps runtime state
+  out of generated holders.
+
+The facade re-exports it as `gpui_form::TouchedFields`.
+
+## FormFieldErrors
+
+`validation.rs` defines the `FormFieldErrors` trait — `is_empty()` plus
+`failing_paths() -> Vec<FieldPath>` — the form-agnostic contract the derive's
+generated `<Name>FormFieldErrors` maps implement (one per koruma form), so
+GPUI glue, tests, and application code can be generic over any form's errors
+using the shared `FieldPath` primitive. The concrete map (koruma typed error
+structs re-keyed by typed paths, `error_for`, `issue_keys`) is generated in
+the derive crate; core owns only the generic contract.
 
 ## FieldPath
 
 `path.rs` defines `FieldPath`, the headless, GPUI-free, serde-free typed
 field-path primitive (backlog feature #8, FLAT v1). It is the shared naming
-foundation for the upcoming field-level validation (#6), field-level diff/delta
-reporting (#9), schema export (#14), and nested/list paths (#2/#3).
+foundation for the field-level validation (#6) and field-level diff/delta
+reporting (#9) surfaces shipped on the generated `<Name>FormState` facade,
+and for the upcoming schema export (#14) and nested/list paths (#2/#3).
 
 Representation choice: `Box<[&'static str]>`. Clones perform a single box
 allocation (no per-segment heap work), satisfying the "clones are cheap"
@@ -137,12 +179,16 @@ the text shape or also verifies that the text can parse into `T`.
    through facade paths such as `gpui_form::numeric::*`.
 1. The facade re-exports this crate as `gpui_form::core`, the numeric module as
    `gpui_form::numeric`, `FormState` plus the `state` module as
-   `gpui_form::FormState` / `gpui_form::state`, and `FieldPath` plus the `path`
-   module as `gpui_form::FieldPath` / `gpui_form::path`.
+   `gpui_form::FormState` / `gpui_form::state`, `FieldPath` plus the `path`
+   module as `gpui_form::FieldPath` / `gpui_form::path`, and (M1)
+   `TouchedFields`/`FormFieldErrors` plus the `fields`/`validation` modules as
+   `gpui_form::TouchedFields` / `gpui_form::FormFieldErrors`.
 1. Generated number-input code uses the helpers during incremental text edits
    before committing parsed values into the holder.
 1. Application code wraps a generated `...FormValueHolder` in `FormState` to
-   track edits, reset, or diff against a restored value.
+   track edits, reset, or diff against a restored value, or in the generated
+   `<Name>FormState` facade to also get touched tracking and the field-level
+   diff (the facade composes `FormState` + `TouchedFields`).
 1. Generated `<Name>FormPath` types wrap `FieldPath` so validation, dirty
    tracking, analytics, and schema export share ONE typed way to name fields.
 
