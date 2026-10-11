@@ -125,6 +125,7 @@ impl<H, O> Default for ValidationCache<H, O> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PathSegment;
 
     struct ManualErrors {
         failing: Vec<&'static str>,
@@ -154,7 +155,7 @@ mod tests {
         };
         assert!(!failing.is_empty());
         let paths = failing.failing_paths();
-        assert_eq!(paths[0].segments(), &["username"]);
+        assert_eq!(paths[0].segments(), &[PathSegment::Name("username")]);
         assert_eq!(paths[1].to_string(), "age");
 
         fn assert_generic<E: FormFieldErrors>(errors: &E) -> bool {

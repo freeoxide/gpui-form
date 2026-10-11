@@ -23,18 +23,26 @@ At the moment the crate is intentionally narrow:
   error alias
 - `async_validation::AsyncFieldValidation<H>`, the executor-free async
   per-field validation contract (M2)
-- `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
+- `path::FieldPath` + `path::PathSegment` for typed field naming (backlog
+  feature #8; milestone M3 extended the segment representation to the typed
+  `PathSegment { Name(&'static str), Index(usize) }` enum — decision [D8] of
+  the feature-parity plan — so list-item paths like `tags.2` are one uniform
+  `FieldPath` with a typed index and never a formatted string)
 
 ## Modules
 
-- `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormFieldErrors`,
+- `src/lib.rs`: module export surface (re-exports `FieldPath`,
+  `PathSegment`, `FormFieldErrors`,
   `FormState`, `TouchedFields`, `ValidationCache`, `SubmitTracker`,
   `SubmitAction`, `AsyncFieldValidation`, `BoxError`, and the
   `async_validation`/`fields`/`path`/`state`/`submit`/`validation` modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
 - `src/phone.rs`: optional parser-backed phone validation helpers behind the
   `phone` feature
-- `src/path.rs`: `FieldPath` typed field-path primitive
+- `src/path.rs`: `FieldPath` typed field-path primitive and its
+  `PathSegment` enum, with the `from_segments`/`push_name`/`push_index`/
+  `join` composition constructors (M3). `FieldPath::new(&[&'static str])`
+  stays the names-only constructor for flat paths
 - `src/state.rs`: `FormState<H>` form-state helper
 - `src/fields.rs`: `TouchedFields` touched-field bitset
 - `src/validation.rs`: `FormFieldErrors` trait + `ValidationCache<H, O>`

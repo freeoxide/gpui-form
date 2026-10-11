@@ -45,7 +45,7 @@ use crate::FieldPath;
 ///
 /// ```
 /// use gpui_form_core::AsyncFieldValidation;
-/// use gpui_form_core::FieldPath;
+/// use gpui_form_core::{FieldPath, PathSegment};
 ///
 /// struct UsernameTaken;
 ///
@@ -57,7 +57,7 @@ use crate::FieldPath;
 ///         holder: &UsernameTakenFormValueHolder,
 ///         field: &FieldPath,
 ///     ) -> Result<(), Self::Error> {
-///         if field.segments() != ["username"] {
+///         if field.segments() != [PathSegment::Name("username")] {
 ///             return Ok(()); // not my field
 ///         }
 ///         match holder.username.as_deref() {
@@ -82,14 +82,16 @@ pub trait AsyncFieldValidation<H> {
     /// Validate one field of the live holder.
     ///
     /// Return `Ok(())` for fields this validator does not handle. Paths are
-    /// the shared [`FieldPath`] (FLAT v1: single-segment field names;
-    /// nested/list path composition arrives with backlog #2/#3).
+    /// the shared [`FieldPath`] (flat single-segment field names, plus the
+    /// nested/list composition segments from milestone M3 — see
+    /// [`crate::path::PathSegment`]).
     async fn validate_field(&self, holder: &H, field: &FieldPath) -> Result<(), Self::Error>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PathSegment;
     use std::future::{Future, poll_fn};
     use std::task::Poll;
 
@@ -123,7 +125,7 @@ mod tests {
             field: &FieldPath,
         ) -> Result<(), Self::Error> {
             // One impl serves the whole form: unhandled fields are Ok.
-            if field.segments() != ["username"] {
+            if field.segments() != [PathSegment::Name("username")] {
                 return Ok(());
             }
             if self.0.contains(&holder.username.as_str()) {
