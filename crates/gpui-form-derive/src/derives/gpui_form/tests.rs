@@ -12,6 +12,100 @@ mod gpui_form_tests {
         tokens.split_whitespace().collect::<String>()
     }
 
+    // token-level: M5 schema export (backlog #14) — the `<Name>FormSchema`
+    // surface is unconditional and reuses the inventory shape chain.
+    #[test]
+    fn schema_export_reuses_the_inventory_shape_chain() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        // Flat form: the accessor exists and projects from a SHAPE const
+        // built with the registry types (no inventory dependency of its own).
+        let flat = compact_tokens(&expand(quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        }));
+        assert!(
+            flat.contains("pubstructPlainFormSchema"),
+            "every form gains the schema-export type: {flat}"
+        );
+        assert!(
+            flat.contains(
+                "constSHAPE:::gpui_form::schema::registry::GpuiFormShape=::gpui_form::schema::registry::GpuiFormShape::new"
+            ),
+            "SHAPE must be the registry shape chain: {flat}"
+        );
+        assert!(
+            flat.contains(
+                "pubfnschema()->::gpui_form::schema::registry::FormSchema{::gpui_form::schema::registry::FormSchema::from(&Self::SHAPE)}"
+            ),
+            "schema() must project the shape through From: {flat}"
+        );
+
+        // Same tokens with inventory OFF: the export still emits (only the
+        // submit! registration is feature-gated).
+        let derive_input: DeriveInput = syn::parse2(quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        })
+        .unwrap();
+        let no_inventory = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: false,
+            },
+        )
+        .to_string();
+        let no_inventory = compact_tokens(&no_inventory);
+        assert!(
+            no_inventory.contains("pubstructPlainFormSchema")
+                && no_inventory.contains("pubfnschema()"),
+            "the export does not depend on the inventory feature: {no_inventory}"
+        );
+        assert!(
+            !no_inventory.contains("inventory::submit"),
+            "inventory registration stays feature-gated: {no_inventory}"
+        );
+
+        // Empty form: the export still emits, over an empty field list.
+        let derive_input: DeriveInput = syn::parse2(quote! {
+            #[derive(GpuiForm)]
+            #[gpui_form(empty)]
+            struct Blank {}
+        })
+        .unwrap();
+        let empty = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        )
+        .to_string();
+        let empty = compact_tokens(&empty);
+        assert!(
+            empty.contains("pubstructBlankFormSchema"),
+            "empty forms emit the schema-export type too: {empty}"
+        );
+        assert!(
+            empty.contains("GpuiFormShape::new(stringify!(Blank),&[],file!(),"),
+            "the empty shape chain carries zero field variants: {empty}"
+        );
+    }
+
     #[test]
     fn test_validation_issue_key_mapping_covers_koruma_collection_validators() {
         use crate::derives::gpui_form::value_holder::validation_issue_key_for_kind;
@@ -557,8 +651,9 @@ mod gpui_form_tests {
         );
         let layout_count = compact.matches(".with_layout(").count();
         assert_eq!(
-            layout_count, 1,
-            "expected exactly one FieldVariant (visible only): {compact}"
+            layout_count, 2,
+            "expected the visible FieldVariant only, in both consumers of the \
+             shape chain (inventory submit + M5 schema-export SHAPE const): {compact}"
         );
     }
 

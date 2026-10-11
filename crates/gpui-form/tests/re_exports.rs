@@ -1,9 +1,11 @@
-//! Facade re-export compile proof for the M2 headless surface: the new core
-//! types must be reachable through `gpui_form::` paths (the facade is the
-//! public boundary — generated code and apps reference these names).
+//! Facade re-export compile proof for the M2 headless surface and the M5
+//! schema-export document: the new types must be reachable through
+//! `gpui_form::` paths (the facade is the public boundary — generated code
+//! and apps reference these names).
 
 use gpui_form::{
-    AsyncFieldValidation, BoxError, FieldPath, SubmitAction, SubmitTracker, ValidationCache,
+    AsyncFieldValidation, BoxError, FieldPath, FormSchema, SubmitAction, SubmitTracker,
+    ValidationCache,
 };
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -71,4 +73,51 @@ fn contract_traits_are_implementable_through_facade_imports() {
     let mut action = NoopAction;
     let future = action.submit(&holder);
     drop(future);
+}
+
+#[test]
+fn schema_export_document_round_trips_through_the_facade() {
+    // The wire format the derive emits for `<Name>FormSchema::schema()`:
+    // snake_case component tags, absent hints omitted, defaults filled back
+    // on deserialization. Round-tripping through the facade re-export with
+    // serde_json proves the document is nameable and serializable without
+    // touching the schema crate directly.
+    let json = r#"{
+        "form": "Demo",
+        "source_path": "src/demo.rs",
+        "fields": [
+            {
+                "name": "email",
+                "component": {"component": "input"},
+                "value_type": "String",
+                "source_value_type": "String",
+                "optional": false,
+                "wraps_in_option": true
+            },
+            {
+                "name": "tags",
+                "component": {"component": "list", "item": "input"},
+                "value_type": "Vec < String >",
+                "source_value_type": "Vec < String >",
+                "optional": false,
+                "wraps_in_option": false,
+                "depends_on": "email"
+            }
+        ]
+    }"#;
+
+    let schema: FormSchema = serde_json::from_str(json).expect("deserialize through facade");
+    assert_eq!(schema.form, "Demo");
+    assert!(!schema.koruma_enabled, "absent flags default to false");
+    assert_eq!(
+        schema.field_names().collect::<Vec<_>>(),
+        vec!["email", "tags"]
+    );
+    let tags = schema.field("tags").expect("tags entry");
+    assert!(tags.is_list(), "list component tag deserializes");
+    assert_eq!(tags.depends_on.as_deref(), Some("email"));
+
+    let re = serde_json::to_string(&schema).expect("serialize through facade");
+    let round: FormSchema = serde_json::from_str(&re).expect("round-trip");
+    assert_eq!(round, schema);
 }
