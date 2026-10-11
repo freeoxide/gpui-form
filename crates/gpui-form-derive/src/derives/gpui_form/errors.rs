@@ -118,6 +118,15 @@ fn mirrored_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
         names.push(validator.name().to_string());
         fallbacks.push(snake_path(&validator.validator));
     }
+    // M4 (backlog #13): the desugared conditional-required validator. Its
+    // koruma error-field getter is the snake_case of the emitted type name
+    // (single-segment path, so the collision fallback is identical), and
+    // `validation_issue_key_for_kind` maps it to `validation.required`.
+    if let Some(rule) = &field.required_if {
+        let name = rule.validator.to_string();
+        fallbacks.push(name.to_snake_case());
+        names.push(name);
+    }
     disambiguate_validators(names, fallbacks)
 }
 
@@ -134,6 +143,11 @@ fn mirrored_field_validators(field: &FieldOptionality) -> Vec<MirroredValidator>
     for validator in field.validation.field_validators.iter() {
         names.push(validator.name().to_string());
         fallbacks.push(snake_path(&validator.validator));
+    }
+    if let Some(rule) = &field.required_if {
+        let name = rule.validator.to_string();
+        fallbacks.push(name.to_snake_case());
+        names.push(name);
     }
     disambiguate_validators(names, fallbacks)
 }
@@ -222,7 +236,11 @@ pub(crate) fn participates_in_field_errors(field: &FieldOptionality) -> bool {
             || !field.validation.field_validators.is_empty()
             || !field.validation.element_validators.is_empty()
             || field.validation.is_newtype
-            || (field.composition.is_nested() && field.validation.is_nested))
+            || (field.composition.is_nested() && field.validation.is_nested)
+            // M4 (backlog #13): the desugared conditional-required
+            // validator runs inside koruma's validate(), so the field can
+            // fail and needs an error-map slot.
+            || field.required_if.is_some())
 }
 
 /// Generates `<Name>FormFieldErrors`, `<Name>FormFieldError<'a>`, and the

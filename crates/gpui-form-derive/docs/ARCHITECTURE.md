@@ -267,6 +267,42 @@ button wiring ([D5]): forms that do not opt in see zero emitted diff.
 path, and no cfg keys on the reserved `async-validation` feature yet (the
 flag exists in both Cargo.tomls so the future wiring has a stable name).
 
+### Field Dependencies and Conditional Requiredness (backlog #12/#13, M4)
+
+`structs.rs` parses `depends_on = <field>` / `required_if = <field>` as
+`SiblingField` (a bare ident or a quoted ident — never an expression; R19
+rejects a rule DSL). `expansion.rs` existence-checks each sibling against
+the non-skipped field set and, for `required_if`, validates the shapes
+(target holder field stores `Option<T>`; controlling sibling holds `bool`,
+`Option<bool>`, or another `Option<T>`) before resolving a `RequiredIfRule`
+that names the per-form validator (`<Name>FormRequiredIfValidation`) and the
+sibling's truthiness shape. Both attributes require `component(...)` on the
+carrying field (the `FieldVariant` metadata home exists only for component
+fields).
+
+`value_holder.rs` emits the validator once per form — a `#[koruma::validator]`
+struct shaped like `RequiredValidation` plus a captured `when: bool` — and
+mirrors `#validator::<Option<_>>::builder().when(<sibling expr>)` onto the
+holder field, where koruma's own generated `validate()` constructs it with
+the sibling's live value. The `Validate` impl delegates to
+`::gpui_form::core::required_when` (single source of truth in core), the
+Display impl keeps `koruma(fluent)`'s `KorumaAllDisplay` delegation working,
+and `validation_issue_key_for_kind` maps the per-form validator name to the
+shared `validation.required` key (no new locale keys). Because the rule runs
+inside koruma, `errors.rs` includes the field in the error map and mirrors
+the validator's getter, so violations are path-addressable — not
+display-only. `required_if` also forces the koruma derive (a rule that
+cannot run would be metadata-only, which backlog #13 rejects) and suppresses
+the synthetic unconditional `RequiredValidation` (`needs_required_validation`).
+Metadata: `expansion.rs` records `.with_depends_on(Some("<field>"))` /
+`.with_required_if(Some("<field>"))` and adds the `"RequiredIfValidation"`
+rule kind to the `FieldVariant` validations list.
+
+Partial holders (backlog #10) are NOT emitted: decision D10 found the M1
+`<Name>FormPatch` tri-state (`Some(None)` = cleared, `None` = unchanged,
+serde absent/null/value) already expresses cleared-vs-unchanged, so
+"send only touched fields" is patch-filtering, not a new generated type.
+
 ### Typed Field Errors (backlog #6, M1)
 
 `errors.rs` owns `generate_field_errors(original_input, fields)`, invoked from

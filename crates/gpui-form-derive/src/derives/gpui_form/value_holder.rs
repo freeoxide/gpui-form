@@ -570,13 +570,29 @@ pub fn generate_value_holder(
             // mirrored attr, no error-map slot, no new validate() failures
             // (the M3 need is only `component(nested)` fields).
             let has_nested = f.composition.is_nested();
+            // M4 (backlog #13): `required_if` desugars to the generated
+            // conditional-required validator below.
+            let has_required_if = f.required_if.is_some();
 
-            if needs_required || has_existing_validations || has_newtype || has_nested {
+            if needs_required
+                || has_existing_validations
+                || has_newtype
+                || has_nested
+                || has_required_if
+            {
                 let mut koruma_items: Vec<TokenStream> = Vec::new();
 
                 if needs_required {
                     koruma_items.push(quote! {
                         koruma_collection::general::RequiredValidation::<Option<_>>::builder()
+                    });
+                }
+
+                if let Some(rule) = &f.required_if {
+                    let validator = &rule.validator;
+                    let when = rule.condition.when_argument_tokens(&rule.sibling);
+                    koruma_items.push(quote! {
+                        #validator::<Option<_>>::builder().when(#when)
                     });
                 }
 
@@ -636,6 +652,25 @@ pub fn generate_value_holder(
     // If koruma is enabled on the form, always derive Koruma so validate() is available,
     // even when there are no inferred validators.
     let needs_koruma_derive = enable_koruma || needs_koruma_for_required;
+
+    // Milestone M4 (backlog #13): the shared conditional-required validator.
+    // One struct per form (named with the reserved `<Name>Form*` prefix)
+    // serves every `required_if` field; the holder fields' koruma attrs
+    // reference it with `#validator::<Option<_>>::builder().when(...)`, so
+    // koruma's own generated `validate()` constructs it with the controlling
+    // sibling's live value and stores a failed validator in the per-field
+    // error struct — which is what makes the violation surface through the
+    // M1 typed error surface (`validate_fields`/`error_for`/`issue_keys`).
+    // The pure predicate lives in core (`required_when`); generated code
+    // references only `::koruma` and `::gpui_form` paths ([D2]/R14).
+    let required_if_validator_ident = fields
+        .iter()
+        .filter(|f| !f.skip)
+        .find_map(|f| f.required_if.as_ref().map(|rule| rule.validator.clone()));
+    let required_if_validator_tokens = match (&required_if_validator_ident, needs_koruma_derive) {
+        (Some(validator), true) => generate_required_if_validator(validator),
+        _ => quote! {},
+    };
 
     // Check if any field has a custom default expression
     let has_custom_defaults = fields.iter().any(|f| !f.skip && f.default_expr.is_some());
@@ -909,6 +944,7 @@ pub fn generate_value_holder(
 
     let mut tokens = quote! {
         #conversion_error_type
+        #required_if_validator_tokens
         #derive_output
         #builder_attr
         pub struct #wrapped_ident #ty_generics #where_clause {
@@ -946,8 +982,61 @@ pub fn generate_value_holder(
 }
 
 pub fn validation_issue_key_for_kind(kind: &str) -> String {
+    // Milestone M4 (backlog #13): the desugared conditional-required
+    // validator is emitted per form as `<Name>FormRequiredIfValidation`.
+    // Its failure IS a required failure, so it reuses the already-localized
+    // `validation.required` key — no new locale keys (the i18n-parity
+    // preference from the plan's Feature 3 test notes).
+    if kind.ends_with("FormRequiredIfValidation") {
+        return "validation.required".to_string();
+    }
     let stem = kind.strip_suffix("Validation").unwrap_or(kind);
     format!("validation.{}", stem.to_snake_case())
+}
+
+/// Milestone M4 (backlog #13): the per-form conditional-required validator
+/// desugared from `#[gpui_form(required_if = <field>)]`.
+///
+/// Shaped exactly like `koruma_collection::general::RequiredValidation`
+/// (presence-only `actual` slot with `skip_capture`; the full-`Option` infer
+/// sugar `::<Option<_>>` in the mirrored holder attr), plus the captured
+/// `when` flag driven by the controlling sibling's holder value. The
+/// `#[koruma::validator]` macro provides the bon builder and the
+/// `BuilderWithValueRef` plumbing koruma's generated `validate()` calls.
+fn generate_required_if_validator(validator: &syn::Ident) -> TokenStream {
+    quote! {
+        /// Conditional-required validator desugared from
+        /// `#[gpui_form(required_if = <field>)]` (milestone M4). Built by
+        /// koruma's generated `validate()` with the controlling sibling's
+        /// live value; a failure means "this field is required while the
+        /// controlling field requires it, but no value is present".
+        #[doc(hidden)]
+        #[derive(Clone, Debug)]
+        #[::koruma::validator]
+        pub struct #validator<T> {
+            /// Whether the controlling sibling field makes the value
+            /// required (captured per validation run).
+            when: bool,
+            /// Presence-only slot; never captured — the validated value
+            /// arrives as `validate`'s argument.
+            #[koruma(value, skip_capture)]
+            actual: ::core::option::Option<T>,
+        }
+
+        impl<T> ::koruma::Validate<::core::option::Option<T>>
+            for #validator<::core::option::Option<T>>
+        {
+            fn validate(&self, value: &::core::option::Option<T>) -> bool {
+                ::gpui_form::core::required_when(self.when, value.is_some())
+            }
+        }
+
+        impl<T> ::core::fmt::Display for #validator<T> {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                f.write_str("This field is required.")
+            }
+        }
+    }
 }
 
 fn generate_koruma_i18n_impl(
@@ -982,6 +1071,14 @@ fn generate_koruma_i18n_impl(
         .collect();
     if fields.iter().any(|f| f.needs_required_validation()) {
         kinds.insert("RequiredValidation".to_string());
+    }
+    // M4 (backlog #13): the per-form conditional-required validator type —
+    // `validation_issue_key_for_kind` maps it to the shared
+    // `validation.required` key.
+    for f in fields.iter().filter(|f| !f.skip) {
+        if let Some(rule) = &f.required_if {
+            kinds.insert(rule.validator.to_string());
+        }
     }
 
     let kind_arms = kinds.iter().map(|kind| {

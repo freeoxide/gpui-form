@@ -76,6 +76,15 @@ Supporting field attributes:
 - `#[gpui_form(placeholder = "<str>")]` — placeholder text for inputs
 - `#[gpui_form(width = full | half | third)]` — relative width hint; accepts a
   bare ident or a quoted string
+- `#[gpui_form(depends_on = <field>)]` — records a sibling-field dependency as
+  schema metadata (reset-on-parent-change consumers read it; the derive emits
+  no event wiring)
+- `#[gpui_form(required_if = <field>)]` — conditional requiredness; desugars to
+  a generated koruma validator (`<Name>FormRequiredIfValidation`) so the
+  violation surfaces through `validate_fields()`/`error_for` with the shared
+  `validation.required` key. The sibling reference is existence-checked at
+  derive time and must hold a `bool` or `Option` value; the target's holder
+  field must store `Option<T>`
 
 Supporting struct attributes:
 

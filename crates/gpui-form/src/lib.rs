@@ -27,6 +27,7 @@ pub use gpui_form_core::numeric;
 pub use gpui_form_core::path;
 #[cfg(feature = "phone")]
 pub use gpui_form_core::phone;
+pub use gpui_form_core::required_when;
 pub use gpui_form_core::state;
 pub use gpui_form_core::submit;
 pub use gpui_form_core::validation;

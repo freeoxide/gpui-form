@@ -11,13 +11,16 @@ use crate::derives::gpui_form::components::generate_component_field;
 use crate::derives::gpui_form::field_path::generate_field_path;
 use crate::derives::gpui_form::form_state::generate_form_state;
 use crate::derives::gpui_form::structs::{
-    ComponentStruct, FieldComposition, FieldOptionality, GpuiFormOptions,
+    ComponentStruct, FieldComposition, FieldOptionality, GpuiFormOptions, RequiredIfCondition,
+    RequiredIfRule,
 };
 use crate::derives::gpui_form::submit::generate_submit_alias;
 use crate::derives::gpui_form::utils::{
     extract_option_inner_type, extract_vec_inner_type, nested_form_holder_type,
 };
-use crate::derives::gpui_form::value_holder::{generate_value_holder, parse_field_default};
+use crate::derives::gpui_form::value_holder::{
+    form_base_type, generate_value_holder, parse_field_default, should_wrap,
+};
 
 fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
     match expr {
@@ -122,8 +125,16 @@ pub fn expand_gpui_form(
 
     let enable_koruma = koruma_options.is_some() || !parsed_koruma_fields.is_empty();
     let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
+    // Milestone M4 (backlog #13): `required_if` desugars to a koruma
+    // validator on the holder, so a form using it is a koruma form even
+    // without any other koruma opt-in — otherwise the rule would be
+    // display-only metadata, which backlog #13 explicitly rejects.
+    let has_required_if_fields = fields_iter
+        .iter()
+        .any(|field| !field.skip() && field.required_if.is_some());
+    let enable_koruma = enable_koruma || has_required_if_fields;
 
-    let koruma_validations: HashMap<String, Vec<String>> = parsed_koruma_fields
+    let mut koruma_validations: HashMap<String, Vec<String>> = parsed_koruma_fields
         .iter()
         .map(|(name, info)| {
             let mut validator_names: Vec<String> = info
@@ -180,6 +191,9 @@ pub fn expand_gpui_form(
 
     let mut field_optionality = Vec::new();
     let mut composition_errors: Vec<syn::Error> = Vec::new();
+    // Milestone M4 (backlog #12/#13): raw `required_if` sibling references,
+    // resolved against the full field list in a second pass below.
+    let mut raw_required_if: Vec<Option<syn::Ident>> = Vec::new();
     for field in fields_iter {
         let field_name = field.ident.clone().unwrap();
         let field_name_str = field_name.to_string();
@@ -195,6 +209,21 @@ pub fn expand_gpui_form(
             .map(|info| info.validation.clone())
             .unwrap_or_default();
         let default_expr = parse_field_default(field);
+
+        // Milestone M4 (backlog #12/#13): both dependency attributes live on
+        // component fields — the schema `FieldVariant` that records them is
+        // only emitted for component fields, and a rule invisible to metadata
+        // would silently degrade into runtime-only behavior.
+        if field.component.is_none() && (field.depends_on.is_some() || field.required_if.is_some())
+        {
+            composition_errors.push(syn::Error::new_spanned(
+                &field.ty,
+                format!(
+                    "field `{field_name_str}`: `depends_on`/`required_if` require a \
+                     `component(...)` attribute on the same field"
+                ),
+            ));
+        }
 
         // Milestone M3 (backlog #2/#3): resolve the composed holder shape.
         // Flat keeps the pre-M3 behavior byte-for-byte.
@@ -243,7 +272,141 @@ pub fn expand_gpui_form(
             from_expr: field.from.clone(),
             skip: field.skip(),
             composition,
+            depends_on: field.depends_on.as_ref().map(|sibling| sibling.0.clone()),
+            required_if: None,
         });
+        raw_required_if.push(field.required_if.as_ref().map(|sibling| sibling.0.clone()));
+    }
+
+    // Milestone M4 (backlog #12/#13): resolve sibling references.
+    //
+    // Both attributes name a sibling field of the SAME struct; the
+    // reference is existence-checked here so a typo fails at derive time.
+    // `required_if` additionally validates the target/sibling shapes and
+    // resolves the emitted validator identity plus the sibling's
+    // truthiness expression (R19: typed references desugared to a koruma
+    // validator closure — never a stringly expression language).
+    //
+    // Both attributes also require `component(...)` on the carrying field:
+    // the schema `FieldVariant` (their metadata home) is only emitted for
+    // component fields, and a rule invisible to metadata would silently
+    // degrade into runtime-only behavior.
+    {
+        let field_indexes: HashMap<String, usize> = field_optionality
+            .iter()
+            .enumerate()
+            .filter(|(_, field)| !field.skip)
+            .map(|(index, field)| (field.field_name.to_string(), index))
+            .collect();
+
+        for index in 0..field_optionality.len() {
+            let field_name = field_optionality[index].field_name.to_string();
+
+            if let Some(depends_on) = field_optionality[index].depends_on.clone() {
+                let depends_on_str = depends_on.to_string();
+                if !field_indexes.contains_key(&depends_on_str) {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &depends_on,
+                        format!(
+                            "`depends_on = {depends_on_str}` on field `{field_name}` must name a \
+                             non-skipped field of this struct"
+                        ),
+                    ));
+                }
+            }
+
+            if let Some(sibling) = raw_required_if[index].clone() {
+                let sibling_str = sibling.to_string();
+                let Some(&sibling_index) = field_indexes.get(&sibling_str) else {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &sibling,
+                        format!(
+                            "`required_if = {sibling_str}` on field `{field_name}` must name a \
+                             non-skipped field of this struct"
+                        ),
+                    ));
+                    continue;
+                };
+                if sibling_index == index {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &sibling,
+                        format!(
+                            "`required_if = {sibling_str}` on field `{field_name}` must name a \
+                             different field"
+                        ),
+                    ));
+                    continue;
+                }
+
+                let target = &field_optionality[index];
+                let target_option_wrapped = target.was_optional || target.wrap_in_option;
+                if !target.composition.is_flat() || !target_option_wrapped {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &sibling,
+                        format!(
+                            "`required_if` on field `{field_name}` requires a flat field whose \
+                             holder stores `Option<T>` (an `Option<T>` source field, or a \
+                             component that wraps in Option)"
+                        ),
+                    ));
+                    continue;
+                }
+
+                let controller = &field_optionality[sibling_index];
+                let controller_base = form_base_type(controller);
+                let controller_wrapped = should_wrap(controller);
+                let controller_is_bool = matches!(&controller_base, syn::Type::Path(type_path)
+                    if type_path.path.is_ident("bool"));
+                let condition = if !controller.composition.is_flat() {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &sibling,
+                        format!(
+                            "`required_if = {sibling_str}` sibling must be a flat bool or \
+                             Option field; composed (nested/list) fields cannot control \
+                             conditional requiredness in v1"
+                        ),
+                    ));
+                    continue;
+                } else if controller_wrapped {
+                    if controller_is_bool {
+                        RequiredIfCondition::SomeTrue
+                    } else {
+                        RequiredIfCondition::IsSome
+                    }
+                } else if controller_is_bool {
+                    RequiredIfCondition::Bool
+                } else {
+                    composition_errors.push(syn::Error::new_spanned(
+                        &sibling,
+                        format!(
+                            "`required_if = {sibling_str}` sibling must hold a bool or Option \
+                             value in the holder (found `{}`)",
+                            controller_base.to_token_stream()
+                        ),
+                    ));
+                    continue;
+                };
+
+                field_optionality[index].required_if = Some(RequiredIfRule {
+                    sibling,
+                    validator: format_ident!("{}FormRequiredIfValidation", struct_name),
+                    condition,
+                });
+            }
+        }
+
+        // Metadata: the resolved `required_if` fields record the stable
+        // "RequiredIfValidation" rule kind in their FieldVariant validation
+        // list (schema consumers/prototyping see the rule alongside the
+        // sibling reference emitted in the variant chain below).
+        for (index, field) in field_optionality.iter().enumerate() {
+            if raw_required_if[index].is_some() && field.required_if.is_some() {
+                koruma_validations
+                    .entry(field.field_name.to_string())
+                    .or_default()
+                    .push("RequiredIfValidation".to_string());
+            }
+        }
     }
 
     if let Some(first) = composition_errors.into_iter().reduce(|mut all, next| {
@@ -360,6 +523,24 @@ pub fn expand_gpui_form(
                     },
                     None => quote! {},
                 };
+                // Milestone M4 (backlog #12/#13): dependency payloads — the
+                // sibling's field name, i.e. the FieldPath name-segment
+                // representation (const-constructible `&'static str`, the
+                // inventory contract).
+                let depends_on_tokens = match field.depends_on.as_ref() {
+                    Some(sibling) => {
+                        let sibling_str = sibling.0.to_string();
+                        quote! { .with_depends_on(Some(#sibling_str)) }
+                    },
+                    None => quote! {},
+                };
+                let required_if_tokens = match field.required_if.as_ref() {
+                    Some(sibling) => {
+                        let sibling_str = sibling.0.to_string();
+                        quote! { .with_required_if(Some(#sibling_str)) }
+                    },
+                    None => quote! {},
+                };
 
                 // Feature #4 (METADATA-FIRST v1): emit non-rendering layout
                 // hints. Each string hint contributes a builder call only when
@@ -423,6 +604,8 @@ pub fn expand_gpui_form(
                     #custom_value_binding_tokens
                     #layout_tokens
                     #async_validator_tokens
+                    #depends_on_tokens
+                    #required_if_tokens
                 })
             } else {
                 None

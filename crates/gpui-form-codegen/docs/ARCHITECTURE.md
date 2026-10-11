@@ -62,6 +62,14 @@ Important parse-time responsibilities:
 - `file_picker` uses the runtime file-picker state and wraps selected paths in
   `Option<PathBuf>` by default
 
+Scope note (M4): the field-level dependency attributes
+`depends_on = <field>` / `required_if = <field>` are parsed in the DERIVE
+crate's darling layer (`structs.rs::ComponentField`), not here — this crate's
+`Components` enum parses the `component(...)` list only, and those attributes
+sit beside it at the field level. Their metadata lands on
+`FieldVariant::depends_on`/`required_if` (see `gpui-form-schema`); nothing in
+this crate consumes them.
+
 ## Component Layout Emission
 
 Each component implementation under `src/implementations/` emits two things:
