@@ -94,6 +94,24 @@ fn list_item_rejects_nested_item_forms_in_v1() {
 }
 
 #[test]
+fn gpui_form_compiles_field_dependencies_end_to_end() {
+    // M4 (backlog #12/#13): `depends_on` metadata + `required_if`
+    // conditional requiredness compile with the typed error surface the
+    // rule integrates into. No `koruma(fluent)` here, so no trybuild locale
+    // seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/field_dependencies_pass.rs");
+}
+
+#[test]
+fn required_if_rejects_unknown_sibling_fields() {
+    // M4: a typo'd sibling reference fails at derive time (R19 — typed
+    // references, not stringly rules that silently never fire).
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/required_if_unknown_sibling.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 

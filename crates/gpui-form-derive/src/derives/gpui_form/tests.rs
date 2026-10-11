@@ -897,6 +897,179 @@ mod gpui_form_tests {
         );
     }
 
+    // ── M4: dependency metadata + conditional-required desugaring ──────────
+
+    /// Token-level: the FieldVariant chain records both sibling references,
+    /// the "RequiredIfValidation" rule kind rides the validations list, the
+    /// holder attr gains the desugared validator builder with the sibling's
+    /// truthiness expression, and the per-form validator struct delegating
+    /// to core's `required_when` is emitted (backlog #12/#13, R19).
+    #[test]
+    fn dependency_metadata_and_required_if_desugaring_are_emitted() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        let expanded = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(switch))]
+                subscribe: bool,
+
+                #[gpui_form(component(input), depends_on = subscribe, required_if = subscribe)]
+                email: Option<String>,
+            }
+        });
+        let compact = compact_tokens(&expanded);
+
+        // Metadata: sibling references (FieldPath name-segment payloads).
+        assert!(
+            compact.contains(".with_depends_on(Some(\"subscribe\"))"),
+            "depends_on must be recorded: {compact}"
+        );
+        assert!(
+            compact.contains(".with_required_if(Some(\"subscribe\"))"),
+            "required_if must be recorded: {compact}"
+        );
+        assert!(
+            compact.contains("\"RequiredIfValidation\""),
+            "the conditional rule kind rides the validations list: {compact}"
+        );
+
+        // Desugaring: the per-form validator type is emitted and referenced
+        // from the holder field attr with the controlling sibling's
+        // truthiness expression, delegating to core's pure predicate.
+        assert!(
+            compact.contains("pubstructFormFormRequiredIfValidation<T>"),
+            "the per-form validator struct is emitted: {compact}"
+        );
+        assert!(
+            compact.contains(
+                "FormFormRequiredIfValidation::<Option<_>>::builder()\
+                 .when(::core::clone::Clone::clone(&self.subscribe))"
+            ),
+            "the holder attr desugars to the validator builder closing over \
+             the sibling's holder value: {compact}"
+        );
+        assert!(
+            compact.contains("::gpui_form::core::required_when(self.when,value.is_some())"),
+            "the validator delegates to core's required_when: {compact}"
+        );
+
+        // Forms without the attrs see zero diff (semver/additive rule).
+        let plain = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(input))]
+                email: Option<String>,
+            }
+        });
+        let plain = compact_tokens(&plain);
+        assert!(
+            !plain.contains("with_depends_on")
+                && !plain.contains("with_required_if")
+                && !plain.contains("FormRequiredIfValidation")
+                && !plain.contains("RequiredIfValidation"),
+            "forms without dependency attrs must see zero emission diff: {plain}"
+        );
+    }
+
+    /// The desugared validator's issue key reuses the already-localized
+    /// `validation.required` — no new locale keys (Feature 3's i18n-parity
+    /// preference).
+    #[test]
+    fn required_if_validator_maps_to_the_shared_required_key() {
+        use crate::derives::gpui_form::value_holder::validation_issue_key_for_kind;
+
+        assert_eq!(
+            validation_issue_key_for_kind("SignupFormFormRequiredIfValidation"),
+            "validation.required"
+        );
+        // Unrelated kinds keep the generic derivation.
+        assert_eq!(
+            validation_issue_key_for_kind("RangeValidation"),
+            "validation.range"
+        );
+    }
+
+    /// Sibling references are existence-checked: an unknown `required_if`
+    // sibling fails at derive time, not at name-resolution time in user
+    // code.
+    #[test]
+    fn dependency_attrs_validate_their_sibling_references() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        let unknown_required_if = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(input), required_if = nonexistent)]
+                email: Option<String>,
+            }
+        });
+        assert!(
+            unknown_required_if.contains("must name a non-skipped field of this struct"),
+            "unknown required_if sibling must fail at derive time: {unknown_required_if}"
+        );
+
+        let unknown_depends_on = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(input), depends_on = missing)]
+                email: Option<String>,
+            }
+        });
+        assert!(
+            unknown_depends_on.contains("must name a non-skipped field of this struct"),
+            "unknown depends_on sibling must fail at derive time: {unknown_depends_on}"
+        );
+
+        let non_optional_target = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(switch))]
+                subscribe: bool,
+
+                #[gpui_form(component(select), required_if = subscribe)]
+                email: String,
+            }
+        });
+        assert!(
+            non_optional_target.contains("holder stores `Option<T>`"),
+            "a target whose holder is not Option-wrapped must fail: {non_optional_target}"
+        );
+
+        let bare_field = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(switch))]
+                subscribe: bool,
+
+                #[gpui_form(required_if = subscribe)]
+                email: String,
+            }
+        });
+        assert!(
+            bare_field.contains("require a `component(...)` attribute"),
+            "dependency attrs on component-less fields must fail: {bare_field}"
+        );
+    }
+
     // ── M3: nested/list expansion surfaces ─────────────────────────────────
 
     // token-level: the flat-form expansion is pinned byte-for-byte (the M3

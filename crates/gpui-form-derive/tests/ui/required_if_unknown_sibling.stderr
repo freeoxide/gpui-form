@@ -1,0 +1,5 @@
+error: `required_if = subscribes` on field `email` must name a non-skipped field of this struct
+  --> tests/ui/required_if_unknown_sibling.rs:10:49
+   |
+10 |     #[gpui_form(component(input), required_if = subscribes)]
+   |                                                 ^^^^^^^^^^
