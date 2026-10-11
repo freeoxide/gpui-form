@@ -11,6 +11,8 @@ app:
   picked: "Sélectionné"
   paths: "Chemins"
   dirty: "modifié"
+  changed: "champs modifiés"
+  touched: "champs visités"
   paths_note: "Chemins de champs typés (session_id ignoré est absent) :"
 signup:
   username_label: "Nom d'utilisateur"

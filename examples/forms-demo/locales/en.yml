@@ -11,6 +11,8 @@ app:
   picked: "Picked"
   paths: "Paths"
   dirty: "dirty"
+  changed: "changed fields"
+  touched: "touched fields"
   paths_note: "Typed field paths (skipped session_id is absent):"
 signup:
   username_label: "Username"

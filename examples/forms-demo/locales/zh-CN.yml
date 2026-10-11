@@ -11,6 +11,8 @@ app:
   picked: "已选择"
   paths: "路径"
   dirty: "已修改"
+  changed: "已变更字段"
+  touched: "已触碰字段"
   paths_note: "类型化字段路径（skip 的 session_id 不存在）："
 signup:
   username_label: "用户名"

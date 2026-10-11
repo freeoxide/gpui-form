@@ -54,13 +54,18 @@ plain selects over `SelectItem(fluent)` enums, checkbox and switch bool fields,
 a newtype-backed field with inner koruma validation (`#[koruma(newtype)]` invite
 code whose `Inner` error is mapped to a localized key), a form-bound
 `component(date_picker)` field, and a `#[gpui_form(skip)]` field that is absent
-from the holder and typed paths (shown live in the footer). Standalone runtime
+from the holder and typed paths (shown live in the footer). The app drives the
+generated `SignupFormState` facade: inputs mark touched on blur and other
+component kinds on change, the footer lists the live changed/touched fields
+through `FieldPath` Display, and per-field errors render through
+`error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
+koruma validation or builds a throwaway dirty-check clone. Standalone runtime
 components add a date picker and a multiple-mode file picker whose pluralized
 count text follows the locale. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,
-`FormState::is_dirty`, picked paths count, and the typed field paths.
+dirty/changed/touched state, picked paths count, and the typed field paths.
 
 Run it with:
 

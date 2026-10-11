@@ -205,7 +205,7 @@ inventory or codegen workflows change.
   Run with `cargo run -p prototyping`.
 
 - `examples/forms-demo`
-  Standalone GPUI demo app on the current stack: one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and `FormState` dirty tracking with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
+  Standalone GPUI demo app on the current stack: one `#[derive(GpuiForm)]` form covering the edge cases — required and optional validators, searchable/plain selects, checkbox/switch, a `#[koruma(newtype)]` field with localized `Inner` errors, a form-bound date picker, and a `#[gpui_form(skip)]` field — plus standalone date/file-picker runtime components (the file picker exercises pluralized count text), localized `validation.*` error rendering with regression tests, live EN/FR/中文 locale switching through the `gpui-form-i18n` bridge, and field-level state via the generated `SignupFormState` facade (touched tracking, changed-field list, `error_for` per-field errors) with typed field paths. This is the buildable GUI app CI ships as the `forms-demo-macos` artifact.
 
   Run with `cargo run -p forms-demo`.
 

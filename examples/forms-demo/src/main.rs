@@ -124,7 +124,8 @@ pub struct Signup {
 }
 
 struct FormsDemo {
-    data: SignupFormValueHolder,
+    form: SignupFormState,
+    validation: Option<SignupFormFieldErrors>,
     fields: SignupFormFields,
     standalone_picker: Entity<DatePickerState>,
     file_picker: Entity<FilePickerState>,
@@ -136,7 +137,7 @@ struct FormsDemo {
 
 impl FormsDemo {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let data = SignupFormValueHolder::default();
+        let form = SignupFormState::new(SignupFormValueHolder::default());
         let username_input = cx.new(|cx| SignupFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| SignupFormComponents::email_input(window, cx));
         let age_number_input = cx.new(|cx| SignupFormComponents::age_number_input(window, cx));
@@ -162,7 +163,8 @@ impl FormsDemo {
         ];
 
         Self {
-            data,
+            form,
+            validation: None,
             fields: SignupFormFields {
                 username_input,
                 email_input,
@@ -181,6 +183,13 @@ impl FormsDemo {
         }
     }
 
+    /// Recompute the path-keyed validation map. Called from the Validate
+    /// button and (once validation is displayed) from change handlers, so
+    /// `render` never runs koruma validation per frame.
+    fn revalidate(&mut self) {
+        self.validation = Some(self.form.current().validate_fields());
+    }
+
     fn on_username_change(
         &mut self,
         state: &Entity<InputState>,
@@ -188,13 +197,25 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let InputEvent::Change = event {
-            let text = state.read(cx).value();
-            self.data.username = if text.is_empty() {
-                None
-            } else {
-                Some(text.to_string())
-            };
+        match event {
+            // Input family: touched on blur (verified InputEvent surface).
+            InputEvent::Blur => {
+                self.form.touch(&SignupFormPath::username());
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().username = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
+                if self.validation.is_some() {
+                    self.revalidate();
+                }
+                cx.notify();
+            },
+            _ => {},
         }
     }
 
@@ -205,13 +226,24 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let InputEvent::Change = event {
-            let text = state.read(cx).value();
-            self.data.email = if text.is_empty() {
-                None
-            } else {
-                Some(text.to_string())
-            };
+        match event {
+            InputEvent::Blur => {
+                self.form.touch(&SignupFormPath::email());
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().email = if text.is_empty() {
+                    None
+                } else {
+                    Some(text.to_string())
+                };
+                if self.validation.is_some() {
+                    self.revalidate();
+                }
+                cx.notify();
+            },
+            _ => {},
         }
     }
 
@@ -222,9 +254,20 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let InputEvent::Change = event {
-            let text = state.read(cx).value();
-            self.data.age = text.parse::<u32>().ok();
+        match event {
+            InputEvent::Blur => {
+                self.form.touch(&SignupFormPath::age());
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().age = text.parse::<u32>().ok();
+                if self.validation.is_some() {
+                    self.revalidate();
+                }
+                cx.notify();
+            },
+            _ => {},
         }
     }
 
@@ -237,13 +280,28 @@ impl FormsDemo {
     ) {
         let NumberInputEvent::Step(step_action) = event;
         let next = match step_action {
-            StepAction::Increment => self.data.age.unwrap_or_default().saturating_add(1),
-            StepAction::Decrement => self.data.age.unwrap_or_default().saturating_sub(1),
+            StepAction::Increment => self
+                .form
+                .current()
+                .age
+                .unwrap_or_default()
+                .saturating_add(1),
+            StepAction::Decrement => self
+                .form
+                .current()
+                .age
+                .unwrap_or_default()
+                .saturating_sub(1),
         };
-        self.data.age = Some(next);
+        self.form.current_mut().age = Some(next);
+        self.form.touch(&SignupFormPath::age());
+        if self.validation.is_some() {
+            self.revalidate();
+        }
         state.update(cx, |input, cx| {
             input.set_value(next.to_string(), window, cx);
         });
+        cx.notify();
     }
 
     fn on_country_confirm(
@@ -251,10 +309,17 @@ impl FormsDemo {
         _: &Entity<SelectState<SearchableVec<Country>>>,
         event: &SelectEvent<SearchableVec<Country>>,
         _: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         let SelectEvent::Confirm(value) = event;
-        self.data.country = value.clone();
+        self.form.current_mut().country = value.clone();
+        // Select-kind components mark touched on value change until their
+        // blur surfaces are verified.
+        self.form.touch(&SignupFormPath::country());
+        if self.validation.is_some() {
+            self.revalidate();
+        }
+        cx.notify();
     }
 
     fn on_language_confirm(
@@ -262,11 +327,16 @@ impl FormsDemo {
         _: &Entity<SelectState<Vec<Language>>>,
         event: &SelectEvent<Vec<Language>>,
         _: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         let SelectEvent::Confirm(value) = event;
         if let Some(value) = value {
-            self.data.language = value.clone();
+            self.form.current_mut().language = value.clone();
+            self.form.touch(&SignupFormPath::language());
+            if self.validation.is_some() {
+                self.revalidate();
+            }
+            cx.notify();
         }
     }
 
@@ -277,13 +347,24 @@ impl FormsDemo {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let InputEvent::Change = event {
-            let text = state.read(cx).value();
-            self.data.code = if text.is_empty() {
-                None
-            } else {
-                text.parse::<RequestCode>().ok()
-            };
+        match event {
+            InputEvent::Blur => {
+                self.form.touch(&SignupFormPath::code());
+                cx.notify();
+            },
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                self.form.current_mut().code = if text.is_empty() {
+                    None
+                } else {
+                    text.parse::<RequestCode>().ok()
+                };
+                if self.validation.is_some() {
+                    self.revalidate();
+                }
+                cx.notify();
+            },
+            _ => {},
         }
     }
 
@@ -292,10 +373,16 @@ impl FormsDemo {
         _: &Entity<DatePickerState>,
         event: &DatePickerEvent,
         _: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         let DatePickerEvent::Change(date) = event;
-        self.data.birth_date = date.and_then(gpui_form::runtime::date_picker::parse_form_date);
+        self.form.current_mut().birth_date =
+            date.and_then(gpui_form::runtime::date_picker::parse_form_date);
+        self.form.touch(&SignupFormPath::birth_date());
+        if self.validation.is_some() {
+            self.revalidate();
+        }
+        cx.notify();
     }
 
     fn on_standalone_pick(
@@ -345,6 +432,31 @@ impl FormsDemo {
         *self = Self::new(window, cx);
         cx.notify();
     }
+
+    /// Localized error text for one field, selected through the typed path
+    /// (`error_for`) instead of hand-matching koruma output per field.
+    fn localized_path_error(&self, locale: &str, field: &SignupFormPath) -> Option<String> {
+        let errors = self.validation.as_ref()?;
+        let field_error = errors.error_for(field)?;
+        if let SignupFormFieldError::Code(wrapper) = &field_error {
+            // The invite code fails either its synthetic required rule or
+            // inside the RequestCode newtype; the derive cannot name inner
+            // validator kinds, so keep the app-level mapping for them.
+            return localized_field_error(&wrapper.all(), locale, |v| match v {
+                SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
+                    "validation.required"
+                },
+                SignupFormValueHolderCodeKorumaValidator::Inner(inner) => {
+                    if inner.value().len_validation().is_some() {
+                        "validation.len"
+                    } else {
+                        "validation.invalid"
+                    }
+                },
+            });
+        }
+        Some(localized_issue_keys(&field_error.issue_keys(), locale))
+    }
 }
 
 fn localized_field_error<E>(
@@ -360,6 +472,14 @@ fn localized_field_error<E>(
     })
 }
 
+/// Render the generated `issue_keys()` list through `validation.*` locales.
+fn localized_issue_keys(keys: &[&'static str], locale: &str) -> String {
+    keys.iter()
+        .map(|key| t!(*key, locale = locale).to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 impl Focusable for FormsDemo {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
@@ -368,47 +488,31 @@ impl Focusable for FormsDemo {
 
 impl Render for FormsDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let validation_errors = self.data.validate().err();
+        // Validation is event-driven (revalidate on change once displayed);
+        // the generated facade owns the baseline, so render neither runs
+        // koruma validation nor builds a throwaway FormState + holder clone.
         let active_locale = rust_i18n::locale().to_string();
-        let username_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.username().all(), &active_locale, |v| match v {
-                SignupFormValueHolderUsernameKorumaValidator::RequiredValidation(_) => {
-                    "validation.required"
-                },
-                SignupFormValueHolderUsernameKorumaValidator::NonEmptyValidation(_) => {
-                    "validation.non_empty"
-                },
-            })
-        });
-        let email_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.email().all(), &active_locale, |v| match v {
-                SignupFormValueHolderEmailKorumaValidator::EmailValidation(_) => "validation.email",
-            })
-        });
-        let age_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.age().all(), &active_locale, |v| match v {
-                SignupFormValueHolderAgeKorumaValidator::RangeValidation(_) => "validation.range",
-            })
-        });
-        let code_error = validation_errors.as_ref().and_then(|e| {
-            localized_field_error(&e.code().all(), &active_locale, |v| match v {
-                SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
-                    "validation.required"
-                },
-                SignupFormValueHolderCodeKorumaValidator::Inner(inner) => {
-                    if inner.value().len_validation().is_some() {
-                        "validation.len"
-                    } else {
-                        "validation.invalid"
-                    }
-                },
-            })
-        });
+        let username_error = self.localized_path_error(&active_locale, &SignupFormPath::username());
+        let email_error = self.localized_path_error(&active_locale, &SignupFormPath::email());
+        let age_error = self.localized_path_error(&active_locale, &SignupFormPath::age());
+        let code_error = self.localized_path_error(&active_locale, &SignupFormPath::code());
         let danger = cx.theme().danger;
 
-        let mut form_state = gpui_form::FormState::new(SignupFormValueHolder::default());
-        form_state.replace_current(self.data.clone());
-        let dirty = form_state.is_dirty();
+        let dirty = self.form.is_dirty();
+        let changed = self
+            .form
+            .changed_fields()
+            .iter()
+            .map(|path| path.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let touched = self
+            .form
+            .touched_fields()
+            .iter()
+            .map(|path| path.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
 
         v_flex()
             .size_full()
@@ -505,9 +609,13 @@ impl Render for FormsDemo {
                             .label(t!(SignupFormValueHolder::NEWSLETTER_LABEL_KEY).to_string())
                             .child(
                                 Checkbox::new("newsletter-checkbox")
-                                    .checked(self.data.newsletter)
+                                    .checked(self.form.current().newsletter)
                                     .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                        this.data.newsletter = *checked;
+                                        this.form.current_mut().newsletter = *checked;
+                                        this.form.touch(&SignupFormPath::newsletter());
+                                        if this.validation.is_some() {
+                                            this.revalidate();
+                                        }
                                         cx.notify();
                                     })),
                             ),
@@ -517,9 +625,13 @@ impl Render for FormsDemo {
                             .label(t!(SignupFormValueHolder::NOTIFICATIONS_LABEL_KEY).to_string())
                             .child(
                                 Switch::new("notifications-switch")
-                                    .checked(self.data.notifications)
+                                    .checked(self.form.current().notifications)
                                     .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                        this.data.notifications = *checked;
+                                        this.form.current_mut().notifications = *checked;
+                                        this.form.touch(&SignupFormPath::notifications());
+                                        if this.validation.is_some() {
+                                            this.revalidate();
+                                        }
                                         cx.notify();
                                     })),
                             ),
@@ -575,10 +687,15 @@ impl Render for FormsDemo {
                             .primary()
                             .label(t!("app.validate").to_string())
                             .on_click(cx.listener(|this, _, _, cx| {
-                                this.status = Some(match this.data.validate() {
-                                    Ok(_) => t!("app.all_valid").to_string().into(),
-                                    Err(_) => t!("app.invalid").to_string().into(),
-                                });
+                                this.revalidate();
+                                this.status = Some(
+                                    if this.validation.as_ref().is_some_and(|e| e.is_empty()) {
+                                        t!("app.all_valid").to_string()
+                                    } else {
+                                        t!("app.invalid").to_string()
+                                    }
+                                    .into(),
+                                );
                                 cx.notify();
                             })),
                     )
@@ -595,6 +712,8 @@ impl Render for FormsDemo {
                     .text_color(cx.theme().muted_foreground)
                     .child(format!("locale: {}", &*rust_i18n::locale()))
                     .child(format!("{}: {dirty}", t!("app.dirty")))
+                    .child(format!("{}: {changed}", t!("app.changed")))
+                    .child(format!("{}: {touched}", t!("app.touched")))
                     .child(format!(
                         "{}: {}",
                         t!("app.paths"),
@@ -662,6 +781,8 @@ mod tests {
         "app.picked",
         "app.paths",
         "app.dirty",
+        "app.changed",
+        "app.touched",
         "app.paths_note",
         "signup.username_label",
         "signup.email_label",
@@ -822,5 +943,99 @@ mod label_keys {
             );
         }
         rust_i18n::set_locale("en");
+    }
+}
+
+#[cfg(test)]
+mod field_level_state_tests {
+    use crate::{RequestCode, SignupFormPath, SignupFormState, SignupFormValueHolder};
+    use gpui_form::core::FormFieldErrors;
+
+    #[test]
+    fn facade_tracks_dirty_changed_and_touched_together() {
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        assert!(!state.is_dirty());
+        assert!(!state.is_any_touched());
+
+        state.current_mut().username = Some("ada".to_string());
+        state.touch(&SignupFormPath::username());
+
+        assert!(state.is_dirty());
+        assert!(state.is_field_dirty(&SignupFormPath::username()));
+        assert!(!state.is_field_dirty(&SignupFormPath::email()));
+        assert_eq!(
+            state
+                .changed_fields()
+                .iter()
+                .map(|path| path.to_string())
+                .collect::<Vec<_>>(),
+            vec!["username"]
+        );
+        assert_eq!(
+            state
+                .touched_fields()
+                .iter()
+                .map(|path| path.to_string())
+                .collect::<Vec<_>>(),
+            vec!["username"]
+        );
+
+        // Full reset is a fresh canvas: values, touched, and dirty all clear.
+        state.reset_to_baseline();
+        assert!(!state.is_dirty());
+        assert!(!state.is_any_touched());
+        assert!(state.changed_fields().is_empty());
+    }
+
+    #[test]
+    fn patch_reports_only_the_edited_slot() {
+        let mut state = SignupFormState::new(SignupFormValueHolder::default());
+        state.current_mut().age = Some(42);
+        let patch = state.patch();
+        assert!(patch.age.is_some());
+        assert!(patch.username.is_none());
+        let age_slot: Option<Option<u32>> = patch.age;
+        assert_eq!(age_slot, Some(Some(42)));
+    }
+
+    #[test]
+    fn error_for_paths_map_to_localizable_keys() {
+        // Default holder: username fails synthetic required + non-empty.
+        let errors = SignupFormValueHolder::default().validate_fields();
+        assert!(errors.has_errors());
+        let username = errors
+            .error_for(&SignupFormPath::username())
+            .expect("username must fail");
+        // Empty input fails the synthetic required rule; NonEmpty only fires
+        // once a value is present (matching koruma's optional-field skip).
+        assert_eq!(username.issue_keys(), vec!["validation.required"]);
+        // Fields without koruma rules never appear, valid or not.
+        assert!(errors.error_for(&SignupFormPath::country()).is_none());
+
+        // The newtype invite code fails inside its inner type; the derive
+        // reports the generic invalid key there.
+        let holder = SignupFormValueHolder {
+            username: Some("ada".to_string()),
+            code: Some(RequestCode::from("A".to_string())),
+            ..Default::default()
+        };
+        let errors = holder.validate_fields();
+        let code = errors
+            .error_for(&SignupFormPath::code())
+            .expect("short invite code must fail");
+        assert_eq!(code.issue_keys(), vec!["validation.invalid"]);
+
+        let paths = errors.failing_paths();
+        let names: Vec<String> = paths.iter().map(|path| path.to_string()).collect();
+        // `age` is originally optional: its range rule skips `None`, so only
+        // the invite code fails.
+        assert_eq!(names, vec!["code"]);
+    }
+
+    #[test]
+    fn path_tables_cover_every_non_skipped_field() {
+        assert_eq!(SignupFormPath::FIELD_COUNT, 9);
+        assert_eq!(SignupFormPath::all_paths().count(), 9);
+        assert!(!SignupFormPath::FIELD_NAMES.contains(&"session_id"));
     }
 }
