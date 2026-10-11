@@ -896,4 +896,281 @@ mod gpui_form_tests {
             "forms without the attr must see zero metadata diff: {without_attr}"
         );
     }
+
+    // ── M3: nested/list expansion surfaces ─────────────────────────────────
+
+    // token-level: the flat-form expansion is pinned byte-for-byte (the M3
+    // DoD regression — existing flat forms must emit stable tokens so no
+    // published surface churns; the snapshot is updated deliberately when a
+    // flat emission shape changes, like the D8 PathSegment routing did).
+    #[test]
+    fn flat_form_expansion_snapshot_is_pinned() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Plain {
+                #[gpui_form(component(input))]
+                name: String,
+            }
+        };
+
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+
+        let compact = compact_tokens(&expanded.to_string());
+        // One golden per feature state of THIS build: the `serde` feature
+        // adds Serialize/Deserialize derives to the holder and patch.
+        let snapshot = if cfg!(feature = "serde") {
+            include_str!("../../../tests/snapshots/flat_form_expansion_serde.txt")
+        } else {
+            include_str!("../../../tests/snapshots/flat_form_expansion.txt")
+        };
+        let snapshot: String = snapshot.chars().filter(|c| !c.is_whitespace()).collect();
+        assert_eq!(
+            compact.lines().next().unwrap_or_default(),
+            snapshot.lines().next().unwrap_or_default(),
+            "flat-form expansion changed; update the matching              tests/snapshots/flat_form_expansion*.txt DELIBERATELY if the change is intended"
+        );
+    }
+
+    // token-level: M3 nested/list metadata + holder surfaces (feature #7)
+    #[test]
+    fn nested_and_list_fields_emit_composition_metadata_and_holder_ops() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        let nested = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Resident {
+                #[gpui_form(component(input))]
+                name: String,
+
+                #[gpui_form(component(nested))]
+                address: Address,
+            }
+        });
+        let nested = compact_tokens(&nested);
+        assert!(
+            nested.contains("pubaddress:AddressFormValueHolder"),
+            "nested holder field is the nested form's holder (Plain storage): {nested}"
+        );
+        assert!(
+            nested.contains("NestedBehaviour{form_struct:\"Address\","),
+            "FieldVariant carries the nested form struct name: {nested}"
+        );
+        assert!(
+            nested.contains("pubfnaddress_root()"),
+            "nested fields gain a root path constructor: {nested}"
+        );
+        assert!(
+            nested.contains("pubfnaddress(self)"),
+            "nested fields gain a consuming path appender: {nested}"
+        );
+        assert!(
+            !nested.contains("pubfnaddress()"),
+            "nested fields have no zero-arg constructor to collide with the appender: {nested}"
+        );
+
+        let list = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Tags {
+                #[gpui_form(component(list(item = input)))]
+                tags: Vec<String>,
+            }
+        });
+        let list = compact_tokens(&list);
+        assert!(
+            list.contains("pubtags:Vec<String>"),
+            "scalar list items store the plain Vec (v1: no per-item Option): {list}"
+        );
+        assert!(
+            list.contains("ListBehaviour{item:"),
+            "FieldVariant carries the scalar item kind: {list}"
+        );
+        assert!(
+            list.contains("pubfnadd_tags(&mutself,value:String)"),
+            "the holder gains add_<field>: {list}"
+        );
+        assert!(
+            list.contains("pubfnremove_tags(&mutself,index:usize)"),
+            "the holder gains remove_<field>: {list}"
+        );
+        assert!(
+            list.contains("pubfntags_items(&self)->&[String]"),
+            "the holder gains <field>_items: {list}"
+        );
+        assert!(
+            list.contains("pubfntags(index:usize)"),
+            "list fields gain a typed-index path constructor: {list}"
+        );
+        assert!(
+            list.contains("PathSegment::Index(index)"),
+            "the item path carries a typed index segment, never a string: {list}"
+        );
+        assert!(
+            list.contains("pubfntags_root()"),
+            "list fields keep a root path constructor: {list}"
+        );
+        // v1 ships add/remove only — no reorder surface.
+        assert!(
+            !list.contains("reorder") && !list.contains("swap_"),
+            "v1 must not emit reorder operations: {list}"
+        );
+    }
+
+    #[test]
+    fn list_fields_mirror_element_validators_as_each_and_errors_carry_index() {
+        let tokens = quote! {
+            #[derive(GpuiForm, koruma::Koruma)]
+            struct Tags {
+                #[gpui_form(component(list(item = input)))]
+                #[koruma(each(koruma_collection::collection::LenValidation::<_>::builder().min(2).max(20)))]
+                tags: Vec<String>,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+        let compact = compact_tokens(&expanded.to_string());
+
+        // Element validators stay element-scoped on the holder so koruma
+        // reports per-item indices (flat fields keep the pre-M3 flat
+        // mirroring — see the hazard-4 note in value_holder.rs).
+        assert!(
+            compact.contains("#[koruma(each(koruma_collection::collection::LenValidation::<_>::builder().min(2).max(20)))]"),
+            "element validators mirror onto list holder fields inside each(..): {compact}"
+        );
+        assert!(
+            compact.contains("pubfnTags_element_error(&self,index:usize)")
+                || compact.contains("pubfntags_element_error(&self,index:usize)"),
+            "the error map gains the index-addressable element-error accessor: {compact}"
+        );
+        assert!(
+            compact.contains("pubindex:"),
+            "the conversion error type carries the additive index slot: {compact}"
+        );
+    }
+
+    #[test]
+    fn nested_koruma_marker_mirrors_without_other_validators() {
+        let tokens = quote! {
+            #[derive(GpuiForm, koruma::Koruma)]
+            struct Resident {
+                #[gpui_form(component(nested))]
+                #[koruma(nested)]
+                address: Address,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+        let compact = compact_tokens(&expanded.to_string());
+
+        assert!(
+            compact.contains("#[koruma(nested)]"),
+            "a bare #[koruma(nested)] must mirror onto the holder so the top-level error getter exists: {compact}"
+        );
+        assert!(
+            compact.contains("<AddressFormValueHolderas::koruma::ValidateExt>::Error"),
+            "the nested slot's inner type is the nested form holder's ValidateExt error: {compact}"
+        );
+    }
+
+    // token-level: the flat koruma(nested)-only case keeps its pre-M3
+    // emission — no mirrored marker, no nested error slot. This is the
+    // flat-form byte-identity guard for the `has_nested` mirror gate
+    // (finding: the gate must key on the composition, not is_nested).
+    #[test]
+    fn bare_koruma_nested_on_flat_fields_keeps_pre_m3_emission() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        // FLAT field (no component) with a bare #[koruma(nested)]: pre-M3
+        // behavior — no attr is mirrored onto the holder, so the field has
+        // no koruma getter and joins neither the validation nor the error
+        // map.
+        let flat = expand(quote! {
+            #[derive(GpuiForm, koruma::Koruma)]
+            struct Legacy {
+                #[koruma(nested)]
+                address: Address,
+            }
+        });
+        let flat = compact_tokens(&flat);
+        assert!(
+            !flat.contains("#[koruma(nested)]"),
+            "flat fields with a bare #[koruma(nested)] must NOT gain a mirrored marker (pre-M3 emission): {flat}"
+        );
+        assert!(
+            !flat.contains("as::koruma::ValidateExt>::Error"),
+            "flat fields with a bare #[koruma(nested)] must not join the error map's nested slot: {flat}"
+        );
+
+        // The composed case (component(nested) + #[koruma(nested)]) still
+        // mirrors — the M3 need.
+        let composed = expand(quote! {
+            #[derive(GpuiForm, koruma::Koruma)]
+            struct Resident {
+                #[gpui_form(component(nested))]
+                #[koruma(nested)]
+                address: Address,
+            }
+        });
+        let composed = compact_tokens(&composed);
+        assert!(
+            composed.contains("#[koruma(nested)]"),
+            "component(nested) fields keep the bare-marker mirroring: {composed}"
+        );
+    }
+
+    #[test]
+    fn list_component_requires_vec_field_type() {
+        let tokens = quote! {
+            #[derive(GpuiForm)]
+            struct Bad {
+                #[gpui_form(component(list(item = input)))]
+                tags: String,
+            }
+        };
+        let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+        let expanded = expansion::expand_gpui_form(
+            derive_input,
+            structs::GpuiFormOptions {
+                generate_shape: true,
+            },
+        );
+        let message = expanded.to_string();
+        assert!(
+            message.contains("requires the field type to be Vec<T>"),
+            "non-Vec list fields error at expansion time: {message}"
+        );
+    }
 }

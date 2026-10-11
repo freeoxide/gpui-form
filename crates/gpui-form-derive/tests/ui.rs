@@ -53,6 +53,47 @@ fn async_validate_attr_rejects_malformed_arguments() {
 }
 
 #[test]
+fn gpui_form_compiles_nested_and_list_end_to_end() {
+    // M3 (backlog #2/#3): nested forms + scalar-item lists compile with the
+    // M1 error surface and M1 state facade over composed paths (hazard 10:
+    // the happy path must be pinned because name-resolution failures for
+    // non-GpuiForm nested types only surface in user code). No
+    // `koruma(fluent)` here, so no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/nested_list_pass.rs");
+}
+
+#[test]
+fn list_component_requires_an_item_kind() {
+    // M3: a bare `component(list)` is a parse error.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_requires_item.rs");
+}
+
+#[test]
+fn list_item_rejects_unknown_kinds() {
+    // M3: `item = banana` is an unknown-value darling error.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_unknown_kind.rs");
+}
+
+#[test]
+fn list_item_rejects_custom_components() {
+    // M3 v1 boundary: custom components are app-owned escape hatches, not
+    // list items.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_custom_rejected.rs");
+}
+
+#[test]
+fn list_item_rejects_nested_item_forms_in_v1() {
+    // M3 v1 boundary (backlog #3): scalar item components before nested
+    // item forms — `item = nested` is rejected until the post-v1 milestone.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_nested_not_yet.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 

@@ -1,0 +1,5 @@
+error: Unexpected type `call`
+ --> tests/ui/list_item_custom_rejected.rs:8:39
+  |
+8 |     #[gpui_form(component(list(item = custom(shape = crate::TagsShape))))]
+  |                                       ^^^^^^
