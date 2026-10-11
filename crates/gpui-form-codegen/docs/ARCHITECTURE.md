@@ -38,6 +38,11 @@ crate.
 - `SelectOptions`
 - `InfiniteSelectOptions`
 - `CustomOptions`
+- `NestedOptions` (milestone M3: word-only marker — the field's own type
+  names the nested form struct)
+- `ListOptions` + `ListItemSpec` (milestone M3: `list(item = <scalar kind>)`
+  with an optional `add_label`; `item = nested` and `item = custom(...)` are
+  parse-time rejections per the backlog's v1 sequencing)
 - `DatePickerOptions`
 - `FilePickerOptions`
 
