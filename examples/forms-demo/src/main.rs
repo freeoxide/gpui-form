@@ -1,6 +1,8 @@
 #![recursion_limit = "1024"]
 
-use gpui::{
+// `gpui_kit` re-exports itself as `gpui` (0.7.3); the leading `::` keeps this
+// import bound to the extern crate under the glob import below.
+use ::gpui::{
     App, AppContext as _, Context, Div, Entity, FocusHandle, Focusable, InteractiveElement as _,
     IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
     Window, div,

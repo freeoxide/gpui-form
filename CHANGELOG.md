@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Bumped the GPUI stack: `gpui-kit`/`gpui-kit-assets` 0.7.0 → 0.7.3 and
+  `gpui-pre`/`gpui-pre-platform` 0.3.7 → 0.3.9 (0.7.1+ hard-pin the newer
+  `gpui-pre`, so the two move together). No API changes in this workspace;
+  406 workspace tests, clippy, fmt, and the release `forms-demo` build are
+  green on the new stack. `gpui-kit` 0.7.3 re-exports itself as `gpui`, so
+  `forms-demo`'s `use gpui_kit::*;` glob now collides with the extern crate —
+  its gpui import is pinned with a leading `::`. The two demo-level focus
+  workarounds stay: 0.7.3 does not change the Input frame-focus split
+  (upstream longbridge/gpui-kit#3183 remains open).
+
 ## [0.10.0] - 2026-10-11
 
 Milestone 5 of the form feature-parity plan: schema export (backlog #14). A
