@@ -1,10 +1,13 @@
 use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_standard_field};
+use super::{
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    render_standard_field,
+};
 
 pub struct CheckboxCodeGenerator;
 
@@ -39,6 +42,8 @@ impl FieldCodeGenerator for CheckboxCodeGenerator {
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
+        // M4 (backlog #12): reset dependent fields when the toggle flips.
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("v"));
         let field_name_ident = field.field_ident();
         let component_gpui_type = field.component_ident();
 
@@ -52,6 +57,7 @@ impl FieldCodeGenerator for CheckboxCodeGenerator {
                     .checked(self.current_data.#field_name_ident)
                     .on_click(cx.listener(|v, _, _, _| {
                         v.current_data.#field_name_ident = !v.current_data.#field_name_ident;
+                        #dependent_resets
                     }))
             },
         )

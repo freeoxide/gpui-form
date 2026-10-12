@@ -26,10 +26,21 @@ for shape in inventory::iter::<GpuiFormShape>() {
 ## Main API
 
 - `FormShapeAdapter::parts()` returns validated identifiers, imports, and form
-  fragments for one shape
+  fragments for one shape. Milestone M3 (nested forms and repeated fields)
+  adds three fragments layouts should splice: `composed_struct_fields` /
+  `composed_struct_inits` (nested fields host the nested form's own scaffold
+  as an `Entity<<Nested>Form>`) and `composed_impl_members` (list fields get
+  a `<field>_list_control` row/add/remove helper). Nested/list keys collected
+  by `collect_i18n_keys` stay index-free: `{form}.{field}_label` for a nested
+  group; `{form}.{field}_label`, `{form}.{field}_item_label`,
+  `{form}.{field}_add`, and `{form}.{field}_remove` for a list.
 - `FormShapeAdapter::generate_file(&impl FormLayout)` renders a full file with
   your chosen layout
 - `FormLayout` lets callers define the overall file structure
+- `schema_markdown(&gpui_form::FormSchema)` renders the M5 schema-export
+  document (what `<Name>FormSchema::schema()` returns) as a Markdown
+  reference table — docs/fixture generation over the same metadata the
+  scaffolds consume
 - `PrototypingError` reports malformed metadata without panicking
 
 ## Example Workflow
@@ -83,6 +94,16 @@ doc-commented `<FORM>_I18N_KEYS` const) and `collect_i18n_keys(&GpuiFormShape)`
 lists every key a shape needs, so generators can scaffold the locale files.
 This crate's own `locales/{en,fr-FR,zh-CN}.yml` double as the reference
 template.
+
+## Field Dependencies (milestone M4)
+
+When a `FieldVariant` records `depends_on = <field>` (from
+`#[gpui_form(depends_on = ...)]`), the scaffold wires
+reset-on-parent-change placeholders: the parent component's generated change
+handling resets every dependent field's holder value (`None` for
+Option-wrapped holders, `Default` otherwise). Re-syncing the dependent's
+widget stays app-authored — clear it from the parent's change handler in the
+generated (or hand-written) consumer.
 
 ## Most Users Should Use Instead
 

@@ -1,0 +1,5 @@
+error: Unknown value: `banana`
+ --> tests/ui/list_item_unknown_kind.rs:8:27
+  |
+8 |     #[gpui_form(component(list(item = banana)))]
+  |                           ^^^^

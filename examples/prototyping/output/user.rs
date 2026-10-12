@@ -26,6 +26,8 @@ use ::gpui_kit::component::switch::Switch;
 /// - user.preferred_description
 /// - user.country_label
 /// - user.country_description
+/// - user.state_label
+/// - user.state_description
 /// - user.birth_date_label
 /// - user.birth_date_description
 #[allow(dead_code)]
@@ -44,6 +46,8 @@ pub const USER_I18N_KEYS: &[&str] = &[
     "user.preferred_description",
     "user.country_label",
     "user.country_description",
+    "user.state_label",
+    "user.state_description",
     "user.birth_date_label",
     "user.birth_date_description",
 ];
@@ -306,6 +310,20 @@ impl UserForm {
         match event {
             SelectEvent::Confirm(value) => {
                 self.current_data.country = value.clone();
+                self.current_data.state = ::core::option::Option::None;
+            }
+        }
+    }
+    fn on_state_select_event(
+        &mut self,
+        _this: &Entity<SelectState<Vec<EnumUsState>>>,
+        event: &SelectEvent<Vec<EnumUsState>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        match event {
+            SelectEvent::Confirm(value) => {
+                self.current_data.state = value.clone();
             }
         }
     }
@@ -336,6 +354,7 @@ impl UserForm {
         let preferred_select = cx
             .new(|cx| UserFormComponents::preferred_select(window, cx));
         let country_select = cx.new(|cx| UserFormComponents::country_select(window, cx));
+        let state_select = cx.new(|cx| UserFormComponents::state_select(window, cx));
         let birth_date_date_picker = cx
             .new(|cx| UserFormComponents::birth_date_date_picker(window, cx));
         let mut _subscriptions = vec![
@@ -350,6 +369,7 @@ impl UserForm {
             debt_number_input, window, Self::on_debt_number_input_event), cx
             .subscribe_in(& preferred_select, window, Self::on_preferred_select_event),
             cx.subscribe_in(& country_select, window, Self::on_country_select_event), cx
+            .subscribe_in(& state_select, window, Self::on_state_select_event), cx
             .subscribe_in(& birth_date_date_picker, window,
             Self::on_birth_date_date_picker_event)
         ];
@@ -408,6 +428,7 @@ impl UserForm {
                 debt_number_input,
                 preferred_select,
                 country_select,
+                state_select,
                 birth_date_date_picker,
             },
             focus_handle: cx.focus_handle(),
@@ -909,6 +930,37 @@ impl Render for UserForm {
                             })
                             .child(Select::new(&self.fields.country_select)),
                     )
+                    .child(
+                        field()
+                            .label({
+                                let key: &str = "user.state_label";
+                                let translated = ::rust_i18n::t!(key);
+                                if &*translated == key {
+                                    "State".to_string()
+                                } else {
+                                    translated.into_owned()
+                                }
+                            })
+                            .description_fn({
+                                let description = {
+                                    let key: &str = "user.state_description";
+                                    let translated = ::rust_i18n::t!(key);
+                                    if &*translated == key {
+                                        "State".to_string()
+                                    } else {
+                                        translated.into_owned()
+                                    }
+                                };
+                                move |_, _| {
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(div().child(description.clone()))
+                                }
+                            })
+                            .child(Select::new(&self.fields.state_select)),
+                    )
                     .child(field().label("Advanced"))
                     .child(
                         field()
@@ -971,7 +1023,8 @@ impl Render for UserForm {
                     .to_string(), UserFormPath::subscribe_newsletter().to_string(),
                     UserFormPath::enable_notifications().to_string(),
                     UserFormPath::preferred().to_string(), UserFormPath::country()
-                    .to_string(), UserFormPath::birth_date().to_string()] .join(", ")
+                    .to_string(), UserFormPath::state().to_string(),
+                    UserFormPath::birth_date().to_string()] .join(", ")
                 ),
             )
             .child(format!("value_holder: {:?}", self.current_data))

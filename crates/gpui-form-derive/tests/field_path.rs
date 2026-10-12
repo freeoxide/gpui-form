@@ -12,6 +12,7 @@
 //! source structs here WITHOUT a trailing `Form` so the generated path types
 //! read as `ProfileFormPath`, `CommentFormPath`, and `BlankFormPath`.
 
+use gpui_form::core::PathSegment;
 use gpui_form_derive::GpuiForm;
 
 /// Plain form with two fields: both get typed constructors.
@@ -49,14 +50,20 @@ fn typed_constructor_matches_explicit_new_via_path() {
     let explicit = ProfileFormPath::new(&["name"]);
 
     assert_eq!(typed.path(), explicit.path());
-    assert_eq!(typed.path().segments(), &["name"]);
+    assert_eq!(typed.path().segments(), &[PathSegment::Name("name")]);
 }
 
 #[test]
 fn each_non_skipped_field_gets_a_constructor() {
     // name and email are both non-skipped, so both constructors exist.
-    assert_eq!(ProfileFormPath::name().path().segments(), &["name"]);
-    assert_eq!(ProfileFormPath::email().path().segments(), &["email"]);
+    assert_eq!(
+        ProfileFormPath::name().path().segments(),
+        &[PathSegment::Name("name")]
+    );
+    assert_eq!(
+        ProfileFormPath::email().path().segments(),
+        &[PathSegment::Name("email")]
+    );
     // The two are distinct paths.
     assert_ne!(
         ProfileFormPath::name().path(),
@@ -78,7 +85,7 @@ fn display_formats_to_field_name() {
 fn into_path_yields_shared_field_path() {
     // into_path returns the headless shared primitive, dropping the typed wrapper.
     let path: ::gpui_form::core::FieldPath = ProfileFormPath::name().into_path();
-    assert_eq!(path.segments(), &["name"]);
+    assert_eq!(path.segments(), &[PathSegment::Name("name")]);
     assert_eq!(path.to_string(), "name");
 }
 
@@ -86,7 +93,7 @@ fn into_path_yields_shared_field_path() {
 fn deref_reaches_field_path() {
     // Deref<Target = FieldPath> exposes the primitive's methods directly.
     let typed = ProfileFormPath::name();
-    assert_eq!(typed.segments(), &["name"]);
+    assert_eq!(typed.segments(), &[PathSegment::Name("name")]);
     assert!(!typed.is_empty());
 }
 
@@ -95,13 +102,16 @@ fn as_ref_reaches_field_path() {
     // AsRef<FieldPath> reaches the same inner value.
     let typed = ProfileFormPath::email();
     let as_ref: &::gpui_form::core::FieldPath = typed.as_ref();
-    assert_eq!(as_ref.segments(), &["email"]);
+    assert_eq!(as_ref.segments(), &[PathSegment::Name("email")]);
 }
 
 #[test]
 fn skipped_field_has_no_constructor_but_others_do() {
     // `body` is non-skipped -> constructor exists.
-    assert_eq!(CommentFormPath::body().path().segments(), &["body"]);
+    assert_eq!(
+        CommentFormPath::body().path().segments(),
+        &[PathSegment::Name("body")]
+    );
     // `audit_id` is skipped -> there is NO `CommentFormPath::audit_id`. The
     // fact that this file compiles, while only `body` is referenced, proves the
     // type exists with the expected surface and the skipped field has no ctor.
@@ -113,9 +123,9 @@ fn empty_form_still_emits_path_type() {
     // Zero non-skipped fields: the type still exists with new()/path()/into_path()
     // and no per-field constructors.
     let typed = BlankFormPath::new(&["anything"]);
-    assert_eq!(typed.path().segments(), &["anything"]);
+    assert_eq!(typed.path().segments(), &[PathSegment::Name("anything")]);
     let owned: ::gpui_form::core::FieldPath = typed.into_path();
-    assert_eq!(owned.segments(), &["anything"]);
+    assert_eq!(owned.segments(), &[PathSegment::Name("anything")]);
 }
 
 #[test]
@@ -127,8 +137,8 @@ fn two_forms_have_non_mixable_path_types() {
 
     // Both wrap the same headless primitive, so their inner paths compare by
     // segment value when the segments happen to match...
-    assert_eq!(profile.path().segments(), &["name"]);
-    assert_eq!(comment.path().segments(), &["body"]);
+    assert_eq!(profile.path().segments(), &[PathSegment::Name("name")]);
+    assert_eq!(comment.path().segments(), &[PathSegment::Name("body")]);
 
     // ...but the typed wrappers are NOT comparable to each other (the lines
     // below would fail to compile if uncommented, proving non-mixability):

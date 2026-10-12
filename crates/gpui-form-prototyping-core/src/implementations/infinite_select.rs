@@ -3,13 +3,13 @@ use gpui_form_schema::{
     registry::{FieldVariant, GpuiFormShape},
 };
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_field_initializer,
-    generate_entity_focus,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    generate_entity_field_initializer, generate_entity_focus,
 };
 
 pub struct InfiniteSelectCodeGenerator;
@@ -101,7 +101,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
     fn generate_subscription(
         &self,
         field: &ResolvedField<'_>,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_type = field.value_type();
         let field_var_name_ident = field.field_ident_with_behaviour();
@@ -124,6 +124,9 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
         ];
 
+        // M4 (backlog #12): reset dependent fields when the selection changes.
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
+
         let handler = quote! {
             fn #event_handler_fn_name_ident(
                 &mut self,
@@ -133,6 +136,7 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
                 _cx: &mut Context<Self>,
             ) {
                 self.current_data.#field_name_ident = event.value().clone();
+                #dependent_resets
             }
         };
 

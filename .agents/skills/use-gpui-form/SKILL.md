@@ -62,6 +62,13 @@ sections by name instead of transcribing them.
   `PathBuf` fields.
 - `custom(...)` when the app owns the state/widget contract (state derive,
   `custom_component_shape!`, optional `value_binding`).
+- `nested` to compose another `#[derive(GpuiForm)]` struct: the holder stores
+  the nested form's `<Name>FormValueHolder`; add `#[koruma(nested)]` on the
+  source field to run the nested validators through the outer `validate()`.
+- `list(item = <scalar kind>)` to edit a `Vec<T>`: the holder gains
+  `add_<field>` / `remove_<field>` / `<field>_items`, and `each(...)`
+  element validators report failures per item index. v1 is scalar items
+  only (`item = nested` and `item = custom(...)` are parse errors).
 
 Full syntax inventory: root `README.md` §Component Syntax, or
 `references/api-map.md`.
@@ -80,8 +87,51 @@ Full syntax inventory: root `README.md` §Component Syntax, or
 - For typed field naming (validation, dirty tracking, focus, analytics, schema
   export), use the generated `<Name>FormPath` constructors such as
   `UserProfileFormPath::username()`; skipped fields have no constructor.
+- For nested forms, name the root with `<field>_root()` and compose deeper
+  paths with `join`:
+  `UserFormPath::address_root().join(&AddressFormPath::city())` names
+  `address.city`. Route nested errors with `error_for` over any
+  `<field>...` path, and re-key into the nested form's own map with
+  `<field>_errors()` when you need the inner validator kinds.
+- For repeated fields, name an item with `<field>(index)` — a typed index
+  segment, never a formatted string (`tags.2`). `error_for(&TagsFormPath::tags(2))`
+  is `Some` only when item 2 failed; `tags_element_error(2)` exposes the
+  element error directly. Touched/dirty track the whole list through
+  `<field>_root()` in v1.
 - For layout intent, attach non-rendering hints with `section`, `label`,
   `description`, `placeholder`, and `width`.
+- For submit flows, add `#[gpui_form(submit)]` and drive the generated
+  `<Name>FormSubmission` tracker yourself: `begin()` → your async save →
+  `finish(result)`. Gate the button on `can_submit()` plus the facade's
+  `is_valid()`; render failures through `last_error()` re-keyed with
+  `<Name>FormFieldErrors::from_koruma_errors`.
+- For live validity, call `state.validate()` from change handlers and read
+  `state.is_valid()` in render (cached verdict when fresh, accurate
+  recompute when stale — safe in render paths).
+- For async checks ("is this username taken?"), implement
+  `gpui_form::AsyncFieldValidation<Holder>` (one impl per form, `Ok(())` for
+  unhandled fields) and drive it from your own spawn; own debounce and
+  latest-wins cancellation app-side.
+- For fields that are required only while a sibling controls them
+  (`required_if = subscribe` on `email`), add the attribute next to the
+  component; violations flow through the normal typed error surface
+  (`error_for(&...FormPath::email())` → `issue_keys()` reports
+  `"validation.required"`), so existing locale entries render them.
+- For dependent fields (state follows country), add `depends_on = <field>` for
+  the metadata, and reset the dependent yourself from the parent's change
+  handler (clear the holder slot AND the widget) — the derive emits no event
+  wiring; prototyping scaffolds emit a holder-value reset placeholder.
+- For "save only touched fields" (PATCH payloads), filter
+  `state.patch()` by `state.touched_fields()` — the patch tri-state
+  (absent/null/value) already expresses cleared-vs-unchanged, so no separate
+  partial-holder type is needed.
+- For documentation generation, test fixtures, or inspecting a form's shape
+  without the GPUI runtime, call `<Name>FormSchema::schema()`: an owned,
+  serializable `gpui_form::FormSchema` covering component kinds and payloads,
+  validation rules, layout hints, nested/list composition, and field
+  dependencies. It round-trips through serde with no feature flag, and
+  `gpui-form-prototyping-core`'s `schema_markdown(&schema)` renders it as a
+  Markdown reference table.
 - Keep consumer code focused on app models, form state, rendering, and
   app-owned components.
 
@@ -104,19 +154,85 @@ Enable the facade `serde` feature and wrap the holder in
 `gpui_form::FormState` for save/restore and dirty tracking. `FormState` itself
 is re-exported unconditionally; only the holder serde derives need the
 feature. Scope: `FormState` stores holder data only (no runtime UI state, no
-undo/redo); dirty/diff is boolean-level (field-level diff is backlog #9);
-holders with `#[gpui_form(skip)]` fields round-trip through serde but cannot
-fully reconstruct the source struct (per-field passthrough is backlog #15).
-Details: root `README.md` §Saving, Restoring, and Dirty Tracking.
+undo/redo); its own dirty/diff is boolean-level; holders with
+`#[gpui_form(skip)]` fields round-trip through serde but cannot fully
+reconstruct the source struct (per-field passthrough is backlog #15). For
+field-level state, use the generated `<Name>FormState` facade instead: it
+composes `FormState` + `gpui_form::TouchedFields` and exposes `touch`,
+`is_touched`, `touched_fields`, `is_field_dirty`, `changed_fields`, and
+`patch()` (a `<Name>FormPatch` with one `Option<holder-field-type>` slot per
+non-skipped field; `Some(None)` = changed-to-cleared). Reset semantics:
+`reset_to_baseline()` clears touched, `reset_to_baseline_keeping_touched()`
+and `sync_baseline()` keep it. Call `touch(&path)` from app-authored blur or
+change handlers — the derive does not wire events. Details: root `README.md`
+§Saving, Restoring, and Dirty Tracking.
+
+### Nested forms and repeated fields
+
+- The nested form must derive `GpuiForm` itself and resolve by the
+  `<Name>FormValueHolder` naming convention — a nested field whose type is
+  not a derived form fails at name resolution in YOUR crate (the derive
+  cannot check it).
+- Nested error recursion (`<field>_errors()`) requires the nested form to be
+  a non-generic koruma form; plain `error_for` routing over the nested slot
+  works for every nested field.
+- v1 list boundary: `Vec<T>` only, add/remove only (no reorder), scalar item
+  components only. Per-item input entities are app-authored — the derive
+  emits holder operations and metadata, not per-item subscriptions.
+- List-item paths have no dense touched index in v1; item-level touched
+  tracking arrives with the post-v1 milestone.
+
+### Field dependencies and conditional requiredness
+
+`depends_on = <field>` (metadata-only: consumers read it for conditional
+loading and reset-on-parent-change) and `required_if = <field>` (enforced:
+desugared to a generated koruma validator) both name a SIBLING field of the
+same struct, existence-checked at derive time — bare ident or quoted string,
+never a condition expression (no rule DSL). Both need a `component(...)` on
+the same field. `required_if` constraints: the target's holder field stores
+`Option<T>`, and the controlling sibling holds `bool` (required when `true`),
+`Option<bool>` (required when `Some(true)` — an explicit off does not
+require), or another `Option<T>` (required when set). A `required_if` field
+never also gets the synthetic unconditional required rule, and its failures
+reuse the `validation.required` locale key. Details: root `README.md`
+§Field Dependencies and Conditional Requiredness.
 
 ### Typed field paths
 
 Every form emits `<Name>FormPath`, a typed newtype over
 `gpui_form::FieldPath` (no feature flag, no GPUI, no serde). One constructor
-per non-skipped field; skipped fields have none. Hand-built multi-segment
-paths via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
-composition arrives with backlog #2/#3. Details: root `README.md` §Typed Field
-Paths.
+per non-skipped field; skipped fields have none. The same type carries
+`FIELD_NAMES`, `FIELD_COUNT`, `all_paths()`, `field_index()`, and
+`path_for_index()` for declaration-order iteration and dense index mapping
+(single-segment flat paths only; unknown or hand-built multi-segment paths map
+to `None` and are inert in field-level state). Hand-built multi-segment paths
+via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
+composition arrives with backlog #2/#3. Koruma forms also gain path-keyed
+error access: `holder.validate_fields()` →
+`errors.error_for(&<Name>FormPath::field())` with per-field `issue_keys()`
+(`validation.*` keys; inner newtype/nested failures report
+`validation.invalid`). Details: root `README.md` §Typed Field Paths and
+§Validation With Koruma.
+
+### Submit lifecycle and live validation
+
+`#[gpui_form(submit)]` (opt-in, no feature flag) emits a
+`<Name>FormSubmission` alias over the headless core `SubmitTracker` —
+koruma forms alias over the typed koruma error (`ValidateExt::Error`),
+others over `gpui_form::submit::BoxError`. The tracker never runs futures:
+wrap `begin()` → your future → `finish(result)` in `cx.spawn` yourself.
+`begin()` returns `false` while a submit is in flight (double-click guard),
+stale completions (after `reset()`, or with no attempt in flight) are
+ignored via the generation guard, and `set_error`/`clear_error` inject
+server-side errors. Koruma-gated `<Name>FormState` facades additionally
+compose `gpui_form::ValidationCache`: call `state.validate()` when
+validation should refresh, read `state.is_valid()` anywhere (never lies),
+`state.validation()` for the cached map, `invalidate_validation()` as the
+manual escape; resets invalidate, `sync_baseline()` does not. Async
+validation is contract-only (`gpui_form::AsyncFieldValidation`) — the
+`validate(async_fn = ...)` attribute parses/records metadata but nothing
+executes it yet. Details: root `README.md` §Submit Lifecycle and Live
+Validation.
 
 ### Localization (rust-i18n 4)
 

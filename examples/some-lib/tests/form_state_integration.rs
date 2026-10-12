@@ -30,6 +30,7 @@ fn sample_user() -> User {
         enable_notifications: false,
         preferred: PreferredLanguage::French,
         country: Some(EnumCountry::France),
+        state: None,
         birth_date: None,
         skip_me: false,
     }

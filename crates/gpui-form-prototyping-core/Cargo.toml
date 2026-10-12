@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-prototyping-core"
+name = "freeoxide-gpui-form-prototyping-core"
 description = """
 Consumer-facing prototyping utilities for gpui-form.
 """
@@ -10,6 +10,12 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
+
+# The package is published as `freeoxide-gpui-form-prototyping-core`; the
+# lib target keeps its historical name so
+# `::gpui_form_prototyping_core::...` paths compile unchanged.
+[lib]
+name = "gpui_form_prototyping_core"
 
 [dependencies]
 gpui-form-schema = { workspace = true }

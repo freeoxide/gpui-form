@@ -1,12 +1,13 @@
 use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
-    generate_entity_field_initializer, generate_entity_focus, render_component_entity_field,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    generate_entity_creation, generate_entity_field_initializer, generate_entity_focus,
+    render_component_entity_field,
 };
 
 pub struct DatePickerCodeGenerator;
@@ -72,7 +73,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
     fn generate_subscription(
         &self,
         field: &ResolvedField<'_>,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
         let event_handler_fn_name_ident = field.event_handler_ident("date_picker_event");
@@ -84,6 +85,8 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
         let field_name_ident = field.field_ident();
 
         let value_assign = value_assign(field, field_name_ident);
+        // M4 (backlog #12): reset dependent fields when the picked date changes.
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let handler = quote! {
             fn #event_handler_fn_name_ident(
@@ -96,6 +99,7 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
                 match event {
                     DatePickerEvent::Change(date) => {
                         #value_assign
+                        #dependent_resets
                     }
                 }
             }

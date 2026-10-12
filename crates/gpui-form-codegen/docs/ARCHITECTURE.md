@@ -38,6 +38,11 @@ crate.
 - `SelectOptions`
 - `InfiniteSelectOptions`
 - `CustomOptions`
+- `NestedOptions` (milestone M3: word-only marker — the field's own type
+  names the nested form struct)
+- `ListOptions` + `ListItemSpec` (milestone M3: `list(item = <scalar kind>)`
+  with an optional `add_label`; `item = nested` and `item = custom(...)` are
+  parse-time rejections per the backlog's v1 sequencing)
 - `DatePickerOptions`
 - `FilePickerOptions`
 
@@ -56,6 +61,14 @@ Important parse-time responsibilities:
   rule
 - `file_picker` uses the runtime file-picker state and wraps selected paths in
   `Option<PathBuf>` by default
+
+Scope note (M4): the field-level dependency attributes
+`depends_on = <field>` / `required_if = <field>` are parsed in the DERIVE
+crate's darling layer (`structs.rs::ComponentField`), not here — this crate's
+`Components` enum parses the `component(...)` list only, and those attributes
+sit beside it at the field level. Their metadata lands on
+`FieldVariant::depends_on`/`required_if` (see `gpui-form-schema`); nothing in
+this crate consumes them.
 
 ## Component Layout Emission
 

@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-codegen"
+name = "freeoxide-gpui-form-codegen"
 description = """
 Code generation support for gpui-form derive macros.
 """
@@ -10,6 +10,12 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 readme = "README.md"
+
+# The package is published as `freeoxide-gpui-form-codegen`; the lib target
+# keeps its historical name so `::gpui_form_codegen::...` paths compile
+# unchanged.
+[lib]
+name = "gpui_form_codegen"
 
 [dependencies]
 darling = { workspace = true }

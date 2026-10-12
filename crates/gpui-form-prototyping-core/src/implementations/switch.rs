@@ -1,10 +1,13 @@
 use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
-use super::{FieldCodeGenerator, GeneratedSubscription, ResolvedField, render_standard_field};
+use super::{
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    render_standard_field,
+};
 
 pub struct SwitchCodeGenerator;
 
@@ -40,6 +43,8 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
         let component_gpui_type = field.component_ident();
 
         let checkbox_id_str = field.kebab_id();
+        // M4 (backlog #12): reset dependent fields when the toggle flips.
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("v"));
 
         render_standard_field(
             field,
@@ -49,6 +54,7 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
                     .checked(self.current_data.#field_name_ident)
                     .on_click(cx.listener(move |v, checked, _, cx| {
                         v.current_data.#field_name_ident = *checked;
+                        #dependent_resets
                         cx.notify();
                     }))
             },

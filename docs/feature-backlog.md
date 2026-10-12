@@ -1,6 +1,6 @@
 # Feature backlog
 
-Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline.
+Status: **living** — candidate and shipped features for `gpui-form` work. Shipped items are marked inline. The state/validation/submission subset has an executable delivery plan in [`form-feature-parity-plan.md`](form-feature-parity-plan.md).
 
 ## Scope boundary
 
@@ -48,6 +48,18 @@ state.diff_against(&initial_holder);
 
 ### 2. Nested forms
 
+> **Status: shipped (M3 v1).** `#[gpui_form(component(nested))]` composes
+> another `#[derive(GpuiForm)]` struct: the holder stores the nested form's
+> `<Name>FormValueHolder`, conversions compose through its `From` impls, and
+> `#[koruma(nested)]` on the source field runs the nested validators through
+> the outer `validate()`. Typed paths compose (`address_root()` +
+> `join(&AddressFormPath::city())` -> `address.city`), `error_for` routes
+> any `address...` path to the nested slot, and `<field>_errors()` re-keys
+> into the nested form's own error map for the inner validator kinds.
+> Value-only: the group renders no leaf control; rendering is app- or
+> prototyping-authored. Worked example: root `README.md` §Nested Forms and
+> Repeated Fields.
+
 Support composing generated forms from other generated forms.
 
 ```rs
@@ -73,6 +85,18 @@ Key design questions:
   rendering metadata?
 
 ### 3. Repeated fields
+
+> **Status: shipped (M3 v1, conservative scope).** `#[gpui_form(component(list(item = <scalar kind>)))]`
+> edits a `Vec<T>`: the holder stores the plain item Vec and gains
+> `add_<field>` / `remove_<field>` / `<field>_items`; `each(...)` element
+> validators stay element-scoped so koruma reports failures per item index,
+> surfaced through `error_for(&Path::tags(2))` (typed-index routing) and
+> `tags_element_error(2)`. List-item paths carry a typed
+> `PathSegment::Index` — never a formatted string. v1 boundaries per this
+> item's own conservatism list: `Vec` only, add/remove only (no reorder),
+> scalar item components only (`item = nested` and `item = custom(...)` are
+> parse-time rejections until the follow-up milestone). Worked example:
+> root `README.md` §Nested Forms and Repeated Fields.
 
 Support editable collections such as `Vec<T>`.
 
@@ -153,6 +177,17 @@ Key design questions:
 
 ### 6. Validation and error metadata improvements
 
+> **Status: shipped (M1 typed error access).** Koruma-gated holders gain
+> `validate_fields()`, the `<Name>FormFieldErrors` map, and the
+> `<Name>FormFieldError` borrowing enum, keyed by `<Name>FormPath`:
+> `error_for(&UserProfileFormPath::username())`, per-field `issue_keys()`
+> (`validation.*` keys), typed accessors, and the
+> `gpui_form::core::FormFieldErrors` trait (`is_empty`/`failing_paths`) for
+> generic code. Inner newtype/nested validator kinds report the generic
+> `validation.invalid` key and stay reachable through the typed accessors;
+> per-item element paths wait on #3. Worked example: root `README.md`
+> §Validation With Koruma.
+
 Koruma integration already mirrors validator attributes onto generated value
 holders. The next step is better generated error access for UI code.
 
@@ -168,6 +203,23 @@ The main value is stable typed field paths, including future nested/list paths,
 so callers do not have to match validation output with ad hoc strings.
 
 ### 7. Submit lifecycle helpers
+
+> **Status: shipped (M2 validation + submit lifecycle).** The headless
+> `gpui_form::core::submit::SubmitTracker<E>` owns the full lifecycle —
+> `begin()` re-entry guard, `submit_count()`, `is_submitting()` /
+> `is_submitted()` / `is_submit_successful()` / `can_submit()`, `last_error()`
+> / `take_last_error()`, `abandon()`, `set_error` / `clear_error` for
+> server-side injection, and `reset()` — with a generation/epoch guard that
+> ignores stale async completions. `SubmitAction<H>` is the executor-free
+> submit hook contract. The opt-in `#[gpui_form(submit)]` attribute emits a
+> `<Name>FormSubmission` alias per form (koruma error type as the failure
+> type; `submit::BoxError` otherwise). Koruma-gated `<Name>FormState`
+> facades also compose a snapshot-compare validation cache for a live
+> `is_valid` (see the M1 field-level state notes), and
+> `AsyncFieldValidation<H>` is the executor-free async per-field validation
+> contract (`validate(async_fn = ...)` parses and records metadata only in
+> this milestone). Worked example: root `README.md` §Submit Lifecycle and
+> Live Validation.
 
 Add optional headless workflow state for common submit flows.
 
@@ -209,6 +261,14 @@ composition expands under #2/#3.
 
 ### 9. Patch and delta generation
 
+> **Status: shipped (M1 field-level state).** Every form emits a
+> `<Name>FormPatch` (one `Option<holder-field-type>` slot per non-skipped
+> field; `Some(None)` = changed-to-cleared) plus the `<Name>FormState`
+> facade accessors `patch()` / `changed_fields()` / `is_field_dirty(path)`.
+> Under the derive crate's `serde` feature the patch serializes as the PATCH
+> tri-state (absent = unchanged, `null` = cleared, value = set). Worked
+> example: root `README.md` §Saving, Restoring, and Dirty Tracking.
+
 Generate changed-field output from a holder and a baseline.
 
 ```rs
@@ -223,6 +283,17 @@ Keep this headless: the output should be typed data or typed field paths, not UI
 events.
 
 ### 10. Partial form holders
+
+> **Status: closed by #9 (D10).** The milestone-4 gate evaluated the M1
+> `<Name>FormPatch` against this item's workflows and found it sufficient:
+> one `Option<holder-field-type>` slot per field already expresses the
+> tri-state ("unchanged / clear / set" — `None` / `Some(None)` /
+> `Some(value)`, serialized as absent / `null` / value), and filtering the
+> patch by `touched_fields()` covers "edit screens that only send touched
+> fields". A separate `#[gpui_form(partial_holder)]` type is therefore NOT
+> generated (feature-parity plan decision D10 and rejection 10); the
+> `t!`-friendly worked example lives in the root `README.md` §Saving,
+> Restoring, and Dirty Tracking.
 
 Generate an optional-field holder for partial updates.
 
@@ -266,6 +337,15 @@ and per-step validation.
 
 ### 12. Field dependency metadata
 
+> **Status: shipped (M4 field dependencies).** `#[gpui_form(depends_on =
+> <field>)]` records the sibling relationship on the schema `FieldVariant`
+> (the sibling's field name — the `FieldPath` name-segment representation —
+> through const builders), existence-checked at derive time. Prototyping
+> scaffolds consume it for reset-on-parent-change placeholders (holder-value
+> resets wired into the parent's generated change handling); widget re-sync
+> and conditional loading stay app-authored. Worked example: root
+> `README.md` §Field Dependencies and Conditional Requiredness.
+
 Represent relationships between fields without owning the UI behavior.
 
 ```rs
@@ -281,6 +361,16 @@ conditional loading, dependent validation, and reset-on-parent-change behavior.
 
 ### 13. Conditional requiredness
 
+> **Status: shipped (M4 field dependencies).** `#[gpui_form(required_if =
+> <field>)]` desugars at derive time to a generated koruma validator
+> (`<Name>FormRequiredIfValidation`) whose `Validate` impl delegates to the
+> pure `gpui_form::required_when` — no expression language (the plan's R19).
+> The sibling reference is existence-checked and typed (bare ident or quoted
+> ident naming a sibling field; `bool` / `Option<bool>` / `Option<T>`
+> controlling shapes), violations surface through `validate_fields()` /
+> `error_for` / `issue_keys()` with the shared `validation.required` key, and
+> the relationship is recorded as `FieldVariant::required_if` metadata.
+
 Expose validation metadata for fields that are required only when another field
 has a particular state.
 
@@ -294,6 +384,17 @@ metadata. The design should avoid stringly typed expressions long term; typed
 field paths are the likely foundation.
 
 ### 14. Schema export
+
+> **Status: shipped (M5).** Every `#[derive(GpuiForm)]` form emits
+> `<Name>FormSchema::schema()`, returning the owned, serializable
+> `gpui_form::FormSchema` document — component kinds and behaviour payloads,
+> value and conversion types, validation rules, layout hints, nested/list
+> composition (M3), and field dependencies (M4). It is a read-only projection
+> of the same `FieldVariant`/`FieldLayout` chain the inventory feature
+> registers (single metadata source; no `inventory` feature needed for the
+> export), round-trips through serde with no feature flag, and
+> `gpui-form-prototyping-core`'s `schema_markdown` renders it for docs.
+> Worked example: root `README.md` §Schema Export.
 
 Export a structured description of a form's fields, component kinds, defaults,
 validation metadata, sections, steps, and custom component hints.
@@ -458,17 +559,23 @@ creating a parallel validation system.
    composition expands under #2/#3.
 4. Layout and section metadata — **shipped (METADATA-FIRST v1)**; richer
    layout (columns, collapsible sections) builds on this later.
-5. Validation/error metadata improvements.
-6. Patch and delta generation.
-7. Nested forms.
-8. Repeated fields.
-9. Partial form holders.
-10. Wizard and step metadata.
-11. Field dependency metadata and conditional requiredness.
-12. Schema export.
-13. Async/select provider contracts.
-14. Phone, email, URL, and typed text validation.
-15. Thin component mappings such as textarea, radio, and slider.
+5. Validation/error metadata improvements — **shipped (M1 typed error
+   access)**.
+6. Patch and delta generation — **shipped (M1 field-level state)**.
+7. Submit lifecycle helpers — **shipped (M2 validation + submit
+   lifecycle)**.
+8. Nested forms — **shipped (M3 v1)**.
+9. Repeated fields — **shipped (M3 v1, scalar items)**; nested item forms
+   and reorder arrive in the follow-up milestone.
+10. Partial form holders — **closed by #9** (D10: the patch tri-state already
+    expresses cleared-vs-unchanged; no separate holder type).
+11. Wizard and step metadata.
+12. Field dependency metadata and conditional requiredness — **shipped (M4
+    field dependencies)**.
+13. Schema export — **shipped (M5)**.
+14. Async/select provider contracts.
+15. Phone, email, URL, and typed text validation.
+16. Thin component mappings such as textarea, radio, and slider.
 
 This order keeps the early work mostly headless and additive, then moves into
 larger code-generation features after the metadata and state model are stronger.

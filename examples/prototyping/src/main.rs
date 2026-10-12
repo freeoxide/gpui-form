@@ -38,6 +38,9 @@ impl FormLayout for ComponentLayout {
             fields_init,
             debug_child,
             render_children,
+            composed_struct_fields,
+            composed_struct_inits,
+            composed_impl_members,
             ..
         } = parts;
 
@@ -190,6 +193,7 @@ impl FormLayout for ComponentLayout {
             pub struct #form_ident {
                 #current_data_field
                 fields: #form_fields_ident,
+                #composed_struct_fields
                 focus_handle: FocusHandle,
                 #subscriptions_field
             }
@@ -203,6 +207,8 @@ impl FormLayout for ComponentLayout {
             impl #form_ident {
                 #event_handlers
 
+                #composed_impl_members
+
                 pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
                     #current_data_let
 
@@ -215,6 +221,7 @@ impl FormLayout for ComponentLayout {
                     Self {
                         #current_data_init
                         #fields_init
+                        #composed_struct_inits
                         focus_handle: cx.focus_handle(),
                         #subscriptions_init
                     }
@@ -311,9 +318,11 @@ mod i18n_tests {
     use gpui_form_prototyping_core::implementations::collect_i18n_keys;
 
     const FORM_TITLE_KEYS: &[&str] = &[
+        "address_label",
         "empty_label",
         "item_label",
         "location_form_label",
+        "post_editor_label",
         "user_label",
     ];
 

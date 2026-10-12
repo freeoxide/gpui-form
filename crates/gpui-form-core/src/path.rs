@@ -2,7 +2,7 @@
 //!
 //! [`FieldPath`] is a headless primitive: it owns no GPUI types, no entities,
 //! and no UI runtime state, and it has no `serde` dependency of its own. It is
-//! an ordered sequence of static string segments naming a field, so that every
+//! an ordered sequence of typed segments naming a field, so that every
 //! consumer of a form (validation, dirty tracking, focus management,
 //! analytics, schema export) can share one typed way to refer to fields
 //! instead of ad-hoc strings.
@@ -10,30 +10,100 @@
 //! # Scope
 //!
 //! This is the core of backlog feature #8 ("Typed field paths and field
-//! IDs"). It ships **FLAT v1 only**: a path is a list of static segments,
-//! typically a single field name. Typed nested-path and list-item-path
-//! constructors arrive with backlog feature #2 ("Nested forms") and feature
-//! #3 ("Repeated fields"). Hand-built multi-segment paths via
-//! [`FieldPath::new(&["a", "b"])`](FieldPath::new) work today; typed
-//! composition of paths is later.
+//! IDs"). FLAT v1 shipped name-only segments; milestone M3 (backlog #2
+//! "Nested forms" and #3 "Repeated fields") extended the segment
+//! representation to the typed [`PathSegment`] enum — decision [D8] of the
+//! feature-parity plan — so a list-item path such as `contacts.2.name` is one
+//! uniform [`FieldPath`] with a typed index in the middle:
 //!
-//! This is the shared naming foundation for future backlog features:
-//! field-level validation (#6), field-level diff/delta reporting (#9),
-//! schema export (#14), and nested/list paths (#2/#3). When combined with the
-//! `serde` feature on the derive crate, the generated `<Name>FormPath` types
-//! (which wrap this primitive) may carry a serialization story; the core
-//! primitive itself stays serde-free and unconditional, mirroring how
+//! ```
+//! use gpui_form_core::{FieldPath, PathSegment};
+//!
+//! let path = FieldPath::from_segments(&[
+//!     PathSegment::Name("contacts"),
+//!     PathSegment::Index(2),
+//!     PathSegment::Name("name"),
+//! ]);
+//! assert_eq!(path.to_string(), "contacts.2.name");
+//! ```
+//!
+//! String formatting of indices (`format!("tags.{}", i)`) is rejected by
+//! design: indices are typed, never re-merged from strings. Name-only
+//! construction via [`FieldPath::new`] keeps working, and typed composition
+//! builds on [`FieldPath::push_name`] / [`FieldPath::push_index`] /
+//! [`FieldPath::join`].
+//!
+//! This is the shared naming foundation for field-level validation (#6),
+//! field-level diff/delta reporting (#9), schema export (#14), and
+//! nested/list paths (#2/#3). When combined with the `serde` feature on the
+//! derive crate, the generated `<Name>FormPath` types (which wrap this
+//! primitive) may carry a serialization story; the core primitive itself
+//! stays serde-free and unconditional, mirroring how
 //! [`crate::state::FormState`] handles serialization.
+
+/// One typed segment of a [`FieldPath`]: a field name or a list-item index.
+///
+/// Introduced with milestone M3 as decision [D8] option A of the
+/// feature-parity plan: repeated-field paths need a typed index segment
+/// (`contacts.2`), and `usize` is not representable as a `&'static str`
+/// without leaking or string formatting — both rejected. Flat name-only
+/// paths render and compare exactly as before; only [`core::fmt::Debug`]
+/// output changed shape (`[Name("address")]` instead of `["address"]`).
+///
+/// # Example
+///
+/// ```
+/// use gpui_form_core::PathSegment;
+///
+/// assert_eq!(PathSegment::Name("tags").as_name(), Some("tags"));
+/// assert_eq!(PathSegment::Name("tags").as_index(), None);
+/// assert_eq!(PathSegment::Index(3).as_index(), Some(3));
+/// assert_eq!(PathSegment::Index(3).to_string(), "3");
+/// ```
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum PathSegment {
+    /// A named field segment (`address`, `city`, `tags`).
+    Name(&'static str),
+    /// A repeated-field item index (`contacts.2` names item 2).
+    Index(usize),
+}
+
+impl PathSegment {
+    /// The field name, when this segment is a [`PathSegment::Name`].
+    pub const fn as_name(&self) -> Option<&'static str> {
+        match self {
+            Self::Name(name) => Some(*name),
+            Self::Index(_) => None,
+        }
+    }
+
+    /// The list-item index, when this segment is an [`PathSegment::Index`].
+    pub const fn as_index(&self) -> Option<usize> {
+        match self {
+            Self::Name(_) => None,
+            Self::Index(index) => Some(*index),
+        }
+    }
+}
+
+impl core::fmt::Display for PathSegment {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Name(name) => f.write_str(name),
+            Self::Index(index) => write!(f, "{index}"),
+        }
+    }
+}
 
 /// A pure, headless, GPUI-free typed path to a form field.
 ///
-/// A `FieldPath` is an ordered sequence of static string segments naming a
-/// field. For FLAT v1 forms it is typically a single segment — the field's
-/// own name. Multi-segment paths can still be built by hand via
-/// [`FieldPath::new`]; typed constructors for nested and list-item paths are
-/// added by backlog features #2 and #3.
+/// A `FieldPath` is an ordered sequence of typed [`PathSegment`]s naming a
+/// field. For flat forms it is typically a single [`PathSegment::Name`] —
+/// the field's own name. Nested-field paths append the nested form's field
+/// names (`address.city`), and repeated-field paths carry a typed
+/// [`PathSegment::Index`] in the middle (`contacts.2.name`).
 ///
-/// The segments are stored as a cheap-to-clone `Box<[&'static str]>`. Clones
+/// The segments are stored as a cheap-to-clone `Box<[PathSegment]>`. Clones
 /// share the same allocation shape and never perform per-segment heap work
 /// beyond the box itself, so handing a path to validation, dirty tracking, or
 /// analytics code is cheap.
@@ -49,22 +119,25 @@
 /// `FieldPath` implements [`Clone`], [`Debug`], [`Eq`] / [`PartialEq`],
 /// [`Hash`], and [`core::fmt::Display`]. Equality and hashing are by segment
 /// sequence (same segments in the same order). [`core::fmt::Display`] renders
-/// the segments joined by `.` (for example `address.city`); an empty path
-/// renders as the empty string `""`.
+/// the segments joined by `.` with indices rendered as numbers (for example
+/// `address.city` or `contacts.2.name`); an empty path renders as the empty
+/// string `""`.
 ///
 /// # Example
 ///
 /// ```
-/// use gpui_form_core::FieldPath;
+/// use gpui_form_core::{FieldPath, PathSegment};
 /// use std::collections::HashSet;
 ///
 /// let city = FieldPath::new(&["address", "city"]);
-/// assert_eq!(city.segments(), &["address", "city"]);
+/// assert_eq!(
+///     city.segments(),
+///     &[PathSegment::Name("address"), PathSegment::Name("city")]
+/// );
 /// assert_eq!(city.to_string(), "address.city");
 ///
-/// let flat = FieldPath::new(&["name"]);
-/// assert!(!flat.is_empty());
-/// assert_eq!(flat.to_string(), "name");
+/// let item = FieldPath::new(&["contacts"]).push_index(2).push_name("name");
+/// assert_eq!(item.to_string(), "contacts.2.name");
 ///
 /// // Equality and hashing are by segment sequence.
 /// let mut set = HashSet::new();
@@ -72,16 +145,18 @@
 /// assert!(set.contains(&FieldPath::new(&["address", "city"])));
 /// ```
 pub struct FieldPath {
-    segments: Box<[&'static str]>,
+    segments: Box<[PathSegment]>,
 }
 
 impl FieldPath {
     /// Create a new path from a slice of static string segments.
     ///
-    /// The segments are copied into an owned `Box<[&'static str]>`, so the
-    /// caller's slice does not need to outlive the path. An empty slice
-    /// produces an empty path ([`FieldPath::is_empty`] returns `true` and
-    /// [`core::fmt::Display`] renders `""`).
+    /// The names-only constructor: every segment becomes a
+    /// [`PathSegment::Name`]. Use [`FieldPath::from_segments`] for paths that
+    /// carry list-item indices. The segments are copied into an owned
+    /// `Box<[PathSegment]>`, so the caller's slice does not need to outlive
+    /// the path. An empty slice produces an empty path ([`FieldPath::is_empty`]
+    /// returns `true` and [`core::fmt::Display`] renders `""`).
     ///
     /// # Example
     ///
@@ -94,15 +169,38 @@ impl FieldPath {
     /// ```
     pub fn new(segments: &[&'static str]) -> Self {
         Self {
+            segments: segments.iter().copied().map(PathSegment::Name).collect(),
+        }
+    }
+
+    /// Create a new path from a slice of typed segments (names and indices).
+    ///
+    /// The M3 composition constructor: `list(item = ...)` fields build
+    /// `[Name("tags"), Index(i)]` paths with it. The segments are copied into
+    /// an owned box, exactly like [`FieldPath::new`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use gpui_form_core::{FieldPath, PathSegment};
+    ///
+    /// let path = FieldPath::from_segments(&[
+    ///     PathSegment::Name("tags"),
+    ///     PathSegment::Index(4),
+    /// ]);
+    /// assert_eq!(path.to_string(), "tags.4");
+    /// ```
+    pub fn from_segments(segments: &[PathSegment]) -> Self {
+        Self {
             segments: segments.into(),
         }
     }
 
     /// Borrow the ordered segment slice.
     ///
-    /// The returned slice preserves segment order. For a FLAT v1 path this is
-    /// typically a single-element slice like `&["name"]`.
-    pub fn segments(&self) -> &[&'static str] {
+    /// The returned slice preserves segment order. For a flat form path this
+    /// is typically a single-element slice like `&[PathSegment::Name("name")]`.
+    pub fn segments(&self) -> &[PathSegment] {
         &self.segments
     }
 
@@ -111,6 +209,74 @@ impl FieldPath {
     /// An empty path renders as `""` via [`core::fmt::Display`].
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
+    }
+
+    /// Consume the path, append a field-name segment, and return the result.
+    ///
+    /// The consuming appender behind generated nested-field path
+    /// composition (`<Name>FormPath` emits one `<field>(self)` per nested
+    /// field over this primitive).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use gpui_form_core::FieldPath;
+    ///
+    /// let path = FieldPath::new(&["address"]).push_name("city");
+    /// assert_eq!(path.to_string(), "address.city");
+    /// ```
+    pub fn push_name(self, name: &'static str) -> Self {
+        let mut segments = self.segments.into_vec();
+        segments.push(PathSegment::Name(name));
+        Self {
+            segments: segments.into(),
+        }
+    }
+
+    /// Consume the path, append a list-item index segment, and return the
+    /// result.
+    ///
+    /// The typed-index constructor behind generated list-field path
+    /// composition (`<Name>FormPath::<field>(index)`). Indices are stored as
+    /// [`PathSegment::Index`] — never formatted into strings.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use gpui_form_core::FieldPath;
+    ///
+    /// let path = FieldPath::new(&["tags"]).push_index(2);
+    /// assert_eq!(path.to_string(), "tags.2");
+    /// ```
+    pub fn push_index(self, index: usize) -> Self {
+        let mut segments = self.segments.into_vec();
+        segments.push(PathSegment::Index(index));
+        Self {
+            segments: segments.into(),
+        }
+    }
+
+    /// Consume the path, append every segment of `other`, and return the
+    /// result.
+    ///
+    /// Composition seam for nested forms: a parent form's root path joined
+    /// with the nested form's field path (`address_root().join(&city())`)
+    /// produces the fully composed path (`address.city`).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use gpui_form_core::FieldPath;
+    ///
+    /// let root = FieldPath::new(&["address"]);
+    /// let inner = FieldPath::new(&["city", "zip"]);
+    /// assert_eq!(root.join(&inner).to_string(), "address.city.zip");
+    /// ```
+    pub fn join(mut self, other: &Self) -> Self {
+        let mut segments = self.segments.into_vec();
+        segments.extend(other.segments.iter().copied());
+        self.segments = segments.into();
+        self
     }
 }
 
@@ -142,14 +308,21 @@ impl core::hash::Hash for FieldPath {
     }
 }
 
+impl AsRef<FieldPath> for FieldPath {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl core::fmt::Display for FieldPath {
-    /// Renders the segments joined by `.`. An empty path renders as `""`.
+    /// Renders the segments joined by `.`; indices render as numbers. An
+    /// empty path renders as `""`.
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (i, segment) in self.segments.iter().enumerate() {
             if i > 0 {
                 f.write_str(".")?;
             }
-            f.write_str(segment)?;
+            core::fmt::Display::fmt(segment, f)?;
         }
         Ok(())
     }
@@ -161,22 +334,29 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     #[test]
-    fn new_round_trips_segments() {
+    fn new_round_trips_name_segments() {
         let path = FieldPath::new(&["name"]);
-        assert_eq!(path.segments(), &["name"]);
+        assert_eq!(path.segments(), &[PathSegment::Name("name")]);
     }
 
     #[test]
     fn single_segment_path() {
         let path = FieldPath::new(&["email"]);
-        assert_eq!(path.segments(), &["email"]);
+        assert_eq!(path.segments(), &[PathSegment::Name("email")]);
         assert!(!path.is_empty());
     }
 
     #[test]
     fn multi_segment_path_preserves_order() {
         let path = FieldPath::new(&["address", "city", "zip"]);
-        assert_eq!(path.segments(), &["address", "city", "zip"]);
+        assert_eq!(
+            path.segments(),
+            &[
+                PathSegment::Name("address"),
+                PathSegment::Name("city"),
+                PathSegment::Name("zip")
+            ]
+        );
         assert!(!path.is_empty());
     }
 
@@ -250,7 +430,7 @@ mod tests {
     fn debug_renders_segment_list() {
         let path = FieldPath::new(&["address", "city"]);
         let s = format!("{:?}", path);
-        assert_eq!(s, r#"["address", "city"]"#);
+        assert_eq!(s, r#"[Name("address"), Name("city")]"#);
     }
 
     #[test]
@@ -258,6 +438,98 @@ mod tests {
         // Zero segments -> empty, even though the constructor accepted a slice.
         let path = FieldPath::new(&[]);
         assert!(path.is_empty());
-        assert_eq!(path.segments(), &[] as &[&str]);
+        assert_eq!(path.segments(), &[] as &[PathSegment]);
+    }
+
+    // ── M3: typed index segments (D8 option A) ─────────────────────────────
+
+    #[test]
+    fn from_segments_stores_indices_without_strings() {
+        let path = FieldPath::from_segments(&[
+            PathSegment::Name("contacts"),
+            PathSegment::Index(2),
+            PathSegment::Name("name"),
+        ]);
+        assert_eq!(
+            path.segments(),
+            &[
+                PathSegment::Name("contacts"),
+                PathSegment::Index(2),
+                PathSegment::Name("name")
+            ]
+        );
+        assert_eq!(path.to_string(), "contacts.2.name");
+    }
+
+    #[test]
+    fn index_segments_render_as_numbers_in_display() {
+        let path = FieldPath::new(&["tags"]).push_index(0);
+        assert_eq!(path.to_string(), "tags.0");
+        let deep = path.push_name("label");
+        assert_eq!(deep.to_string(), "tags.0.label");
+    }
+
+    #[test]
+    fn name_and_index_segments_compare_and_hash_correctly() {
+        // An index segment never equals a name segment, so "tags.2" cannot
+        // collide with a hypothetical field literally named "2".
+        let by_index = FieldPath::new(&["tags"]).push_index(2);
+        let by_name = FieldPath::new(&["tags", "2"]);
+        assert_ne!(by_index, by_name);
+
+        let mut set = HashSet::new();
+        set.insert(by_index);
+        assert!(set.contains(&FieldPath::new(&["tags"]).push_index(2)));
+        assert!(!set.contains(&by_name));
+    }
+
+    #[test]
+    fn push_name_and_push_index_compose_consumingly() {
+        let path = FieldPath::new(&["contacts"])
+            .push_index(1)
+            .push_name("email");
+        assert_eq!(path.segments().len(), 3);
+        assert_eq!(path.to_string(), "contacts.1.email");
+    }
+
+    #[test]
+    fn join_appends_all_segments_of_the_other_path() {
+        let outer = FieldPath::new(&["address"]);
+        let inner = FieldPath::new(&["city"]);
+        assert_eq!(outer.clone().join(&inner).to_string(), "address.city");
+
+        // join works on index-bearing paths too (list-of-nested composition).
+        let item = FieldPath::new(&["contacts"]).push_index(2);
+        let field = FieldPath::new(&["name"]);
+        assert_eq!(item.join(&field).to_string(), "contacts.2.name");
+
+        // Joining an empty path is the identity in both directions.
+        assert_eq!(FieldPath::new(&[]).join(&inner).to_string(), "city");
+        assert_eq!(outer.join(&FieldPath::new(&[])).to_string(), "address");
+    }
+
+    #[test]
+    fn path_segment_accessors_distinguish_variants() {
+        assert_eq!(PathSegment::Name("tags").as_name(), Some("tags"));
+        assert_eq!(PathSegment::Name("tags").as_index(), None);
+        assert_eq!(PathSegment::Index(7).as_index(), Some(7));
+        assert_eq!(PathSegment::Index(7).as_name(), None);
+        assert_eq!(PathSegment::Name("tags").to_string(), "tags");
+        assert_eq!(PathSegment::Index(7).to_string(), "7");
+    }
+
+    #[test]
+    fn new_is_equivalent_to_from_segments_of_names() {
+        assert_eq!(
+            FieldPath::new(&["a", "b"]),
+            FieldPath::from_segments(&[PathSegment::Name("a"), PathSegment::Name("b")])
+        );
+    }
+
+    #[test]
+    fn as_ref_returns_self() {
+        let path = FieldPath::new(&["name"]);
+        let same: &FieldPath = path.as_ref();
+        assert_eq!(same, &path);
     }
 }

@@ -28,6 +28,20 @@ pub enum EnumCountry {
     China,
 }
 
+/// Milestone M4 (backlog #12): the dependent side of a `depends_on` pair —
+/// a state/province selection that consumers reset when `country` changes
+/// (reset-on-parent-change is consumer-authored; the dependency itself is
+/// recorded as schema metadata).
+#[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[select_item(fluent)]
+pub enum EnumUsState {
+    #[default]
+    California,
+    NewYork,
+    Texas,
+}
+
 #[derive(Clone, Debug, GpuiForm, Koruma, KorumaAllDisplay)]
 #[gpui_form(koruma(fluent))]
 pub struct User {
@@ -51,7 +65,8 @@ pub struct User {
         placeholder = "you@example.com",
         width = half,
         component(input),
-        default = "test@example.com"
+        default = "test@example.com",
+        required_if = subscribe_newsletter
     )]
     #[koruma(EmailValidation::<_>::builder())]
     pub email: String,
@@ -83,6 +98,12 @@ pub struct User {
 
     #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
+
+    /// Milestone M4 (backlog #12): `depends_on = country` records the
+    /// sibling relationship as metadata for conditional loading and
+    /// reset-on-parent-change consumers.
+    #[gpui_form(component(select), depends_on = country)]
+    pub state: Option<EnumUsState>,
 
     #[gpui_form(
         section = "Advanced",

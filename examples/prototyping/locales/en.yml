@@ -1,4 +1,19 @@
+address:
+  city_description: City
+  city_label: City
+  zip_description: Zip
+  zip_label: Zip
+address_label: Address
 empty_label: Empty
+post_editor:
+  address_label: Address
+  tags_add: Add tag
+  tags_item_label: Tag
+  tags_label: Tags
+  tags_remove: Remove
+  title_description: Title
+  title_label: Title
+post_editor_label: Post Editor
 form_action:
   reset: Reset
   submit: Submit
@@ -28,5 +43,7 @@ user:
   preferred_label: Preferred
   subscribe_newsletter_description: Subscribe Newsletter
   subscribe_newsletter_label: Subscribe Newsletter
+  state_description: State
+  state_label: State
   username_description: Username
 user_label: User

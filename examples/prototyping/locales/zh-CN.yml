@@ -1,3 +1,18 @@
+address:
+  city_description: 城市
+  city_label: 城市
+  zip_description: 邮编
+  zip_label: 邮编
+address_label: 地址
+post_editor:
+  address_label: 地址
+  tags_add: 添加标签
+  tags_item_label: 标签
+  tags_label: 标签
+  tags_remove: 移除
+  title_description: 标题
+  title_label: 标题
+post_editor_label: 文章编辑器
 empty_label: 空
 form_action:
   reset: 重置
@@ -28,5 +43,7 @@ user:
   preferred_label: 首选
   subscribe_newsletter_description: 订阅简报
   subscribe_newsletter_label: 订阅简报
+  state_description: 州
+  state_label: 州
   username_description: 用户名
 user_label: 用户

@@ -2,7 +2,7 @@ use darling::{Error as DarlingError, FromField, FromMeta};
 use gpui_form_codegen::components::Components;
 use koruma_derive_core::ValidationInfo;
 use proc_macro2::TokenStream;
-use quote::ToTokens as _;
+use quote::{ToTokens as _, quote};
 use syn::{Expr, Ident, Lit, Type, TypePath};
 
 #[derive(Clone, Debug)]
@@ -124,6 +124,99 @@ pub struct FieldOptionality {
     pub into_expr: Option<Expr>,
     pub from_expr: Option<Expr>,
     pub skip: bool,
+    /// Milestone M3 (backlog #2/#3): which composed holder shape this field
+    /// uses. `Flat` keeps the pre-M3 behavior byte-for-byte; `Nested` stores
+    /// the nested form's own generated value holder; `List` stores the plain
+    /// item `Vec` plus generated add/remove/items operations.
+    pub composition: FieldComposition,
+    /// Milestone M4 (backlog #12): `depends_on = <sibling>` — metadata-only.
+    pub depends_on: Option<Ident>,
+    /// Milestone M4 (backlog #13): `required_if = <sibling>`, resolved at
+    /// expansion time into the emitted validator's identity plus the
+    /// sibling's truthiness shape (see `RequiredIfRule`).
+    pub required_if: Option<RequiredIfRule>,
+}
+
+/// Milestone M4 (backlog #13): the fully-resolved `required_if` rule.
+///
+/// `expansion.rs` validates the sibling reference and computes this before
+/// holder generation; `value_holder.rs` emits the validator struct
+/// (`validator`) and mirrors the koruma attr (`.when(#condition)`), and
+/// `errors.rs` mirrors the koruma error-field getter (`validator`'s
+/// snake_case name).
+#[derive(Clone, Debug)]
+pub struct RequiredIfRule {
+    /// The controlling sibling field, as written in the attribute.
+    pub sibling: Ident,
+    /// The emitted validator type: `<Name>FormRequiredIfValidation`. Named
+    /// per form (not per field) so one emitted type serves every
+    /// `required_if` field of the form, and following the reserved
+    /// `<Name>Form*` prefix convention.
+    pub validator: Ident,
+    /// How the sibling's holder value decides "required" at validation
+    /// time.
+    pub condition: RequiredIfCondition,
+}
+
+/// The truthiness shape of a `required_if` controlling sibling's HOLDER
+/// value. Computed from the sibling's holder field type at expansion time,
+/// so the emitted validator needs no runtime trait resolution.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RequiredIfCondition {
+    /// Plain `bool` sibling (switch/checkbox on a non-optional field):
+    /// required when `true`.
+    Bool,
+    /// `Option<bool>` sibling: required when `Some(true)` — an explicit
+    /// `Some(false)` (switch off) must NOT require the value.
+    SomeTrue,
+    /// Any other `Option<T>` sibling: required when set (`Some(_)`).
+    IsSome,
+}
+
+/// Milestone M3: the composed holder shape of a field.
+#[derive(Clone, Debug)]
+pub enum FieldComposition {
+    /// Pre-M3 single-field shape (input/select/checkbox/...).
+    Flat,
+    /// `component(nested)` — `holder` is the resolved
+    /// `<NestedName>FormValueHolder` type; conversions compose through the
+    /// nested form's own `From` impls.
+    Nested { holder: Type },
+    /// `component(list(item = ...))` — `item` is the scalar item base type;
+    /// the holder stores `Vec<item>` (or `Option<Vec<item>>` for
+    /// originally-optional fields).
+    List { item: Type },
+}
+
+impl FieldComposition {
+    pub fn is_nested(&self) -> bool {
+        matches!(self, Self::Nested { .. })
+    }
+
+    pub fn is_list(&self) -> bool {
+        matches!(self, Self::List { .. })
+    }
+
+    pub fn is_flat(&self) -> bool {
+        matches!(self, Self::Flat)
+    }
+}
+
+impl RequiredIfCondition {
+    /// The `when(...)` builder-setter argument the mirrored koruma attr
+    /// carries. The expression is evaluated inside koruma's generated
+    /// `validate(&self)` on the HOLDER, so `self.<sibling>` reads the
+    /// controlling sibling's live holder value — the typed, compile-checked
+    /// reference R19 asks for (no stringly rule engine).
+    pub fn when_argument_tokens(self, sibling: &Ident) -> TokenStream {
+        match self {
+            Self::Bool => quote! { ::core::clone::Clone::clone(&self.#sibling) },
+            Self::SomeTrue => {
+                quote! { self.#sibling.as_ref().is_some_and(|value| *value) }
+            },
+            Self::IsSome => quote! { self.#sibling.is_some() },
+        }
+    }
 }
 
 impl FieldOptionality {
@@ -132,8 +225,17 @@ impl FieldOptionality {
     /// - Are wrapped in Option (for form handling)
     /// - Were not originally Optional in the source struct
     /// - Are not nested structs (nested fields have their own validation)
+    ///
+    /// Milestone M4: a field with `required_if` never gets the synthetic
+    /// unconditional `RequiredValidation` — the conditional rule supersedes
+    /// it (requiring the field always would defeat the condition).
     pub fn needs_required_validation(&self) -> bool {
-        !self.skip && self.wrap_in_option && !self.was_optional && !self.validation.is_nested
+        !self.skip
+            && self.wrap_in_option
+            && !self.was_optional
+            && !self.validation.is_nested
+            && matches!(self.composition, FieldComposition::Flat)
+            && self.required_if.is_none()
     }
 }
 
@@ -141,6 +243,98 @@ impl FieldOptionality {
 pub struct KorumaOptions {
     #[darling(default)]
     pub fluent: bool,
+}
+
+/// `validate(async_fn = <path>)`: the async validator path, parsed with the
+/// same custom-`FromMeta` pattern as `TypeOverride` (bare path, or a quoted
+/// string parsed as a path). Anything else (e.g. an integer literal) is a
+/// darling error at parse time.
+#[derive(Clone, Debug)]
+pub struct AsyncFnPath(pub syn::Path);
+
+impl FromMeta for AsyncFnPath {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        match expr {
+            Expr::Path(expr_path) => Ok(AsyncFnPath(expr_path.path.clone())),
+            Expr::Group(group) => Self::from_expr(&group.expr),
+            Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
+            _ => Err(DarlingError::unexpected_expr_type(expr)),
+        }
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<syn::Path>(value)
+            .map(AsyncFnPath)
+            .map_err(|_| DarlingError::unknown_value(value))
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        if let Lit::Str(v) = value {
+            v.parse::<syn::Path>()
+                .map(AsyncFnPath)
+                .map_err(|_| DarlingError::unknown_value(&v.value()).with_span(v))
+        } else {
+            Err(DarlingError::unexpected_lit_type(value))
+        }
+    }
+}
+
+/// `validate(async_fn = ..., debounce = ...)` — the async-validation
+/// attribute surface (M2 emission sketch). The attr parses and records
+/// metadata only in this milestone; execution wiring is deferred to the
+/// GPUI-glue phase behind the reserved `async-validation` feature.
+#[derive(Clone, Debug, FromMeta)]
+pub struct AsyncValidate {
+    pub async_fn: AsyncFnPath,
+    // Parsed (grammar is accepted today) but not yet read by any emitter:
+    // the debounce policy belongs to the future driving layer.
+    #[allow(dead_code)]
+    #[darling(default)]
+    pub debounce: Option<Expr>,
+}
+
+/// Milestone M4 (backlog #12/#13): a reference to a sibling field of the
+/// same struct — the value of `depends_on = <field>` and
+/// `required_if = <field>`.
+///
+/// Parsed as a bare ident (the typed form, `depends_on = country`) or a
+/// quoted ident (`required_if = "subscribe"`, the backlog's spelling) —
+/// never as an arbitrary string or expression. The referenced sibling is
+/// existence-checked at expansion time, and the generated validator closes
+/// over `self.<field>` directly, so a typo is a compile error, not a
+/// silently-dead rule (feature-parity plan R19: no stringly typed
+/// expressions, no expression language).
+#[derive(Clone, Debug)]
+pub struct SiblingField(pub Ident);
+
+impl FromMeta for SiblingField {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        match expr {
+            Expr::Path(expr_path) => match expr_path.path.get_ident() {
+                Some(ident) => Ok(SiblingField(ident.clone())),
+                None => Err(DarlingError::unknown_value(
+                    &expr_path.path.to_token_stream().to_string(),
+                )),
+            },
+            Expr::Group(group) => Self::from_expr(&group.expr),
+            Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
+            _ => Err(DarlingError::unexpected_expr_type(expr)),
+        }
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<Ident>(value)
+            .map(SiblingField)
+            .map_err(|_| DarlingError::unknown_value(value))
+    }
+
+    fn from_value(value: &Lit) -> darling::Result<Self> {
+        if let Lit::Str(v) = value {
+            Self::from_string(&v.value())
+        } else {
+            Err(DarlingError::unexpected_lit_type(value))
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -184,6 +378,24 @@ pub struct ComponentField {
     pub placeholder: Option<String>,
     #[darling(default)]
     pub width: Option<LayoutWidthMeta>,
+    // Async-validation attribute surface (M2 emission sketch):
+    // `#[gpui_form(validate(async_fn = my_check), component(input))]`.
+    // Parse + metadata only; nothing executes until the reserved
+    // `async-validation` wiring phase.
+    #[darling(default)]
+    pub validate: Option<AsyncValidate>,
+    // Milestone M4 (backlog #12): `depends_on = <sibling field>` —
+    // metadata-only dependency recording for conditional loading and
+    // reset-on-parent-change consumers.
+    #[darling(default)]
+    pub depends_on: Option<SiblingField>,
+    // Milestone M4 (backlog #13): `required_if = <sibling field>` —
+    // conditional requiredness. Desugars to a generated koruma validator
+    // (see `value_holder.rs`), so violations surface through the typed
+    // field-error surface; the sibling reference is also recorded as
+    // schema metadata.
+    #[darling(default)]
+    pub required_if: Option<SiblingField>,
     #[darling(default)]
     pub skip: bool,
 }
@@ -191,6 +403,16 @@ pub struct ComponentField {
 impl ComponentField {
     pub fn skip(&self) -> bool {
         self.skip
+    }
+
+    /// Milestone M3 (backlog #2): `component(nested)` on this field.
+    pub fn is_nested(&self) -> bool {
+        matches!(self.component, Some(Components::Nested(_)))
+    }
+
+    /// Milestone M3 (backlog #3): `component(list(...))` on this field.
+    pub fn is_list(&self) -> bool {
+        matches!(self.component, Some(Components::List(_)))
     }
 }
 
@@ -203,6 +425,11 @@ pub struct ComponentStruct {
     pub empty: bool,
     #[darling(default)]
     pub koruma: Option<KorumaField>,
+    // Backlog #7 (submit lifecycle): opt-in `#[gpui_form(submit)]` — a bare
+    // word. Parse-time only; it drives the `<Name>FormSubmission` alias
+    // emitter (see `submit.rs`), never holder state.
+    #[darling(default)]
+    pub submit: bool,
 }
 
 pub struct ComponentFieldContent {

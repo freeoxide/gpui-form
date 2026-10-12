@@ -1,5 +1,5 @@
 [package]
-name = "gpui-form-schema"
+name = "freeoxide-gpui-form-schema"
 description = """
 Schema crate for gpui-form
 """
@@ -11,10 +11,20 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
+# The package is published as `freeoxide-gpui-form-schema`; the lib target
+# keeps its historical name so `::gpui_form_schema::...` paths compile
+# unchanged.
+[lib]
+name = "gpui_form_schema"
+
 [dependencies]
 heck = { workspace = true }
 inventory = { workspace = true }
+serde = { workspace = true }
 strum = { features = [ "derive" ], workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

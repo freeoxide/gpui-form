@@ -32,6 +32,12 @@ struct GeneratedField<'a> {
     render_child: TokenStream,
     subscription: Option<GeneratedSubscription>,
     post_subscription_initialization: Option<TokenStream>,
+    /// Milestone M3: extra impl members (list row/add/remove controls).
+    impl_members: Vec<TokenStream>,
+    /// Milestone M3: scaffold-level struct field (nested form entities).
+    scaffold_struct_field: Option<TokenStream>,
+    /// Milestone M3: its `Self { ... }` initializer.
+    scaffold_struct_init: Option<TokenStream>,
     _resolved: ResolvedField<'a>,
 }
 
@@ -101,6 +107,11 @@ impl<'a> FormShapeAdapter<'a> {
                     subscription,
                     post_subscription_initialization: generator
                         .generate_post_subscription_initialization(&resolved, self.shape_data),
+                    impl_members: generator.generate_impl_members(&resolved, self.shape_data),
+                    scaffold_struct_field: generator
+                        .generate_scaffold_struct_field(&resolved, self.shape_data),
+                    scaffold_struct_init: generator
+                        .generate_scaffold_struct_init(&resolved, self.shape_data),
                     _resolved: resolved,
                 })
             })
@@ -192,6 +203,16 @@ impl<'a> FormShapeAdapter<'a> {
         let mut prev_section: Option<&'static str> = None;
         for field in &generated_fields {
             let current_section = field._resolved.layout().section;
+            // Milestone M3: nested/list fields carry their own layout (a
+            // bordered group / repeatable-row control), so the shared
+            // section-heading logic must not double-heading them; the
+            // tracker still advances so a later same-section flat field
+            // re-headers correctly.
+            if field._resolved.raw().is_nested() || field._resolved.raw().is_list() {
+                prev_section = current_section;
+                render_children_items.push(field.render_child.clone());
+                continue;
+            }
             if current_section.is_some() && current_section != prev_section {
                 let heading = current_section.unwrap_or_default();
                 render_children_items.push(quote! {
@@ -233,6 +254,21 @@ impl<'a> FormShapeAdapter<'a> {
             .iter()
             .filter_map(|field| field.post_subscription_initialization.clone())
             .collect();
+        // Milestone M3 (composed fields): scaffold-level struct fields for
+        // nested form entities and extra impl members for list controls.
+        let composed_struct_fields: TokenStream = generated_fields
+            .iter()
+            .filter_map(|field| field.scaffold_struct_field.clone())
+            .collect();
+        let composed_struct_inits: TokenStream = generated_fields
+            .iter()
+            .filter_map(|field| field.scaffold_struct_init.clone())
+            .collect();
+        let composed_impl_members: TokenStream = generated_fields
+            .iter()
+            .flat_map(|field| field.impl_members.iter().cloned())
+            .collect();
+
         let field_path_items: Vec<TokenStream> = generated_fields
             .iter()
             .map(|field| {
@@ -370,6 +406,9 @@ impl<'a> FormShapeAdapter<'a> {
             fields_init,
             debug_child,
             replace_current_data_fn,
+            composed_struct_fields,
+            composed_struct_inits,
+            composed_impl_members,
         })
     }
 
@@ -468,6 +507,16 @@ pub struct FormParts {
     pub debug_child: TokenStream,
     /// `replace_current_data(...)` helper method; empty for empty forms.
     pub replace_current_data_fn: TokenStream,
+
+    // ── Milestone M3 (composed fields) ─────────────────────────────────────
+    /// Scaffold-level struct fields for composed fields (nested form
+    /// entities); empty for flat-only forms.
+    pub composed_struct_fields: TokenStream,
+    /// Their `Self { ... }` initializers; empty for flat-only forms.
+    pub composed_struct_inits: TokenStream,
+    /// Extra impl members (list row/add/remove control helpers); empty for
+    /// flat-only forms.
+    pub composed_impl_members: TokenStream,
 }
 
 // ── FormLayout ────────────────────────────────────────────────────────────────

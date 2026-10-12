@@ -2043,7 +2043,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "derive_more",
- "gpui-form",
+ "freeoxide-gpui-form",
  "gpui-kit",
  "gpui-pre",
  "koruma",
@@ -2052,6 +2052,130 @@ dependencies = [
  "serde",
  "strum 0.28.0",
  "unic-langid",
+]
+
+[[package]]
+name = "freeoxide-gpui-form"
+version = "0.10.0"
+dependencies = [
+ "bon",
+ "freeoxide-gpui-form-component",
+ "freeoxide-gpui-form-core",
+ "freeoxide-gpui-form-derive",
+ "freeoxide-gpui-form-schema",
+ "koruma",
+ "koruma-collection",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-codegen"
+version = "0.10.0"
+dependencies = [
+ "darling",
+ "derive_more",
+ "freeoxide-gpui-form-schema",
+ "proc-macro2",
+ "quote",
+ "strum 0.28.0",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-component"
+version = "0.10.0"
+dependencies = [
+ "chrono",
+ "freeoxide-gpui-form",
+ "freeoxide-gpui-form-component-derive",
+ "freeoxide-gpui-form-i18n",
+ "gpui-kit",
+ "gpui-pre",
+ "icu_calendar",
+ "icu_datetime",
+ "icu_locale_core",
+ "jiff",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "unic-langid",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-component-derive"
+version = "0.10.0"
+dependencies = [
+ "darling",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-core"
+version = "0.10.0"
+dependencies = [
+ "phonenumber",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-derive"
+version = "0.10.0"
+dependencies = [
+ "darling",
+ "freeoxide-gpui-form",
+ "freeoxide-gpui-form-codegen",
+ "gpui-kit",
+ "gpui-pre",
+ "heck 0.5.0",
+ "itertools 0.14.0",
+ "koruma",
+ "koruma-collection",
+ "koruma-derive-core",
+ "proc-macro2",
+ "quote",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "syn 2.0.118",
+ "syn-cfg-attr",
+ "trybuild",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-i18n"
+version = "0.10.0"
+dependencies = [
+ "gpui-pre",
+ "rust-i18n",
+ "strum 0.28.0",
+ "thiserror 2.0.18",
+ "unic-langid",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-prototyping-core"
+version = "0.10.0"
+dependencies = [
+ "freeoxide-gpui-form-schema",
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "rust-i18n",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "freeoxide-gpui-form-schema"
+version = "0.10.0"
+dependencies = [
+ "heck 0.5.0",
+ "inventory",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -2481,127 +2605,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
-]
-
-[[package]]
-name = "gpui-form"
-version = "0.5.2"
-dependencies = [
- "bon",
- "gpui-form-component",
- "gpui-form-core",
- "gpui-form-derive",
- "gpui-form-schema",
- "koruma",
- "koruma-collection",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "gpui-form-codegen"
-version = "0.5.2"
-dependencies = [
- "darling",
- "derive_more",
- "gpui-form-schema",
- "proc-macro2",
- "quote",
- "strum 0.28.0",
- "syn 2.0.118",
-]
-
-[[package]]
-name = "gpui-form-component"
-version = "0.5.2"
-dependencies = [
- "chrono",
- "gpui-form-component-derive",
- "gpui-form-i18n",
- "gpui-kit",
- "gpui-pre",
- "icu_calendar",
- "icu_datetime",
- "icu_locale_core",
- "jiff",
- "rust-i18n",
- "serde",
- "serde_json",
- "unic-langid",
-]
-
-[[package]]
-name = "gpui-form-component-derive"
-version = "0.5.2"
-dependencies = [
- "darling",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 2.0.118",
-]
-
-[[package]]
-name = "gpui-form-core"
-version = "0.5.2"
-dependencies = [
- "phonenumber",
-]
-
-[[package]]
-name = "gpui-form-derive"
-version = "0.5.2"
-dependencies = [
- "darling",
- "gpui-form",
- "gpui-form-codegen",
- "gpui-kit",
- "gpui-pre",
- "heck 0.5.0",
- "itertools 0.14.0",
- "koruma",
- "koruma-collection",
- "koruma-derive-core",
- "proc-macro2",
- "quote",
- "rust-i18n",
- "serde",
- "serde_json",
- "syn 2.0.118",
- "syn-cfg-attr",
- "trybuild",
-]
-
-[[package]]
-name = "gpui-form-i18n"
-version = "0.5.2"
-dependencies = [
- "gpui-pre",
- "rust-i18n",
- "strum 0.28.0",
- "thiserror 2.0.18",
- "unic-langid",
-]
-
-[[package]]
-name = "gpui-form-prototyping-core"
-version = "0.5.2"
-dependencies = [
- "gpui-form-schema",
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "rust-i18n",
- "syn 2.0.118",
-]
-
-[[package]]
-name = "gpui-form-schema"
-version = "0.5.2"
-dependencies = [
- "heck 0.5.0",
- "inventory",
- "strum 0.28.0",
 ]
 
 [[package]]
@@ -5903,8 +5906,8 @@ dependencies = [
 name = "prototyping"
 version = "0.1.0"
 dependencies = [
- "gpui-form",
- "gpui-form-prototyping-core",
+ "freeoxide-gpui-form",
+ "freeoxide-gpui-form-prototyping-core",
  "heck 0.5.0",
  "inventory",
  "prettyplease",
@@ -7051,8 +7054,8 @@ dependencies = [
  "anyhow",
  "chrono",
  "derive_more",
- "gpui-form",
- "gpui-form-derive",
+ "freeoxide-gpui-form",
+ "freeoxide-gpui-form-derive",
  "gpui-kit",
  "gpui-pre",
  "koruma",

@@ -1,14 +1,14 @@
 use gpui_form_schema::components::{ComponentsBehaviour, NumberInputKind};
 use gpui_form_schema::registry::{FieldVariant, GpuiFormShape};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::imports::ImportItem;
 
 use super::{
-    FieldCodeGenerator, GeneratedSubscription, ResolvedField, generate_entity_creation,
-    generate_entity_field_initializer, generate_entity_focus, generate_text_value_prefill,
-    render_component_entity_field,
+    FieldCodeGenerator, GeneratedSubscription, ResolvedField, dependent_reset_statements,
+    generate_entity_creation, generate_entity_field_initializer, generate_entity_focus,
+    generate_text_value_prefill, render_component_entity_field,
 };
 
 pub struct NumberInputCodeGenerator;
@@ -81,9 +81,12 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
     fn generate_subscription(
         &self,
         field: &ResolvedField<'_>,
-        _component: &GpuiFormShape,
+        component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
+        // M4 (backlog #12): reset dependent fields when this field changes
+        // (typing or stepping).
+        let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let on_input_event_handler_fn_name_ident = field.event_handler_ident("input_event");
         let on_number_input_event_handler_fn_name_ident =
@@ -112,6 +115,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                     InputEvent::Change => {
                         let text = state.read(_cx).value();
                         self.current_data.#field_name_ident = text.parse::<#field_type_path>().ok();
+                        #dependent_resets
                     }
                     _ => {}
                 }
@@ -184,6 +188,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
                         }
                     },
                 }
+                #dependent_resets
             }
         };
         handlers.push(on_number_input_event_handler);

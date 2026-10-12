@@ -1,0 +1,5 @@
+error: Unexpected type `path`
+ --> tests/ui/submit_attr_takes_no_args.rs:6:22
+  |
+6 | #[gpui_form(submit = foo)]
+  |                      ^^^

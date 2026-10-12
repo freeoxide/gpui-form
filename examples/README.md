@@ -13,6 +13,15 @@ Source structs and enums that demonstrate the supported derive surface:
   plus typed path-error reporting, custom persisted keys, and key-path string
   serialization
 - custom component state, local shapes, and cross-crate shapes
+- a nested form (`component(nested)` `Address` composed into `PostEditor`)
+  and a scalar-item repeated field (`component(list(item = input))` tags with
+  `each(...)` element validators) — milestone M3 shapes, exercised by the
+  `typed_paths` tests (composed `address.city` paths, typed `tags.2` item
+  paths)
+- field dependencies (milestone M4): `User.state` records
+  `depends_on = country`, and `User.email` is conditionally required via
+  `required_if = subscribe_newsletter` (a desugared koruma validator, so the
+  violation surfaces through the typed error surface)
 - Koruma validation wiring
 - newtype-backed numeric validation
 - `cfg_attr`-gated derive usage
@@ -54,13 +63,55 @@ plain selects over `SelectItem(fluent)` enums, checkbox and switch bool fields,
 a newtype-backed field with inner koruma validation (`#[koruma(newtype)]` invite
 code whose `Inner` error is mapped to a localized key), a form-bound
 `component(date_picker)` field, and a `#[gpui_form(skip)]` field that is absent
-from the holder and typed paths (shown live in the footer). Standalone runtime
+from the holder and typed paths (shown live in the footer). The app drives the
+generated `SignupFormState` facade: inputs mark touched on blur and on
+change (the root view tracks focus and every action button releases field
+focus on click, so blur fires on click-away too; each input is also wrapped
+so clicks on the control's padding band reach the editor's focus handle),
+other component kinds on
+change, the footer lists the live changed/touched fields
+through `FieldPath` Display, and per-field errors render through
+`error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
+koruma validation or builds a throwaway dirty-check clone. The M2 submit
+lifecycle is wired end-to-end: a Submit button drives the opt-in
+`SignupFormSubmission` tracker (`#[gpui_form(submit)]`) through
+`begin()` → a spawned `SubmitAction` future with simulated latency →
+`finish()`, counting every attempted submit (the re-entry guard is the only
+gate; an invalid form finishes the attempt immediately with the typed
+koruma error, so `submit_count()` increments on failed attempts too),
+disables while submitting, syncs the baseline on success, and
+renders `last_error` banners by re-keying the typed koruma error through
+`SignupFormFieldErrors` into the localized `validation.*` keys; a simulated
+async availability check on the email field implements the
+`AsyncFieldValidation` contract with a generation guard against stale
+completions; and the facade's snapshot-compare validation cache feeds a live
+`is_valid` footer indicator. Standalone runtime
 components add a date picker and a multiple-mode file picker whose pluralized
-count text follows the locale. Validation errors render through `validation.*`
+count text follows the locale. Milestone M3 adds a nested `Address` form
+(two app-owned inputs writing into the nested
+`AddressFormValueHolder`, touched tracking keyed through the nested root
+path `address_root()` — composed `address.city`-style paths have no dense
+field index in v1) and a tags list with a rendered new-tag editor plus
+add/remove buttons over the generated
+`add_tags`/`remove_tags`/`tags_items` holder API — per-item `each(...)`
+failures render with their failing indices, and the count text follows the
+app's localized-count pattern. Milestone M4 adds the field-dependency
+showcase: a `state` select recording `depends_on = country` that the country
+handler resets (holder value AND widget) on every change, an email field made
+conditionally required by the newsletter checkbox through
+`required_if = newsletter` (the localized `validation.required` error appears
+and disappears live as the checkbox flips), and a "Save changes (touched
+only)" button printing the PATCH tri-state filtered to the touched fields —
+the plan's D10 outcome: the patch IS the partial payload. Milestone M5 adds a
+footer "Schema" debug toggle printing the exported `SignupFormSchema::schema()`
+document (component kinds, validations, dependencies, nested/list composition)
+— the devtools seed; its tests prove the document reads without the GPUI
+runtime. Validation errors render through `validation.*`
 `t!` keys — including newtype `Inner` errors — with unit tests asserting the
 French/Chinese strings, plus per-crate key-parity tests. EN/FR/中文 buttons
 drive the shared `gpui-form-i18n` locale; the footer shows the live locale,
-`FormState::is_dirty`, picked paths count, and the typed field paths.
+dirty/changed/touched/valid/submitting state, submit attempts, picked paths
+count, and the typed field paths.
 
 Run it with:
 

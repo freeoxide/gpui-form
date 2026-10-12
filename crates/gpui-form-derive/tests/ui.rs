@@ -20,6 +20,98 @@ fn gpui_form_compiles_koruma_builder_attrs_end_to_end() {
 }
 
 #[test]
+fn gpui_form_compiles_field_level_state_end_to_end() {
+    // Backlog #6/#9 + touched tracking: the generated facade, patch, and
+    // typed error surface compile and behave in one binary. No
+    // `koruma(fluent)` here, so no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/error_for_koruma_pass.rs");
+}
+
+#[test]
+fn gpui_form_compiles_submit_attr_end_to_end() {
+    // Backlog #7 (submit lifecycle): `#[gpui_form(submit)]` emits the
+    // `<Name>FormSubmission` alias — koruma error type on koruma forms,
+    // BoxError otherwise — usable end to end. No `koruma(fluent)` here, so
+    // no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/submit_attr_pass.rs");
+}
+
+#[test]
+fn submit_attr_takes_no_arguments() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/submit_attr_takes_no_args.rs");
+}
+
+#[test]
+fn async_validate_attr_rejects_malformed_arguments() {
+    // M2 emission sketch: `validate(async_fn = <path>)` parses strictly —
+    // non-path literals and argument-less words are darling errors.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/async_validate_bad_args.rs");
+}
+
+#[test]
+fn gpui_form_compiles_nested_and_list_end_to_end() {
+    // M3 (backlog #2/#3): nested forms + scalar-item lists compile with the
+    // M1 error surface and M1 state facade over composed paths (hazard 10:
+    // the happy path must be pinned because name-resolution failures for
+    // non-GpuiForm nested types only surface in user code). No
+    // `koruma(fluent)` here, so no trybuild locale seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/nested_list_pass.rs");
+}
+
+#[test]
+fn list_component_requires_an_item_kind() {
+    // M3: a bare `component(list)` is a parse error.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_requires_item.rs");
+}
+
+#[test]
+fn list_item_rejects_unknown_kinds() {
+    // M3: `item = banana` is an unknown-value darling error.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_unknown_kind.rs");
+}
+
+#[test]
+fn list_item_rejects_custom_components() {
+    // M3 v1 boundary: custom components are app-owned escape hatches, not
+    // list items.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_custom_rejected.rs");
+}
+
+#[test]
+fn list_item_rejects_nested_item_forms_in_v1() {
+    // M3 v1 boundary (backlog #3): scalar item components before nested
+    // item forms — `item = nested` is rejected until the post-v1 milestone.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/list_item_nested_not_yet.rs");
+}
+
+#[test]
+fn gpui_form_compiles_field_dependencies_end_to_end() {
+    // M4 (backlog #12/#13): `depends_on` metadata + `required_if`
+    // conditional requiredness compile with the typed error surface the
+    // rule integrates into. No `koruma(fluent)` here, so no trybuild locale
+    // seeding is needed.
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/field_dependencies_pass.rs");
+}
+
+#[test]
+fn required_if_rejects_unknown_sibling_fields() {
+    // M4: a typo'd sibling reference fails at derive time (R19 — typed
+    // references, not stringly rules that silently never fire).
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/required_if_unknown_sibling.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 
@@ -32,10 +124,13 @@ fn seed_trybuild_locales() {
     use std::path::PathBuf;
 
     let target_dir = resolve_cargo_target_dir();
+    // trybuild names the sandbox project after this crate's PACKAGE name,
+    // so the seed must follow it (the package publishes as
+    // `freeoxide-gpui-form-derive`).
     let locales_dir = target_dir
         .join("tests")
         .join("trybuild")
-        .join("gpui-form-derive")
+        .join(env!("CARGO_PKG_NAME"))
         .join("locales");
     fs::create_dir_all(&locales_dir).expect("trybuild project locales dir");
 

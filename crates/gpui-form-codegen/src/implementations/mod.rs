@@ -6,6 +6,8 @@ pub mod date_picker;
 pub mod file_picker;
 pub mod infinite_select;
 pub mod input;
+pub mod list;
+pub mod nested;
 pub mod number_input;
 pub mod phone_input;
 pub mod select;

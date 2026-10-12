@@ -43,6 +43,24 @@ This crate exists to:
    `<form>.<field>_label` / `<form>.<field>_description` keys unless
    `layout.label` / `layout.description` override them verbatim; a missed key
    falls back to the title-cased field name.
+   Milestone M3 adds two composed-field generators: nested fields
+   (`implementations/nested.rs`) host the nested form's own scaffold as an
+   `Entity<<Nested>Form>` scaffold-level struct field rendered inside a
+   bordered group (imported by the `crate::<snake>::<Nested>Form`
+   convention), and list fields (`implementations/list.rs`) emit a
+   `<field>_list_control` impl member rendering repeatable rows over
+   `<field>_items()` with per-row Remove buttons and one Add button appending
+   a typed default item — wired to the holder's `add_<field>` /
+   `remove_<field>` operations. Both manage no subscriptions of their own
+   ([D5]/R17: per-item entity churn stays app-authored), and the shared
+   section-heading logic skips them (they carry their own layout). Their
+   i18n keys stay index-free (hazard 11): a nested group contributes
+   `{form}.{field}_label`; a list contributes `{form}.{field}_label`,
+   `{form}.{field}_item_label`, `{form}.{field}_add`, and
+   `{form}.{field}_remove`.
+   `FormParts` exposes the composed surface as `composed_struct_fields`,
+   `composed_struct_inits`, and `composed_impl_members` for layouts to
+   splice.
 1. The adapter returns:
    - `FormParts` for caller-controlled assembly, or
    - a complete `syn::File` through `generate_file(&impl FormLayout)`
@@ -99,6 +117,19 @@ bare identifier. That is important because inventory metadata may carry:
 
 Each field is resolved once into a typed internal representation before any
 component-specific generation runs.
+
+## Dependent-Field Resets (M4, backlog #12)
+
+`implementations/mod.rs` exposes `dependent_reset_statements(field, shape,
+receiver)`: for every field whose `FieldVariant::depends_on` names this field,
+it emits a reset of the dependent's HOLDER value (`None` for Option-wrapped
+holders, `Default` otherwise). The value-component generators (input,
+number_input, phone_input via input, select, infinite_select, date_picker,
+file_picker, switch, checkbox) splice these statements into their change
+handling, so scaffolds get reset-on-parent-change wiring — [D5]: scaffolds
+may wire events; the derive never does. Re-syncing the dependent's WIDGET
+stays app-authored; the reset statements are empty for fields without
+dependents, so existing shapes emit identical tokens.
 
 ## Current Custom Component Behavior
 

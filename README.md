@@ -1,6 +1,6 @@
-[![Build Status](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml/badge.svg)](https://github.com/stayhydated/gpui-form/actions/workflows/ci.yml)
-[![Docs](https://docs.rs/gpui-form/badge.svg)](https://docs.rs/gpui-form/)
-[![Crates.io](https://img.shields.io/crates/v/gpui-form.svg)](https://crates.io/crates/gpui-form)
+[![Build Status](https://github.com/freeoxide/gpui-form/actions/workflows/ci.yml/badge.svg)](https://github.com/freeoxide/gpui-form/actions/workflows/ci.yml)
+[![Docs](https://docs.rs/freeoxide-gpui-form/badge.svg)](https://docs.rs/freeoxide-gpui-form/)
+[![Crates.io](https://img.shields.io/crates/v/freeoxide-gpui-form.svg)](https://crates.io/crates/freeoxide-gpui-form)
 
 # gpui-form
 
@@ -17,7 +17,7 @@ It is designed for three things:
 
 ## Compatibility
 
-| `gpui-form` | `gpui-kit` | `gpui` |
+| `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
 | `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
@@ -29,23 +29,25 @@ It is designed for three things:
 gpui = { package = "gpui-pre", version = "0.3.7" }
 gpui-kit = "0.7.0"
 
-gpui-form = { git = "https://github.com/stayhydated/gpui-form" }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 
 # Optional: inventory registration for prototyping/code generation
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["inventory"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["inventory"] }
 
 # Optional: form-state persistence + dirty tracking (serde on the holder)
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
 
 # Optional: parser-backed phone-number validation helpers
-# gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["phone"] }
+# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["phone"] }
 
 # Optional: your crate's own locale files (required when the crate calls t!)
 # rust-i18n = "4"
 ```
 
-The `gpui-form` package on crates.io is the upstream `freeoxide/gpui-form`
-lineage, not this fork — install from git to pick up this workspace.
+The packages publish to crates.io under the `freeoxide-` names
+(`freeoxide-gpui-form` and friends); every lib target keeps its historical
+name (`gpui_form`, `gpui_form_core`, ...), so `use gpui_form::...` code
+compiles unchanged.
 
 ## Quick Start
 
@@ -110,6 +112,13 @@ These component forms are currently supported:
 - `#[gpui_form(component(custom(shape = my::Shape, component = my::ui::Widget)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, wraps_in_option = false)))]`
 - `#[gpui_form(component(custom(shape = my::Shape, value_binding)))]`
+- `#[gpui_form(component(nested))]` — compose another `#[derive(GpuiForm)]`
+  struct as a nested form (see
+  [Nested Forms and Repeated Fields](#nested-forms-and-repeated-fields))
+- `#[gpui_form(component(list(item = input)))]` — an editable `Vec<T>` with
+  scalar item components (`input`, `number_input`, `select`, `checkbox`,
+  `switch`, `phone_input`, `infinite_select`, `date_picker`, `file_picker`),
+  plus optional `add_label = "..."` for the generated add control
 
 Common field-level helpers:
 
@@ -128,6 +137,12 @@ Common field-level helpers:
 - `#[gpui_form(section = ..., label = ..., description = ..., placeholder = ..., width = ...)]`
   attaches non-rendering layout hints. See
   [Layout and Section Hints](#layout-and-section-hints).
+- `#[gpui_form(depends_on = <field>)]` records a sibling-field dependency as
+  metadata. See
+  [Field Dependencies and Conditional Requiredness](#field-dependencies-and-conditional-requiredness).
+- `#[gpui_form(required_if = <field>)]` makes a field conditionally required.
+  See
+  [Field Dependencies and Conditional Requiredness](#field-dependencies-and-conditional-requiredness).
 
 ## Phone Number Validation
 
@@ -137,7 +152,7 @@ field and headless validation helpers that centralize the strict validation
 logic so every phone field uses the same rules.
 
 ```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["derive", "phone"] }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["derive", "phone"] }
 ```
 
 ### As a generated form field
@@ -405,6 +420,39 @@ When validation is enabled:
 - builder-chain Koruma attrs are mirrored
 - generated value-holder validation uses the same validator set as the source
   struct
+- the holder gains path-keyed typed error access: `validate_fields()` returns
+  a `<Name>FormFieldErrors` map re-keying koruma's typed per-field error
+  structs by `<Name>FormPath` (see the next section)
+
+### Typed error access (`error_for`)
+
+Instead of hand-matching koruma output per field, select errors through the
+typed path and read the failed validators' i18n keys directly:
+
+```rs
+use gpui_form::core::FormFieldErrors;
+
+let errors = holder.validate_fields();
+if let Some(field_error) = errors.error_for(&SignupFormPath::username()) {
+    assert_eq!(field_error.issue_keys(), vec!["validation.required"]);
+    assert_eq!(field_error.path().to_string(), "username");
+}
+
+// Declaration-ordered failing paths, generic over any koruma form:
+let failing: Vec<String> = errors
+    .failing_paths()
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+```
+
+`error_for` returns `None` for valid fields and for unknown paths. Each
+`<Name>FormFieldError` variant borrows that field's koruma error struct, so
+koruma's own typed surface (`.all()`, `.inner()`, per-validator getters) stays
+reachable through the variant payload. `issue_keys()` names the field-level
+validators the derive can see; failures nested inside `#[koruma(newtype)]` or
+`#[koruma(nested)]` inner types report the generic `"validation.invalid"` key
+and remain readable through the typed accessors.
 
 With `koruma(fluent)`, the generated holder also resolves validation text
 through `rust-i18n`: it emits a `<FORM>_I18N_KEY_PREFIX` const, a
@@ -469,7 +517,7 @@ Enable the optional `serde` feature to make generated forms saveable/restorable
 and to know whether the user edited them. The feature is additive and opt-in.
 
 ```toml
-gpui-form = { git = "https://github.com/stayhydated/gpui-form", features = ["serde"] }
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
 ```
 
 With the feature on, `#[derive(GpuiForm)]` adds `Serialize` and `Deserialize`
@@ -516,10 +564,10 @@ Scope of this feature:
 
 - `FormState` stores holder **data** only — not component runtime UI state such
   as open menus, scroll positions, or `InfiniteSelectState` snapshots.
-- Dirty/diff is **boolean-level**: `is_dirty()` and `diff_against(&other)` tell
-  you *whether* the holder changed, not which fields. Field-level diff is
-  backlog feature #9 and will build on the [typed field paths](#typed-field-paths)
-  foundation shipped as FLAT v1.
+- `FormState`'s own dirty/diff stays **boolean-level**: `is_dirty()` and
+  `diff_against(&other)` tell you *whether* the holder changed. The
+  field-level diff (which fields changed, typed patches, touched tracking)
+  lives on the generated `<Name>FormState` facade below.
 - A holder carrying `#[gpui_form(skip)]` fields round-trips through serde on its
   own, but cannot fully reconstruct the source struct via `into_original`, since
   skipped values are not on the holder. This mirrors the existing
@@ -530,6 +578,239 @@ Scope of this feature:
 `FormState` is available unconditionally from `gpui_form::FormState` (or
 `gpui-form-core` directly); only the holder serde derives require the `serde`
 feature.
+
+### Field-level state: `<Name>FormState`, patches, and touched tracking
+
+Every `#[derive(GpuiForm)]` form also emits a `<Name>FormState` facade that
+*composes* the standalone core primitives — `FormState<H>` for baseline/current
+values and `TouchedFields` for engagement tracking — behind typed
+`<Name>FormPath` accessors. The holder itself stays plain data; all state
+lives on the facade.
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct Settings {
+    #[gpui_form(component(input))]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    pub age: Option<u32>,
+}
+
+let mut state = SettingsFormState::new(SettingsFormValueHolder::default());
+assert!(!state.is_dirty());
+
+state.current_mut().username = Some("ada".into());
+state.touch(&SettingsFormPath::username());          // from a blur/change handler
+
+// Per-field dirty + changed fields, in declaration order.
+assert!(state.is_field_dirty(&SettingsFormPath::username()));
+assert_eq!(state.changed_fields(), vec![SettingsFormPath::username()]);
+
+// Touched tracking is independent of value deltas.
+assert!(state.is_touched(&SettingsFormPath::username()));
+assert_eq!(state.touched_fields(), vec![SettingsFormPath::username()]);
+
+// Typed patch: one Option<holder-field-type> slot per non-skipped field
+// (Some(None) = "changed to cleared" for option-backed fields).
+let patch = state.patch();
+assert_eq!(patch.username, Some(Some("ada".to_string())));
+assert!(patch.age.is_none());
+patch.apply_to(&mut SettingsFormValueHolder::default()); // replay the diff
+
+// Reset semantics: default reset is a fresh canvas (values + touched clear);
+// the keeping-touched variant is an undo-style revert; a save via
+// sync_baseline() never un-visits fields.
+state.reset_to_baseline();
+assert!(!state.is_dirty() && !state.is_any_touched());
+```
+
+With the derive crate's `serde` feature on, `<Name>FormPatch` also derives
+`Serialize`/`Deserialize` with `skip_serializing_if = "Option::is_none"` per
+field, so the wire format is the PATCH tri-state: absent = unchanged, `null` =
+cleared, value = set.
+
+The patch is also the "partial holder" workflow: filtering it by the touched
+set gives a save-only-touched-fields payload without a separate generated
+type (the feature-parity plan's decision D10 — the patch tri-state already
+expresses cleared-vs-unchanged).
+
+```rs
+// Only send what the user actually touched AND changed.
+let touched: std::collections::HashSet<String> = state
+    .touched_fields()
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+let mut patch = state.patch();
+if !touched.contains("username") {
+    patch.username = None; // unchanged: leave the slot out of the payload
+}
+```
+
+`TouchedFields` (the headless bitset the facade composes) is re-exported as
+`gpui_form::TouchedFields` for non-derived holders; touched state is transient
+UI-session state and is never serialized. Blur/change wiring stays
+app-authored: call `state.touch(&path)` from your component event handlers.
+
+## Submit Lifecycle and Live Validation
+
+Koruma-gated `<Name>FormState` facades also compose a validation-outcome
+cache for a live `is_valid`, and every form can opt into a headless submit
+tracker through `#[gpui_form(submit)]`. No feature flag, no new
+dependencies; the holder stays plain data in both cases.
+
+### Live `is_valid` (validation-state cache)
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm, koruma::Koruma)]
+pub struct Signup {
+    #[gpui_form(component(input))]
+    #[koruma(koruma_collection::collection::NonEmptyValidation::<_>::builder())]
+    pub username: String,
+
+    #[gpui_form(component(number_input))]
+    #[koruma(koruma_collection::numeric::RangeValidation::<_>::builder().min(18).max(120))]
+    pub age: Option<u32>,
+}
+
+let mut state = SignupFormState::new(SignupFormValueHolder::default());
+assert!(!state.is_valid());          // fresh compute, nothing cached yet
+
+state.validate();                    // re-run koruma, cache the outcome
+assert!(state.validation().is_some());
+
+state.current_mut().age = Some(42);  // edits invalidate the cache...
+assert!(state.validation().is_none());
+assert!(state.is_valid());          // ...but is_valid never lies (recomputes)
+
+let field_error = state.error_for(&SignupFormPath::age()); // validates + caches on miss
+```
+
+Freshness is **snapshot-compare**: the cache stores the holder snapshot it
+validated and a read is fresh iff `current == snapshot`. That makes it sound
+under every mutation route — including the raw `state_mut()` escape hatch —
+with zero invalidation discipline. The facade's own mutators
+(`current_mut`, `replace_current`, both resets) invalidate up front,
+`sync_baseline()` deliberately does not (validity depends only on `current`),
+and `invalidate_validation()` is the manual escape. Render paths are safe:
+`is_valid()` serves the cached verdict when fresh (one `PartialEq`) and
+otherwise recomputes without caching.
+
+The underlying `gpui_form::ValidationCache<H, O>` is a standalone core
+primitive (like `FormState` and `TouchedFields`), usable for non-derived
+holders with any outcome type. The cached method set emits only when the
+holder derives koruma and the source struct is non-generic — the same gate
+as the `<Name>FormFieldErrors` map it stores.
+
+### Submit lifecycle (`#[gpui_form(submit)]`)
+
+Add the opt-in attribute to get a per-form tracker alias over the headless
+`gpui_form::SubmitTracker`:
+
+```rs
+#[derive(GpuiForm, koruma::Koruma)]
+#[gpui_form(submit)]
+pub struct Signup { /* fields as above */ }
+
+let mut submission: SignupFormSubmission = gpui_form::SubmitTracker::new();
+
+// Begin, gate, drive your save, finish — begin() FIRST, so every
+// attempted submit counts (valid or not):
+if submission.begin() {
+    if !state.is_valid() {
+        // A failed-validation attempt still counts; finish it with the
+        // typed koruma error so last_error carries the field errors.
+        submission.finish(state.current().validate());
+    } else {
+        let result = my_save(&state.current()).await;   // your code drives the future
+        submission.finish(result.map(|_: Saved| ()));
+        if submission.is_submit_successful() {
+            state.sync_baseline();                       // the save protocol
+        }
+    }
+}
+```
+
+- `begin()` is the re-entry guard: it returns `false` while a submit is in
+  flight (double-click protection data), and only a successful `begin`
+  counts an attempt (`submit_count()`). Call it before any validity gate:
+  like react-hook-form's `submitCount`, every attempted submit counts,
+  success or failure — pre-gating on `is_valid()` would silently freeze
+  the counter on invalid forms.
+- `finish(Err(e))` records `last_error()`; `finish(Ok(()))` clears it and
+  flips `is_submit_successful()`. **Stale completions are ignored** — a
+  `finish` arriving after `reset()` (or with no attempt in flight) changes
+  nothing, so a slow submit can never write its outcome into a tracker that
+  has moved on (the generation/epoch guard).
+- `is_submitted()`, `can_submit()` (`!is_submitting`), `abandon()`,
+  `set_error`/`clear_error` (manual server-error injection), `take_last_error()`
+  (one-shot banners), and `reset()` round out the surface.
+- On koruma forms the alias's error parameter is the form's typed koruma
+  error (`<Name>FormValueHolder as koruma::ValidateExt>::Error`), so a
+  failed validate-then-submit carries the typed field errors — re-key them
+  with `<Name>FormFieldErrors::from_koruma_errors(&error)` and render
+  through the same `validation.*` keys. Without koruma (and on generic
+  structs) the alias uses `gpui_form::submit::BoxError`.
+- Driving the submit is application code ([the derive emits no
+  subscriptions](#validation-with-koruma)): wrap `begin()` → your future →
+  `finish()` in `cx.spawn` or your own runtime. `SubmitAction<H>` is the
+  executor-free hook contract for exactly that shape:
+
+```rs
+use gpui_form::SubmitAction;
+
+struct SaveSignup;
+impl SubmitAction<SignupFormValueHolder> for SaveSignup {
+    type Output = ();
+    type Error = <SignupFormValueHolder as koruma::ValidateExt>::Error;
+
+    async fn submit(&mut self, holder: &SignupFormValueHolder)
+        -> Result<(), Self::Error>
+    {
+        match holder.validate() { Ok(()) => save(holder).await, Err(e) => Err(e) }
+    }
+}
+```
+
+### Async validation contract (metadata-only attribute)
+
+Async checks ("is this username taken?") have a headless contract,
+`gpui_form::AsyncFieldValidation<H>` — an async fn in a trait, path-keyed by
+`gpui_form::FieldPath`, with no executor and no `Send` bound. Implement it
+once per form and return `Ok(())` for fields you do not handle:
+
+```rs
+use gpui_form::{AsyncFieldValidation, FieldPath};
+
+struct EmailTaken;
+impl AsyncFieldValidation<SignupFormValueHolder> for EmailTaken {
+    type Error = &'static str;
+
+    async fn validate_field(&self, holder: &SignupFormValueHolder, field: &FieldPath)
+        -> Result<(), Self::Error>
+    {
+        if field.segments() != ["email"] { return Ok(()); }
+        match holder.email.as_deref() {
+            Some(email) if is_taken(email).await => Err("email taken"),
+            _ => Ok(()),
+        }
+    }
+}
+```
+
+Debounce, latest-wins cancellation, and merging async outcomes into the sync
+error map are owned by the driving layer (GPUI glue or the app), not the
+trait. The derive side is an attribute sketch in this milestone:
+`#[gpui_form(validate(async_fn = my_check), component(input))]` parses and
+records the validator path as field metadata (`FieldVariant::async_validator`)
+— nothing executes it yet; wiring lands behind the reserved
+`async-validation` feature later. The `forms-demo` example drives the
+contract by hand today (generation-guarded spawn per edit).
 
 ## Typed Field Paths
 
@@ -561,28 +842,310 @@ assert_eq!(username.to_string(), "username");
 assert_ne!(username, age);
 
 // `Deref`/`AsRef`/`into_path` all reach the shared primitive, so any code
-// that takes a `&FieldPath` (the upcoming validation/diff/schema surfaces)
-// also accepts the typed newtype.
-fn records(path: &FieldPath) -> &[&'static str] {
+// that takes a `&FieldPath` (the validation/diff/schema surfaces)
+// also accepts the typed newtype. Segments are the typed `PathSegment`
+// enum — names plus list-item indices — since milestone M3.
+fn records(path: &FieldPath) -> &[gpui_form::PathSegment] {
     path.segments()
 }
-assert_eq!(records(username.as_ref()), &["username"]);
+assert_eq!(
+    records(username.as_ref()),
+    &[gpui_form::PathSegment::Name("username")]
+);
+
+// Declaration-order tables and dense index mapping feed field-level state
+// (touched/dirty/errors) and generic iteration:
+assert_eq!(SettingsFormPath::FIELD_NAMES, &["username", "age"]);
+assert_eq!(SettingsFormPath::FIELD_COUNT, 2);
+assert_eq!(SettingsFormPath::all_paths().count(), 2);
+assert_eq!(username.field_index(), Some(0));
+assert_eq!(SettingsFormPath::path_for_index(0).as_ref(), Some(&username));
 ```
 
-Scope of this feature (FLAT v1):
+Scope of this feature:
 
-- Each constructor names a single flat field. Typed nested-path and
-  list-item-path constructors arrive with backlog features #2 ("Nested forms")
-  and #3 ("Repeated fields"). Hand-built multi-segment paths via
-  `SettingsFormPath::new(&["a", "b"])` work today; typed composition is later.
+- Each flat field has one constructor named identically to the field.
+  Milestone M3 (backlog #2/#3) added typed composition on top: nested fields
+  get `<field>_root()` plus a consuming appender `fn <field>(self)`, list
+  fields get `<field>_root()` plus `fn <field>(index: usize)` carrying a
+  typed index segment, and every form gets `join` for cross-form composition
+  (`SettingsFormPath::address_root().join(&AddressFormPath::city())` names
+  `address.city`). Hand-built multi-segment names-only paths via
+  `SettingsFormPath::new(&["a", "b"])` keep working.
 - `#[gpui_form(skip)]` fields have NO constructor — they are absent from the
-  holder too.
+  holder too, and from `FIELD_NAMES`/`all_paths()`/`field_index()`.
+- `field_index()` maps only single-segment root paths naming a real field
+  (flat constructors and nested/list `_root()` constructors); hand-built
+  multi-segment paths and list-item paths return `None` (the field-level
+  state accessors treat them as inert — item-level touched tracking is
+  sequenced after v1).
 - `FieldPath` is a headless primitive: no GPUI, no `serde`, no feature flag.
-  It is the shared naming foundation for the upcoming field-level validation
-  (#6), field-level diff/delta reporting (#9), and schema export (#14).
+  It is the shared naming foundation for the field-level validation (#6) and
+  field-level diff/delta reporting (#9) surfaces shipped on the
+  `<Name>FormState` facade and `error_for`, and for the upcoming schema
+  export (#14).
 
-`FieldPath` is available unconditionally from `gpui_form::FieldPath` (or
-`gpui-form-core` directly).
+`FieldPath` and `PathSegment` are available unconditionally from
+`gpui_form::{FieldPath, PathSegment}` (or `gpui-form-core` directly). The
+segment representation is the typed `PathSegment` enum
+(`Name(&'static str)` / `Index(usize)`) — decision [D8] of the
+feature-parity plan — so list-item paths like `tags.2` are one uniform
+`FieldPath`; indices are stored typed, never formatted into strings.
+
+## Nested Forms and Repeated Fields
+
+`component(nested)` composes another generated form, and
+`component(list(item = ...))` edits a `Vec<T>`. Both store composed values in
+the holder — no leaf widget is generated for them (like checkbox/switch), so
+rendering the group stays application- or prototyping-authored.
+
+### Nested forms (`component(nested)`)
+
+The nested struct derives `GpuiForm` itself; the outer holder stores the
+nested form's own generated value holder and converts through its `From`
+impls. `#[koruma(nested)]` on the source field runs the nested form's
+validators through the outer `validate()`:
+
+```rust
+#[derive(Clone, Debug, Default, GpuiForm, Koruma)]
+pub struct Address {
+    #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>::builder())]
+    pub city: String,
+
+    #[gpui_form(component(input))]
+    pub zip: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, GpuiForm, Koruma)]
+pub struct Resident {
+    #[gpui_form(component(input))]
+    #[koruma(NonEmptyValidation::<_>::builder())]
+    pub name: String,
+
+    #[gpui_form(component(nested))]
+    #[koruma(nested)]
+    pub address: Address,
+}
+```
+
+Typed paths compose across the forms — the outer form names the nested root,
+`join` appends the nested form's own field paths:
+
+```rust
+let city = ResidentFormPath::address_root().join(&AddressFormPath::city());
+assert_eq!(city.to_string(), "address.city");
+
+// Errors route over composed paths, and the generated recursion accessor
+// re-keys into the nested form's own error map for the inner validator
+// kinds:
+let errors = holder.validate_fields();
+let Some(city_error) = errors
+    .error_for(&city)
+    .map(|_| ()) // any `address...` path routes to the nested slot
+else { unreachable!() };
+let inner = errors.address_errors() // Option<AddressFormFieldErrors>
+    .unwrap()
+    .error_for(&AddressFormPath::city())
+    .unwrap();
+```
+
+### Repeated fields (`component(list(item = ...))`)
+
+The holder stores the plain item `Vec` (v1: no per-item `Option`) and gains a
+typed add/remove/items API. `each(...)` element validators stay
+element-scoped so koruma reports failures per item index:
+
+```rust
+#[derive(GpuiForm, Koruma)]
+struct PostEditor {
+    #[gpui_form(component(list(item = input)))]
+    #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
+    tags: Vec<String>,
+}
+
+let mut holder = PostEditorFormValueHolder::default();
+holder.add_tags("gpui".to_string());
+holder.remove_tags(0);
+let items: &[String] = holder.tags_items();
+```
+
+List-item paths carry a typed index segment — never a formatted string:
+
+```rust
+assert_eq!(PostEditorFormPath::tags(2).to_string(), "tags.2");
+
+let errors = holder.validate_fields();
+// Some only when item 2 failed its `each(...)` validators:
+let item = errors.error_for(&PostEditorFormPath::tags(2));
+// Index-addressable element errors:
+let element = errors.tags_element_error(2);
+```
+
+The M1 field-level state surface keys composed fields by their root paths
+(`tags_root()` / `address_root()`): touched, per-field dirty, and patch slots
+track the composed value as a whole.
+
+### v1 boundaries
+
+Per the backlog's conservative-first rules, v1 ships:
+
+- `Vec<T>` only (no other collections),
+- add/remove — no reorder,
+- scalar item components — `item = nested` and `item = custom(...)` are
+  rejected at parse time until the follow-up milestone.
+
+## Field Dependencies and Conditional Requiredness
+
+Two field-level attributes describe relationships between fields. Both name a
+sibling field of the same struct — a bare ident (`depends_on = country`) or the
+quoted form (`required_if = "subscribe"`) — and the reference is
+existence-checked at derive time, so a typo is a compile-time error rather than
+a silently-dead rule. There is no expression language: the controlling sibling
+is a field, not a condition string.
+
+### `required_if = <field>` (conditional requiredness)
+
+`required_if` desugars to a generated koruma validator on the holder field, so
+a violation is a *typed, path-addressable error* — not display-only metadata:
+
+```rs
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct Newsletter {
+    #[gpui_form(component(switch))]
+    pub subscribe: bool,
+
+    #[gpui_form(component(input), required_if = subscribe)]
+    pub email: Option<String>,
+}
+
+let holder = NewsletterFormValueHolder { subscribe: true, email: None };
+let errors = holder.validate_fields();
+let error = errors.error_for(&NewsletterFormPath::email()).unwrap();
+assert_eq!(error.issue_keys(), vec!["validation.required"]);
+```
+
+Rules of the desugaring:
+
+- The target field's holder value must be `Option<T>` (an `Option<T>` source
+  field, or a component that wraps in `Option`).
+- The controlling sibling holds a `bool` (required when `true`), an
+  `Option<bool>` (required when `Some(true)` — an explicit off does not
+  require), or any other `Option<T>` (required when set).
+- A `required_if` field never also gets the synthetic unconditional
+  `RequiredValidation`; the conditional rule supersedes it.
+- Failures reuse the localized `validation.required` key, so existing locale
+  entries render them with no new keys.
+- The rule composes with mirrored `#[koruma(...)]` validators on the same
+  field; each reports its own issue key.
+- The pure predicate is `gpui_form::required_when` (`required_when(requires,
+  present)`), re-exported from `gpui_form::core` for headless consumers.
+
+### `depends_on = <field>` (dependency metadata)
+
+`depends_on` records the sibling relationship as schema metadata — the
+`FieldVariant` payload is the sibling's field name, the same representation a
+`FieldPath` name segment carries — for conditional loading,
+reset-on-parent-change, and tooling. The derive emits no event wiring ([D5]):
+apps reset dependents from the parent's change handler, and the prototyping
+scaffold emits a placeholder reset of the dependent's holder value.
+
+```rs
+#[gpui_form(component(select(searchable)))]
+pub country: Option<Country>,
+
+#[gpui_form(component(select), depends_on = country)]
+pub state: Option<UsState>,
+
+// App-authored reset-on-parent-change (the demo wires exactly this):
+// on_country_confirm: self.form.current_mut().state = None;
+//                      state_select.update(cx, |s, cx| s.set_selected_index(None, window, cx));
+```
+
+Both attributes require a `component(...)` on the same field — the schema
+`FieldVariant` that records them exists only for component fields.
+
+## Schema Export
+
+Every `#[derive(GpuiForm)]` form also emits a `<Name>FormSchema` type whose
+`schema()` accessor returns an owned, serializable description of the form —
+component kinds and behaviour payloads, value and conversion types, validation
+rules, layout hints, nested/list composition, and field dependencies. It is a
+read-only projection of the same metadata the `inventory` feature registers
+for prototyping, so the export can never drift from what the derive builds.
+
+```rs
+use gpui_form::FormSchema;
+use gpui_form::GpuiForm;
+
+#[derive(GpuiForm)]
+pub struct UserProfile {
+    #[gpui_form(component(input), section = "Identity")]
+    pub username: String,
+
+    #[gpui_form(component(input), required_if = subscribe)]
+    pub email: Option<String>,
+
+    #[gpui_form(component(switch))]
+    pub subscribe: bool,
+
+    #[gpui_form(component(nested))]
+    pub address: Address,
+
+    #[gpui_form(component(list(item = input)))]
+    pub tags: Vec<String>,
+}
+
+let schema: FormSchema = UserProfileFormSchema::schema();
+
+assert_eq!(schema.form, "UserProfile");
+assert_eq!(
+    schema.field_names().collect::<Vec<_>>(),
+    vec!["username", "email", "subscribe", "address", "tags"]
+);
+
+let email = schema.field("email").unwrap();
+assert_eq!(email.required_if.as_deref(), Some("subscribe"));
+
+let address = schema.field("address").unwrap();
+assert!(address.is_nested()); // composes the `Address` form
+
+let tags = schema.field("tags").unwrap();
+assert!(tags.is_list()); // item kind: input
+```
+
+The document round-trips through serde out of the box — no feature flag —
+which makes it a fit for documentation generation, test fixtures, and
+non-GPUI consumers that want to inspect a form's shape without running the
+GPUI runtime:
+
+```rs
+let json = serde_json::to_string_pretty(&schema).unwrap();
+let restored: FormSchema = serde_json::from_str(&json).unwrap();
+assert_eq!(restored, schema);
+```
+
+Notes:
+
+- Field entries carry the layout hints (`section`/`label`/`description`/
+  `placeholder`/`width`), the `depends_on`/`required_if` siblings, mirrored
+  koruma rule names, `default`/`from`/`into` expressions, and custom
+  component hints.
+- Component payloads are spelled like the attribute syntax: a select entry
+  records `searchable`/`partial`, a nested entry the nested form struct, a
+  list entry its item kind and `add_label`.
+- Skipped fields are absent from the export; the document flags
+  `has_skipped_fields` so tooling can explain why.
+- The `inventory` feature is not required: only the inventory *registration*
+  is feature-gated; the export always emits. `#[gpui_form(empty)]` forms
+  export an empty field list.
+- `gpui_form::FormSchema` is the facade re-export; the field/component/layout
+  entry types live under `gpui_form::schema::registry`.
+- For human-readable output, `gpui-form-prototyping-core` ships
+  `schema_markdown(&schema)`, which renders the document as a Markdown
+  reference table.
 
 ## Custom Components
 

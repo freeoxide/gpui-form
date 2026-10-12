@@ -13,17 +13,41 @@ At the moment the crate is intentionally narrow:
 - numeric text-entry validation for generated `number_input` fields
 - optional phone-number parsing and selected-country validation helpers
 - `FormState<H>` for dirty tracking, reset, and diffing of form holder values
-- `path::FieldPath` for typed field naming (backlog feature #8, FLAT v1)
+- `fields::TouchedFields` for touched-field tracking (field-level state, M1)
+- `validation::FormFieldErrors`, the generic contract behind the derive's
+  generated per-form error maps (backlog #6, M1)
+- `validation::ValidationCache<H, O>`, the snapshot-compare outcome cache
+  behind a live `is_valid` (validation-state model, M2)
+- `submit::SubmitTracker<E>` + `submit::SubmitAction<H>` for the headless
+  submit lifecycle (backlog #7, M2), plus the `submit::BoxError` default
+  error alias
+- `async_validation::AsyncFieldValidation<H>`, the executor-free async
+  per-field validation contract (M2)
+- `path::FieldPath` + `path::PathSegment` for typed field naming (backlog
+  feature #8; milestone M3 extended the segment representation to the typed
+  `PathSegment { Name(&'static str), Index(usize) }` enum — decision [D8] of
+  the feature-parity plan — so list-item paths like `tags.2` are one uniform
+  `FieldPath` with a typed index and never a formatted string)
 
 ## Modules
 
-- `src/lib.rs`: module export surface (re-exports `FieldPath`, `FormState`, and
-  the `path`/`state` modules)
+- `src/lib.rs`: module export surface (re-exports `FieldPath`,
+  `PathSegment`, `FormFieldErrors`,
+  `FormState`, `TouchedFields`, `ValidationCache`, `SubmitTracker`,
+  `SubmitAction`, `AsyncFieldValidation`, `BoxError`, and the
+  `async_validation`/`fields`/`path`/`state`/`submit`/`validation` modules)
 - `src/numeric.rs`: signed and unsigned text-entry validation helpers
 - `src/phone.rs`: optional parser-backed phone validation helpers behind the
   `phone` feature
-- `src/path.rs`: `FieldPath` typed field-path primitive
+- `src/path.rs`: `FieldPath` typed field-path primitive and its
+  `PathSegment` enum, with the `from_segments`/`push_name`/`push_index`/
+  `join` composition constructors (M3). `FieldPath::new(&[&'static str])`
+  stays the names-only constructor for flat paths
 - `src/state.rs`: `FormState<H>` form-state helper
+- `src/fields.rs`: `TouchedFields` touched-field bitset
+- `src/validation.rs`: `FormFieldErrors` trait + `ValidationCache<H, O>`
+- `src/submit.rs`: `SubmitTracker<E>`, `SubmitAction<H>`, `BoxError`
+- `src/async_validation.rs`: `AsyncFieldValidation<H>` trait
 
 ## Phone Validation
 
@@ -67,18 +91,128 @@ Scope boundaries (documented in rustdoc and user-facing docs):
   runtime UI state (open menus, scroll positions, `InfiniteSelectState`
   snapshots).
 - Dirty/diff is **boolean-level** (`current != baseline` / `current != other`).
-  Field-level patch and delta reporting is backlog feature #9 and will build on
-  the `FieldPath` naming primitive.
+  Field-level patch and delta reporting (backlog #9), touched tracking, and the
+  per-form facade that couples them live in the derive's generated
+  `<Name>FormState` (see the derive crate's architecture doc); `FormState<H>`
+  stays a frozen two-slot generic.
 - The holder's serde derives live on the derive crate behind its `serde`
   feature; `FormState` itself is unconditional (no feature gate, no new
   dependencies). The facade re-exports it as `gpui_form::FormState`.
+
+## TouchedFields
+
+`fields.rs` defines `TouchedFields`, the headless touched-field bitset for the
+field-level state model (M1): a dense `Box<[u64]>` keyed by declaration-order
+field index plus the field count it was sized for. Core stays form-agnostic —
+the generated `<Name>FormState` facade supplies the path-to-index mapping
+(`<Name>FormPath::field_index`) and sizes the bitset from
+`<Name>FormPath::FIELD_COUNT`.
+
+Behavioral contract:
+
+- Unknown indices are a no-op on every mutator and `false` on every query, so
+  hand-built paths that name no field can never corrupt the bitset.
+- `touched_indices()` iterates in ascending index order — declaration order
+  for declaration-order indices, so UI lists render deterministically.
+- Touched records user engagement, not value deltas: it is deliberately
+  independent of `FormState`'s baseline/current model.
+- No serde surface: touched state is transient UI-session state; persistence
+  stays holder-only. This mirrors the layering rule that keeps runtime state
+  out of generated holders.
+
+The facade re-exports it as `gpui_form::TouchedFields`.
+
+## FormFieldErrors
+
+`validation.rs` defines the `FormFieldErrors` trait — `is_empty()` plus
+`failing_paths() -> Vec<FieldPath>` — the form-agnostic contract the derive's
+generated `<Name>FormFieldErrors` maps implement (one per koruma form), so
+GPUI glue, tests, and application code can be generic over any form's errors
+using the shared `FieldPath` primitive. The concrete map (koruma typed error
+structs re-keyed by typed paths, `error_for`, `issue_keys`) is generated in
+the derive crate; core owns only the generic contract.
+
+`validation.rs` also defines `required_when(requires, present)` — the pure
+conditional-required predicate (M4, backlog #13) every generated
+`required_if` koruma validator delegates to. Core owns no rule engine and no
+expression language (R19): the predicate is a bool function, and the
+sibling-shape decisions (`bool` / `Option<bool>` / `Option<T>`) happen at
+derive time in generated code. Re-exported at the crate root and through the
+facade as `gpui_form::required_when`.
+
+## ValidationCache (M2)
+
+`validation.rs` also defines `ValidationCache<H, O>`, the outcome cache behind
+a live `is_valid`. The freshness rule is **snapshot-compare** (feature-parity
+plan [D6]): the cache stores `(validated snapshot, outcome)` and `get` returns
+the outcome iff `current == snapshot`. Consequences:
+
+- Sound under every mutation route — `&mut` escapes included — with zero
+  invalidation discipline: a changed holder stops comparing equal.
+- Cost profile: one holder clone per `store` and one `PartialEq` per `get`
+  (form-scale data, no per-field allocation).
+- Non-reflexive `PartialEq` values (NaN) make `get` conservatively report
+  stale — never wrong, just uncached. `stored()` is the exact-read companion
+  used by generated facades right after their own `store`, precisely to
+  avoid that trap.
+- No serde surface: the cache is transient by construction; it never lives
+  on the value holder.
+
+The koruma-gated generated `<Name>FormState` facade composes it as the
+`validation` slot and adds `validate`/`validation`/`is_valid`/
+`invalidate_validation`/`error_for` (see the derive crate's architecture
+doc). The facade's reset-style mutators invalidate explicitly (a
+reverted-to-same-value form must not keep the old verdict); `sync_baseline`
+does not invalidate (validity depends only on `current`).
+
+## SubmitTracker / SubmitAction (M2)
+
+`submit.rs` defines the headless submit lifecycle (backlog #7):
+
+- `SubmitTracker<E>`: `submitting`, `submit_count`, `last_error`, a
+  monotonic `generation`, the in-flight attempt's `active_generation`, and
+  the last terminal verdict. The generation/epoch guard ([D7]/R12) is the
+  load-bearing piece: `begin()` bumps the generation and pins the attempt as
+  active; `reset()` bumps the generation and clears everything; `finish()`
+  is honored only while the in-flight attempt matches — completions arriving
+  after a reset (or with no attempt in flight, e.g. after `abandon()`) are
+  ignored entirely. `set_error`/`clear_error` inject server-side errors
+  without rewriting terminal verdicts.
+- `SubmitAction<H>`: the executor-free submit hook (`async fn submit(&mut
+  self, holder: &H)`; `Output`/`Error` associated types; no `Send` bound —
+  GPUI futures are typically non-Send, plan OQ 3).
+- `BoxError`: the default error alias for forms without a koruma error
+  type.
+
+Scope boundaries: the tracker stores state and runs nothing — driving the
+future (GPUI `cx.spawn`, tokio) is glue; the holder flows through submit by
+`&H` and is never mutated; the save protocol (`sync_baseline`) is the
+application's. The derive exposes `SubmitTracker` per form through the
+opt-in `#[gpui_form(submit)]` attribute as `<Name>FormSubmission`.
+
+## AsyncFieldValidation (M2)
+
+`async_validation.rs` defines `AsyncFieldValidation<H>` —
+`async fn validate_field(&self, holder: &H, field: &FieldPath) ->
+Result<(), Self::Error>` — the executor-free async per-field validation
+contract. Placement rationale: an async fn in a trait adds no dependency and
+no executor, so the contract belongs with the other headless primitives and
+is implementable by tokio revalidation, tests, and GPUI glue alike.
+Deliberately excluded from core (the module doc states it): anything that
+runs, times, or cancels a future — no clock, no debounce timer, no
+cancellation token. Those belong to the driving layer (the future GPUI glue
+in `gpui-form-component`, or the app via natural drop-based cancellation).
+Async outcomes are NOT merged into the generated `<Name>FormFieldErrors`
+maps in this phase (merge semantics deferred, plan OQ 5). The derive-side
+`validate(async_fn = ...)` attribute parses and records metadata only.
 
 ## FieldPath
 
 `path.rs` defines `FieldPath`, the headless, GPUI-free, serde-free typed
 field-path primitive (backlog feature #8, FLAT v1). It is the shared naming
-foundation for the upcoming field-level validation (#6), field-level diff/delta
-reporting (#9), schema export (#14), and nested/list paths (#2/#3).
+foundation for the field-level validation (#6) and field-level diff/delta
+reporting (#9) surfaces shipped on the generated `<Name>FormState` facade,
+and for the upcoming schema export (#14) and nested/list paths (#2/#3).
 
 Representation choice: `Box<[&'static str]>`. Clones perform a single box
 allocation (no per-segment heap work), satisfying the "clones are cheap"
@@ -137,12 +271,17 @@ the text shape or also verifies that the text can parse into `T`.
    through facade paths such as `gpui_form::numeric::*`.
 1. The facade re-exports this crate as `gpui_form::core`, the numeric module as
    `gpui_form::numeric`, `FormState` plus the `state` module as
-   `gpui_form::FormState` / `gpui_form::state`, and `FieldPath` plus the `path`
-   module as `gpui_form::FieldPath` / `gpui_form::path`.
+   `gpui_form::FormState` / `gpui_form::state`, `FieldPath` plus the `path`
+   module as `gpui_form::FieldPath` / `gpui_form::path`, and (M1)
+   `TouchedFields`/`FormFieldErrors` plus the `fields`/`validation` modules as
+   `gpui_form::TouchedFields` / `gpui_form::FormFieldErrors`.
 1. Generated number-input code uses the helpers during incremental text edits
    before committing parsed values into the holder.
 1. Application code wraps a generated `...FormValueHolder` in `FormState` to
-   track edits, reset, or diff against a restored value.
+   track edits, reset, or diff against a restored value, or in the generated
+   `<Name>FormState` facade to also get touched tracking, the field-level
+   diff, and (koruma forms) the cached validation verdict (the facade
+   composes `FormState` + `TouchedFields` + `ValidationCache`).
 1. Generated `<Name>FormPath` types wrap `FieldPath` so validation, dirty
    tracking, analytics, and schema export share ONE typed way to name fields.
 
@@ -168,3 +307,6 @@ Update this file when:
 - `FormState` API, trait bounds, or scope boundaries change
 - the `FieldPath` public surface, trait impls, representation, or FLAT-v1
   scope boundary changes
+- the `ValidationCache` freshness rule, the `SubmitTracker` generation
+  guard semantics, or the `AsyncFieldValidation` contract (bounds, path
+  keying) change
