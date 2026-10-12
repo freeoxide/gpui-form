@@ -1,8 +1,9 @@
 #![recursion_limit = "1024"]
 
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, ParentElement as _,
-    Render, SharedString, Styled as _, Subscription, Window, div,
+    App, AppContext as _, Context, Div, Entity, FocusHandle, Focusable, InteractiveElement as _,
+    IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
+    Window, div,
 };
 use gpui_form::runtime::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use gpui_form::runtime::file_picker::{FilePicker, FilePickerEvent, FilePickerState};
@@ -686,6 +687,19 @@ impl FormsDemo {
         }))
     }
 
+    /// gpui-kit's Input tracks a separate frame focus handle on its padded
+    /// wrapper, so clicks between the border and the editor focus the frame
+    /// instead of the editor (no caret). Forward those clicks to the editor's
+    /// real handle.
+    fn click_to_focus(&self, state: &Entity<InputState>) -> Div {
+        let state = state.clone();
+        div()
+            .w_full()
+            .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                state.update(cx, |state, cx| state.focus(window, cx));
+            })
+    }
+
     fn reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         *self = Self::new(window, cx);
         cx.notify();
@@ -1057,7 +1071,10 @@ impl Render for FormsDemo {
                                     .into_any_element(),
                                 None => div().into_any_element(),
                             })
-                            .child(Input::new(&self.fields.username_input)),
+                            .child(
+                                self.click_to_focus(&self.fields.username_input)
+                                    .child(Input::new(&self.fields.username_input)),
+                            ),
                     )
                     .child(
                         field()
@@ -1072,7 +1089,10 @@ impl Render for FormsDemo {
                                 },
                                 (None, None) => div().into_any_element(),
                             })
-                            .child(Input::new(&self.fields.email_input)),
+                            .child(
+                                self.click_to_focus(&self.fields.email_input)
+                                    .child(Input::new(&self.fields.email_input)),
+                            ),
                     )
                     .child(
                         field()
@@ -1084,7 +1104,10 @@ impl Render for FormsDemo {
                                     .into_any_element(),
                                 None => div().into_any_element(),
                             })
-                            .child(NumberInput::new(&self.fields.age_number_input)),
+                            .child(
+                                self.click_to_focus(&self.fields.age_number_input)
+                                    .child(NumberInput::new(&self.fields.age_number_input)),
+                            ),
                     )
                     .child(
                         field()
@@ -1142,7 +1165,10 @@ impl Render for FormsDemo {
                                     .into_any_element(),
                                 None => div().into_any_element(),
                             })
-                            .child(Input::new(&self.fields.code_input)),
+                            .child(
+                                self.click_to_focus(&self.fields.code_input)
+                                    .child(Input::new(&self.fields.code_input)),
+                            ),
                     )
                     .child(
                         field()
@@ -1178,12 +1204,18 @@ impl Render for FormsDemo {
                                     None => div().into_any_element(),
                                 }
                             })
-                            .child(Input::new(&self.address_city_input)),
+                            .child(
+                                self.click_to_focus(&self.address_city_input)
+                                    .child(Input::new(&self.address_city_input)),
+                            ),
                     )
                     .child(
                         field()
                             .label(t!("signup.address_zip_label").to_string())
-                            .child(Input::new(&self.address_zip_input)),
+                            .child(
+                                self.click_to_focus(&self.address_zip_input)
+                                    .child(Input::new(&self.address_zip_input)),
+                            ),
                     ),
             )
             .child(
@@ -1241,7 +1273,10 @@ impl Render for FormsDemo {
                         // so the Add button would always read "".
                         h_flex()
                             .gap_2()
-                            .child(Input::new(&self.new_tag_input))
+                            .child(
+                                self.click_to_focus(&self.new_tag_input)
+                                    .child(Input::new(&self.new_tag_input)),
+                            )
                             .child(
                                 Button::new("tags-add")
                                     .label(t!("app.add_tag").to_string())

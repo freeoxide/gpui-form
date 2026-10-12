@@ -66,7 +66,9 @@ code whose `Inner` error is mapped to a localized key), a form-bound
 from the holder and typed paths (shown live in the footer). The app drives the
 generated `SignupFormState` facade: inputs mark touched on blur and on
 change (the root view tracks focus and every action button releases field
-focus on click, so blur fires on click-away too), other component kinds on
+focus on click, so blur fires on click-away too; each input is also wrapped
+so clicks on the control's padding band reach the editor's focus handle),
+other component kinds on
 change, the footer lists the live changed/touched fields
 through `FieldPath` Display, and per-field errors render through
 `error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
