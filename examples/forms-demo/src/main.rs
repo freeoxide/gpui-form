@@ -675,7 +675,11 @@ impl FormsDemo {
         if active {
             button = button.primary();
         }
-        button.on_click(cx.listener(move |_, _, _, cx| {
+        let root_focus = self.focus_handle.clone();
+        button.on_click(cx.listener(move |_, _, window, cx| {
+            // Buttons suppress focus on mouse-down by design, so release the
+            // field focus here to let the input's blur (touched) fire.
+            root_focus.focus(window, cx);
             let lang_id: LanguageIdentifier = lang.parse().expect("valid language id");
             let _ = gpui_form::i18n::change_locale(cx, lang_id);
             cx.notify();
@@ -999,6 +1003,7 @@ impl Render for FormsDemo {
             .join(", ");
 
         v_flex()
+            .track_focus(&self.focus_handle)
             .size_full()
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
@@ -1220,7 +1225,8 @@ impl Render for FormsDemo {
                                 .child(
                                     Button::new(format!("tags-remove-{index}"))
                                         .label(t!("app.remove_tag").to_string())
-                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.focus_handle.focus(window, cx);
                                             this.form.current_mut().remove_tags(index);
                                             this.form.touch(&SignupFormPath::tags_root());
                                             this.revalidate();
@@ -1240,6 +1246,7 @@ impl Render for FormsDemo {
                                 Button::new("tags-add")
                                     .label(t!("app.add_tag").to_string())
                                     .on_click(cx.listener(|this, _, window, cx| {
+                                        this.focus_handle.focus(window, cx);
                                         let text = this.new_tag_input.read(cx).value();
                                         if !text.is_empty() {
                                             this.form.current_mut().add_tags(text.to_string());
@@ -1286,7 +1293,8 @@ impl Render for FormsDemo {
                         Button::new("validate")
                             .primary()
                             .label(t!("app.validate").to_string())
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.focus_handle.focus(window, cx);
                                 this.revalidate();
                                 this.errors_shown = true;
                                 this.status = Some(
@@ -1312,14 +1320,18 @@ impl Render for FormsDemo {
                             } else {
                                 t!("app.submit").to_string()
                             })
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.focus_handle.focus(window, cx);
                                 this.submit(cx);
                             })),
                     )
                     .child(
                         Button::new("reset")
                             .label(t!("app.reset").to_string())
-                            .on_click(cx.listener(|this, _, window, cx| this.reset(window, cx))),
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.reset(window, cx);
+                                this.focus_handle.focus(window, cx);
+                            })),
                     )
                     .child(
                         // Milestone M4: "save only touched fields" — prints
@@ -1328,7 +1340,8 @@ impl Render for FormsDemo {
                         // payload; no separate partial-holder type).
                         Button::new("save-changes")
                             .label(t!("app.save_changes").to_string())
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.focus_handle.focus(window, cx);
                                 let payload = this.touched_patch_summary();
                                 this.status = Some(
                                     if payload.is_empty() {
@@ -1346,7 +1359,8 @@ impl Render for FormsDemo {
                         // form's exported schema — the devtools seed.
                         Button::new("schema-toggle")
                             .label(t!("app.schema").to_string())
-                            .on_click(cx.listener(|this, _, _, cx| {
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.focus_handle.focus(window, cx);
                                 this.show_schema = !this.show_schema;
                                 cx.notify();
                             })),

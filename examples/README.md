@@ -65,8 +65,8 @@ code whose `Inner` error is mapped to a localized key), a form-bound
 `component(date_picker)` field, and a `#[gpui_form(skip)]` field that is absent
 from the holder and typed paths (shown live in the footer). The app drives the
 generated `SignupFormState` facade: inputs mark touched on blur and on
-change (blur alone never fires when the next interaction is a button —
-gpui-kit buttons prevent focus on mouse-down), other component kinds on
+change (the root view tracks focus and every action button releases field
+focus on click, so blur fires on click-away too), other component kinds on
 change, the footer lists the live changed/touched fields
 through `FieldPath` Display, and per-field errors render through
 `error_for(&SignupFormPath::..)` + `issue_keys()` — so `render` never runs
