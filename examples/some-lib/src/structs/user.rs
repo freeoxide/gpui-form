@@ -28,10 +28,9 @@ pub enum EnumCountry {
     China,
 }
 
-/// Milestone M4 (backlog #12): the dependent side of a `depends_on` pair —
-/// a state/province selection that consumers reset when `country` changes
-/// (reset-on-parent-change is consumer-authored; the dependency itself is
-/// recorded as schema metadata).
+/// The dependent side of a `depends_on` pair: consumers reset this
+/// selection when `country` changes; the dependency itself is schema
+/// metadata.
 #[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
@@ -99,9 +98,8 @@ pub struct User {
     #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
-    /// Milestone M4 (backlog #12): `depends_on = country` records the
-    /// sibling relationship as metadata for conditional loading and
-    /// reset-on-parent-change consumers.
+    /// `depends_on = country` records the sibling relationship as metadata
+    /// for conditional loading and reset-on-parent-change consumers.
     #[gpui_form(component(select), depends_on = country)]
     pub state: Option<EnumUsState>,
 
@@ -115,9 +113,6 @@ pub struct User {
     )]
     pub birth_date: Option<Timestamp>,
 
-    // Layout hints on a skipped field are ignored: no FieldVariant is emitted
-    // for skipped fields, so `section`/`label`/`width` here never reach the
-    // schema metadata. This field exists to prove that boundary.
     #[gpui_form(skip, section = "Secret", label = "Hidden", width = half)]
     pub skip_me: bool,
 }

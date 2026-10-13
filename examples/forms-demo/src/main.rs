@@ -60,8 +60,6 @@ pub enum Language {
     Chinese,
 }
 
-/// Milestone M4 (backlog #12): the dependent side of a `depends_on` pair —
-/// changing `country` resets the chosen state (see `on_country_confirm`).
 #[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
@@ -102,10 +100,6 @@ impl std::fmt::Display for RequestCodeKorumaValidationError {
     }
 }
 
-/// Milestone M3 (backlog #2): the nested form composed into `Signup`. It
-/// derives `GpuiForm` itself, so `SignupFormValueHolder.address` stores an
-/// `AddressFormValueHolder` and typed paths compose through
-/// `SignupFormPath::address_root().join(&AddressFormPath::city())`.
 #[derive(Clone, Debug, Default, GpuiForm, Koruma)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Address {
@@ -141,9 +135,6 @@ pub struct Signup {
     #[gpui_form(component(select(searchable)), default = Country::France)]
     pub country: Option<Country>,
 
-    /// Milestone M4 (backlog #12): `depends_on = country` records the
-    /// dependency as metadata; the reset-on-parent-change wiring below is
-    /// app-authored ([D5]).
     #[gpui_form(component(select), depends_on = country)]
     pub state: Option<UsState>,
 
@@ -163,14 +154,10 @@ pub struct Signup {
     #[gpui_form(component(date_picker))]
     pub birth_date: Option<chrono::NaiveDate>,
 
-    /// Milestone M3 (backlog #2): the nested `Address` form (value-only —
-    /// the app owns the two input entities below).
     #[gpui_form(component(nested))]
     #[koruma(nested)]
     pub address: Address,
 
-    /// Milestone M3 (backlog #3): a scalar-item list with `each(...)`
-    /// element validators — koruma reports failures per item index.
     #[gpui_form(component(list(item = input)))]
     #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
     pub tags: Vec<String>,
@@ -179,8 +166,6 @@ pub struct Signup {
     pub session_id: u32,
 }
 
-/// Live state of the simulated async availability check on the email field
-/// (M2 async-validation contract showcase; the driver is app code).
 #[derive(Clone, Debug, Default, PartialEq)]
 enum EmailCheck {
     #[default]
@@ -189,9 +174,6 @@ enum EmailCheck {
     Failed(&'static str),
 }
 
-/// App-owned async validator implementing the M2 headless contract
-/// (`AsyncFieldValidation`): one impl serves the whole form, returning
-/// `Ok(())` for fields it does not handle.
 struct EmailAvailability;
 
 impl AsyncFieldValidation<SignupFormValueHolder> for EmailAvailability {
@@ -214,9 +196,6 @@ impl AsyncFieldValidation<SignupFormValueHolder> for EmailAvailability {
     }
 }
 
-/// App-owned submit hook implementing the M2 headless contract
-/// (`SubmitAction`): the submit failure type is the form's typed koruma
-/// error, so a failed validate-then-submit carries the field errors.
 struct SignupSubmit;
 
 impl SubmitAction<SignupFormValueHolder> for SignupSubmit {
@@ -233,20 +212,11 @@ impl SubmitAction<SignupFormValueHolder> for SignupSubmit {
 
 struct FormsDemo {
     form: SignupFormState,
-    /// Whether validation errors are displayed at all (app-owned display
-    /// policy: hidden until the first Validate click or submit attempt —
-    /// the facade's cache is independent of this flag).
     errors_shown: bool,
-    /// Headless submit lifecycle (M2): the generated opt-in alias over the
-    /// core `SubmitTracker`, keyed on the typed koruma error.
     submission: SignupFormSubmission,
-    /// Async email check driver state (latest-wins generation guard, D7).
     email_check: EmailCheck,
     email_check_generation: u64,
     fields: SignupFormFields,
-    /// Milestone M3: app-owned input entities for the nested `Address`
-    /// form (the derive emits value-only state for `component(nested)` —
-    /// [D5]: event wiring is app-authored) and for the new-tag editor.
     address_city_input: Entity<InputState>,
     address_zip_input: Entity<InputState>,
     new_tag_input: Entity<InputState>,
@@ -254,9 +224,6 @@ struct FormsDemo {
     file_picker: Entity<FilePickerState>,
     picked_date: Option<SharedString>,
     status: Option<SharedString>,
-    /// M5 (backlog #14): footer debug toggle for the exported form schema
-    /// (the devtools seed — gap 8). The document itself is plain data read
-    /// through `SignupFormSchema::schema()`, no GPUI runtime involved.
     show_schema: bool,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -265,8 +232,6 @@ struct FormsDemo {
 impl FormsDemo {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut form = SignupFormState::new(SignupFormValueHolder::default());
-        // Seed the validation cache so the footer's live `is_valid` reads
-        // are comparisons from the first frame, not per-frame koruma runs.
         form.validate();
         let username_input = cx.new(|cx| SignupFormComponents::username_input(window, cx));
         let email_input = cx.new(|cx| SignupFormComponents::email_input(window, cx));
@@ -328,18 +293,10 @@ impl FormsDemo {
         }
     }
 
-    /// Refresh the facade's validation cache. Called from every change
-    /// handler and the Validate/Submit buttons, so `render` never runs
-    /// koruma validation per frame (the cached verdict serves `is_valid()`
-    /// and the error display for one `PartialEq` per read).
     fn revalidate(&mut self) {
         self.form.validate();
     }
 
-    /// Kick off the simulated async availability check on the email field:
-    /// a spawned task drives the `AsyncFieldValidation` future after a
-    /// latency timer, and the generation guard ignores completions that a
-    /// newer edit superseded (latest-wins, the D7 pattern in app code).
     fn start_email_check(&mut self, cx: &mut Context<Self>) {
         self.email_check_generation += 1;
         let generation = self.email_check_generation;
@@ -353,7 +310,7 @@ impl FormsDemo {
             let outcome = EmailAvailability.validate_field(&holder, &field).await;
             _ = this.update(cx, |this, cx| {
                 if this.email_check_generation != generation {
-                    return; // stale completion: a newer edit superseded it
+                    return;
                 }
                 this.email_check = match outcome {
                     Ok(()) => EmailCheck::Idle,
@@ -373,10 +330,6 @@ impl FormsDemo {
         cx: &mut Context<Self>,
     ) {
         match event {
-            // Input family: touched on blur AND on change. Blur alone never
-            // fires when the next interaction is a button click (gpui-kit
-            // buttons prevent focus on mouse-down), so tracking must not
-            // depend on it; the touched bitset is idempotent.
             InputEvent::Blur => {
                 self.form.touch(&SignupFormPath::username());
                 cx.notify();
@@ -417,8 +370,6 @@ impl FormsDemo {
                 };
                 self.form.touch(&SignupFormPath::email());
                 self.revalidate();
-                // Async availability check (M2): every edit starts a fresh
-                // generation; the guard drops completions from older edits.
                 self.start_email_check(cx);
                 cx.notify();
             },
@@ -489,23 +440,15 @@ impl FormsDemo {
     ) {
         let SelectEvent::Confirm(value) = event;
         self.form.current_mut().country = value.clone();
-        // Milestone M4 (backlog #12): reset-on-parent-change for
-        // `depends_on = country` — the chosen state no longer matches the
-        // country, so clear both the holder value and the widget (the
-        // dependency is recorded as metadata; the wiring is app-authored,
-        // [D5]).
         self.form.current_mut().state = None;
         self.fields.state_select.update(cx, |state, cx| {
             state.set_selected_index(None, window, cx);
         });
-        // Select-kind components mark touched on value change until their
-        // blur surfaces are verified.
         self.form.touch(&SignupFormPath::country());
         self.revalidate();
         cx.notify();
     }
 
-    /// Milestone M4: the dependent side of the `depends_on = country` pair.
     fn on_state_confirm(
         &mut self,
         _: &Entity<SelectState<Vec<UsState>>>,
@@ -580,14 +523,6 @@ impl FormsDemo {
         cx.notify();
     }
 
-    /// Milestone M3 (backlog #2): change/blur handlers for the nested
-    /// `Address` form's inputs. The writes go through the nested form's own
-    /// holder field; touched tracking keys through the nested ROOT path
-    /// (`SignupFormPath::address_root()`) — composed multi-segment paths
-    /// such as `address.city` have no dense field index in v1, so `touch`
-    /// on them is a documented no-op. Like the flat inputs, blur AND change
-    /// both mark touched (blur never fires when the next click is a
-    /// button).
     fn on_address_city_change(
         &mut self,
         state: &Entity<InputState>,
@@ -680,8 +615,8 @@ impl FormsDemo {
         }
         let root_focus = self.focus_handle.clone();
         button.on_click(cx.listener(move |_, _, window, cx| {
-            // Buttons suppress focus on mouse-down by design, so release the
-            // field focus here to let the input's blur (touched) fire.
+            // gpui-kit buttons take focus on mouse-down; refocus the root so
+            // the input's blur/touched fires (github.com/longbridge/gpui-kit/issues/3183).
             root_focus.focus(window, cx);
             let lang_id: LanguageIdentifier = lang.parse().expect("valid language id");
             let _ = gpui_form::i18n::change_locale(cx, lang_id);
@@ -689,10 +624,8 @@ impl FormsDemo {
         }))
     }
 
-    /// gpui-kit's Input tracks a separate frame focus handle on its padded
-    /// wrapper, so clicks between the border and the editor focus the frame
-    /// instead of the editor (no caret). Forward those clicks to the editor's
-    /// real handle.
+    /// Input's padded wrapper tracks a separate frame-focus handle, so
+    /// border clicks miss the editor (github.com/longbridge/gpui-kit/issues/3183).
     fn click_to_focus(&self, state: &Entity<InputState>) -> Div {
         let state = state.clone();
         div()
@@ -707,15 +640,6 @@ impl FormsDemo {
         cx.notify();
     }
 
-    /// The M2 submit protocol in app code: revalidate and reveal errors,
-    /// begin the attempt (the re-entry guard is the ONLY gate — every
-    /// attempted submit counts, matching the tracker's contract and
-    /// react-hook-form's `submitCount`: an invalid form finishes the
-    /// attempt immediately with the typed koruma error), then drive the
-    /// `SubmitAction` future in a spawned task and feed its result back
-    /// through `finish`. A success re-syncs the baseline (the save protocol
-    /// `sync_baseline` exists for); a failure stays in `last_error` for the
-    /// banner.
     fn submit(&mut self, cx: &mut Context<Self>) {
         self.revalidate();
         self.errors_shown = true;
@@ -731,7 +655,6 @@ impl FormsDemo {
         }
         let holder = self.form.current().clone();
         cx.spawn(async move |this, cx| {
-            // Simulated network latency so `is_submitting` is observable.
             cx.background_executor()
                 .timer(Duration::from_millis(700))
                 .await;
@@ -749,12 +672,6 @@ impl FormsDemo {
         cx.notify();
     }
 
-    /// Milestone M4 (backlog #10's workflow, closed by #9's patch): "save
-    /// only touched fields". The PATCH tri-state restricted to the touched
-    /// subset — no separate partial-holder type exists (plan decision D10:
-    /// the patch already distinguishes absent = unchanged, cleared, and a
-    /// set value, so filtering it by the touched set IS the partial
-    /// payload).
     fn touched_patch_summary(&self) -> String {
         let touched: std::collections::HashSet<String> = self
             .form
@@ -765,8 +682,6 @@ impl FormsDemo {
         let patch = self.form.patch();
         let mut entries: Vec<String> = Vec::new();
 
-        // Holder slots that store `Option<T>`: the patch reads
-        // `Option<Option<T>>` — `Some(None)` is "changed to cleared".
         macro_rules! optional_slot {
             ($field:ident) => {
                 if touched.contains(stringify!($field)) {
@@ -783,7 +698,6 @@ impl FormsDemo {
                 }
             };
         }
-        // Holder slots that store the value directly: present = set.
         macro_rules! plain_slot {
             ($field:ident) => {
                 if touched.contains(stringify!($field)) {
@@ -810,11 +724,6 @@ impl FormsDemo {
         entries.join(", ")
     }
 
-    /// M5 (backlog #14): compact debug rendering of the exported signup
-    /// schema — the devtools seed (parity gap 8). Reads the same owned,
-    /// serializable document non-GPUI consumers get from
-    /// `SignupFormSchema::schema()`; the content is code identifiers, so it
-    /// stays untranslated like the footer's typed-path listing.
     fn schema_debug_lines() -> Vec<String> {
         use gpui_form::schema::registry::FormSchemaComponent;
 
@@ -868,8 +777,6 @@ impl FormsDemo {
         lines
     }
 
-    /// Localized error text for one field, selected through the typed path
-    /// (`error_for`) instead of hand-matching koruma output per field.
     fn localized_path_error(&self, locale: &str, field: &SignupFormPath) -> Option<String> {
         if !self.errors_shown {
             return None;
@@ -877,9 +784,6 @@ impl FormsDemo {
         let errors = self.form.validation()?;
         let field_error = errors.error_for(field)?;
         if let SignupFormFieldError::Code(wrapper) = &field_error {
-            // The invite code fails either its synthetic required rule or
-            // inside the RequestCode newtype; the derive cannot name inner
-            // validator kinds, so keep the app-level mapping for them.
             return localized_field_error(&wrapper.all(), locale, |v| match v {
                 SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
                     "validation.required"
@@ -896,11 +800,6 @@ impl FormsDemo {
         Some(localized_issue_keys(&field_error.issue_keys(), locale))
     }
 
-    /// Milestone M3: localized error for the nested form's `city` field,
-    /// resolved through the generated recursion accessor
-    /// (`address_errors()` re-keys into the nested form's own map, whose
-    /// issue keys name the inner validator kinds — not the outer generic
-    /// `validation.invalid`).
     fn localized_address_city_error(&self, locale: &str) -> Option<String> {
         if !self.errors_shown {
             return None;
@@ -911,8 +810,6 @@ impl FormsDemo {
         Some(localized_issue_keys(&city_error.issue_keys(), locale))
     }
 
-    /// Milestone M3: localized error listing the failing tag indices, from
-    /// the element-error accessor the list surface generates.
     fn localized_tags_error(&self, locale: &str) -> Option<String> {
         if !self.errors_shown {
             return None;
@@ -947,7 +844,6 @@ fn localized_field_error<E>(
     })
 }
 
-/// Render the generated `issue_keys()` list through `validation.*` locales.
 fn localized_issue_keys(keys: &[&'static str], locale: &str) -> String {
     keys.iter()
         .map(|key| t!(*key, locale = locale).to_string())
@@ -963,13 +859,9 @@ impl Focusable for FormsDemo {
 
 impl Render for FormsDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Validation is event-driven (revalidate on change once displayed);
-        // the generated facade owns the baseline, so render neither runs
-        // koruma validation nor builds a throwaway FormState + holder clone.
         let active_locale = rust_i18n::locale().to_string();
         let username_error = self.localized_path_error(&active_locale, &SignupFormPath::username());
         let email_error = self.localized_path_error(&active_locale, &SignupFormPath::email());
-        // Live async-check state rides next to the email field's sync error.
         let email_async = match &self.email_check {
             EmailCheck::Pending => Some(t!("app.checking").to_string()),
             EmailCheck::Failed(key) => Some(t!(*key, locale = &active_locale).to_string()),
@@ -981,14 +873,9 @@ impl Render for FormsDemo {
         let tags_error = self.localized_tags_error(&active_locale);
         let danger = cx.theme().danger;
 
-        // M2 readouts: live validity from the cached facade verdict, submit
-        // lifecycle from the headless tracker.
         let is_valid = self.form.is_valid();
         let submitting = self.submission.is_submitting();
         let submit_attempts = self.submission.submit_count();
-        // The banner reuses M1's typed error access on the tracked failure:
-        // the koruma error stored by finish(Err) re-keys through the
-        // generated map and localizes via the same validation.* keys.
         let submit_error_banner = self
             .submission
             .last_error()
@@ -1117,9 +1004,6 @@ impl Render for FormsDemo {
                             .child(Select::new(&self.fields.country_select)),
                     )
                     .child(
-                        // Milestone M4 (backlog #12): the `depends_on =
-                        // country` dependent — cleared whenever the country
-                        // selection changes.
                         field()
                             .label(t!(SignupFormValueHolder::STATE_LABEL_KEY).to_string())
                             .child(Select::new(&self.fields.state_select)),
@@ -1179,10 +1063,6 @@ impl Render for FormsDemo {
                     ),
             )
             .child(
-                // Milestone M3 (backlog #2): the nested `Address` form. The
-                // holder stores an `AddressFormValueHolder`; these two
-                // app-owned inputs write into it and track touched state
-                // through the nested root path (`address_root()`).
                 v_flex()
                     .gap_2()
                     .border_1()
@@ -1221,10 +1101,6 @@ impl Render for FormsDemo {
                     ),
             )
             .child(
-                // Milestone M3 (backlog #3): the tags list. Rows render the
-                // current items with a Remove button each; the Add button
-                // appends the new-tag input's value. Count text rides the
-                // app's localized-count pattern.
                 v_flex()
                     .gap_2()
                     .child(
@@ -1270,9 +1146,8 @@ impl Render for FormsDemo {
                         },
                     ))
                     .child(
-                        // The new-tag editor must be part of the render tree:
-                        // an unrendered input can never gain focus or text,
-                        // so the Add button would always read "".
+                        // The new-tag editor must render: an unrendered input
+                        // can never gain focus or text, so Add would read "".
                         h_flex()
                             .gap_2()
                             .child(
@@ -1346,9 +1221,6 @@ impl Render for FormsDemo {
                             })),
                     )
                     .child(
-                        // Submit lifecycle (M2): the button gates on the
-                        // tracker's re-entry guard, and the spawned task
-                        // drives the SubmitAction future to completion.
                         Button::new("submit")
                             .primary()
                             .disabled(!self.submission.can_submit())
@@ -1371,10 +1243,6 @@ impl Render for FormsDemo {
                             })),
                     )
                     .child(
-                        // Milestone M4: "save only touched fields" — prints
-                        // the PATCH tri-state restricted to the touched
-                        // subset (the D10 outcome: the patch IS the partial
-                        // payload; no separate partial-holder type).
                         Button::new("save-changes")
                             .label(t!("app.save_changes").to_string())
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -1392,8 +1260,6 @@ impl Render for FormsDemo {
                             })),
                     )
                     .child(
-                        // M5 (backlog #14): footer debug toggle printing the
-                        // form's exported schema — the devtools seed.
                         Button::new("schema-toggle")
                             .label(t!("app.schema").to_string())
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -1728,7 +1594,6 @@ mod field_level_state_tests {
             vec!["username"]
         );
 
-        // Full reset is a fresh canvas: values, touched, and dirty all clear.
         state.reset_to_baseline();
         assert!(!state.is_dirty());
         assert!(!state.is_any_touched());
@@ -1748,20 +1613,14 @@ mod field_level_state_tests {
 
     #[test]
     fn error_for_paths_map_to_localizable_keys() {
-        // Default holder: username fails synthetic required + non-empty.
         let errors = SignupFormValueHolder::default().validate_fields();
         assert!(errors.has_errors());
         let username = errors
             .error_for(&SignupFormPath::username())
             .expect("username must fail");
-        // Empty input fails the synthetic required rule; NonEmpty only fires
-        // once a value is present (matching koruma's optional-field skip).
         assert_eq!(username.issue_keys(), vec!["validation.required"]);
-        // Fields without koruma rules never appear, valid or not.
         assert!(errors.error_for(&SignupFormPath::country()).is_none());
 
-        // The newtype invite code fails inside its inner type; the derive
-        // reports the generic invalid key there.
         let holder = SignupFormValueHolder {
             username: Some("ada".to_string()),
             code: Some(RequestCode::from("A".to_string())),
@@ -1775,9 +1634,6 @@ mod field_level_state_tests {
 
         let paths = errors.failing_paths();
         let names: Vec<String> = paths.iter().map(|path| path.to_string()).collect();
-        // `age` is originally optional: its range rule skips `None`; the
-        // nested `address` fails (its city is empty); so the invite code and
-        // the nested root fail.
         assert_eq!(names, vec!["code", "address"]);
     }
 
@@ -1785,8 +1641,6 @@ mod field_level_state_tests {
     fn path_tables_cover_every_non_skipped_field() {
         assert_eq!(SignupFormPath::FIELD_COUNT, 12);
         assert_eq!(SignupFormPath::all_paths().count(), 12);
-        // M3: the nested root and the list root are part of the dense index
-        // space (touched/dirty track them as whole composed values).
         let names: Vec<&str> = SignupFormPath::FIELD_NAMES.to_vec();
         assert!(names.contains(&"address"));
         assert!(names.contains(&"tags"));
@@ -1802,9 +1656,6 @@ mod dependency_tests {
 
     #[test]
     fn email_is_required_only_while_subscribing() {
-        // `required_if = newsletter`: the switch flips email between
-        // optional and required, and the violation surfaces as a typed,
-        // path-addressable error carrying the localized required key.
         let mut holder = SignupFormValueHolder {
             username: Some("ada".to_string()),
             code: Some("AB12".parse().unwrap()),
@@ -1836,8 +1687,6 @@ mod dependency_tests {
 
     #[test]
     fn conditional_required_localizes_through_the_shared_key() {
-        // The desugared rule reuses `validation.required`, so the app's
-        // existing locale entries render it with zero new keys.
         let holder = SignupFormValueHolder {
             newsletter: true,
             ..Default::default()
@@ -1852,8 +1701,6 @@ mod dependency_tests {
 
     #[test]
     fn touched_patch_summary_reports_only_touched_changes() {
-        // The D10 outcome in app code: the patch tri-state restricted to
-        // the touched subset IS the "save only touched fields" payload.
         let mut state = SignupFormState::new(SignupFormValueHolder::default());
         state.current_mut().email = Some("ada@example.com".to_string());
         state.touch(&SignupFormPath::email());
@@ -1865,9 +1712,6 @@ mod dependency_tests {
             "untouched edits (age) are excluded; touched+changed fields ride along"
         );
 
-        // A touched field edited back to its baseline is not part of the
-        // payload (the patch slot is `None`); clearing a touched optional
-        // field whose BASELINE carried a value reports the cleared state.
         state.current_mut().email = None;
         let summary = demo_touched_patch_summary(&mut state);
         assert_eq!(summary, "", "back to baseline: nothing to send");
@@ -1880,8 +1724,6 @@ mod dependency_tests {
         assert_eq!(summary, "email = null (cleared)");
     }
 
-    /// The demo's `touched_patch_summary` logic, mirrored over a plain
-    /// facade (the render method borrows the whole view).
     fn demo_touched_patch_summary(state: &mut SignupFormState) -> String {
         let touched: std::collections::HashSet<String> = state
             .touched_fields()
@@ -1911,8 +1753,6 @@ mod dependency_tests {
 
     #[test]
     fn state_field_tracks_country_dependency_metadata() {
-        // The dependent field is part of the typed surface (path table,
-        // patch slot), and its value is plain data the reset wiring owns.
         let mut state = SignupFormState::new(SignupFormValueHolder::default());
         state.current_mut().state = Some(UsState::Texas);
         state.touch(&SignupFormPath::state());
@@ -1925,12 +1765,9 @@ mod dependency_tests {
                 .collect::<Vec<_>>(),
             vec!["state"]
         );
-        // Save: the chosen state becomes the baseline the reset clears.
         state.sync_baseline();
         assert!(!state.is_field_dirty(&SignupFormPath::state()));
 
-        // The reset the demo wires into `on_country_confirm`: clearing a
-        // baseline value reports the changed-to-cleared tri-state.
         state.current_mut().state = None;
         let patch = state.patch();
         let slot: Option<Option<UsState>> = patch.state;
@@ -1981,7 +1818,6 @@ mod submit_lifecycle_tests {
         state.validate();
         assert!(state.validation().is_some());
 
-        // A failed path-keyed lookup still flows through the cache.
         state.current_mut().age = Some(200);
         state.validate();
         let age = state
@@ -1992,17 +1828,10 @@ mod submit_lifecycle_tests {
 
     #[test]
     fn every_submit_attempt_counts_even_when_the_form_is_invalid() {
-        // The demo's submit protocol: `begin()` runs BEFORE the validity
-        // check (the re-entry guard is the only gate), so every attempted
-        // submit increments `submit_count` — react-hook-form's `submitCount`
-        // semantics. An invalid form finishes the attempt immediately with
-        // the typed koruma error instead of pre-gating on `is_valid()`.
         let mut tracker: SignupFormSubmission = SubmitTracker::new();
         let mut state = SignupFormState::new(SignupFormValueHolder::default());
         state.validate();
 
-        // Attempt 1: the default holder is invalid, but the attempt still
-        // begins, counts, and finishes as a tracked failure.
         assert!(tracker.begin());
         assert!(!state.is_valid());
         tracker.finish(state.current().validate());
@@ -2013,7 +1842,6 @@ mod submit_lifecycle_tests {
             "the invalid attempt's koruma error feeds the failure banner"
         );
 
-        // Attempt 2: a valid holder completes through the SubmitAction path.
         state.current_mut().username = Some("ada".to_string());
         state.current_mut().code = Some("AB12".parse().unwrap());
         state.current_mut().age = Some(30);
@@ -2031,7 +1859,6 @@ mod submit_lifecycle_tests {
         let mut tracker: SignupFormSubmission = SubmitTracker::new();
         assert!(tracker.can_submit());
 
-        // A failed validate-then-submit stores the typed koruma error.
         let failure = SignupFormValueHolder::default()
             .validate()
             .expect_err("default holder must fail");
@@ -2052,7 +1879,6 @@ mod submit_lifecycle_tests {
         tracker.finish(Ok(()));
         assert!(tracker.is_submit_successful());
 
-        // The generation guard: a completion after reset is ignored.
         tracker.begin();
         tracker.reset();
         tracker.finish(Ok(()));
@@ -2079,13 +1905,11 @@ mod submit_lifecycle_tests {
             block_on(EmailAvailability.validate_field(&free, &email)),
             Ok(())
         );
-        // One impl serves the whole form: other fields fall through.
         assert_eq!(
             block_on(EmailAvailability.validate_field(&free, &FieldPath::new(&["username"]))),
             Ok(())
         );
 
-        // The driver state maps outcomes deterministically.
         assert_eq!(EmailCheck::default(), EmailCheck::Idle);
     }
 }
@@ -2097,10 +1921,6 @@ mod nested_and_list_tests {
 
     #[test]
     fn nested_error_access_recurses_through_the_nested_form() {
-        // The nested city is empty: the outer map routes `address` and
-        // `address.city` to the nested slot; the recursion accessor
-        // (`address_errors()`) re-keys into the nested form's own map whose
-        // issue keys name the inner validator kinds.
         let errors = SignupFormValueHolder::default().validate_fields();
 
         let root = errors
@@ -2123,7 +1943,6 @@ mod nested_and_list_tests {
             .expect("empty city fails the nested rules");
         assert!(city_error.issue_keys().contains(&"validation.required"));
 
-        // A valid nested form clears the slot and the composed lookup.
         let mut holder = SignupFormValueHolder::default();
         holder.address.city = Some("Paris".to_string());
         let errors = holder.validate_fields();
@@ -2152,7 +1971,6 @@ mod nested_and_list_tests {
             .collect();
         assert_eq!(failing, vec![1], "only the too-short tag fails");
 
-        // Typed item paths route with per-item precision.
         assert!(errors.error_for(&SignupFormPath::tags(0)).is_none());
         let item = errors
             .error_for(&SignupFormPath::tags(1))
@@ -2160,13 +1978,9 @@ mod nested_and_list_tests {
         assert_eq!(item.issue_keys(), vec!["validation.len"]);
         assert!(errors.error_for(&SignupFormPath::tags(2)).is_none());
 
-        // The index-addressable element-error accessor.
         assert!(errors.tags_element_error(0).is_none());
         assert!(errors.tags_element_error(1).is_some());
 
-        // The generic failing-path view expands per failing item index and
-        // keeps the root path (the whole-field slot is populated, so
-        // `failing_fields` agrees with `error_for(tags_root)`).
         let names: Vec<String> = errors
             .failing_paths()
             .iter()
@@ -2177,10 +1991,6 @@ mod nested_and_list_tests {
 
     #[test]
     fn nested_inputs_mark_touched_through_the_root_path() {
-        // The demo's address inputs mark touched on blur AND on change
-        // (blur alone never fires when the next interaction is a button
-        // click — gpui-kit buttons prevent focus on mouse-down), keyed
-        // through the nested ROOT path.
         let mut state = SignupFormState::new(SignupFormValueHolder::default());
         state.current_mut().address.city = Some("Paris".to_string());
         state.touch(&SignupFormPath::address_root());
@@ -2193,13 +2003,9 @@ mod nested_and_list_tests {
                 .collect::<Vec<_>>(),
             vec!["address"]
         );
-        // The blur arm firing after the change arm stays a single mark.
         state.touch(&SignupFormPath::address_root());
         assert_eq!(state.touched_fields().len(), 1);
 
-        // The composed `address.city` path still routes error lookups, but
-        // it has no dense field index in v1: touching through it is a
-        // documented no-op, which is why the demo wires the root path.
         let composed = SignupFormPath::address_root().join(&AddressFormPath::city());
         assert_eq!(composed.to_string(), "address.city");
         assert_eq!(composed.field_index(), None);
@@ -2215,26 +2021,19 @@ mod nested_and_list_tests {
     fn list_mutation_api_drives_the_demo_editor() {
         let mut state = SignupFormState::new(SignupFormValueHolder::default());
 
-        // The Add button appends the new-tag input's value.
         state.current_mut().add_tags("gpui".to_string());
         state.current_mut().add_tags("forms".to_string());
         assert_eq!(state.current().tags_items(), &["gpui", "forms"]);
 
-        // The Remove buttons drop by index.
         state.current_mut().remove_tags(0);
         assert_eq!(state.current().tags_items(), &["forms"]);
 
-        // The composed roots participate in the M1 field-level state
-        // surface: whole-value dirty/touched keyed by the root path.
         assert!(state.is_field_dirty(&SignupFormPath::tags_root()));
         state.touch(&SignupFormPath::tags_root());
         assert!(state.is_touched(&SignupFormPath::tags_root()));
 
-        // Item paths have no dense index in v1 (item-level touched tracking
-        // is sequenced after v1) but Display stays index-keyed.
         assert_eq!(SignupFormPath::tags(2).to_string(), "tags.2");
         assert!(SignupFormPath::tags(2).field_index().is_none());
-        // M4 shifted the dense indices by one (`state` joined the form).
         assert_eq!(SignupFormPath::tags_root().field_index(), Some(11));
     }
 }
@@ -2245,9 +2044,6 @@ mod schema_export_tests {
     use gpui_form::FormSchema;
     use gpui_form::schema::registry::FormSchemaComponent;
 
-    /// The M5 showcase backing test: the exported schema document is plain,
-    /// non-GPUI data (no window/entity construction anywhere) and carries
-    /// the nested/list (M3) and dependency (M4) metadata.
     #[test]
     fn exported_schema_reads_without_the_gpui_runtime() {
         let schema: FormSchema = SignupFormSchema::schema();
@@ -2273,11 +2069,9 @@ mod schema_export_tests {
             ]
         );
 
-        // M4: the cascading state select records its country dependency.
         let state = schema.field("state").expect("state entry");
         assert_eq!(state.depends_on.as_deref(), Some("country"));
 
-        // M3: nested + list composition.
         assert_eq!(
             schema.field("address").expect("address entry").component,
             FormSchemaComponent::Nested {
@@ -2298,7 +2092,6 @@ mod schema_export_tests {
     fn footer_debug_lines_render_the_exported_schema() {
         let lines = FormsDemo::schema_debug_lines();
 
-        // Header + one line per field, declaration order.
         assert_eq!(lines.len(), 1 + 12);
         assert!(
             lines[0].starts_with("Signup · 12 fields · koruma: on · skipped fields: yes"),
@@ -2308,7 +2101,6 @@ mod schema_export_tests {
             lines[1].contains("username: input (Option) [RequiredValidation"),
             "{lines:?}"
         );
-        // M4 dependencies: the cascading select and the conditional email.
         assert!(
             lines[5].contains("state: select (Option) (depends_on: country)"),
             "{lines:?}"
@@ -2318,7 +2110,6 @@ mod schema_export_tests {
                 && lines[2].contains("(required_if: newsletter)"),
             "{lines:?}"
         );
-        // M3 composition: nested group and repeated field.
         assert!(
             lines[11].contains("address: nested (Address) [NestedValidation]"),
             "{lines:?}"
