@@ -1,10 +1,6 @@
-//! Runtime helpers for gpui-form components.
-//!
-//! This crate provides:
-//! - `custom` shape contracts/macros for user-defined components
-//! - `date_picker` for localized runtime date and date-range pickers
-//! - `file_picker` for native GPUI path selection with gpui-kit styling
-//! - `infinite_select` for cascading selects over nested enums
+//! Runtime GPUI components for gpui-form: custom component contracts,
+//! localized date and date-range pickers, a native file picker, and
+//! cascading infinite selects over nested enums.
 
 rust_i18n::i18n!("locales", fallback = "en");
 
@@ -16,7 +12,6 @@ pub mod custom;
 
 mod calendar;
 
-/// Shared ICU4X formatter cache for the runtime date surfaces.
 mod date_format;
 
 /// Runtime helpers for the localized date picker component.

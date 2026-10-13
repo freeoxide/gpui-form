@@ -71,9 +71,6 @@ mod tests {
         tag.parse().unwrap()
     }
 
-    /// The process-global locale is shared by every locale test in this
-    /// binary; tests that write it (or assert against it) hold this lock so
-    /// they cannot interleave.
     static LOCALE_LOCK: Mutex<()> = Mutex::new(());
 
     fn lock_locale() -> MutexGuard<'static, ()> {
@@ -111,13 +108,6 @@ mod tests {
         }
     }
 
-    /// The two embedded locale table copies (this crate's `locales/` and
-    /// `gpui-form-i18n`'s) must agree on every overlapping key's VALUE, not
-    /// just the key set. The two `rust_i18n` backends coexist in this test
-    /// binary: `I18n::localize_message` resolves through the bridge crate's
-    /// table, this crate's `t!` through the component table — so equality
-    /// here is a cross-crate gate (a miss on either side renders as the
-    /// humanized key vs the raw key and fails the comparison).
     #[test]
     fn locale_tables_agree_with_the_bridge_crate_copy() {
         let _guard = lock_locale();
@@ -190,8 +180,6 @@ mod tests {
         assert_eq!(i18n.localize_message("date_picker.select_date"), "选择日期");
         assert_eq!(i18n.localize_message("missing_key"), "Missing Key");
 
-        // The wrapper keeps no locale copy: a direct global write is
-        // immediately visible through the bridge.
         rust_i18n::set_locale("en");
         assert_eq!(&*i18n.locale(), "en");
         assert_eq!(i18n.localize_message("file_picker.browse"), "Browse");
@@ -218,9 +206,6 @@ mod tests {
             assert_eq!(localize_message(cx, "file_picker.browse"), "浏览");
             assert_eq!(t!("file_picker.browse"), "浏览");
 
-            // The split is closed in both directions: a direct
-            // `rust_i18n::set_locale` shows up through the GPUI-global
-            // bridge too, and `change_locale` drives `t!()`.
             rust_i18n::set_locale("en");
             assert_eq!(localize_message(cx, "file_picker.browse"), "Browse");
             assert_eq!(t!("file_picker.browse"), "Browse");

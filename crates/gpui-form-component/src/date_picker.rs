@@ -550,9 +550,6 @@ impl RenderOnce for DatePicker {
             .child(
                 div()
                     .id("date-picker-input")
-                    // Test-only hook (no-op outside test builds): integration
-                    // tests locate the input through
-                    // `VisualTestContext::debug_bounds`.
                     .debug_selector(|| "gpfd-date-picker-input".to_string())
                     .relative()
                     .flex()
@@ -684,9 +681,6 @@ impl RenderOnce for DateRangePicker {
             .child(
                 div()
                     .id("date-range-picker-input")
-                    // Test-only hook (no-op outside test builds): integration
-                    // tests locate the input through
-                    // `VisualTestContext::debug_bounds`.
                     .debug_selector(|| "gpfd-date-range-picker-input".to_string())
                     .relative()
                     .flex()
@@ -817,18 +811,9 @@ fn active_locale() -> Locale {
     Locale::from_str(&normalized).unwrap_or(locale!("en-US"))
 }
 
-/// Format one civil date for `locale` at `display_style` through the same
-/// ICU4X path the date picker's button label uses.
-///
-/// Pure and GPUI-free: the locale is an explicit argument (the render path
-/// passes the picker's resolved display locale, not the global
-/// `gpui_kit::component::locale()`), so the function is directly usable from
-/// benches and characterization tests. The ICU4X
-/// `FixedCalendarDateTimeFormatter` for `(display_style, locale)` is served
-/// from the crate-internal formatter cache (`src/date_format.rs`) and only
-/// rebuilt on a cache miss, so repeated calls and locale switches return the
-/// same strings as a fresh build. Returns `None` when the ICU formatter
-/// cannot be built for `locale` or the date is out of the Gregorian range.
+/// Formats one civil date for `locale` at `display_style` via the shared
+/// ICU4X formatter path. Returns `None` when no formatter can be built for
+/// `locale` or the date is outside the Gregorian range.
 pub fn format_display_date(
     date: JiffDate,
     locale: &Locale,
@@ -978,14 +963,12 @@ mod tests {
                 .max_date(date(2025, 1, 20))
         });
 
-        // The bounds the picker forwards to the calendar grid.
         cx.read(|app| {
             let state = state.read(app);
             assert_eq!(state.min_date, Some(date(2025, 1, 5)));
             assert_eq!(state.max_date, Some(date(2025, 1, 20)));
         });
 
-        // Selecting an in-bounds date is unchanged.
         state.update_in(cx, |state, window, cx| {
             state.set_date(date(2025, 1, 10), window, cx);
         });
@@ -994,7 +977,6 @@ mod tests {
             Some(date(2025, 1, 10))
         );
 
-        // Clearing still works: bounds constrain the grid, not the value.
         state.update_in(cx, |state, window, cx| {
             state.set_date(None, window, cx);
         });

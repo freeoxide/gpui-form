@@ -359,9 +359,6 @@ impl Calendar {
             window,
             cx,
         )
-        // Test-only hook (no-op outside test builds): lets integration tests
-        // locate one day cell's pixel bounds through
-        // `VisualTestContext::debug_bounds`.
         .debug_selector(move || format!("gpfd-day-{}", date.format("%Y-%m-%d")))
         .when(is_today && !is_active, |this| {
             this.border_1().border_color(cx.theme().border)
@@ -755,10 +752,6 @@ fn first_weekday(locale: &Locale) -> Weekday {
         .unwrap_or(Weekday::Sunday)
 }
 
-/// Whether `date` falls outside the calendar's optional `[min_date,
-/// max_date]` selectable bounds. Out-of-bounds days flow through the same
-/// disabled machinery as any other unselectable day: they render muted and
-/// carry no click handler, so a click cannot select them.
 fn date_outside_bounds(
     date: &NaiveDate,
     min_date: Option<NaiveDate>,
@@ -767,8 +760,6 @@ fn date_outside_bounds(
     min_date.is_some_and(|min| *date < min) || max_date.is_some_and(|max| *date > max)
 }
 
-/// The year-picker grid for `range`: years chunked into pages of 20. An
-/// empty or degenerate range (`start >= end`) produces no pages.
 fn year_pages(range: (i32, i32)) -> Vec<Vec<i32>> {
     (range.0..range.1)
         .collect::<Vec<_>>()
@@ -777,8 +768,6 @@ fn year_pages(range: (i32, i32)) -> Vec<Vec<i32>> {
         .collect()
 }
 
-/// The page index whose years contain `year`, or the first page when no
-/// page does (an out-of-range `current_year` still needs a page to show).
 fn year_page_for(pages: &[Vec<i32>], year: i32) -> i32 {
     pages
         .iter()
@@ -786,9 +775,6 @@ fn year_page_for(pages: &[Vec<i32>], year: i32) -> i32 {
         .unwrap_or(0) as i32
 }
 
-/// The years on the year picker's current page, or an empty slice when the
-/// page is out of bounds — an empty/degenerate `year_range` leaves `years`
-/// empty, and a stale `year_page` must render nothing, not panic.
 fn current_year_page(years: &[Vec<i32>], year_page: i32) -> &[i32] {
     years
         .get(usize::try_from(year_page).unwrap_or(usize::MAX))
@@ -1022,30 +1008,23 @@ mod tests {
         assert!(!date_outside_bounds(&inside_high, Some(min), Some(max)));
         assert!(!date_outside_bounds(&inside, Some(min), Some(max)));
 
-        // One-sided bounds only disable their own side.
         assert!(date_outside_bounds(&below, Some(min), None));
         assert!(!date_outside_bounds(&above, Some(min), None));
         assert!(date_outside_bounds(&above, None, Some(max)));
         assert!(!date_outside_bounds(&below, None, Some(max)));
 
-        // No bounds (the default) disables nothing.
         for day in [below, inside, above] {
             assert!(!date_outside_bounds(&day, None, None));
         }
     }
 
-    // ── year-range regression guards (empty/degenerate ranges) ──────────────
-
     #[test]
     fn empty_year_range_leaves_no_pages_and_renders_no_years() {
-        // `start == end` collects no years at all — the pre-guard code
-        // indexed `years[0]` in the year view and panicked.
         let pages = year_pages((2026, 2026));
         assert!(pages.is_empty());
         assert_eq!(year_page_for(&pages, 2026), 0);
         assert!(current_year_page(&pages, 0).is_empty());
 
-        // A reversed range degenerates the same way.
         assert!(year_pages((2100, 1900)).is_empty());
     }
 
@@ -1060,7 +1039,6 @@ mod tests {
         assert_eq!(year_page_for(&pages, 2000), 0);
         assert_eq!(year_page_for(&pages, 2026), 1);
         assert_eq!(year_page_for(&pages, 2059), 2);
-        // A year on no page falls back to the first page.
         assert_eq!(year_page_for(&pages, 3000), 0);
     }
 
@@ -1069,10 +1047,7 @@ mod tests {
         let pages = year_pages((2000, 2060));
         assert_eq!(current_year_page(&pages, 0).first(), Some(&2000));
         assert_eq!(current_year_page(&pages, 1).first(), Some(&2020));
-        // Beyond the last page — e.g. a stale page after the range shrank.
         assert!(current_year_page(&pages, 3).is_empty());
-        // A negative page must not wrap the `as usize` cast into a valid
-        // index.
         assert!(current_year_page(&pages, -1).is_empty());
     }
 }
