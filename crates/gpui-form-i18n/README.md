@@ -16,9 +16,13 @@ locale plumbing underneath it.
 
 ## What it does
 
-- Installs an `I18n` gpui `Global` holding the active locale.
+- Installs an `I18n` gpui `Global` that is a thin wrapper over the shared
+  `rust-i18n` locale (the single source of truth; the global holds no locale
+  state, so a direct `rust_i18n::set_locale` is visible through every
+  `I18n` read).
 - `init`, `init_with_language`, `replace_with_language`, and `change_locale`
-  switch that locale and propagate it to the shared `rust-i18n` locale.
+  switch the shared `rust-i18n` locale — the one locale that both this
+  bridge and every component-side `t!()` call reads.
 - `localize_message` / `localize_label` resolve keys embedded from
   `locales/*.yml` via `rust_i18n::i18n!("locales", fallback = "en")`; a
   missing translation falls back to `humanize_key`.
