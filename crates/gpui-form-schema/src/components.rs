@@ -28,13 +28,12 @@ pub enum ComponentKind {
     Custom,
     DatePicker,
     FilePicker,
-    /// Milestone M3 (backlog #2): a field whose type is itself a
-    /// `#[derive(GpuiForm)]` struct, composed through the nested form's own
-    /// generated holder. Value-only: it renders no leaf control.
+    /// A field whose type is itself a `#[derive(GpuiForm)]` struct, composed
+    /// through the nested form's own generated holder. Value-only: renders no
+    /// leaf control.
     Nested,
-    /// Milestone M3 (backlog #3): an editable `Vec<T>` field. Value-only in
-    /// v1: the derive emits holder add/remove/items operations, not per-item
-    /// entities.
+    /// An editable `Vec<T>` field. Value-only: the derive emits holder
+    /// add/remove/items operations, not per-item entities.
     List,
 }
 
@@ -114,18 +113,9 @@ impl NumberInputKind {
         matches!(self, Self::UnsignedInteger)
     }
 
-    /// The one numeric-family classifier, shared by every emission path:
-    /// `gpui-form-codegen` classifies once per field and feeds the same
-    /// [`NumberInputKind`] value to both the recorded
-    /// [`NumberInputBehaviour.kind`] payload and the emitted input validator
-    /// branch, and prototyping's step arithmetic calls this on the recorded
-    /// raw value type — so the recorded kind can never disagree with the
-    /// generated validation branch.
-    ///
-    /// `type_str` is the caller's type string: the codegen caller passes the
-    /// number-input `as = ...` override when present, else the field's own
-    /// type; prototyping passes the recorded `value_type` (the raw field
-    /// type), never the `as = ...` override.
+    /// The one numeric-family classifier, shared by every emission path so the
+    /// recorded kind can never disagree with the generated validation branch.
+    /// `type_str` is the caller's type string: the `as = ...` override, else raw.
     pub fn classify(type_str: &str) -> Self {
         if type_str.starts_with('f') {
             Self::Float
@@ -143,52 +133,38 @@ impl NumberInputKind {
 pub struct NumberInputBehaviour {
     /// Optional `as = ...` override used for numeric validation semantics.
     pub validation_type: Option<&'static str>,
-    /// The numeric family this field validates as, produced by the shared
-    /// [`NumberInputKind::classify`] run. Not vestigial: the derive's
-    /// emitted validator consumes the same classification value from the
-    /// same parse-time site (one `gpui-form-codegen` helper feeds both), so
-    /// the recorded kind and the generated validation branch cannot
-    /// disagree, and the value is carried through the schema export
-    /// (`FormSchemaComponent::NumberInput`) to tooling and prototyping.
+    /// The numeric family this field validates as, produced by
+    /// [`NumberInputKind::classify`] and carried through the schema export to
+    /// tooling and prototyping.
     pub kind: NumberInputKind,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PhoneInputBehaviour {
-    /// When set, the phone number must match the country selected by this sibling
-    /// field (`phone_input(country = <field>)`). When `None`, the field accepts
-    /// any globally valid number. The reference is the snake_case source field
-    /// name; cross-field, selected-country enforcement is wired at the
-    /// application/render layer, while the generated input control validates a
-    /// globally parseable number as a baseline.
+    /// When set, the phone number must match the country selected by this
+    /// sibling field (`phone_input(country = <field>)`); `None` accepts any
+    /// globally valid number. Cross-field enforcement is app/render-layer.
     pub country_field: Option<&'static str>,
 }
 
-/// Milestone M3 (backlog #2): behaviour payload for `component(nested)`.
-///
-/// `form_struct` names the nested form struct (the field's own type), so
-/// generators can resolve the nested form's generated types by the shared
-/// `<Name>FormValueHolder` naming convention. Stays `Copy` — behaviours box
-/// nothing (the inventory `const` contract).
+/// Behaviour payload for `component(nested)`: `form_struct` names the nested
+/// form struct so generators can resolve its generated types by naming
+/// convention. Stays `Copy` — behaviours box nothing (the inventory `const` contract).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct NestedBehaviour {
     /// The nested form struct name (e.g. `"Address"`), not a type path.
     pub form_struct: &'static str,
 }
 
-/// Milestone M3 (backlog #3): behaviour payload for
-/// `component(list(item = ...))`.
-///
-/// `item` records the scalar item component kind; `item_struct` is set only
-/// for `item = nested` (reserved for the post-v1 nested-item-form milestone —
-/// v1 ships scalar item components only). Stays `Copy` — behaviours box
-/// nothing (the inventory `const` contract).
+/// Behaviour payload for `component(list(item = ...))`: the scalar item kind,
+/// with `item_struct` reserved for nested item forms (not shipped in v1).
+/// Stays `Copy` — behaviours box nothing (the inventory `const` contract).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ListBehaviour {
     /// The scalar component kind rendered per item (`item = input`, ...).
     pub item: ComponentKind,
-    /// The nested item form struct name; `None` for scalar items and always
-    /// `None` in v1 (nested item forms are not shipped yet).
+    /// The nested item form struct name; always `None` in v1 (nested item
+    /// forms are not shipped yet).
     pub item_struct: Option<&'static str>,
     /// Optional add-button label override from `list(add_label = "...")`;
     /// generators fall back to the `{form}.{field}_add` i18n key.
@@ -267,15 +243,10 @@ mod tests {
 
     #[test]
     fn number_input_kind_classifies_the_shared_numeric_families() {
-        // One classifier feeds the derive's recorded `NumberInputBehaviour`
-        // kind, the emitted input validator, and prototyping's step
-        // arithmetic — these cases are the contract all three agree on.
-        // Float family (what a `number_input(as = f32/f64)` override feeds).
         assert_eq!(NumberInputKind::classify("f32"), NumberInputKind::Float);
         assert_eq!(NumberInputKind::classify("f64"), NumberInputKind::Float);
         assert!(!NumberInputKind::classify("f64").is_unsigned());
 
-        // Unsigned family.
         for ty in ["u8", "u16", "u32", "u64", "u128", "usize"] {
             assert_eq!(
                 NumberInputKind::classify(ty),
@@ -285,7 +256,6 @@ mod tests {
             assert!(NumberInputKind::classify(ty).is_unsigned());
         }
 
-        // Signed family.
         for ty in ["i8", "i16", "i32", "i64", "i128", "isize"] {
             assert_eq!(
                 NumberInputKind::classify(ty),
@@ -295,9 +265,6 @@ mod tests {
             assert!(!NumberInputKind::classify(ty).is_unsigned());
         }
 
-        // Anything else is Custom — including a Decimal reached through the
-        // raw value type (a `number_input(as = f64)` Decimal feeds "f64"
-        // upstream and classifies Float there).
         assert_eq!(
             NumberInputKind::classify("::rust_decimal::Decimal"),
             NumberInputKind::Custom
@@ -307,9 +274,6 @@ mod tests {
 
     #[test]
     fn nested_and_list_kinds_are_value_only_non_focusable_non_subscribable() {
-        // M3 (hazard 9): the predicates every consumer matches on must treat
-        // nested/list as value-only fields that render no leaf control and
-        // wrap nothing in Option.
         for kind in [ComponentKind::Nested, ComponentKind::List] {
             assert!(kind.is_value_only_field(), "{kind:?} must be value-only");
             assert!(
@@ -348,7 +312,6 @@ mod tests {
         assert_eq!(list.component_name(), "list");
         assert!(list.is_value_only_field());
 
-        // Existing kinds keep their behaviour routing untouched.
         assert_eq!(
             ComponentsBehaviour::Select(SelectBehaviour::default()).kind(),
             ComponentKind::Select
@@ -357,8 +320,6 @@ mod tests {
 
     #[test]
     fn behaviour_payloads_stay_const_constructible_and_copy() {
-        // Hazard 8: behaviour payloads must remain const-constructible and
-        // Copy for the inventory submit chain the derive emits.
         const NESTED: ComponentsBehaviour =
             ComponentsBehaviour::Nested(NestedBehaviour { form_struct: "A" });
         const LIST: ComponentsBehaviour = ComponentsBehaviour::List(ListBehaviour {

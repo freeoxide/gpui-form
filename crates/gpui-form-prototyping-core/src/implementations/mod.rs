@@ -82,12 +82,6 @@ impl<'a> ResolvedField<'a> {
             }
         })?;
 
-        // The nested scaffold is composed by convention from raw
-        // `form_struct` metadata (`{form_struct}Form` ident,
-        // `crate::<snake>::{form_struct}Form` import). A malformed name must
-        // fail here with the typed error — never in `format_ident!` inside
-        // the nested generator (the same validate-before-tokenize contract
-        // the import set applies to the composed import path).
         if let ComponentsBehaviour::Nested(NestedBehaviour { form_struct }) = &field.behaviour {
             syn::parse_str::<Ident>(&format!("{form_struct}Form")).map_err(|_| {
                 PrototypingError::InvalidIdentifier {
@@ -141,12 +135,8 @@ impl<'a> ResolvedField<'a> {
         &self.field.behaviour
     }
 
-    /// Non-rendering layout hints attached to this field (METADATA-FIRST v1).
-    ///
-    /// Mirrors [`ResolvedField::raw`] / [`ResolvedField::behaviour`]: a thin
-    /// accessor over the underlying [`FieldVariant::layout`]. Consumers use this
-    /// to read `section` / `label` / `description` / `placeholder` / `width`
-    /// hints when emitting scaffolds. See [`FieldLayout`] for the v1 contract.
+    /// Non-rendering layout hints attached to this field; a thin accessor
+    /// over [`FieldVariant::layout`]. See [`FieldLayout`] for the contract.
     pub fn layout(&self) -> &FieldLayout {
         &self.field.layout
     }
@@ -211,16 +201,13 @@ impl<'a> ResolvedField<'a> {
         self.validation_rules().contains(&rule)
     }
 
-    /// Milestone M4 (backlog #12): the sibling field this field depends on
-    /// (`depends_on = <field>`), if any.
+    /// The sibling field this field depends on (`depends_on = <field>`), if any.
     pub fn depends_on(&self) -> Option<&'static str> {
         self.field.depends_on()
     }
 
-    /// Milestone M4 (backlog #13): the controlling sibling field for this
-    /// field's conditional-required rule (`required_if = <field>`), if any.
-    /// The rule itself is enforced by the generated koruma validator; this
-    /// only exposes the recorded relationship.
+    /// The controlling sibling for this field's `required_if = <field>` rule,
+    /// if any; the rule itself is enforced by the generated koruma validator.
     pub fn required_if(&self) -> Option<&'static str> {
         self.field.required_if()
     }
@@ -299,14 +286,9 @@ pub trait FieldCodeGenerator {
         None
     }
 
-    /// Extra `impl` members the scaffold needs for this field (milestone
-    /// M3: list row/add/remove controls). Emitted into the
-    /// scaffold's impl block next to the event handlers.
-    ///
-    /// Fallible because members are generated from raw metadata (list item
-    /// types, labels): malformed metadata returns a
-    /// [`PrototypingError`](crate::error::PrototypingError) instead of
-    /// emitting tokens that would fail to compile in the consumer crate.
+    /// Extra `impl` members the scaffold needs for this field (the list
+    /// row/add/remove controls), emitted next to the event handlers. Malformed
+    /// metadata returns a [`PrototypingError`] instead of non-compiling tokens.
     fn generate_impl_members(
         &self,
         _field: &ResolvedField<'_>,
@@ -315,9 +297,9 @@ pub trait FieldCodeGenerator {
         Ok(Vec::new())
     }
 
-    /// A struct field on the SCAFFOLD itself (not the generated
-    /// `<Name>FormFields`) for this field — milestone M3: nested fields host
-    /// the nested form's scaffold as an `Entity<<Nested>Form>`.
+    /// A struct field on the scaffold itself (not the generated
+    /// `<Name>FormFields`): nested fields host the nested form's scaffold as
+    /// an `Entity<<Nested>Form>`.
     fn generate_scaffold_struct_field(
         &self,
         _field: &ResolvedField<'_>,
@@ -381,15 +363,9 @@ pub fn generate_entity_creation(
     }
 }
 
-/// Milestone M4 (backlog #12): the statements a field's change handling
-/// appends to reset its DEPENDENT fields — every field whose `depends_on`
-/// names this field (reset-on-parent-change scaffolding).
-///
-/// The scaffold resets each dependent's HOLDER value (`None` for
-/// Option-wrapped holders, `Default` otherwise); re-syncing the dependent's
-/// WIDGET stays app-authored ([D5]: scaffolds may wire events, the derive
-/// never does), which the emitted placeholder statement documents. Empty
-/// tokens for fields with no dependents, so existing shapes see zero diff.
+/// The statements a field's change handling appends to reset dependents —
+/// every field whose `depends_on` names this one; empty tokens when none.
+/// Holder values reset to `None`/`Default`; widget re-sync is app-authored.
 pub fn dependent_reset_statements(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
@@ -492,9 +468,6 @@ pub fn generate_label_tokens(
     }
 }
 
-/// `::rust_i18n::t!` tokens for `<form_snake>.<field_name>_<suffix>`, falling
-/// back to the title-cased field name when the key is not translated. The `t!`
-/// expansion resolves against the CONSUMER crate's `rust_i18n::i18n!` backend.
 pub(crate) fn localized_text_tokens(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
@@ -506,11 +479,6 @@ pub(crate) fn localized_text_tokens(
     localized_text_tokens_with_fallback(field, component, suffix, &fallback)
 }
 
-/// [`localized_text_tokens`] with an explicit locale-miss fallback.
-///
-/// The list Add/Remove buttons use it to fall back to the action words
-/// ("Add" / "Remove") instead of the title-cased field name — a button
-/// reading "Tags" for both actions names nothing the user can do.
 pub(crate) fn localized_text_tokens_with_fallback(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
@@ -544,45 +512,36 @@ pub fn collect_i18n_keys(component: &GpuiFormShape) -> Vec<String> {
     component
         .components
         .iter()
-        .flat_map(|field| {
-            // Milestone M3 (hazard 11): nested/list keys stay index-free —
-            // per-item messages reuse the one item-label key, never a
-            // per-index key.
-            match &field.behaviour {
-                ComponentsBehaviour::Nested(_) => {
-                    let mut keys = Vec::with_capacity(1);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    keys
-                },
-                ComponentsBehaviour::List(behaviour) => {
-                    let mut keys = Vec::with_capacity(4);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    keys.push(format!("{form_key}.{}_item_label", field.field_name));
-                    // An `add_label = "..."` override replaces the Add
-                    // button's localized lookup entirely, so the key is
-                    // omitted to match — the same override-suppresses-key
-                    // contract as `layout.label` above.
-                    if behaviour.add_label.is_none() {
-                        keys.push(format!("{form_key}.{}_add", field.field_name));
-                    }
-                    keys.push(format!("{form_key}.{}_remove", field.field_name));
-                    keys
-                },
-                _ => {
-                    let mut keys = Vec::with_capacity(2);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    if field.layout.description.is_none() {
-                        keys.push(format!("{form_key}.{}_description", field.field_name));
-                    }
-                    keys
-                },
-            }
+        .flat_map(|field| match &field.behaviour {
+            ComponentsBehaviour::Nested(_) => {
+                let mut keys = Vec::with_capacity(1);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                keys
+            },
+            ComponentsBehaviour::List(behaviour) => {
+                let mut keys = Vec::with_capacity(4);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                keys.push(format!("{form_key}.{}_item_label", field.field_name));
+                if behaviour.add_label.is_none() {
+                    keys.push(format!("{form_key}.{}_add", field.field_name));
+                }
+                keys.push(format!("{form_key}.{}_remove", field.field_name));
+                keys
+            },
+            _ => {
+                let mut keys = Vec::with_capacity(2);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                if field.layout.description.is_none() {
+                    keys.push(format!("{form_key}.{}_description", field.field_name));
+                }
+                keys
+            },
         })
         .collect()
 }
@@ -718,7 +677,6 @@ mod tests {
 
     #[test]
     fn label_falls_back_to_field_name_title_case_when_absent() {
-        // Empty layout (no label) — defaults via FieldLayout::new().
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "enable_experimental",
             "bool",
@@ -875,7 +833,6 @@ mod tests {
 
     #[test]
     fn resolved_field_layout_accessor_returns_field_layout() {
-        // Guards the public accessor the code_gen section-grouping loop reads.
         const LAYOUT: FieldLayout = FieldLayout::new()
             .with_section(Some("Account"))
             .with_label(Some("Username"))
@@ -961,8 +918,6 @@ mod tests {
             "optional nested errors should map/filter the inner errors before rendering: {compact}"
         );
     }
-
-    // ── M3: composed-field i18n keys stay index-free (hazard 11) ──────────
 
     #[test]
     fn collect_i18n_keys_list_fields_use_index_free_item_keys() {
@@ -1088,7 +1043,6 @@ mod tests {
             compact.contains("cx.notify();"),
             "mutations notify the scaffold view: {compact}"
         );
-        // No per-item entity churn in v1 ([D5]/R17).
         assert!(
             generator.generate_cx_new_call(&field, &SHAPE).is_none(),
             "v1 list rows create no entities"
@@ -1097,8 +1051,6 @@ mod tests {
 
     #[test]
     fn list_generator_rejects_non_vec_value_types_with_a_typed_error() {
-        // Hand-built inventory metadata (the derive rejects non-Vec list
-        // fields at expansion time, but prototyping consumes raw shapes).
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "tags",
             "String",
@@ -1256,7 +1208,6 @@ mod tests {
             !remove.contains("Tags"),
             "the Remove button must not fall back to the title-cased field name: {remove}"
         );
-        // The per-row label keeps the field-name fallback: it is a label.
         let item_label =
             compact(&super::localized_text_tokens(&field, &SHAPE, "item_label").to_string());
         assert!(

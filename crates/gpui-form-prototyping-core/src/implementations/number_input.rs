@@ -72,8 +72,6 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
-        // M4 (backlog #12): reset dependent fields when this field changes
-        // (typing or stepping).
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let on_input_event_handler_fn_name_ident = field.event_handler_ident("input_event");
@@ -111,17 +109,11 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         };
         handlers.push(on_input_event_handler);
 
-        // Generate increment/decrement logic - value holder always wraps numeric fields in Option
         match field.behaviour() {
             ComponentsBehaviour::NumberInput(_) => {},
             _ => panic!("Expected NumberInput behaviour"),
         }
 
-        // Step arithmetic follows the RAW value type (the value actually
-        // stored in the holder), not the `as = ...` override — an
-        // `as = f64` Decimal steps through Decimal semantics. The family
-        // itself comes from the shared schema classifier, the same one the
-        // derive's metadata and emitted validator use.
         let step_kind = NumberInputKind::classify(field.raw().value_type);
 
         let (decrement_logic, increment_logic) = match step_kind {
@@ -272,7 +264,6 @@ mod tests {
             "custom value step logic should not emit float arithmetic: {compact}"
         );
 
-        // Body paths (not imports): the anchor must survive parse_str + splice.
         assert!(
             input_handler.contains("parse::<::rust_decimal::Decimal>()"),
             "value-type paths must keep their leading `::` anchor through emission: {input_handler}"

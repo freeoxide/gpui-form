@@ -86,7 +86,6 @@ impl FieldCodeGenerator for FilePickerCodeGenerator {
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
-        // M4 (backlog #12): reset dependent fields when the picked file changes.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
         let field_var_name_ident = field.field_ident_with_behaviour();
         let event_handler_fn_name_ident = field.event_handler_ident("file_picker_event");

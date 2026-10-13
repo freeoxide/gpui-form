@@ -9,15 +9,13 @@ use super::{
     generate_entity_field_initializer, render_standard_field,
 };
 
-/// Custom component support in prototyping initializes generated form fields
-/// but does not infer subscriptions or actual widget rendering.
+/// Custom component support in prototyping: initializes the field's state
+/// entity and emits `Component::new(&entity)` rendering; subscriptions only
+/// wire the opt-in value binding.
 pub struct CustomCodeGenerator;
 
 impl FieldCodeGenerator for CustomCodeGenerator {
     fn generate_imports(&self, field: &FieldVariant) -> Vec<ImportItem> {
-        // Only emit an import when the path is qualified (contains `::`).
-        // A bare name like `TagsInput` is already brought in scope by the
-        // `use source_module::*;` glob and needs no separate import.
         match field.custom_component {
             Some(path) if path.contains("::") => vec![ImportItem::path(path)],
             _ => vec![],
@@ -47,8 +45,6 @@ impl FieldCodeGenerator for CustomCodeGenerator {
     ) -> TokenStream {
         let field_in_struct_name_ident = field.field_ident_with_behaviour();
 
-        // When the component type is known, emit Component::new(&entity) like other components.
-        // The component type is in scope via `use {module}::*;` in the generated file.
         let child_tokens = if let Some(component_path) = field.custom_component_path() {
             quote! {
                 #component_path::new(&self.fields.#field_in_struct_name_ident)

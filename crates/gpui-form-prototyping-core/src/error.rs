@@ -19,12 +19,9 @@ pub enum PrototypingError {
         value: String,
         error: String,
     },
-    /// A `component(list(...))` field whose value type is not `Vec<...>`.
-    ///
-    /// The list scaffold appends `<T as Default>::default()` items and reads
-    /// rows from the generated `add_<field>` / `remove_<field>` operations,
-    /// which only exist for `Vec<T>` metadata, so a scalar value type cannot
-    /// produce a compiling scaffold.
+    /// A `component(list(...))` field whose value type is not `Vec<...>`: the
+    /// scaffold appends `<T as Default>::default()` items, which only exists
+    /// for `Vec<T>` metadata.
     InvalidListValueType {
         field_name: String,
         value: String,

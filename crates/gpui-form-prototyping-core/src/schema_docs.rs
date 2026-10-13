@@ -1,18 +1,11 @@
-//! Documentation generation over the schema export (backlog #14, M5).
-//!
-//! [`schema_markdown`] renders a [`FormSchema`] — the document
-//! `<Name>FormSchema::schema()` returns — into a Markdown reference table.
-//! This is the prototyping side of "optionally consume the export for
-//! docs/fixture generation": the same owned document that serializes to JSON
-//! for test fixtures also drives human-readable form references, without a
-//! second metadata model (the export is a read-only projection of the
-//! inventory `FieldVariant`/`FieldLayout` chain).
+//! Documentation generation over the schema export: [`schema_markdown`]
+//! renders the [`FormSchema`] document `<Name>FormSchema::schema()` returns
+//! into a Markdown reference table.
 
 use gpui_form_schema::registry::{FormSchema, FormSchemaComponent};
 
-/// Render an exported form schema as a Markdown reference document.
-///
-/// Deterministic: field rows follow declaration order, and absent hints are
+/// Render an exported form schema as a Markdown reference document:
+/// deterministic — field rows follow declaration order, absent hints are
 /// omitted rather than rendered as empty placeholders.
 pub fn schema_markdown(schema: &FormSchema) -> String {
     let mut out = String::new();
@@ -72,8 +65,6 @@ pub fn schema_markdown(schema: &FormSchema) -> String {
     }
     out.push('\n');
 
-    // Detail notes: layout hints and composed shapes that do not fit the
-    // table columns.
     for field in &schema.fields {
         let mut notes: Vec<String> = Vec::new();
         if let Some(section) = field.layout.section.as_deref() {
@@ -235,7 +226,6 @@ mod tests {
             "{markdown}"
         );
 
-        // Field rows follow declaration order with dependency columns.
         assert!(
             markdown.contains(
                 "| `email` | input | `String` | yes | NonEmptyValidation | subscribe | subscribe |"
@@ -247,7 +237,6 @@ mod tests {
             "{markdown}"
         );
 
-        // Layout + async validator notes render per field.
         assert!(
             markdown.contains(
                 "- `email` — section: `Contact`; label: `Email address`; placeholder: `you@example.com`; width: `half`; async validator: `checks::email_taken`"

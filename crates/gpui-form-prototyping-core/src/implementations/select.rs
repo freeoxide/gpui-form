@@ -83,8 +83,6 @@ impl FieldCodeGenerator for SelectCodeGenerator {
         };
         let field_var_name_ident = field.field_ident_with_behaviour();
         let event_handler_fn_name_ident = field.event_handler_ident("select_event");
-        // M4 (backlog #12): reset dependent fields when the selection changes
-        // (the country -> state cascading-select shape).
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let calls = vec![
@@ -99,9 +97,6 @@ impl FieldCodeGenerator for SelectCodeGenerator {
             quote! { Vec }
         };
 
-        // Generate handler based on whether field is optional
-        // Optional fields: direct assignment (value is already Option<T>)
-        // Non-optional fields: unwrap with if let Some pattern
         let handler = if field.optional() {
             quote! {
                 fn #event_handler_fn_name_ident(
@@ -188,9 +183,6 @@ mod tests {
 
     #[test]
     fn select_change_resets_fields_that_depend_on_it() {
-        // M4 (backlog #12): the parent's Confirm arm resets every dependent
-        // field's holder value (reset-on-parent-change scaffolding; the
-        // widget re-sync stays app-authored per [D5]).
         const FIELDS: [FieldVariant; 2] = [
             FieldVariant::new(
                 "country",
@@ -225,7 +217,6 @@ mod tests {
             "confirming the parent must reset the dependent holder value: {parent_handler}"
         );
 
-        // The dependent's own handler is untouched.
         let dependent = crate::implementations::ResolvedField::new(&FIELDS[1]).unwrap();
         let generated = generator
             .generate_subscription(&dependent, &SHAPE)
@@ -236,7 +227,6 @@ mod tests {
             "the dependent resets nothing itself: {dependent_handler}"
         );
 
-        // Shapes without dependencies see zero diff (semver/additive rule).
         const PLAIN_FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "country",
             "::some_lib::country::Country",

@@ -9,13 +9,6 @@ use crate::implementations::{
 };
 use crate::imports::{Alias, ImportItem, ImportSet};
 
-/// Imports required by prototyping-core's own generated fragments.
-///
-/// Layout-specific imports such as `Render`, `Focusable`, `v_form`, or
-/// `Divider` belong in the caller's [`FormLayout`] implementation rather than
-/// in the shared form-shape adapter output.
-// Paths carry a leading `::` so emitted use-statements stay anchored to the
-// extern crate even when the consumer declares a same-named root module.
 const FRAGMENT_IMPORTS: &[ImportItem] = &[
     ImportItem::path("::gpui::div"),
     ImportItem::aliased("::gpui::prelude::FluentBuilder", Alias::Anonymous),
@@ -32,11 +25,8 @@ struct GeneratedField<'a> {
     render_child: TokenStream,
     subscription: Option<GeneratedSubscription>,
     post_subscription_initialization: Option<TokenStream>,
-    /// Milestone M3: extra impl members (list row/add/remove controls).
     impl_members: Vec<TokenStream>,
-    /// Milestone M3: scaffold-level struct field (nested form entities).
     scaffold_struct_field: Option<TokenStream>,
-    /// Milestone M3: its `Self { ... }` initializer.
     scaffold_struct_init: Option<TokenStream>,
     _resolved: ResolvedField<'a>,
 }
@@ -118,11 +108,9 @@ impl<'a> FormShapeAdapter<'a> {
             .collect()
     }
 
-    /// Collect all imports needed by this form's generated file.
-    ///
-    /// Starts with imports needed by prototyping-core's own generated fragments,
-    /// then asks each field's generator for its own requirements. The result can
-    /// be rendered as grouped `use` statements via [`ImportSet::to_token_stream`].
+    /// Collect all imports needed by this form's generated file: the shared
+    /// fragment imports plus each field generator's requirements. Render with
+    /// [`ImportSet::to_token_stream`].
     pub fn required_imports(&self) -> ImportSet {
         let mut set = ImportSet::default();
         if !self.shape_data.components.is_empty() {
@@ -143,13 +131,9 @@ impl<'a> FormShapeAdapter<'a> {
         set
     }
 
-    /// Compute all token-stream fragments and identifiers for this form.
-    ///
-    /// Prefer this when you want to assemble a fully custom `quote!{}` template.
-    /// All conditional / derived fragments (e.g. `subscriptions_field`,
-    /// `current_data_field`) are pre-evaluated so you only need to splice them in.
-    /// Returns a [`PrototypingError`] when the input shape metadata cannot be
-    /// converted into valid Rust identifiers, types, or paths.
+    /// Compute all token-stream fragments and identifiers for this form, with
+    /// every conditional fragment pre-evaluated for splicing into a custom
+    /// `quote!{}` template. Errors when shape metadata is not valid Rust.
     pub fn parts(&self) -> PrototypingResult<FormParts> {
         self.validate_shape_data()?;
         let data = self.shape_data;
@@ -183,31 +167,11 @@ impl<'a> FormShapeAdapter<'a> {
             .iter()
             .filter_map(|field| field.field_initializer.clone())
             .collect();
-        // METADATA-FIRST v1 — section grouping.
-        //
-        // `layout.section` groups *consecutive* fields (order-preserving): each
-        // time the section name changes between adjacent non-skipped fields we
-        // emit a section heading before that field's render child. The heading
-        // reuses the already-imported `field()` builder (see `FRAGMENT_IMPORTS`)
-        // so no new imports are introduced — important because
-        // `required_imports_only_include_subscription_when_needed` asserts the
-        // import set stays minimal.
-        //
-        // The first field with a declared section also emits a heading (its
-        // "previous section" is `None`). Fields without a section never emit a
-        // heading and reset the tracker so the next declared section re-heading
-        // fires. This is a heading *hint* rendered by the scaffold; it is NOT a
-        // layout engine and carries no column/collapsible semantics yet.
         let mut render_children_items: Vec<TokenStream> =
             Vec::with_capacity(generated_fields.len());
         let mut prev_section: Option<&'static str> = None;
         for field in &generated_fields {
             let current_section = field._resolved.layout().section;
-            // Milestone M3: nested/list fields carry their own layout (a
-            // bordered group / repeatable-row control), so the shared
-            // section-heading logic must not double-heading them; the
-            // tracker still advances so a later same-section flat field
-            // re-headers correctly.
             if field._resolved.raw().is_nested() || field._resolved.raw().is_list() {
                 prev_section = current_section;
                 render_children_items.push(field.render_child.clone());
@@ -254,8 +218,6 @@ impl<'a> FormShapeAdapter<'a> {
             .iter()
             .filter_map(|field| field.post_subscription_initialization.clone())
             .collect();
-        // Milestone M3 (composed fields): scaffold-level struct fields for
-        // nested form entities and extra impl members for list controls.
         let composed_struct_fields: TokenStream = generated_fields
             .iter()
             .filter_map(|field| field.scaffold_struct_field.clone())
@@ -370,8 +332,6 @@ impl<'a> FormShapeAdapter<'a> {
             collected_imports.extend(field.imports.clone());
         }
         let collected_imports = collected_imports.to_token_stream()?;
-        // The glob anchors with `::`: source_path_to_use_path builds
-        // crate-name-first paths that resolve through the extern prelude.
         let imports = quote! {
             use ::#source_module_path::*;
             #collected_imports
@@ -415,36 +375,16 @@ impl<'a> FormShapeAdapter<'a> {
     /// Generate a `syn::File` from a [`FormLayout`] implementation.
     ///
     /// Returns a [`PrototypingError`] when the shape metadata is malformed.
-    ///
-    /// ```rust,ignore
-    /// struct MyLayout;
-    /// impl FormLayout for MyLayout {
-    ///     fn generate_file(&self, parts: &FormParts) -> syn::File {
-    ///         let FormParts { imports, render_children, form_ident, .. } = parts;
-    ///         syn::parse2(quote! {
-    ///             #imports
-    ///             pub struct #form_ident { /* ... */ }
-    ///             // splice #render_children wherever you need it
-    ///         }).unwrap()
-    ///     }
-    /// }
-    /// FormShapeAdapter::new(shape).generate_file(&MyLayout)?;
-    /// ```
     pub fn generate_file(&self, layout: &impl FormLayout) -> PrototypingResult<syn::File> {
         let parts = self.parts()?;
         Ok(layout.generate_file(&parts))
     }
 }
 
-// ── FormParts ─────────────────────────────────────────────────────────────────
-
-/// All pre-computed token-stream fragments and identifiers for one form scaffold.
-///
-/// Obtained via [`FormShapeAdapter::parts`] and consumed by [`FormLayout::generate_file`].
-/// Every field is `pub` so custom layouts can freely destructure and splice whichever
-/// pieces they need.
+/// All pre-computed token-stream fragments and identifiers for one form
+/// scaffold, obtained via [`FormShapeAdapter::parts`] and consumed by
+/// [`FormLayout::generate_file`]. Every field is `pub` for custom splicing.
 pub struct FormParts {
-    // ── Identifiers ──────────────────────────────────────────────────────────
     /// The original struct ident, e.g. `User`.
     pub struct_name_ident: syn::Ident,
     /// Generated form view ident, e.g. `UserForm`.
@@ -460,7 +400,6 @@ pub struct FormParts {
     /// GPUI element id, e.g. `"user-form"`.
     pub form_id_literal: String,
 
-    // ── Flags ─────────────────────────────────────────────────────────────────
     /// True when the struct has no component fields.
     pub is_empty: bool,
     /// True when koruma validation is enabled.
@@ -468,7 +407,6 @@ pub struct FormParts {
     /// True when at least one source field was marked with `#[gpui_form(skip)]`.
     pub has_skipped_fields: bool,
 
-    // ── Raw generated fragments ───────────────────────────────────────────────
     /// Grouped `use` statements (source module glob + framework base + per-component items).
     pub imports: TokenStream,
     /// Doc-commented `<FORM>_I18N_KEYS` const listing every i18n key this
@@ -490,7 +428,6 @@ pub struct FormParts {
     /// `let validation_errors = ...` binding; empty when koruma is disabled.
     pub validation_binding: TokenStream,
 
-    // ── Derived conditional fragments ─────────────────────────────────────────
     /// `_subscriptions: Vec<Subscription>,` struct field; empty when no subscriptions.
     pub subscriptions_field: TokenStream,
     /// `_subscriptions,` in `Self { ... }`; empty when no subscriptions.
@@ -508,7 +445,6 @@ pub struct FormParts {
     /// `replace_current_data(...)` helper method; empty for empty forms.
     pub replace_current_data_fn: TokenStream,
 
-    // ── Milestone M3 (composed fields) ─────────────────────────────────────
     /// Scaffold-level struct fields for composed fields (nested form
     /// entities); empty for flat-only forms.
     pub composed_struct_fields: TokenStream,
@@ -519,19 +455,12 @@ pub struct FormParts {
     pub composed_impl_members: TokenStream,
 }
 
-// ── FormLayout ────────────────────────────────────────────────────────────────
-
-/// Template strategy for [`FormShapeAdapter::generate_file`].
-///
-/// Implement this to fully control the shape of the generated file while
-/// reusing all the pre-computed [`FormParts`] fragments.
+/// Template strategy for [`FormShapeAdapter::generate_file`]: implement to
+/// fully control the generated file's shape while reusing [`FormParts`].
 pub trait FormLayout {
     fn generate_file(&self, parts: &FormParts) -> syn::File;
 }
 
-/// Scaffolding item for a form's i18n keys: a `#[doc]`-documented const
-/// listing every key the emitted `::rust_i18n::t!` calls resolve, so layouts
-/// can splice locale notes next to the imports.
 fn i18n_key_items(component: &GpuiFormShape) -> TokenStream {
     use heck::ToShoutySnakeCase as _;
 
@@ -560,9 +489,6 @@ fn i18n_key_items(component: &GpuiFormShape) -> TokenStream {
     }
 }
 
-/// Converts a `file!()` source path like
-/// `examples/some-lib/src/structs/user.rs` into a use-path like
-/// `some_lib::structs::user` for the glob import at the top of each generated file.
 fn source_path_to_use_path(source_path: &str) -> Option<syn::Path> {
     let path = Path::new(source_path);
     let components: Vec<_> = path.components().collect();
@@ -663,9 +589,6 @@ mod tests {
 
     #[test]
     fn parts_return_error_for_malformed_custom_component_paths() {
-        // Raw metadata (not derive-produced) can carry a non-Path custom
-        // component string; `parts()` must surface the typed
-        // `InvalidPath` error from `ResolvedField::new`, never a panic.
         const FIELDS: [FieldVariant; 1] =
             [
                 FieldVariant::new("tags", "Vec<String>", false, ComponentsBehaviour::Custom)
@@ -693,10 +616,6 @@ mod tests {
 
     #[test]
     fn parts_return_error_for_malformed_nested_form_struct() {
-        // The nested scaffold ident and import are composed by convention
-        // from raw `form_struct` metadata; a malformed name must surface as
-        // the typed `InvalidIdentifier` error from `ResolvedField::new`
-        // before the nested generator's `format_ident!` can panic on it.
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "address",
             "Address",
@@ -725,10 +644,6 @@ mod tests {
 
     #[test]
     fn required_imports_validate_before_tokenization_for_malformed_metadata() {
-        // The nested scaffold import is composed by convention from raw
-        // `form_struct` metadata; a malformed name must fail tokenization
-        // with the collected `InvalidImports` error instead of panicking in
-        // `format_ident!`/`parse_str`.
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "address",
             "Address",
@@ -853,9 +768,6 @@ mod tests {
             .expect("valid all-family shapes should generate parts");
         let compact = compact(&parts.imports.to_string());
 
-        // One exact pin per emitted use-statement — source glob, shared
-        // fragments, and every implementation family — so a dropped leading
-        // `::` or a renamed item fails here.
         assert!(
             compact.contains("use::some_lib::demo::*;"),
             "source-module glob should be anchored to the extern crate: {compact}"
@@ -963,9 +875,6 @@ mod tests {
         );
     }
 
-    // ── METADATA-FIRST v1: section grouping + label/description hints ────────
-
-    // Helper: a FieldVariant with an Input behaviour and an explicit layout.
     const fn input_field(name: &'static str, layout: FieldLayout) -> FieldVariant {
         FieldVariant::new(name, "String", false, ComponentsBehaviour::Input).with_layout(layout)
     }
@@ -987,8 +896,6 @@ mod tests {
             .expect("valid shapes should generate parts");
         let render = parts.render_children.to_string();
 
-        // Two distinct sections => two headings ("Account" then "Profile").
-        // Each heading reuses the existing `field().label(...)` builder.
         assert!(
             render.matches("Account").count() >= 1,
             "Account section heading should be emitted: {render}"
@@ -998,8 +905,6 @@ mod tests {
             "Profile section heading should be emitted: {render}"
         );
 
-        // The heading appears as a `field().label("Account")` style child, not
-        // just as a bare string literal.
         let compact = compact(&render);
         assert!(
             compact.contains("field().label(\"Account\")"),
@@ -1022,9 +927,6 @@ mod tests {
             .expect("valid shapes should generate parts");
         let render = parts.render_children.to_string();
 
-        // Same section for both fields => exactly one "Account" heading
-        // (emitted only on section change). The field-name label tokens must
-        // not coincidentally match "Account".
         assert_eq!(
             render.matches("Account").count(),
             1,
@@ -1034,7 +936,6 @@ mod tests {
 
     #[test]
     fn render_children_omits_heading_when_no_section_declared() {
-        // No layout hints at all — defaults to empty FieldLayout.
         const FIELDS: [FieldVariant; 2] = [
             FieldVariant::new("name", "String", false, ComponentsBehaviour::Input),
             FieldVariant::new("email", "String", false, ComponentsBehaviour::Input),
@@ -1047,8 +948,6 @@ mod tests {
             .expect("valid shapes should generate parts");
         let compact = compact(&parts.render_children.to_string());
 
-        // No section => no synthetic `field().label(...)` heading tokens beyond
-        // the per-field ones the generators already emit.
         assert!(
             !compact.contains("field().label(\"\")"),
             "no empty section heading should be emitted when section is absent: {compact}"
@@ -1057,9 +956,6 @@ mod tests {
 
     #[test]
     fn render_children_heading_re_appears_after_unsectioned_field_resets_tracker() {
-        // Order: [Account, (none), Account] — the middle field has no section,
-        // so the trailing Account field must re-emit a heading because the
-        // tracker resets to None when a field without a section is encountered.
         const LAYOUT_ACCOUNT: FieldLayout = FieldLayout::new().with_section(Some("Account"));
         const FIELDS: [FieldVariant; 3] = [
             input_field("username", LAYOUT_ACCOUNT),
@@ -1198,12 +1094,52 @@ mod tests {
             render.contains("Enable experiments"),
             "layout.label override should be used as the field's display label: {render}"
         );
-        // The label call itself should carry the override verbatim, while the
-        // description (which has no layout.description hint here) legitimately
-        // falls back to the title-cased field name.
         assert!(
             compact(&render).contains("field().label(\"Enableexperiments\")"),
             "the field() label call should use the override verbatim: {render}"
+        );
+    }
+
+    #[test]
+    fn generate_file_splices_parts_through_a_custom_layout() {
+        struct SpliceLayout;
+
+        impl crate::FormLayout for SpliceLayout {
+            fn generate_file(&self, parts: &crate::FormParts) -> syn::File {
+                let crate::FormParts {
+                    imports,
+                    form_ident,
+                    ..
+                } = parts;
+                syn::parse2(quote::quote! {
+                    #imports
+                    pub struct #form_ident;
+                })
+                .expect("layout template must parse")
+            }
+        }
+
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "username",
+            "String",
+            false,
+            ComponentsBehaviour::Input,
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let file = FormShapeAdapter::new(&SHAPE)
+            .generate_file(&SpliceLayout)
+            .expect("valid shapes should generate a file");
+        let compact = compact(&quote::quote!(#file).to_string());
+
+        assert!(
+            compact.contains("pubstructDemoForm;"),
+            "the layout template defines the generated form: {compact}"
+        );
+        assert!(
+            compact.contains("use::some_lib::demo::*;"),
+            "the spliced imports carry the source-module glob: {compact}"
         );
     }
 }

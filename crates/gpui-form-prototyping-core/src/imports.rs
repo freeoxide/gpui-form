@@ -1,9 +1,6 @@
-/// Per-item import tracking for generated prototyping output.
-///
-/// Each [`FieldCodeGenerator`](crate::implementations::FieldCodeGenerator) implementation
-/// declares exactly which items it requires via [`ImportItem`] slices. At code-generation
-/// time all items are merged into an [`ImportSet`] which emits a minimal, deduplicated
-/// set of `use` statements.
+//! Per-item import tracking for generated prototyping output: each field
+//! generator declares required items as [`ImportItem`] slices, merged into an
+//! [`ImportSet`] that emits minimal, deduplicated `use` statements.
 use std::collections::BTreeMap;
 
 use proc_macro2::TokenStream;
@@ -14,21 +11,16 @@ use crate::error::{PrototypingError, PrototypingResult};
 /// The alias applied to an imported item.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Alias {
-    /// Wildcard discard: `use X as _` (used for trait imports that only need
-    /// to be in scope).
+    /// Wildcard discard: `use X as _`, for trait imports that only need to be
+    /// in scope.
     Anonymous,
     /// Named rename: `use X as Foo`.
     Rename(&'static str),
 }
 
-/// A single item to be imported into a generated file.
-///
-/// Built-in paths are string literals and custom-component paths are stored
-/// as `&'static str` in
-/// [`FieldVariant::custom_component`](gpui_form_schema::registry::FieldVariant::custom_component);
-/// milestone M3 added [`ImportItem::owned_path`] for the nested-form import,
-/// whose path is composed at generation time from the nested form's struct
-/// name.
+/// A single item to be imported into a generated file. Paths are `&'static
+/// str` (built-in literals or custom-component metadata); [`ImportItem::owned_path`]
+/// composes a path at generation time (the nested-form scaffold import).
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportItem {
     /// Full path to the imported item, e.g. `"::gpui_kit::component::checkbox::Checkbox"`.
@@ -51,13 +43,9 @@ impl ImportItem {
         }
     }
 
-    /// An import whose path is composed at generation time (milestone M3:
-    /// the nested form's scaffold import `crate::<snake>::<Nested>Form`).
-    ///
-    /// The string is leaked into `'static` storage: the generator runs once
-    /// per process over a bounded set of shapes (the same bounded-by-usage
-    /// pattern the plan documents for path interning), so the leak is
-    /// reclaimed at process exit.
+    /// An import whose path is composed at generation time (the nested
+    /// form's scaffold import `crate::<snake>::<Nested>Form`). The path is
+    /// leaked into `'static` storage and reclaimed at process exit.
     pub fn owned_path(path: String) -> Self {
         Self {
             path: Box::leak(path.into_boxed_str()),
@@ -89,19 +77,10 @@ impl ImportSet {
         }
     }
 
-    /// Render all imports as grouped `use parent::{a, b as c};` token streams.
-    ///
-    /// Items are grouped by parent path (everything before the last `::`),
-    /// sorted, and emitted as a single `use` per group.
-    ///
-    /// Fallible on purpose: parents, names, and aliases come from raw
-    /// metadata strings (custom-component paths, the nested form's
-    /// convention-composed scaffold path), so EVERY entry is parsed before
-    /// any token is emitted, and all malformed entries are collected into
-    /// one [`PrototypingError::InvalidImports`] — never a `format_ident!` /
-    /// `parse_str` panic at the first offender.
+    /// Render all imports as grouped, sorted `use parent::{a, b as c};` token
+    /// streams. Every entry is parsed before any token is emitted; all malformed
+    /// entries are collected into one [`PrototypingError::InvalidImports`].
     pub fn to_token_stream(&self) -> PrototypingResult<TokenStream> {
-        // Group: parent_path → Vec<(name, alias)> — BTreeMap keeps groups sorted.
         let mut grouped: BTreeMap<&str, Vec<(&'static str, Option<&Alias>)>> = BTreeMap::new();
 
         for item in &self.0 {
@@ -112,13 +91,10 @@ impl ImportSet {
                 .push((name, item.alias.as_ref()));
         }
 
-        // Validate-before-tokenize: parse every group's parent and every
-        // item's name/alias up front, collecting all offenders.
         let mut errors: Vec<PrototypingError> = Vec::new();
         let mut parsed_groups: Vec<(syn::Path, Vec<TokenStream>)> = Vec::new();
         for (parent, items) in &grouped {
             if parent.is_empty() {
-                // Bare name with no module prefix — skip (already in scope via glob).
                 continue;
             }
 
@@ -204,8 +180,6 @@ mod tests {
 
     #[test]
     fn malformed_parent_paths_return_a_typed_error_instead_of_panicking() {
-        // Mirrors the shape NestedCodeGenerator composes from raw
-        // `form_struct` metadata: `crate::<snake>::<Struct>Form`.
         let mut set = ImportSet::default();
         set.add(ImportItem::owned_path(
             "crate::address book::Address BookForm".to_string(),
@@ -232,8 +206,6 @@ mod tests {
     #[test]
     fn malformed_item_names_and_aliases_return_typed_errors() {
         let mut set = ImportSet::default();
-        // A path ending in `::` yields an empty item name (the old
-        // `format_ident!` panicked on it).
         set.add(ImportItem::path("::gpui_kit::component::button::"));
         set.add(ImportItem::aliased(
             "::gpui::prelude::FluentBuilder",
