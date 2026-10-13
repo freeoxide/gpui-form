@@ -1,94 +1,21 @@
-//! Headless submit-lifecycle state and the submit hook contract.
-//!
-//! Backlog feature #7 ("Submit lifecycle helpers") ships this as *optional
-//! runtime glue, not required generated state*: [`SubmitTracker<E>`] is a
-//! plain-data state machine the application owns, and the value holder stays
-//! plain data ([D2] of the feature-parity plan — `E` is the app's
-//! submit-failure type and never appears in generated form state).
-//!
-//! The derive exposes it per form through the opt-in
-//! `#[gpui_form(submit)]` attribute, which emits a
-//! `pub type <Name>FormSubmission = SubmitTracker<...>` alias ([D7]).
-//!
-//! # Driving a submit
-//!
-//! `SubmitTracker` stores state; it does not run futures. The intended
-//! protocol (mirrored by [`SubmitAction`]) is:
-//!
-//! ```ignore
-//! if tracker.begin() {
-//!     let result = action.submit(&holder).await; // app drives the future
-//!     tracker.finish(result.map(|_: ()| ()));
-//! }
-//! ```
-//!
-//! Driving (GPUI `cx.spawn`, tokio) is glue that stays app- or
-//! component-authored ([D5]); nothing here needs an executor, which keeps
-//! the crate dependency-free.
+//! Headless submit-lifecycle state: a plain-data [`SubmitTracker`] state
+//! machine and the executor-free [`SubmitAction`] hook contract, exposed
+//! per form through the opt-in `#[gpui_form(submit)]` derive attribute.
 
-/// Default submit-failure type for forms without a koruma error type:
-/// a boxed [`std::error::Error`].
-///
-/// The opt-in `#[gpui_form(submit)]` alias uses the holder's koruma error
-/// type when the form has one, and this alias otherwise.
+/// Default submit-failure type for forms without a koruma error type: a
+/// boxed [`std::error::Error`].
 pub type BoxError = ::std::boxed::Box<dyn ::std::error::Error>;
 
-/// State machine for one form's submit lifecycle.
-///
-/// Tracks whether a submit is in flight, how many attempts started, the last
-/// failure, and whether the last attempt succeeded — the submit-half of the
-/// parity surface (`isSubmitting`/`isSubmitted`/`isSubmitSuccessful`/
-/// `submitCount`). A generation/epoch counter guards against stale async
-/// completions ([D7]/R12): a `finish` that arrives after [`reset`] (or with
-/// no attempt in flight) is ignored, so a slow submit can never write its
-/// outcome into a tracker that has already moved on.
-///
-/// # Trait bounds
-///
-/// `E` needs no bounds at all for construction and queries; only the stored
-/// `last_error` slot requires `E` to be owned.
-///
-/// # Example
-///
-/// ```
-/// use gpui_form_core::submit::SubmitTracker;
-///
-/// let mut tracker: SubmitTracker<&'static str> = SubmitTracker::new();
-/// assert!(tracker.can_submit());
-///
-/// assert!(tracker.begin());          // attempt 1 starts
-/// assert!(!tracker.can_submit());
-/// assert!(!tracker.begin());         // re-entry guard: double-click protection
-///
-/// tracker.finish(Err("server said no"));
-/// assert!(tracker.is_submitted());
-/// assert!(!tracker.is_submit_successful());
-/// assert_eq!(tracker.last_error(), Some(&"server said no"));
-///
-/// tracker.begin();
-/// tracker.finish(Ok(()));
-/// assert!(tracker.is_submit_successful());
-/// assert_eq!(tracker.submit_count(), 2);
-///
-/// tracker.reset();                   // fresh tracker, new epoch
-/// tracker.finish(Err("stale"));      // completion from before the reset
-/// assert!(!tracker.is_submitted(), "stale completions are ignored");
-/// ```
+/// State machine for one form's submit lifecycle: in-flight flag, attempt
+/// count, last failure, and last terminal verdict. A generation counter
+/// makes a `finish` arriving after [`SubmitTracker::reset`] a no-op.
 #[derive(Clone, Debug)]
 pub struct SubmitTracker<E> {
     submitting: bool,
     count: u32,
     last_error: Option<E>,
-    /// Monotonic epoch. Bumped by every `begin` and every `reset` so an
-    /// in-flight completion from an earlier epoch is detectable as stale
-    /// ([D7]/R12).
     generation: u64,
-    /// The generation of the attempt currently in flight, if any. `finish`
-    /// is honored only while this matches — the pinned representation of
-    /// "this completion belongs to the current tracker epoch".
     active_generation: Option<u64>,
-    /// `Some` once at least one attempt reached a terminal state; the flag
-    /// records whether the *last* terminal state was success.
     last_terminal_success: Option<bool>,
 }
 
@@ -121,19 +48,14 @@ impl<E> SubmitTracker<E> {
         self.last_terminal_success.is_some()
     }
 
-    /// Whether the last terminal state was success.
-    ///
-    /// Manual [`set_error`](Self::set_error)/[`clear_error`](Self::clear_error)
-    /// do not affect this flag: a server error injected after a successful
-    /// save does not rewrite history.
+    /// Whether the last terminal state was success; manual
+    /// [`set_error`](Self::set_error)/[`clear_error`](Self::clear_error)
+    /// do not rewrite this verdict.
     pub fn is_submit_successful(&self) -> bool {
         self.last_terminal_success == Some(true)
     }
 
     /// Submit-button gating: `true` unless a submit is currently in flight.
-    ///
-    /// Callers layer their own policy on top — form validity (the generated
-    /// facade's `is_valid()`), dirty state, permission checks.
     pub fn can_submit(&self) -> bool {
         !self.submitting
     }
@@ -148,13 +70,9 @@ impl<E> SubmitTracker<E> {
         self.last_error.take()
     }
 
-    /// Marks an attempt as started and returns `true`.
-    ///
-    /// Returns `false` — changing nothing — when a submit is already in
-    /// flight: the re-entry data for double-click protection lives here,
-    /// while the decision to use it stays with the caller. A successful
-    /// `begin` increments [`submit_count`](Self::submit_count) and bumps the
-    /// generation, pinning this attempt as the active epoch.
+    /// Marks an attempt as started; returns `false` and changes nothing when
+    /// a submit is already in flight. A successful `begin` increments
+    /// [`submit_count`](Self::submit_count).
     pub fn begin(&mut self) -> bool {
         if self.active_generation.is_some() {
             return false;
@@ -167,15 +85,11 @@ impl<E> SubmitTracker<E> {
     }
 
     /// Completes the in-flight attempt: `Ok(())` clears `last_error`,
-    /// `Err(e)` records it.
-    ///
-    /// Stale completions are ignored: a `finish` with no attempt in flight
-    /// — the state left behind by [`reset`](Self::reset) or
-    /// [`abandon`](Self::abandon), i.e. a generation mismatch — changes
-    /// nothing.
+    /// `Err(e)` records it. Stale completions with no in-flight attempt
+    /// change nothing.
     pub fn finish(&mut self, result: Result<(), E>) {
         let Some(active) = self.active_generation else {
-            return; // stale completion: no in-flight attempt from this epoch
+            return;
         };
         debug_assert_eq!(
             active, self.generation,
@@ -202,11 +116,8 @@ impl<E> SubmitTracker<E> {
         self.submitting = false;
     }
 
-    /// Manually inject a submit failure — the hook for server-side errors
-    /// that no local validation could produce (parity gap: `setError`).
-    ///
-    /// Does not start, complete, or abort an attempt; pair with
-    /// [`clear_error`](Self::clear_error).
+    /// Manually inject a submit failure without starting or completing an
+    /// attempt; pair with [`clear_error`](Self::clear_error).
     pub fn set_error(&mut self, error: E) {
         self.last_error = Some(error);
     }
@@ -216,9 +127,8 @@ impl<E> SubmitTracker<E> {
         self.last_error = None;
     }
 
-    /// Clear every piece of submit state: attempts, in-flight submit, error,
-    /// and terminal verdicts. The generation still moves forward, so
-    /// completions from before the reset stay stale forever.
+    /// Clear every piece of submit state; the generation still moves
+    /// forward, so completions from before the reset stay stale forever.
     pub fn reset(&mut self) {
         self.submitting = false;
         self.count = 0;
@@ -236,17 +146,8 @@ impl<E> Default for SubmitTracker<E> {
 }
 
 /// The submit hook contract: perform the submit for a form value snapshot.
-///
-/// Executor-free by design ([D5]): the implementor returns a future and the
-/// *caller* drives it — GPUI glue through `cx.spawn`, server-side callers
-/// through their own runtime. There is deliberately no `Send` bound (GPUI
-/// futures are typically non-Send; tokio users who need to `spawn` pay for
-/// a `Send` wrapper themselves — open question OQ 3 of the parity plan).
-///
-/// `submit` receives the holder by shared reference: submitting never
-/// mutates form data. The save protocol on success — typically
-/// `sync_baseline()` on the facade — is the application's to run.
-// No `Send` bound by design (see OQ 3 above), hence the plain async fn.
+/// Executor-free — the implementor returns a future and the caller drives
+/// it; there is deliberately no `Send` bound.
 #[allow(async_fn_in_trait)]
 pub trait SubmitAction<H> {
     /// What a successful submit produces (a saved-record id, a unit, ...).
@@ -254,7 +155,6 @@ pub trait SubmitAction<H> {
     /// The submit failure type; becomes the tracker's `E`.
     type Error;
 
-    /// Perform the submit for a form value snapshot.
     async fn submit(&mut self, holder: &H) -> Result<Self::Output, Self::Error>;
 }
 
@@ -264,9 +164,6 @@ mod tests {
     use std::future::{Future, poll_fn};
     use std::task::Poll;
 
-    /// Minimal std-only executor: our test futures are deterministic
-    /// state machines (pending a fixed number of polls, then ready), so
-    /// spin-polling a noop-waker context is sufficient.
     fn block_on<F: Future>(future: F) -> F::Output {
         let mut future = std::pin::pin!(future);
         let waker = std::task::Waker::noop();
@@ -320,8 +217,6 @@ mod tests {
         assert!(!tracker.can_submit());
         assert_eq!(tracker.submit_count(), 1);
 
-        // Double-click protection: the second begin is refused and changes
-        // nothing — the count does not move.
         assert!(!tracker.begin());
         assert_eq!(tracker.submit_count(), 1);
         assert!(tracker.is_submitting());
@@ -364,8 +259,6 @@ mod tests {
         tracker.finish(Ok(()));
         assert!(tracker.is_submit_successful());
 
-        // Server error injected after a successful save: visible as
-        // last_error, but the last terminal state is still the success.
         tracker.set_error("row changed upstream".to_string());
         assert!(tracker.is_submit_successful());
         assert_eq!(
@@ -375,7 +268,6 @@ mod tests {
 
         tracker.clear_error();
         assert!(tracker.last_error().is_none());
-        // Clearing an injected error also does not fabricate success.
         tracker.begin();
         tracker.finish(Err("real failure".to_string()));
         tracker.clear_error();
@@ -394,8 +286,6 @@ mod tests {
         tracker.begin();
         assert!(tracker.is_submitting());
 
-        // Reset mid-flight (navigation, form reload): the epoch moves and
-        // every piece of state clears.
         tracker.reset();
         assert!(!tracker.is_submitting());
         assert_eq!(tracker.submit_count(), 0);
@@ -403,15 +293,12 @@ mod tests {
         assert!(!tracker.is_submitted());
         assert!(!tracker.is_submit_successful());
 
-        // The in-flight completion arrives late: generation mismatch -> the
-        // entire result is ignored, not partially applied.
         tracker.finish(Ok(()));
         assert!(!tracker.is_submitting(), "stale finish must not flip state");
         assert!(!tracker.is_submitted());
         assert!(!tracker.is_submit_successful());
         assert_eq!(tracker.submit_count(), 0);
 
-        // A stale Err is equally ignored.
         tracker.finish(Err("also stale"));
         assert!(tracker.last_error().is_none());
     }
@@ -449,8 +336,6 @@ mod tests {
 
     #[test]
     fn driving_submit_action_through_the_tracker() {
-        // The intended protocol: begin -> drive SubmitAction -> finish.
-        // The holder is passed by reference and never mutated.
         let mut holder = Holder::default();
         let mut action = SaveAction;
         let mut tracker: SubmitTracker<&'static str> = SubmitTracker::new();
@@ -468,7 +353,6 @@ mod tests {
         assert!(!tracker.is_submit_successful());
         assert_eq!(tracker.last_error(), Some(&"username already taken"));
 
-        // Submitting never mutated the form data.
         assert_eq!(
             holder,
             Holder {
@@ -495,8 +379,6 @@ mod tests {
                 holder: &Holder,
                 _field: &FieldPath,
             ) -> Result<(), Self::Error> {
-                // One `Poll::Pending` first, so the future genuinely pends
-                // and only completes because the driver awaited it.
                 let observed = &self.polled;
                 let mut polls = 0;
                 poll_fn(move |_cx| {
@@ -514,8 +396,6 @@ mod tests {
             }
         }
 
-        // An app-style gate: the submit may begin only once async
-        // validation for the field has completed successfully.
         fn gated_begin<V>(
             tracker: &mut SubmitTracker<V::Error>,
             validator: &V,
@@ -533,8 +413,6 @@ mod tests {
         };
         let mut tracker: SubmitTracker<&'static str> = SubmitTracker::new();
 
-        // Invalid value: validation completes with an error, the gate never
-        // lets the submit begin.
         let invalid = Holder {
             username: "a b".to_string(),
         };
@@ -546,7 +424,6 @@ mod tests {
             "the gate awaited the future to completion"
         );
 
-        // Valid value: validation passes and the submit starts.
         let valid = Holder {
             username: "ada".to_string(),
         };

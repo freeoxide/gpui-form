@@ -1,43 +1,10 @@
-//! Pure, GPUI-free touched-field tracking.
-//!
-//! [`TouchedFields`] is a dense bitset keyed by *declaration-order field
-//! index*. It is form-agnostic on purpose: the core has no notion of
-//! individual forms, so the generated `<Name>FormState` facade (or any
-//! application code) supplies the path-to-index mapping and sizes the bitset
-//! from `<Name>FormPath::FIELD_COUNT` at the call site.
-//!
-//! Touched state records user engagement (a field was blurred or edited), not
-//! value deltas — it is deliberately independent of [`crate::state::FormState`]'s
-//! baseline/current model and carries no `serde` surface: touched state is
-//! transient UI-session state, while persistence stays holder-only.
+//! Dense touched-field bitset keyed by declaration-order field index.
+//! Form-agnostic: the caller (generated `<Name>FormState` facade or
+//! application code) supplies the path-to-index mapping and the size.
 
-/// Dense bitset of touched/visited fields, keyed by declaration-order index.
-///
-/// Core is form-agnostic; the derive-supplied path-to-index mapping (see
-/// `<Name>FormPath::field_index`) decides which indices exist. Unknown indices
-/// are a no-op on every mutator and `false` on every query, so hand-built
-/// paths that name no field of the form can never corrupt the bitset.
-///
-/// # Example
-///
-/// ```
-/// use gpui_form_core::TouchedFields;
-///
-/// let mut touched = TouchedFields::new(3);
-/// assert!(!touched.is_any_touched());
-///
-/// touched.touch_index(1);
-/// assert!(touched.is_touched_index(1));
-/// assert!(!touched.is_touched_index(0));
-/// assert_eq!(touched.touched_indices().collect::<Vec<_>>(), vec![1]);
-///
-/// touched.clear_all();
-/// assert!(!touched.is_any_touched());
-///
-/// // Unknown indices are a no-op, never a panic.
-/// touched.touch_index(99);
-/// assert!(!touched.is_touched_index(99));
-/// ```
+/// Dense bitset of touched/visited fields, keyed by declaration-order
+/// index. Unknown indices are a no-op on every mutator and `false` on
+/// every query.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TouchedFields {
     bits: Box<[u64]>,
@@ -90,8 +57,7 @@ impl TouchedFields {
         }
     }
 
-    /// Iterate touched indices in ascending order — declaration order for
-    /// declaration-order indices, so UI lists render deterministically.
+    /// Iterate touched indices in ascending order.
     pub fn touched_indices(&self) -> impl Iterator<Item = usize> + '_ {
         (0..self.field_count).filter(|&index| self.is_touched_index(index))
     }
@@ -175,7 +141,6 @@ mod tests {
 
     #[test]
     fn indices_span_word_boundaries() {
-        // 64 fields exactly straddles the first word boundary at index 63/64.
         let mut touched = TouchedFields::new(130);
         touched.touch_index(63);
         touched.touch_index(64);
@@ -194,7 +159,6 @@ mod tests {
         assert!(!touched.is_any_touched());
         assert!(!touched.is_touched_index(3));
         assert!(!touched.is_touched_index(100));
-        // Clearing unknown indices must not panic either.
         touched.clear_index(9);
     }
 

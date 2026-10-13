@@ -13,13 +13,9 @@ pub enum LocalizationError {
     UnsupportedLanguage(#[from] unic_langid::LanguageIdentifierError),
 }
 
-/// Thin GPUI-global wrapper over the process-global [`rust_i18n`] locale.
-///
-/// `I18n` stores no locale of its own: every read delegates to
-/// [`rust_i18n::locale()`] and every write goes through
-/// [`rust_i18n::set_locale`] exactly once, so the bridge helpers
-/// (`localize_message`, `change_locale`, ...) and component-side `t!()`
-/// calls can never observe different locales.
+/// Thin GPUI-global wrapper over the process-global [`rust_i18n`] locale:
+/// reads delegate to [`rust_i18n::locale()`], writes go through
+/// [`rust_i18n::set_locale`], so every helper observes one locale.
 #[derive(Clone, Debug, Default)]
 pub struct I18n;
 
@@ -28,8 +24,7 @@ impl I18n {
         Self
     }
 
-    /// Create the wrapper after selecting `language` as the process-global
-    /// locale (the single source of truth this wrapper reads back).
+    /// Create the wrapper after setting the process-global locale to `language`.
     pub fn new_with_language(language: impl Into<LanguageIdentifier>) -> Self {
         set_shared_locale(&language.into().to_string());
         Self
@@ -92,11 +87,8 @@ pub struct CurrentLanguage<L: Language>(pub L);
 
 impl<L: Language> gpui::Global for CurrentLanguage<L> {}
 
-/// Install the [`I18n`] global if no locale was selected yet.
-///
-/// Installs the wrapper only; the effective locale stays whatever the
-/// process-global `rust_i18n` state already holds (defaulting to `"en"`), so
-/// a direct `rust_i18n::set_locale` before `init` is not clobbered.
+/// Install the [`I18n`] global if none is present; the effective locale
+/// stays whatever the process-global `rust_i18n` state already holds.
 pub fn init(cx: &mut App) {
     if cx.try_global::<I18n>().is_none() {
         install(I18n::new(), cx);
@@ -192,9 +184,6 @@ mod tests {
         tag.parse().unwrap()
     }
 
-    /// The process-global locale is shared by every test in this binary;
-    /// tests that write it (or assert against it) hold this lock so they
-    /// cannot interleave.
     static LOCALE_LOCK: Mutex<()> = Mutex::new(());
 
     fn lock_locale() -> MutexGuard<'static, ()> {
@@ -324,9 +313,6 @@ mod tests {
     #[test]
     fn direct_set_locale_is_visible_through_i18n() {
         let _guard = lock_locale();
-        // The I18n wrapper keeps no locale copy: a direct write to the
-        // process-global rust_i18n state is immediately visible through the
-        // wrapper's reads.
         let i18n = I18n::new();
         rust_i18n::set_locale("zh-CN");
         assert_eq!(&*i18n.locale(), "zh-CN");
