@@ -16,6 +16,9 @@ readme = "README.md"
 # compile unchanged.
 [lib]
 name = "gpui_form_component"
+# Keep the libtest unittest binary out of `cargo bench` runs — libtest
+# rejects criterion's `--save-baseline` arg (see workspace default-members).
+bench = false
 
 [features]
 default = [  ]
@@ -47,10 +50,15 @@ serde = { workspace = true }
 # never resolve against crates.io during `cargo publish`. A version-
 # carrying dev-dep on the facade would publish-order-cycle (the facade
 # depends on this crate) and deadlock the first publish of the set.
+criterion = { workspace = true }
 gpui-form = { package = "freeoxide-gpui-form", path = "../gpui-form" }
 gpui-form-component-derive = { package = "freeoxide-gpui-form-component-derive", path = "../gpui-form-component-derive" }
 serde_json = { workspace = true }
 unic-langid = { workspace = true }
+
+[[bench]]
+name = "datefmt"
+harness = false
 
 [lints]
 workspace = true

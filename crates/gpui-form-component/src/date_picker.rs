@@ -769,7 +769,15 @@ fn active_locale() -> Locale {
     Locale::from_str(&normalized).unwrap_or(locale!("en-US"))
 }
 
-fn format_display_date(
+/// Format one civil date for `locale` at `display_style` through the same
+/// ICU4X path the date picker's button label uses.
+///
+/// Pure and GPUI-free: the locale is an explicit argument (the render path
+/// passes the picker's resolved display locale, not the global
+/// `gpui_kit::component::locale()`), so the function is directly usable from
+/// benches and characterization tests. Returns `None` when the ICU formatter
+/// cannot be built for `locale` or the date is out of the Gregorian range.
+pub fn format_display_date(
     date: JiffDate,
     locale: &Locale,
     display_style: DateDisplayStyle,
