@@ -32,13 +32,13 @@ pub use gpui_form_core::state;
 pub use gpui_form_core::submit;
 pub use gpui_form_core::validation;
 pub use gpui_form_schema as schema;
-// Ergonomic root re-export of the width-hint enum for applications building
-// layouts by hand; the field-level `FieldLayout` metadata stays under
-// `gpui_form::schema`.
+/// Ergonomic root re-export of the width-hint enum for applications building
+/// layouts by hand; the field-level `FieldLayout` metadata stays under
+/// `gpui_form::schema`.
 pub use gpui_form_schema::LayoutWidth;
-// Root re-export of the schema-export document type that
-// `<Name>FormSchema::schema()` returns; its field/component/layout entry
-// types stay under `gpui_form::schema::registry`.
+/// Root re-export of the schema-export document type that
+/// `<Name>FormSchema::schema()` returns; its field/component/layout entry
+/// types stay under `gpui_form::schema::registry`.
 pub use gpui_form_schema::registry::FormSchema;
 
 pub use bon;
