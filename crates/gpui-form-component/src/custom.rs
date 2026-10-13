@@ -53,24 +53,35 @@ impl<T> CustomComponentValueChange<T> {
     }
 }
 
-/// Optional value-binding contract for user-defined custom components.
+/// Value-binding contract for user-defined custom components.
 ///
 /// Implement this alongside [`CustomComponentShape`] when generated
 /// prototyping code should seed the component from the form value holder and
 /// subscribe to component events. The form derive opts into this path with
 /// `component(custom(..., value_binding))`.
+///
+/// Both hooks are required by design: a `value_binding` opt-in generates
+/// calls to [`CustomComponentValueAdapter::set_state_value`] (seeding) and
+/// [`CustomComponentValueAdapter::value_change`] (event handling), so a
+/// silent default for either would compile while silently dropping the form
+/// value. If a component genuinely holds no settable value, write an
+/// explicit no-op body — the omission must be visible in the source.
 pub trait CustomComponentValueAdapter<T>: CustomComponentShape {
     /// Event emitted by the custom component state.
     type Event: 'static;
 
     /// Seed component state from the current form value.
+    ///
+    /// Required: the generated `value_binding` seed path calls this
+    /// whenever the form value changes or the component is rebuilt, so a
+    /// defaulted no-op would silently drop the form value. Implementations
+    /// that intentionally ignore the value must say so with an empty body.
     fn set_state_value(
         _state: &mut Self::State,
         _value: Option<&T>,
         _window: &mut gpui::Window,
         _cx: &mut gpui::Context<'_, Self::State>,
-    ) {
-    }
+    );
 
     /// Convert a component event into a form value update.
     fn value_change(state: &Self::State, event: &Self::Event) -> CustomComponentValueChange<T>;
