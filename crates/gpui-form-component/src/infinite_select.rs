@@ -947,7 +947,7 @@ where
             _master_subscription: master_subscription,
             _child_subscriptions: Vec::new(),
         };
-        this.rebuild_child_selects(window, cx);
+        this.sync_child_selects(0, window, cx);
         this
     }
 
@@ -1131,7 +1131,7 @@ where
         self.path = new_path.clone();
         self.key_path = new_key_path.clone();
         self.sync_master_select(window, cx);
-        self.rebuild_child_selects(window, cx);
+        self.sync_child_selects(changed_depth, window, cx);
         if emit {
             cx.emit(InfiniteSelectEvent {
                 previous_value,
@@ -1153,21 +1153,44 @@ where
         });
     }
 
-    fn rebuild_child_selects(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let child_selects = build_child_selects::<T, D>(
+    /// Keeps the rendered child selects in sync after a selection change.
+    ///
+    /// Levels strictly above `changed_depth` still select from the same branch,
+    /// so their entities — each owning a nested list/input entity pair plus its
+    /// blur subscriptions — stay alive and only get their selected row
+    /// re-synced. The changed level and everything below it select from a
+    /// different branch, so those entities are torn down and rebuilt fresh.
+    fn sync_child_selects(
+        &mut self,
+        changed_depth: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let keep = changed_depth.min(self.child_selects.len());
+        for (index, child) in self.child_selects[..keep].iter().enumerate() {
+            let selected_row = selected_index(self.path.get(index + 1).unwrap_or(0));
+            child.update(cx, |state, cx| {
+                state.set_selected_index(selected_row, window, cx)
+            });
+        }
+        self.child_selects.truncate(keep);
+        self._child_subscriptions.truncate(keep);
+
+        let fresh = build_child_selects::<T, D>(
             &self.value,
             &self.path,
+            keep,
             self.max_depth(),
             self.options.searchable,
             window,
             cx,
         );
-
-        self._child_subscriptions = child_selects
-            .iter()
-            .map(|child| cx.subscribe_in(child, window, Self::on_select_event))
-            .collect();
-        self.child_selects = child_selects;
+        self._child_subscriptions.extend(
+            fresh
+                .iter()
+                .map(|child| cx.subscribe_in(child, window, Self::on_select_event)),
+        );
+        self.child_selects.extend(fresh);
     }
 }
 
@@ -1184,6 +1207,7 @@ where
 fn build_child_selects<T, D>(
     parent: &T,
     path: &InfiniteSelectPath,
+    start_level: usize,
     max_depth: usize,
     searchable: bool,
     window: &mut Window,
@@ -1194,9 +1218,21 @@ where
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     let mut current_value = parent.clone();
+    // Walk the selections above `start_level` so the fresh tail is built from
+    // the branch the kept entities already render.
+    for level in 0..start_level {
+        let items = child_items_for_level(&current_value, level);
+        if items.is_empty() {
+            return Vec::new();
+        }
+
+        let selected_row = path.get(level + 1).unwrap_or(0).min(items.len() - 1);
+        current_value = items[selected_row].get_value().clone();
+    }
+
     let mut selects = Vec::new();
 
-    for level in 0..max_depth.saturating_sub(1) {
+    for level in start_level..max_depth.saturating_sub(1) {
         let items = child_items_for_level(&current_value, level);
         if items.is_empty() {
             break;
