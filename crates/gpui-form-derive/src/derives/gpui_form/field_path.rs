@@ -1,37 +1,6 @@
-//! Generator for the per-form typed path type (`<Name>FormPath`).
-//!
-//! Backlog feature #8 ("Typed field paths and field IDs", FLAT v1) emits a
-//! strongly-typed newtype wrapper around [`::gpui_form::core::FieldPath`] for
-//! every `#[derive(GpuiForm)]` form, so validation, dirty tracking, focus,
-//! analytics, and schema export share ONE typed way to name fields instead of
-//! ad-hoc strings.
-//!
-//! # Scope
-//!
-//! Milestone M3 (backlog #2 "Nested forms" and #3 "Repeated fields", decision
-//! [D8]) adds typed composition on top of the flat constructors:
-//!
-//! - nested fields emit `<field>_root()` plus a consuming appender
-//!   `fn <field>(self)`;
-//! - list fields emit `<field>_root()` plus `fn <field>(index: usize)`
-//!   carrying a typed [`::gpui_form::core::PathSegment::Index`] segment;
-//! - every form gains `join` for cross-form composition
-//!   (`UserFormPath::address_root().join(&AddressFormPath::city())`).
-//!
-//! # Rules
-//!
-//! - `<Name>FormPath` carries **no generics**, even for generic source
-//!   structs, because a path only names fields — it stores no typed values.
-//! - Skipped fields are EXCLUDED from the constructors (they are absent from
-//!   the value holder too).
-//! - If a form has zero non-skipped fields, the type is still emitted with
-//!   `new()` / `path()` / `into_path()` and no per-field constructors.
-//! - The generated code reaches the shared primitive via the facade path
-//!   `::gpui_form::core::FieldPath`, mirroring how `value_holder.rs` reaches
-//!   `::gpui_form::bon`.
-//! - `FieldPath` is a headless primitive (no GPUI, no serde). It is NOT behind
-//!   a feature flag, so this generator emits NO `#[cfg(...)]` attrs and NO
-//!   serde derives.
+//! Generates the per-form typed path newtype `<Name>FormPath` wrapping
+//! [`::gpui_form::core::FieldPath`]: flat per-field constructors, nested/list
+//! root-and-composition constructors, and cross-form `join`.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -39,32 +8,14 @@ use syn::DeriveInput;
 
 use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 
-/// Generates the `<Name>FormPath` newtype plus its impls for a single form.
-///
-/// The returned tokens are spliced into the final derive output next to the
-/// value-holder tokens. They always emit a path type — even for a form with
-/// zero non-skipped fields — per the feature #8 contract.
+/// Generates the `<Name>FormPath` newtype plus its impls, spliced into the
+/// derive output. Always emits the type, even with zero non-skipped fields.
 pub fn generate_field_path(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
 ) -> TokenStream {
     let form_path_ident = format_ident!("{}FormPath", original_input.ident);
 
-    // One freestanding `pub fn <field>() -> Self` constructor per non-skipped
-    // FLAT field. Named identically to the field, callable as
-    // `<Name>FormPath::<field>()`. `stringify!` yields the field ident as a
-    // `&'static str`, matching the call shape `FieldPath::new(&[&'static str])`.
-    //
-    // Milestone M3 composition (backlog #2/#3, decision [D8]):
-    // - nested fields emit `<field>_root()` (the field itself) plus a
-    //   consuming appender `fn <field>(self)` that pushes the field name
-    //   onto any path;
-    // - list fields emit `<field>_root()` plus `fn <field>(index: usize)`
-    //   producing `[Name("<field>"), Index(index)]` — a typed index segment,
-    //   never a formatted string;
-    // - every form gains `join` for cross-form composition:
-    //   `UserFormPath::address_root().join(&AddressFormPath::city())`
-    //   -> `address.city`.
     let constructors: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
@@ -114,9 +65,6 @@ pub fn generate_field_path(
         })
         .collect();
 
-    // Feature #8 FLAT v1 + field-level state (M1): the declaration-order name
-    // table and dense index mapping that touched/dirty/error state keys on.
-    // Skipped fields are absent (they have no constructor and no holder slot).
     let non_skipped: Vec<&FieldOptionality> = fields.iter().filter(|f| !f.skip).collect();
     let field_name_literals: Vec<String> = non_skipped
         .iter()
@@ -128,8 +76,6 @@ pub fn generate_field_path(
         .enumerate()
         .map(|(index, f)| {
             let field_name = &f.field_name;
-            // Composed fields have no zero-argument constructor — their
-            // root constructor names the field for dense-index state.
             let root_ctor = if f.composition.is_flat() {
                 field_name.clone()
             } else {
@@ -142,27 +88,8 @@ pub fn generate_field_path(
         })
         .collect();
 
-    // Generated-item docs stay one-line summaries (the derive output is
-    // ~45% #[doc] payload by bytes otherwise); the removed essays live in
-    // these generator comments:
-    // - `<Name>FormPath` exists since backlog feature #8 (FLAT v1); each
-    //   constructor names a single non-skipped field, with typed nested and
-    //   list-item paths added by backlog features #2/#3 (M3, decision [D8]).
-    // - `field_index`: dense declaration-order index for single-segment root
-    //   paths naming a non-skipped field (flat constructors and nested/list
-    //   `_root()` constructors). `None` for hand-built multi-segment paths
-    //   and list-item paths — item-level touched tracking has no dense index
-    //   in v1.
-    // - `new`: mirrors `::gpui_form::core::FieldPath::new`; useful for
-    //   hand-built multi-segment paths — prefer the per-field constructors,
-    //   the `_root()` constructors, and `join`.
-    // - `join`: `UserFormPath::address_root().join(&AddressFormPath::city())`
-    //   names `address.city`; a list item composes the same way
-    //   (`PostEditorFormPath::contacts(2).join(&ContactFormPath::name())`
-    //   names `contacts.2.name`). The result keeps THIS form's type, so
-    //   wrong-form composition still cannot mix path types at the roots.
     quote! {
-        /// Typed path to a field on this form, generated by `#[derive(GpuiForm)]` (backlog feature #8).
+        /// Typed path to a field on this form, generated by `#[derive(GpuiForm)]`.
         #[derive(Clone, Debug, Eq, PartialEq, ::core::hash::Hash)]
         pub struct #form_path_ident(::gpui_form::core::FieldPath);
 

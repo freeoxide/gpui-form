@@ -1,45 +1,6 @@
-//! Generator for the per-form state facade (`<Name>FormState`) and the
-//! per-form patch type (`<Name>FormPatch`).
-//!
-//! Milestone 1 of the form feature-parity plan (field-level state model):
-//! the facade *composes* the standalone core primitives —
-//! `::gpui_form::core::FormState<H>` for baseline/current values and
-//! `::gpui_form::core::TouchedFields` for engagement tracking — behind typed
-//! `<Name>FormPath` accessors, so `FormState<H>` itself stays a frozen
-//! two-slot generic and every primitive remains usable standalone.
-//!
-//! Milestone 2 adds the validation-state cache for a live `is_valid`
-//! ([D6]): koruma-gated facades gain a `validation` slot of
-//! `::gpui_form::core::ValidationCache<Holder, <Name>FormFieldErrors>` plus
-//! `validate`/`validation`/`is_valid`/`invalidate_validation`/`error_for`.
-//! Freshness is snapshot-compare, so the cache stays sound even under the
-//! `state_mut()` escape hatch; reset-style mutators still invalidate
-//! explicitly so a reverted-to-same-value form does not keep displaying the
-//! old verdict.
-//!
-//! # Rules
-//!
-//! - Holders stay plain data: the facade and patch are separate generated
-//!   types, never fields or methods-with-state on the value holder.
-//! - Both types carry the source struct's generics verbatim. `<Name>FormPath`
-//!   can be generics-free because a path names no types; the facade names the
-//!   holder (`FormState<<Name>FormValueHolder<..>>`), so dropping generics
-//!   would break source structs that compile today.
-//! - Skipped fields are absent from the patch and from every facade accessor.
-//! - Per-field dirty comparison reuses the holder's unconditional `PartialEq`
-//!   field types (comparison happens on holder types, not source types), so
-//!   `type`/`from`/`into` conversion fields need no special handling here.
-//! - The patch's serde derives are added only when the derive crate is built
-//!   with its `serde` feature (same gate as the holder), with
-//!   `skip_serializing_if = "Option::is_none"` per field so the wire format
-//!   is the PATCH tri-state: absent = unchanged, `null` = cleared,
-//!   value = set.
-//! - The validation cache emits only when the holder derives koruma AND the
-//!   source struct is non-generic (the same combined gate as the
-//!   `<Name>FormFieldErrors` map it stores — koruma's generated error types
-//!   for generic structs carry a usage-analysis subset of the generics that
-//!   cannot be reconstructed here). Empty forms never emit it (nothing to
-//!   validate).
+//! Generates the per-form state facade (`<Name>FormState`) and patch type
+//! (`<Name>FormPatch`) composing the core primitives (`FormState`,
+//! `TouchedFields`, and optionally `ValidationCache`) via `<Name>FormPath`.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -49,17 +10,10 @@ use crate::derives::gpui_form::errors::participates_in_field_errors;
 use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 use crate::derives::gpui_form::value_holder::form_field_type_tokens;
 
-/// Generates `<Name>FormState` and `<Name>FormPatch` for a single form.
-///
-/// Spliced into BOTH expansion branches (empty-form early return and main
-/// expansion) next to the value-holder and path tokens. Empty forms emit a
-/// facade over an empty holder and a field-less patch — and never a
-/// validation cache (nothing to validate), so `enable_validation` is
-/// meaningless for them.
-///
-/// `enable_validation` gates the koruma validation cache and its methods;
-/// the caller passes the same `needs_koruma_derive` gate that puts
-/// `#[derive(Koruma)]` on the holder, restricted to non-generic structs.
+/// Generates `<Name>FormState` and `<Name>FormPatch` for one form, spliced
+/// into the derive output. `enable_validation` gates the koruma validation
+/// cache and its methods; callers pass the same `needs_koruma_derive` gate
+/// as the holder's `#[derive(Koruma)]`, restricted to non-generic structs.
 pub fn generate_form_state(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
@@ -78,11 +32,8 @@ pub fn generate_form_state(
 
     let non_skipped: Vec<&FieldOptionality> = fields.iter().filter(|f| !f.skip).collect();
 
-    // ---- validation cache (M2, koruma-gated) --------------------------------
-
-    // Mirror errors.rs: the borrowing enum only carries its lifetime
-    // parameter when it has at least one variant (a zero-variant enum
-    // cannot reference `'a`).
+    // A zero-variant enum cannot reference `'a`; carry the lifetime only
+    // when at least one field participates (mirrors errors.rs).
     let error_enum_has_variants = fields.iter().any(participates_in_field_errors);
     let error_enum_lifetime = if error_enum_has_variants {
         quote! { <'_> }
@@ -107,47 +58,6 @@ pub fn generate_form_state(
     } else {
         quote! {}
     };
-    // Generated-item docs stay one-line summaries (the derive output is
-    // ~45% #[doc] payload by bytes otherwise); the removed essays live in
-    // these generator comments:
-    // - `<Name>FormState` composes the standalone core primitives —
-    //   baseline/current values via `::gpui_form::core::FormState`,
-    //   touched-field tracking via `::gpui_form::core::TouchedFields`, and
-    //   (koruma-gated) a validation-outcome cache via
-    //   `::gpui_form::core::ValidationCache` for a live `is_valid` — keyed
-    //   by typed `<Name>FormPath` values.
-    // - `validate`: call it whenever validation should refresh (a change
-    //   handler, a Validate button); the cached outcome then serves every
-    //   read — including render-path `is_valid()` — for one `PartialEq`
-    //   until the holder changes again. The raw holder `validate()` stays
-    //   untouched.
-    // - `validation`: invalidation contract — the facade's own mutators
-    //   (`current_mut`, `replace_current`, both resets) invalidate up front;
-    //   `sync_baseline` deliberately does not; the raw `state_mut()` escape
-    //   hatch does not either, but the snapshot comparison still detects the
-    //   value change (and `invalidate_validation` is the manual recourse).
-    // - `is_valid`: never lies between cache generations, so it is safe in
-    //   render paths even when the cache is stale.
-    // - `invalidate_validation`: manual escape for callers that bypass the
-    //   facade's mutators (e.g. `state_mut().current_mut()`); not normally
-    //   needed (the snapshot comparison already detects value changes), but
-    //   it forces a recompute even when a mutated value compares equal to
-    //   the validated snapshot.
-    // - `error_for`: check-then-mutate-then-read, NLL-safe; `None` for
-    //   valid fields and unknown paths.
-    // - `state_mut` (koruma-gated variant): mutating through the escape
-    //   hatch bypasses validation-cache invalidation; the snapshot
-    //   comparison keeps `validation()`/`is_valid()` sound, and
-    //   `invalidate_validation` forces a recompute when equality alone is
-    //   not enough.
-    // - `current_mut` (koruma-gated note): mutating here also invalidates
-    //   the validation cache (see `validation`).
-    // - `replace_current` / `reset_to_baseline` (koruma-gated note): both
-    //   invalidate the validation cache — error display is suppressed after
-    //   a full reset.
-    // - `sync_baseline` (koruma-gated note): the validation cache stays
-    //   fresh — validity depends only on `current`, which a sync never
-    //   changes.
     let state_struct_doc = if enable_validation {
         quote! {
             /// Per-form state facade composing the standalone core primitives (`FormState`, `TouchedFields`, and the validation-outcome cache), keyed by typed `<Name>FormPath` values.
@@ -217,11 +127,8 @@ pub fn generate_form_state(
                 &mut self,
                 field: &#path_ident,
             ) -> Option<#error_enum_ident #error_enum_lifetime> {
-                // Check-then-mutate-then-read, NLL-safe: a cache hit never
-                // reaches the validate call, so hits revalidate nothing, and
-                // the result is taken through ONE trailing shared borrow.
-                // (Returning a hit borrowed ahead of the validate call would
-                // pin that borrow across it and trip E0502.)
+                // One trailing shared borrow: a hit returned ahead of
+                // `validate` would pin the borrow across it (E0502).
                 if self.validation.get(self.state.current()).is_none() {
                     Self::validate(self);
                 }
@@ -260,17 +167,13 @@ pub fn generate_form_state(
                 self.state.current().#field_name != self.state.baseline().#field_name
             };
             match &f.composition {
-                // Flat fields: exact single-segment match.
                 FieldComposition::Flat => quote! {
                     [::gpui_form::core::PathSegment::Name(#field_name_str)] => {
                         #compare
                     },
                 },
-                // Nested/list fields: the facade cannot see inside the
-                // composed value (its fields belong to another form's
-                // holder), so any path rooted at the field compares the
-                // composed value as a whole — a conservative superset that
-                // never asserts on legitimately deeper paths.
+                // Composed values are opaque to this form; any path rooted at
+                // the field compares the value as a whole (deeper paths never assert).
                 FieldComposition::Nested { .. } | FieldComposition::List { .. } => quote! {
                     [::gpui_form::core::PathSegment::Name(#field_name_str), ..] => {
                         #compare
@@ -279,8 +182,8 @@ pub fn generate_form_state(
             }
         })
         .collect();
-    // Empty forms have no valid paths at all, so an unknown path there is
-    // expected rather than a caller bug — no debug assert.
+    // Empty forms have no valid paths, so an unknown path there is expected
+    // rather than a caller bug — no debug assert.
     let is_field_dirty_unknown_arm = if is_field_dirty_arms.is_empty() {
         quote! { _ => false, }
     } else {
@@ -337,8 +240,6 @@ pub fn generate_form_state(
         .iter()
         .map(|f| {
             let field_name = &f.field_name;
-            // Composed fields name their root (`<field>_root()`); flat fields
-            // keep the same-named constructor.
             let ctor_ident = if f.composition.is_flat() {
                 field_name.clone()
             } else {
@@ -376,10 +277,6 @@ pub fn generate_form_state(
         })
         .collect();
 
-    // Patch tri-state essay (generator-side): the outer `Option` per field
-    // = changed; the inner value is the holder-typed value, so wrapped or
-    // originally-optional fields read as `Option<Option<T>>`
-    // (`Some(None)` = changed to cleared). Skipped fields are absent.
     quote! {
         /// Per-form patch: changed holder-typed field values between two holders (`Option` per field; `Some(None)` = changed to cleared; skipped fields absent).
         #[allow(clippy::derive_partial_eq_without_eq)]

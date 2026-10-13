@@ -13,13 +13,7 @@ enum FieldStorage {
     OriginallyOptional,
     WrappedOption,
     Plain,
-    /// Milestone M3 (backlog #2): `component(nested)` — the holder stores
-    /// the nested form's own generated value holder and converts through
-    /// its `From` impls.
     Nested,
-    /// Milestone M3 (backlog #3): `component(list(item = ...))` — the holder
-    /// stores the plain item `Vec` plus generated add/remove/items
-    /// operations.
     List,
 }
 
@@ -46,16 +40,14 @@ pub(crate) fn should_wrap(field: &FieldOptionality) -> bool {
     match field_storage(field) {
         FieldStorage::Plain => false,
         FieldStorage::OriginallyOptional | FieldStorage::WrappedOption => true,
-        // Composed fields wrap only when the source field was itself
-        // `Option<..>`; the component never wraps them (hazard 5), so
-        // `koruma(nested)` and `each(...)` apply directly.
+        // Components never wrap composed fields, so `koruma(nested)` /
+        // `each(..)` apply directly; wrap only when the source was `Option<..>`.
         FieldStorage::Nested | FieldStorage::List => field.was_optional,
     }
 }
 
 pub(crate) fn form_base_type(field: &FieldOptionality) -> Type {
     match &field.composition {
-        // Nested fields hold the nested form's value holder.
         FieldComposition::Nested { holder } => {
             if let Some(override_type) = &field.override_type {
                 extract_option_inner_type(override_type).1
@@ -63,8 +55,7 @@ pub(crate) fn form_base_type(field: &FieldOptionality) -> Type {
                 holder.clone()
             }
         },
-        // List fields hold the full Vec type (inner_type already removed any
-        // source-level Option wrapper).
+        // `inner_type` is already Option-stripped; the holder stores the full `Vec`.
         FieldComposition::List { .. } => field.inner_type.clone(),
         FieldComposition::Flat => {
             if let Some(override_type) = &field.override_type {
@@ -120,18 +111,12 @@ fn try_from_field_tokens(
 ) -> TokenStream {
     let field_name = &field.field_name;
     let access = quote! { #source.#field_name };
-    // Milestone M3: every field routes through `field_storage` — including
-    // the composed Nested/List shapes — so no composed field is silently
-    // absorbed by a flat arm (pipeline hazard 4).
     match field_storage(field) {
         FieldStorage::OriginallyOptional => optional_value_try_from(field, &access, error_type),
         FieldStorage::Nested if field.was_optional => {
             optional_value_try_from(field, &access, error_type)
         },
         FieldStorage::WrappedOption => wrapped_option_try_from(field, &access, error_type),
-        // Nested (non-optional) and scalar list items both convert through
-        // the plain-value shape; nested applies its `From` composition and
-        // v1 scalar items need no per-item conversion.
         FieldStorage::Plain | FieldStorage::Nested | FieldStorage::List => {
             let converted = apply_into_conversion(field, access);
             quote! {
@@ -141,8 +126,6 @@ fn try_from_field_tokens(
     }
 }
 
-/// The `Option`-valued conversion shape shared by originally-optional flat
-/// fields and originally-optional nested fields (milestone M3).
 fn optional_value_try_from(
     field: &FieldOptionality,
     access: &TokenStream,
@@ -190,12 +173,6 @@ fn wrapped_option_try_from(
 }
 
 fn generate_conversion_error_type(error_name: &syn::Ident) -> TokenStream {
-    // The `index` slot essay (generator-side): milestone M3 (backlog #3) —
-    // for list-field conversion failures, the failing item index; v1 scalar
-    // items never fail conversion, so the slot exists for the per-item
-    // conversion paths the backlog sequences after v1. Generated-item docs
-    // stay one-line summaries (the derive output is ~45% #[doc] payload by
-    // bytes otherwise).
     quote! {
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         pub struct #error_name {
@@ -225,8 +202,6 @@ fn generate_conversion_error_type(error_name: &syn::Ident) -> TokenStream {
     }
 }
 
-/// Generates a custom Default implementation for the FormValueHolder that uses
-/// the specified default expressions for fields that have them.
 fn unwrap_expr(expr: &syn::Expr) -> &syn::Expr {
     match expr {
         syn::Expr::Group(group) => unwrap_expr(&group.expr),
@@ -289,9 +264,6 @@ fn generate_default_impl(fields: &[FieldOptionality], struct_name: &syn::Ident) 
     }
 }
 
-/// The `Option`-valued original->holder conversion shared by
-/// originally-optional flat fields and originally-optional nested fields
-/// (milestone M3).
 fn optional_value_to_wrapped(field: &FieldOptionality) -> TokenStream {
     let field_name = &field.field_name;
     if needs_from_conversion(field) {
@@ -306,8 +278,6 @@ fn optional_value_to_wrapped(field: &FieldOptionality) -> TokenStream {
     }
 }
 
-/// The `Option`-valued holder->original conversion shared by
-/// originally-optional flat fields and originally-optional nested fields.
 fn optional_value_from_wrapped(field: &FieldOptionality) -> TokenStream {
     let field_name = &field.field_name;
     if needs_into_conversion(field) {
@@ -322,16 +292,11 @@ fn optional_value_from_wrapped(field: &FieldOptionality) -> TokenStream {
     }
 }
 
-/// The `Option`-valued present-fields-json entry shared by
-/// originally-optional flat fields and originally-optional nested fields.
-///
-/// Milestone M3 note: nested entries dump the holder value directly — the
-/// `From::from` composition has an inference-ambiguous target in a bare
-/// `format!("{:?}")` context (both conversion directions exist), and the
-/// debug dump only reports presence.
 fn optional_value_present_json(field: &FieldOptionality) -> TokenStream {
     let field_name = &field.field_name;
     let field_name_str = field_name.to_string();
+    // Nested entries skip into-conversion: `From::from` is inference-ambiguous
+    // in the `format!("{:?}")` dump context (both directions exist).
     if needs_into_conversion(field) && field.composition.is_flat() {
         let converted = apply_into_conversion(field, quote! { value });
         quote! {
@@ -407,8 +372,6 @@ fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
                 }
             }
         },
-        // Nested (non-optional) composes through the nested form's From
-        // impl; v1 scalar list items are the plain Vec, moved as-is.
         FieldStorage::Plain | FieldStorage::Nested | FieldStorage::List => {
             let converted = apply_from_conversion(field, quote! { from.#field_name });
             quote! {
@@ -494,10 +457,6 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
             }
         },
         FieldStorage::Plain | FieldStorage::Nested | FieldStorage::List => {
-            // Flat conversion fields keep the M1 dump-through-conversion;
-            // nested entries dump the holder value directly (see the helper
-            // note on conversion-target ambiguity) and list entries are the
-            // plain Vec.
             if needs_into_conversion(field) && field.composition.is_flat() {
                 let converted = apply_into_conversion(field, quote! { value });
                 quote! {
@@ -526,14 +485,9 @@ pub fn parse_field_default(field: &ComponentField) -> Option<syn::Expr> {
     field.default.as_ref().map(|expr| expr.0.clone())
 }
 
-/// Generates the FormValueHolder struct and its implementations.
-///
-/// Returns the emitted tokens, the fields that received a synthetic
-/// `RequiredValidation`, and `needs_koruma_derive` — the resolved gate that
-/// put `#[derive(Koruma)]` on the holder. Downstream emitters (typed field
-/// errors, the validation cache, the submit alias) must key on that flag,
-/// NOT on `koruma_options.is_some()`, which would silently drop
-/// field-attr-only koruma forms (pipeline hazard 6).
+/// Generates the `<Name>FormValueHolder` struct and impls. Returns the emitted
+/// tokens, the fields given a synthetic `RequiredValidation`, and
+/// `needs_koruma_derive` — the gate downstream emitters must key on.
 pub fn generate_value_holder(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
@@ -561,17 +515,9 @@ pub fn generate_value_holder(
             let has_existing_validations = !f.validation.field_validators.is_empty()
                 || !f.validation.element_validators.is_empty();
             let has_newtype = f.validation.is_newtype;
-            // M3: a `component(nested)` field with `#[koruma(nested)]` and
-            // no other validators must still mirror the nested marker —
-            // koruma's top-level error getter for the field exists only when
-            // the holder field carries the attribute. The gate checks the
-            // COMPOSITION (not `validation.is_nested`) so flat fields with a
-            // bare `#[koruma(nested)]` keep their exact pre-M3 emission: no
-            // mirrored attr, no error-map slot, no new validate() failures
-            // (the M3 need is only `component(nested)` fields).
+            // Keyed on composition, not `validation.is_nested`: koruma's per-field
+            // error getter exists only when the holder field carries `#[koruma(nested)]`.
             let has_nested = f.composition.is_nested();
-            // M4 (backlog #13): `required_if` desugars to the generated
-            // conditional-required validator below.
             let has_required_if = f.required_if.is_some();
 
             if needs_required
@@ -604,11 +550,8 @@ pub fn generate_value_holder(
                     .collect();
                 koruma_items.extend(existing_validations);
 
-                // Element validators: on `component(list(...))` fields they
-                // stay element-scoped (`each(..)`) so koruma reports failures
-                // per item index (`element_errors`); on flat fields they keep
-                // the pre-M3 flat mirroring (whole-value validators of the
-                // holder field).
+                // On list fields `each(..)` keeps element scoping so koruma
+                // reports failures per item index; flat fields mirror whole-value.
                 let element_validations: Vec<TokenStream> = f
                     .validation
                     .element_validators
@@ -624,16 +567,14 @@ pub fn generate_value_holder(
                     .collect();
                 koruma_items.extend(element_validations);
 
-                // Build koruma attributes - newtype/nested must be separate attributes
-                // when combined with other validators to avoid type resolution issues
                 let mut attrs: Vec<TokenStream> = Vec::new();
 
-                // Add validators first (if any)
                 if !koruma_items.is_empty() {
                     attrs.push(quote! { #[koruma(#(#koruma_items),*)] });
                 }
 
-                // Add newtype/nested as separate attributes
+                // newtype/nested must be separate attrs when combined with
+                // other validators, to avoid koruma type-resolution issues.
                 if f.validation.is_newtype {
                     attrs.insert(0, quote! { #[koruma(newtype)] });
                 }
@@ -648,23 +589,8 @@ pub fn generate_value_holder(
         }
     }
 
-    // If koruma is enabled on the form, always derive Koruma so validate()
-    // is available, even when there are no inferred validators. (This used
-    // to read `enable_koruma || (has_any_required && enable_koruma)`, which
-    // is boolean-identical to `enable_koruma` by absorption — collapsed so
-    // the gate states what it is.)
     let needs_koruma_derive = enable_koruma;
 
-    // Milestone M4 (backlog #13): the shared conditional-required validator.
-    // One struct per form (named with the reserved `<Name>Form*` prefix)
-    // serves every `required_if` field; the holder fields' koruma attrs
-    // reference it with `#validator::<Option<_>>::builder().when(...)`, so
-    // koruma's own generated `validate()` constructs it with the controlling
-    // sibling's live value and stores a failed validator in the per-field
-    // error struct — which is what makes the violation surface through the
-    // M1 typed error surface (`validate_fields`/`error_for`/`issue_keys`).
-    // The pure predicate lives in core (`required_when`); generated code
-    // references only `::koruma` and `::gpui_form` paths ([D2]/R14).
     let required_if_validator_ident = fields
         .iter()
         .filter(|f| !f.skip)
@@ -674,7 +600,6 @@ pub fn generate_value_holder(
         _ => quote! {},
     };
 
-    // Check if any field has a custom default expression
     let has_custom_defaults = fields.iter().any(|f| !f.skip && f.default_expr.is_some());
 
     let mut derives: Vec<TokenStream> = vec![quote! { Clone }, quote! { Debug }];
@@ -690,15 +615,9 @@ pub fn generate_value_holder(
             derives.push(quote! { ::koruma::KorumaAllDisplay });
         }
     }
-    // Always derive `PartialEq` on the generated holder (not `Eq`, since
-    // `number_input(as = f64)` and similar non-Eq field types would otherwise
-    // fail to compile). `FormState::is_dirty` / `diff_against` require
-    // `H: PartialEq` and are exported unconditionally, so the holder must
-    // implement `PartialEq` on default features too — otherwise `is_dirty`
-    // would not compile without the `serde` feature.
+    // Unconditional `PartialEq` (never `Eq`): `f64` fields are non-`Eq`, and
+    // core's `is_dirty`/`diff_against` require `H: PartialEq`.
     derives.push(quote! { ::core::cmp::PartialEq });
-    // Feature `serde` (form-state persistence, feature #1): make the generated
-    // holder (de)serializable. Serialization is opt-in; comparison is not.
     #[cfg(feature = "serde")]
     {
         derives.push(quote! { ::serde::Serialize });
@@ -737,9 +656,6 @@ pub fn generate_value_holder(
         })
         .collect();
 
-    // Milestone M3 (backlog #3): the list mutation API. Add/remove only in
-    // v1 — reorder is deferred per the backlog's conservative-first rule —
-    // and the holder stays plain data (methods are pure field operations).
     let list_mutation_methods: Vec<TokenStream> = fields
         .iter()
         .filter(|f| !f.skip)
@@ -930,11 +846,8 @@ pub fn generate_value_holder(
         quote! {}
     };
 
-    // Backlog #6 (typed field errors): gated on `needs_koruma_derive` — the
-    // same gate that puts `#[derive(Koruma)]` on the holder — so every
-    // koruma error type the emitter references is guaranteed to exist. This
-    // covers field-attr-only koruma forms (no struct-level
-    // `#[gpui_form(koruma)]`) too.
+    // Same gate as the holder's `#[derive(Koruma)]`, so every koruma error
+    // type the emitter references is guaranteed to exist.
     let field_errors_impl = if needs_koruma_derive {
         crate::derives::gpui_form::errors::generate_field_errors(original_input, fields)
     } else {
@@ -981,11 +894,8 @@ pub fn generate_value_holder(
 }
 
 pub fn validation_issue_key_for_kind(kind: &str) -> String {
-    // Milestone M4 (backlog #13): the desugared conditional-required
-    // validator is emitted per form as `<Name>FormRequiredIfValidation`.
-    // Its failure IS a required failure, so it reuses the already-localized
-    // `validation.required` key — no new locale keys (the i18n-parity
-    // preference from the plan's Feature 3 test notes).
+    // The per-form `<Name>FormRequiredIfValidation` failure IS a required
+    // failure; reuse the already-localized `validation.required` key.
     if kind.ends_with("FormRequiredIfValidation") {
         return "validation.required".to_string();
     }
@@ -993,24 +903,9 @@ pub fn validation_issue_key_for_kind(kind: &str) -> String {
     format!("validation.{}", stem.to_snake_case())
 }
 
-/// Milestone M4 (backlog #13): the per-form conditional-required validator
-/// desugared from `#[gpui_form(required_if = <field>)]`.
-///
-/// Shaped exactly like `koruma_collection::general::RequiredValidation`
-/// (presence-only `actual` slot with `skip_capture`; the full-`Option` infer
-/// sugar `::<Option<_>>` in the mirrored holder attr), plus the captured
-/// `when` flag driven by the controlling sibling's holder value. The
-/// `#[koruma::validator]` macro provides the bon builder and the
-/// `BuilderWithValueRef` plumbing koruma's generated `validate()` calls.
 fn generate_required_if_validator(validator: &syn::Ident) -> TokenStream {
-    // Validator essay (generator-side): built by koruma's generated
-    // `validate()` with the controlling sibling's live value; a failure
-    // means "this field is required while the controlling field requires
-    // it, but no value is present". Generated-item docs stay one-line
-    // summaries (the derive output is ~45% #[doc] payload by bytes
-    // otherwise).
     quote! {
-        /// Conditional-required validator desugared from `#[gpui_form(required_if = <field>)]` (milestone M4).
+        /// Conditional-required validator desugared from `#[gpui_form(required_if = <field>)]`.
         #[doc(hidden)]
         #[derive(Clone, Debug)]
         #[::koruma::validator]
@@ -1071,9 +966,6 @@ fn generate_koruma_i18n_impl(
     if fields.iter().any(|f| f.needs_required_validation()) {
         kinds.insert("RequiredValidation".to_string());
     }
-    // M4 (backlog #13): the per-form conditional-required validator type —
-    // `validation_issue_key_for_kind` maps it to the shared
-    // `validation.required` key.
     for f in fields.iter().filter(|f| !f.skip) {
         if let Some(rule) = &f.required_if {
             kinds.insert(rule.validator.to_string());

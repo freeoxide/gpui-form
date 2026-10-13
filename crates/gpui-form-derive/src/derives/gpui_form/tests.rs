@@ -12,8 +12,6 @@ mod gpui_form_tests {
         tokens.split_whitespace().collect::<String>()
     }
 
-    // token-level: M5 schema export (backlog #14) — the `<Name>FormSchema`
-    // surface is unconditional and reuses the inventory shape chain.
     #[test]
     fn schema_export_reuses_the_inventory_shape_chain() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -27,8 +25,6 @@ mod gpui_form_tests {
             .to_string()
         };
 
-        // Flat form: the accessor exists and projects from a SHAPE const
-        // built with the registry types (no inventory dependency of its own).
         let flat = compact_tokens(&expand(quote! {
             #[derive(GpuiForm)]
             struct Plain {
@@ -52,9 +48,6 @@ mod gpui_form_tests {
             ),
             "schema() must project the shape through From: {flat}"
         );
-        // The chain is emitted ONCE: the inventory submission references the
-        // exported SHAPE const instead of re-emitting the FieldVariant chain
-        // (single metadata source, made structural).
         assert_eq!(
             flat.matches("FieldVariant::new").count(),
             1,
@@ -65,8 +58,6 @@ mod gpui_form_tests {
             "the inventory submission must reference the exported SHAPE const: {flat}"
         );
 
-        // Same tokens with inventory OFF: the export still emits (only the
-        // submit! registration is feature-gated).
         let derive_input: DeriveInput = syn::parse2(quote! {
             #[derive(GpuiForm)]
             struct Plain {
@@ -93,7 +84,6 @@ mod gpui_form_tests {
             "inventory registration stays feature-gated: {no_inventory}"
         );
 
-        // Empty form: the export still emits, over an empty field list.
         let derive_input: DeriveInput = syn::parse2(quote! {
             #[derive(GpuiForm)]
             #[gpui_form(empty)]
@@ -159,7 +149,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_koruma_without_fluent_keeps_plain_koruma_derive() {
         let tokens = quote! {
@@ -191,7 +180,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_number_input_override_drives_validation_and_metadata() {
         let tokens = quote! {
@@ -253,7 +241,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_custom_component_generates_shape_based_state_and_constructor() {
         let tokens = quote! {
@@ -308,7 +295,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_field_variant_metadata_records_form_value_holder_conversion_shape() {
         let tokens = quote! {
@@ -365,7 +351,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_custom_component_wraps_in_option_and_state_alias() {
         let tokens = quote! {
@@ -393,10 +378,6 @@ mod gpui_form_tests {
             compact.contains("pubenabled:bool"),
             "wraps_in_option = false should keep value holder field non-optional"
         );
-        // (The M1 `<Name>FormPatch` legitimately wraps every slot in
-        // `Option<..>` — the tri-state patch surface — so the old negative
-        // `!contains("pubenabled:Option<bool>")` no longer distinguishes
-        // holder wrapping policy; the positive assertions carry it.)
         assert!(
             compact.contains("pubtags_custom:::gpui::Entity<")
                 && compact.contains(
@@ -410,7 +391,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_select_default_expression_initializes_component_selection() {
         let tokens = quote! {
@@ -446,7 +426,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn test_infinite_select_default_expression_and_max_depth_are_honored() {
         let tokens = quote! {
@@ -488,7 +467,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn layout_all_five_hints_plus_width_bare_ident_emit_chain() {
         let tokens = quote! {
@@ -548,7 +526,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn layout_quoted_width_and_third_variant_map_correctly() {
         let tokens = quote! {
@@ -581,7 +558,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn layout_absent_hints_default_to_full_and_no_string_builders() {
         let tokens = quote! {
@@ -624,7 +600,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: no behavior surface
     #[test]
     fn layout_on_skipped_field_is_ignored() {
         let tokens = quote! {
@@ -689,7 +664,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: mirrors `empty_form_still_emits_path_type` (tests/field_path.rs)
     #[test]
     fn empty_form_still_emits_state_facade_and_patch() {
         let tokens = quote! {
@@ -726,7 +700,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: gate check for the koruma error surface
     #[test]
     fn field_errors_surface_follows_the_koruma_derive_gate() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -740,7 +713,6 @@ mod gpui_form_tests {
             .to_string()
         };
 
-        // No koruma anywhere: no error surface, but facade + patch still emit.
         let plain = expand(quote! {
             #[derive(GpuiForm)]
             struct Plain {
@@ -758,9 +730,6 @@ mod gpui_form_tests {
             "facade + patch are unconditional: {plain}"
         );
 
-        // Field-attr-only koruma (no struct-level #[gpui_form(koruma)]): the
-        // error surface must still emit — this is the
-        // needs_koruma_derive-vs-koruma_options gate distinction.
         let field_only = expand(quote! {
             #[derive(GpuiForm)]
             struct FieldAttr {
@@ -777,7 +746,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: patch serde derives follow the derive crate's serde feature
     #[test]
     fn patch_serde_derives_follow_the_serde_feature() {
         let tokens = quote! {
@@ -796,8 +764,6 @@ mod gpui_form_tests {
         );
         let compact = compact_tokens(&expanded.to_string());
 
-        // The patch derive list sits next to its struct; assert the whole
-        // emitted shape matches the feature state of THIS build.
         if cfg!(feature = "serde") {
             assert!(
                 compact.contains("skip_serializing_if=\"Option::is_none\""),
@@ -811,7 +777,6 @@ mod gpui_form_tests {
         }
     }
 
-    // token-level: submit alias gating (backlog #7, M2)
     #[test]
     fn submit_alias_emits_only_with_the_attribute() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -825,7 +790,6 @@ mod gpui_form_tests {
             .to_string()
         };
 
-        // Without the attribute: no alias at all (perfect opt-in).
         let plain = expand(quote! {
             #[derive(GpuiForm)]
             struct Plain {
@@ -839,9 +803,6 @@ mod gpui_form_tests {
             "non-opted forms must see zero submit diff: {plain}"
         );
 
-        // Struct-level koruma + submit: the alias resolves its error type
-        // through ValidateExt (NOT Validate — the associated Error type
-        // lives on ValidateExt).
         let koruma = expand(quote! {
             #[derive(GpuiForm)]
             #[gpui_form(koruma, submit)]
@@ -858,8 +819,6 @@ mod gpui_form_tests {
             "koruma forms alias over the holder's ValidateExt::Error: {koruma}"
         );
 
-        // Field-attr-only koruma + submit: the at-risk shape for a wrong
-        // `koruma_options.is_some()` gate (hazard 6) keeps the typed alias.
         let field_only = expand(quote! {
             #[derive(GpuiForm)]
             #[gpui_form(submit)]
@@ -875,7 +834,6 @@ mod gpui_form_tests {
             "field-attr-only koruma forms keep the typed alias: {field_only}"
         );
 
-        // Submit without koruma: the BoxError fallback alias.
         let no_koruma = expand(quote! {
             #[derive(GpuiForm)]
             #[gpui_form(submit)]
@@ -892,7 +850,6 @@ mod gpui_form_tests {
         assert!(!no_koruma.contains("ValidateExt"));
     }
 
-    // token-level: the validation cache follows the needs_koruma_derive gate
     #[test]
     fn validation_cache_facade_follows_the_koruma_derive_gate() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -906,7 +863,6 @@ mod gpui_form_tests {
             .to_string()
         };
 
-        // No koruma anywhere: no cache field and none of its methods.
         let plain = expand(quote! {
             #[derive(GpuiForm)]
             struct Plain {
@@ -923,8 +879,6 @@ mod gpui_form_tests {
             "non-koruma facades see zero validation-cache diff: {plain}"
         );
 
-        // Field-attr-only koruma (the hazard-6 at-risk shape): the facade
-        // gains the cache field and its methods.
         let field_only = expand(quote! {
             #[derive(GpuiForm)]
             struct FieldAttr {
@@ -945,9 +899,6 @@ mod gpui_form_tests {
             "the cached-validation method set must emit: {field_only}"
         );
 
-        // Generic source structs: the `<Name>FormFieldErrors` map is not
-        // emitted (koruma generics cannot be reconstructed), so the facade
-        // must not reference it either.
         let generic = expand(quote! {
             #[derive(GpuiForm)]
             struct G<T> {
@@ -963,7 +914,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: async-validator metadata (M2 emission sketch)
     #[test]
     fn async_validator_metadata_records_the_path() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -990,8 +940,6 @@ mod gpui_form_tests {
             "the FieldVariant chain must record the parsed path: {with_attr}"
         );
 
-        // Absent attr: no builder call, and the default stays None (the
-        // schema unit test covers the default itself).
         let without_attr = expand(quote! {
             #[derive(GpuiForm)]
             struct Form {
@@ -1006,11 +954,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: schema metadata strings keep canonical token spacing
-    // (M5 export surface — the strings ARE the exported documents, so
-    // `crate :: defaults :: country ()` would pin printer spacing into
-    // every fixture, exactly like the `Vec < String >` value-type
-    // regression)
     #[test]
     fn schema_metadata_expr_strings_keep_canonical_spacing() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -1032,12 +975,6 @@ mod gpui_form_tests {
             }
         });
 
-        // The raw Display keeps its between-tree spaces, so assert the
-        // exported LITERAL's content: the path must be `::`-glued inside the
-        // `with_default` quotes. The negative check targets the same literal
-        // in its spaced form — the expansion's RUNTIME Default impl
-        // legitimately keeps the printer's spacing (`country : crate ::
-        // defaults :: country ()`), and only the exported string is pinned.
         assert!(
             expanded.contains(r#"with_default ("crate::defaults::country()")"#),
             "the default expression must export in canonical spelling: {expanded}"
@@ -1048,13 +985,6 @@ mod gpui_form_tests {
         );
     }
 
-    // ── M4: dependency metadata + conditional-required desugaring ──────────
-
-    /// Token-level: the FieldVariant chain records both sibling references,
-    /// the "RequiredIfValidation" rule kind rides the validations list, the
-    /// holder attr gains the desugared validator builder with the sibling's
-    /// truthiness expression, and the per-form validator struct delegating
-    /// to core's `required_when` is emitted (backlog #12/#13, R19).
     #[test]
     fn dependency_metadata_and_required_if_desugaring_are_emitted() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -1080,7 +1010,6 @@ mod gpui_form_tests {
         });
         let compact = compact_tokens(&expanded);
 
-        // Metadata: sibling references (FieldPath name-segment payloads).
         assert!(
             compact.contains(".with_depends_on(Some(\"subscribe\"))"),
             "depends_on must be recorded: {compact}"
@@ -1094,9 +1023,6 @@ mod gpui_form_tests {
             "the conditional rule kind rides the validations list: {compact}"
         );
 
-        // Desugaring: the per-form validator type is emitted and referenced
-        // from the holder field attr with the controlling sibling's
-        // truthiness expression, delegating to core's pure predicate.
         assert!(
             compact.contains("pubstructFormFormRequiredIfValidation<T>"),
             "the per-form validator struct is emitted: {compact}"
@@ -1114,7 +1040,6 @@ mod gpui_form_tests {
             "the validator delegates to core's required_when: {compact}"
         );
 
-        // Forms without the attrs see zero diff (semver/additive rule).
         let plain = expand(quote! {
             #[derive(GpuiForm)]
             struct Form {
@@ -1132,9 +1057,6 @@ mod gpui_form_tests {
         );
     }
 
-    /// The desugared validator's issue key reuses the already-localized
-    /// `validation.required` — no new locale keys (Feature 3's i18n-parity
-    /// preference).
     #[test]
     fn required_if_validator_maps_to_the_shared_required_key() {
         use crate::derives::gpui_form::value_holder::validation_issue_key_for_kind;
@@ -1143,16 +1065,12 @@ mod gpui_form_tests {
             validation_issue_key_for_kind("SignupFormFormRequiredIfValidation"),
             "validation.required"
         );
-        // Unrelated kinds keep the generic derivation.
         assert_eq!(
             validation_issue_key_for_kind("RangeValidation"),
             "validation.range"
         );
     }
 
-    /// Sibling references are existence-checked: an unknown `required_if`
-    // sibling fails at derive time, not at name-resolution time in user
-    // code.
     #[test]
     fn dependency_attrs_validate_their_sibling_references() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -1190,8 +1108,6 @@ mod gpui_form_tests {
             "unknown depends_on sibling must fail at derive time: {unknown_depends_on}"
         );
 
-        // The same identity guard `required_if` applies: a field cannot
-        // depend on itself.
         let self_depends_on = expand(quote! {
             #[derive(GpuiForm)]
             struct Form {
@@ -1236,12 +1152,6 @@ mod gpui_form_tests {
         );
     }
 
-    // ── M3: nested/list expansion surfaces ─────────────────────────────────
-
-    // token-level: the flat-form expansion is pinned byte-for-byte (the M3
-    // DoD regression — existing flat forms must emit stable tokens so no
-    // published surface churns; the snapshot is updated deliberately when a
-    // flat emission shape changes, like the D8 PathSegment routing did).
     #[test]
     fn flat_form_expansion_snapshot_is_pinned() {
         let tokens = quote! {
@@ -1261,8 +1171,6 @@ mod gpui_form_tests {
         );
 
         let compact = compact_tokens(&expanded.to_string());
-        // One golden per feature state of THIS build: the `serde` feature
-        // adds Serialize/Deserialize derives to the holder and patch.
         let snapshot = if cfg!(feature = "serde") {
             include_str!("../../../tests/snapshots/flat_form_expansion_serde.txt")
         } else {
@@ -1276,7 +1184,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: M3 nested/list metadata + holder surfaces (feature #7)
     #[test]
     fn nested_and_list_fields_emit_composition_metadata_and_holder_ops() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -1362,7 +1269,6 @@ mod gpui_form_tests {
             list.contains("pubfntags_root()"),
             "list fields keep a root path constructor: {list}"
         );
-        // v1 ships add/remove only — no reorder surface.
         assert!(
             !list.contains("reorder") && !list.contains("swap_"),
             "v1 must not emit reorder operations: {list}"
@@ -1388,9 +1294,6 @@ mod gpui_form_tests {
         );
         let compact = compact_tokens(&expanded.to_string());
 
-        // Element validators stay element-scoped on the holder so koruma
-        // reports per-item indices (flat fields keep the pre-M3 flat
-        // mirroring — see the hazard-4 note in value_holder.rs).
         assert!(
             compact.contains("#[koruma(each(koruma_collection::collection::LenValidation::<_>::builder().min(2).max(20)))]"),
             "element validators mirror onto list holder fields inside each(..): {compact}"
@@ -1435,10 +1338,6 @@ mod gpui_form_tests {
         );
     }
 
-    // token-level: the flat koruma(nested)-only case keeps its pre-M3
-    // emission — no mirrored marker, no nested error slot. This is the
-    // flat-form byte-identity guard for the `has_nested` mirror gate
-    // (finding: the gate must key on the composition, not is_nested).
     #[test]
     fn bare_koruma_nested_on_flat_fields_keeps_pre_m3_emission() {
         let expand = |tokens: proc_macro2::TokenStream| {
@@ -1452,10 +1351,6 @@ mod gpui_form_tests {
             .to_string()
         };
 
-        // FLAT field (no component) with a bare #[koruma(nested)]: pre-M3
-        // behavior — no attr is mirrored onto the holder, so the field has
-        // no koruma getter and joins neither the validation nor the error
-        // map.
         let flat = expand(quote! {
             #[derive(GpuiForm, koruma::Koruma)]
             struct Legacy {
@@ -1473,8 +1368,6 @@ mod gpui_form_tests {
             "flat fields with a bare #[koruma(nested)] must not join the error map's nested slot: {flat}"
         );
 
-        // The composed case (component(nested) + #[koruma(nested)]) still
-        // mirrors — the M3 need.
         let composed = expand(quote! {
             #[derive(GpuiForm, koruma::Koruma)]
             struct Resident {

@@ -66,9 +66,6 @@ pub struct BehaviourSelectOptions {
 #[derive(Clone, Debug, Default)]
 pub struct SelectOptions {
     pub behaviour: BehaviourSelectOptions,
-    /// Field-level default value expression (e.g., `EnumCountry::France` or
-    /// `preferred_country()`).
-    /// This is set by the derive macro when the field has a `default = ...` attribute.
     field_default: Option<syn::Expr>,
 }
 
@@ -106,8 +103,7 @@ pub struct InputOptions;
 
 #[derive(Clone, Debug, Default)]
 pub struct NumberInputOptions {
-    /// For custom numeric types (like Decimal), specify a standard numeric type
-    /// for validation purposes (e.g., f64, i32, u64)
+    /// Standard numeric type a custom numeric field is validated as (`f64`, `i32`, `u64`).
     pub r#as: Option<syn::Ident>,
 }
 
@@ -135,9 +131,8 @@ impl FromMeta for NumberInputOptions {
 
 #[derive(Clone, Debug, Default)]
 pub struct PhoneInputOptions {
-    /// Optional sibling field whose selected country the number must match
-    /// (`phone_input(country = <field>)`). When absent, any globally valid
-    /// number is accepted.
+    /// Sibling field whose selected country the number must match; any
+    /// globally valid number is accepted when absent.
     pub country: Option<syn::Ident>,
 }
 
@@ -183,14 +178,12 @@ fn default_custom_wraps_in_option() -> bool {
 pub struct CustomOptions {
     /// Path to a type implementing `gpui_form::custom::CustomComponentShape`.
     pub shape: syn::Path,
-    /// UI component type path (e.g. `TagsInput`).
-    /// When provided, the prototyping code generator emits `Component::new(&entity)`.
+    /// UI component type path (e.g. `TagsInput`); when set, prototyping
+    /// emits `Component::new(&entity)`.
     pub component: Option<syn::Path>,
-    /// Whether the value holder should store this field as `Option<T>`.
-    /// Defaults to `true`.
+    /// Store the holder field as `Option<T>`; defaults to `true`.
     pub wraps_in_option: bool,
-    /// Whether prototyping code should wire this custom component through
-    /// `CustomComponentValueAdapter`.
+    /// Wire prototyping through `CustomComponentValueAdapter`.
     pub value_binding: bool,
 }
 
@@ -262,17 +255,10 @@ pub struct BehaviourInfiniteSelectOptions {
     pub max_depth: Option<usize>,
 }
 
-/// Milestone M3 (backlog #2): `component(nested)` — a word-only marker, like
-/// `CheckboxOptions`. The field's own type names the nested form struct.
 #[derive(Clone, Debug, Eq, FromMeta, PartialEq)]
 pub struct NestedOptions;
 
-/// Milestone M3 (backlog #3): the scalar item component rendered per item of
-/// a `component(list(item = ...))` field. Custom FromMeta mirrors
-/// `LayoutWidthMeta`: a bare ident arrives as `Expr::Path`, a quoted kind as
-/// `Lit::Str`. `nested` and `custom(...)` are rejected in v1 (backlog #3:
-/// "scalar item components before nested item forms"; custom components stay
-/// app-owned escape hatches, not list items).
+/// The scalar item component kind of a `component(list(item = ...))` field.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ListItemSpec {
     Input,
@@ -334,8 +320,8 @@ impl FromMeta for ListItemSpec {
                     &expr_path.path.to_token_stream().to_string(),
                 )),
             },
-            // darling sometimes wraps the value in invisible grouping; recurse
-            // (mirrors `LayoutWidthMeta::from_expr` in the derive crate).
+            // darling can wrap attribute values in invisible `Expr::Group`
+            // nodes; recurse through them.
             syn::Expr::Group(group) => Self::from_expr(&group.expr),
             syn::Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
             _ => Err(DarlingError::unexpected_expr_type(expr)),
@@ -355,13 +341,13 @@ impl FromMeta for ListItemSpec {
     }
 }
 
-/// Milestone M3 (backlog #3): `component(list(item = <kind>))`. `item` is
-/// required — a bare `component(list)` is a parse error.
+/// Options of `component(list(item = <kind>))`; `item` is required — a bare
+/// `component(list)` is a parse error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListOptions {
     pub item: ListItemSpec,
-    /// Optional label override for the generated add button; falls back to
-    /// the `{form}.{field}_add` i18n key.
+    /// Label override for the generated add button; falls back to the
+    /// `{form}.{field}_add` i18n key.
     pub add_label: Option<String>,
 }
 
@@ -412,9 +398,6 @@ impl FromMeta for ListOptions {
 #[derive(Clone, Debug, Default)]
 pub struct InfiniteSelectOptions {
     pub behaviour: BehaviourInfiniteSelectOptions,
-    /// Field-level default value expression (e.g., `Country::France(...)` or
-    /// `default_country()`).
-    /// This is set by the derive macro when the field has a `default = ...` attribute.
     field_default: Option<syn::Expr>,
 }
 
@@ -477,9 +460,7 @@ pub enum Components {
     Custom(CustomOptions),
     DatePicker,
     FilePicker,
-    /// Milestone M3 (backlog #2): nested-form composition.
     Nested(NestedOptions),
-    /// Milestone M3 (backlog #3): repeated `Vec<T>` fields.
     List(ListOptions),
 }
 
@@ -500,11 +481,6 @@ define_component_definition!(FilePickerComponent, FilePickerOptions, FilePicker)
 define_component_definition!(NestedComponent, NestedOptions, Nested);
 define_component_definition!(ListComponent, ListOptions, List);
 
-/// The last path segment of a type, as a string literal: `Address` and
-/// `some_lib::Address` both yield `"Address"`. Used for the
-/// `NestedBehaviour::form_struct` metadata — the shared naming-convention
-/// hook the derive and prototyping use to resolve the nested form's
-/// generated types (`<Name>FormValueHolder` etc.).
 fn type_last_segment_str(field_type: &syn::Type) -> String {
     match field_type {
         syn::Type::Path(type_path) => type_path
@@ -517,13 +493,6 @@ fn type_last_segment_str(field_type: &syn::Type) -> String {
     }
 }
 
-/// The one numeric-family classification for a number-input field: the
-/// `as = ...` override when present, else the field's own type string, run
-/// through [`NumberInputKind::classify`]. Both consumers — the recorded
-/// `NumberInputBehaviour.kind` payload and the emitted input validator
-/// branch — read their behavior from the value this single parse-time call
-/// produces, so recorded metadata and generated validation can never
-/// disagree.
 pub(crate) fn number_input_kind(
     options: &NumberInputOptions,
     field_type: &syn::Type,
@@ -540,8 +509,6 @@ fn number_input_behaviour_tokens(
     options: &NumberInputOptions,
     field_type: &syn::Type,
 ) -> TokenStream {
-    // The recorded kind IS the shared classification (as-override first),
-    // not an independent guess.
     let kind_tokens = match number_input_kind(options, field_type) {
         NumberInputKind::Float => {
             quote! { ::gpui_form::schema::components::NumberInputKind::Float }
@@ -591,9 +558,6 @@ impl Components {
     pub fn wraps_in_option(&self) -> bool {
         match self {
             Self::Custom(options) => options.wraps_in_option,
-            // M3 (hazard 5): nested/list fields are never Option-wrapped by
-            // the component — the nested holder / plain item Vec stores as-is
-            // so `koruma(nested)` and `each(...)` apply directly.
             Self::Nested(_) | Self::List(_) => false,
             _ => self.kind().default_wraps_in_option(),
         }
@@ -713,9 +677,6 @@ impl Components {
                     &mut field_base_declarations_tokens,
                 );
             },
-            // M3: nested/list are value-only in v1 — no `FormFields` entity
-            // field and no `FormComponents` constructor (like checkbox and
-            // switch). The holder stores the composed value.
             Self::Nested(options) => {
                 let component = NestedComponent(FieldInformation::new(
                     options.clone(),
@@ -820,11 +781,6 @@ impl Components {
                 quote! { ::gpui_form::schema::components::ComponentsBehaviour::FilePicker }
             },
             Self::Nested(_) => {
-                // The nested form struct name: the last path segment of the
-                // field's base type (`Address`, `some_lib::Address` ->
-                // "Address"), matching the naming convention the derive and
-                // prototyping use to resolve the nested form's generated
-                // types.
                 let form_struct = type_last_segment_str(field_type);
                 quote! {
                     ::gpui_form::schema::components::ComponentsBehaviour::Nested(
@@ -863,15 +819,12 @@ impl Components {
                     ComponentKind::FilePicker => {
                         quote! { ::gpui_form::schema::components::ComponentKind::FilePicker }
                     },
-                    // `ListItemSpec` cannot name these kinds (parse-time
-                    // rejection), so the metadata arm is unreachable for
-                    // them; keep the match exhaustive for future kinds.
+                    // `ListItemSpec` rejects these kinds at parse time, so the
+                    // arm is unreachable; kept for match exhaustiveness.
                     ComponentKind::Custom | ComponentKind::Nested | ComponentKind::List => {
                         quote! { ::gpui_form::schema::components::ComponentKind::Input }
                     },
                 };
-                // v1 ships scalar items only; `item_struct` stays `None`
-                // until nested item forms ship (backlog #3 sequencing).
                 let item_struct = quote! { None };
                 let add_label = match options.add_label.as_deref() {
                     Some(label) => quote! { ::core::option::Option::Some(#label) },
@@ -939,9 +892,6 @@ mod tests {
         ListOptions::from_list(&items)
     }
 
-    /// Build `Components` the way the derive does: from the meta-list items
-    /// of `component(...)` (a bare `nested` word is a Path item, not a
-    /// string literal).
     fn components_from_tokens(tokens: proc_macro2::TokenStream) -> darling::Result<Components> {
         let items = darling::ast::NestedMeta::parse_meta_list(tokens)?;
         Components::from_list(&items)
@@ -949,17 +899,14 @@ mod tests {
 
     #[test]
     fn list_options_from_list_parses_bare_ident_and_quoted_items() {
-        // Bare ident (`item = input`) — the documented grammar.
         let options = list_options_from_tokens(quote! { item = input }).expect("bare ident item");
         assert_eq!(options.item, ListItemSpec::Input);
         assert_eq!(options.add_label, None);
 
-        // Quoted kind (`item = "number_input"`).
         let options =
             list_options_from_tokens(quote! { item = "number_input" }).expect("quoted item");
         assert_eq!(options.item, ListItemSpec::NumberInput);
 
-        // add_label rides along.
         let options = list_options_from_tokens(quote! { item = select, add_label = "Add tag" })
             .expect("item plus add_label");
         assert_eq!(options.item, ListItemSpec::Select);
@@ -968,7 +915,6 @@ mod tests {
 
     #[test]
     fn list_requires_an_item_component() {
-        // Bare `component(list)` arrives as from_word.
         let error = ListOptions::from_word().expect_err("bare list must be rejected");
         assert!(
             error
@@ -977,7 +923,6 @@ mod tests {
             "unexpected error: {error}"
         );
 
-        // `component(list(other = 1))` — no item key.
         let error = list_options_from_tokens(quote! { add_label = "x" })
             .expect_err("missing item must be rejected");
         assert!(
@@ -1034,8 +979,6 @@ mod tests {
 
     #[test]
     fn nested_and_list_emit_no_entity_layout() {
-        // Value-only in v1: no `FormFields` entity field / `FormComponents`
-        // constructor — the same no-op layout shape as checkbox/switch.
         let nested = components_from_tokens(quote! { nested }).expect("component(nested) word");
         let layout =
             nested.generate_field_layout("address".to_string(), syn::parse_quote!(Address), None);
@@ -1094,11 +1037,6 @@ mod tests {
     fn recorded_number_kind_and_emitted_validator_share_one_classification() {
         use super::NumberInputOptions;
 
-        // The recorded `NumberInputBehaviour.kind` payload and the emitted
-        // `.validate(...)` branch must both come from the single shared
-        // `number_input_kind` classification: an unsigned family records
-        // `UnsignedInteger` AND emits `validate_unsigned_numeric`; every
-        // other family records its kind and emits the signed branch.
         let cases: &[(&str, Option<&str>, &str, bool)] = &[
             ("i64", None, "SignedInteger", false),
             ("u32", None, "UnsignedInteger", true),

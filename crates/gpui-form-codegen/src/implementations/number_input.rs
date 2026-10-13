@@ -20,18 +20,13 @@ impl super::ComponentLayout for NumberInputComponent {
             pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
-        // Use the `as` option if provided for validation type detection, otherwise use the field type
         let validation_type = options
             .r#as
             .as_ref()
             .map(|ty| quote! { #ty })
             .unwrap_or_else(|| quote! { #r#type });
-        // The emitted validator branches on the SAME classified
-        // `NumberInputKind` the recorded metadata payload carries (one
-        // shared parse-time classification, as-override first), so a
-        // `number_input(as = ...)` field can never record one family and
-        // validate as another. `is_unsigned` is only true for the `u*`
-        // family; Custom types validate as signed.
+        // Same shared classification the recorded metadata payload carries,
+        // so an `as = ...` field cannot record one family and validate as another.
         let is_unsigned = number_input_kind(options, r#type).is_unsigned();
 
         let validation_logic = if is_unsigned {
