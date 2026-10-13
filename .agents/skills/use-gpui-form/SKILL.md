@@ -83,7 +83,10 @@ Full syntax inventory: root `README.md` §Component Syntax, or
   a reusable shape with `gpui_form::custom_component_shape!`.
 - For value-bound custom widgets, implement
   `gpui_form::custom::CustomComponentValueAdapter<T>` on the shape and use
-  `component(custom(shape = ..., value_binding))`.
+  `component(custom(shape = ..., value_binding))`. Both hooks are required:
+  `value_change` converts events, and `set_state_value` seeds state from the
+  form value (an intentionally inert hook gets an explicit empty body — the
+  trait has no silent defaults).
 - For typed field naming (validation, dirty tracking, focus, analytics, schema
   export), use the generated `<Name>FormPath` constructors such as
   `UserProfileFormPath::username()`; skipped fields have no constructor.
@@ -201,14 +204,18 @@ reuse the `validation.required` locale key. Details: root `README.md`
 
 Every form emits `<Name>FormPath`, a typed newtype over
 `gpui_form::FieldPath` (no feature flag, no GPUI, no serde). One constructor
-per non-skipped field; skipped fields have none. The same type carries
-`FIELD_NAMES`, `FIELD_COUNT`, `all_paths()`, `field_index()`, and
-`path_for_index()` for declaration-order iteration and dense index mapping
-(single-segment flat paths only; unknown or hand-built multi-segment paths map
-to `None` and are inert in field-level state). Hand-built multi-segment paths
-via `<Name>FormPath::new(&["a", "b"])` work today; typed nested/list
-composition arrives with backlog #2/#3. Koruma forms also gain path-keyed
-error access: `holder.validate_fields()` →
+per non-skipped field; skipped fields have none. Milestone M3 added typed
+composition: nested fields get `<field>_root()` plus a consuming appender
+`fn <field>(self)`, list fields get `<field>_root()` plus
+`fn <field>(index: usize)` with a typed index segment, and every form gets
+`join` for cross-form composition — prefer these over hand-built paths.
+`<Name>FormPath::new(&["a", "b"])` still works for names-only paths. The
+same type carries `FIELD_NAMES`, `FIELD_COUNT`, `all_paths()`,
+`field_index()`, and `path_for_index()` for declaration-order iteration and
+dense index mapping (single-segment flat paths only; unknown or hand-built
+multi-segment paths map to `None` and are inert in field-level state).
+Koruma forms also gain path-keyed error access:
+`holder.validate_fields()` →
 `errors.error_for(&<Name>FormPath::field())` with per-field `issue_keys()`
 (`validation.*` keys; inner newtype/nested failures report
 `validation.invalid`). Details: root `README.md` §Typed Field Paths and

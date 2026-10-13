@@ -97,14 +97,6 @@ Important fields:
   (`LayoutWidth`)
 - `async_validator` (`Option<&'static str>`): metadata-only async validator
   path (M2 emission sketch)
-
-`NumberInputKind::classify` is the one numeric-family classifier:
-`gpui-form-codegen` classifies each number-input field once (with the
-`as = ...` override string when present, else the field type) and feeds the
-same `NumberInputKind` value to both the recorded `NumberInputBehaviour.kind`
-payload and the emitted input validator branch; prototyping's step
-arithmetic calls `classify` on the raw value type. Recorded kind and
-generated behavior therefore cannot disagree.
 - `depends_on` (`Option<&'static str>`): the sibling field this field
   depends on (M4, backlog #12) — metadata-only; reset-on-parent-change is
   consumer-authored
@@ -117,6 +109,22 @@ Both M4 payloads store the sibling's field name — the same `&'static str`
 representation a `FieldPath` name segment carries — through const builders
 (`with_depends_on` / `with_required_if`), keeping the `inventory::submit!`
 contract (const-callable, `Copy`/`&'static str` payloads only).
+
+### `NumberInputKind::classify`, the one numeric-family classifier
+
+`gpui-form-codegen` classifies each number-input field once at parse time —
+with the number-input `as = ...` override string when present, else the
+field type — and feeds the same `NumberInputKind` value to both the
+recorded `NumberInputBehaviour.kind` payload and the emitted input
+validator branch, so recorded metadata and generated validation cannot
+disagree.
+
+Prototyping's step arithmetic is a separate, deliberate caller: it calls
+`classify` on the field's recorded `value_type` string — the raw field type
+(unless a field-level `type = ...` override applies). It never consults the
+number-input `as = ...` override, because the holder stores the raw field
+type and stepping must follow the stored value's semantics (an
+`as = f64` Decimal still steps through Decimal arithmetic).
 
 ### Schema-export view types (M5, backlog #14)
 

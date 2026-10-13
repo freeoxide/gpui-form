@@ -476,7 +476,15 @@ change.
   compute does not cache; `validate` stores and serves; the `state_mut`
   escape is caught by the snapshot comparison; resets invalidate even a
   matching snapshot; `sync_baseline` keeps the cache; `error_for` caches on
-  miss) over both koruma enablement routes.
+  miss) over both koruma enablement routes. Its hit-side contracts
+  (core-hit-tests section) use a counting `#[validator]` whose only
+  observable is a static call counter — revalidation is invisible to a
+  plain form, so the counter is the oracle: one test pins zero revalidation
+  on warm `error_for`/`validation()`/`is_valid` reads (and again after the
+  cache is re-armed), one pins that a hit read does not disturb the cached
+  snapshot (`hit_side_error_for_leaves_the_cached_snapshot_intact`), and
+  one pins mutator→read ordering keeping hit-path verdicts accurate
+  (`error_for_hit_reads_stay_accurate_across_mutator_ordering`).
 - `tests/submit_state.rs` exercises the M2 submit alias (typed koruma error
   parameter on both koruma routes, `BoxError` on plain/empty forms,
   begin→finish(Err)→finish(Ok) transitions, stale-generation completions
