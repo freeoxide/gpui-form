@@ -195,16 +195,17 @@ fn bench_validate_numeric_keystrokes(c: &mut Criterion) {
     };
 
     c.bench_function("numeric/validate_signed_numeric_i32_keystrokes", |b| {
-        b.iter(|| sweep(|v, p| validate_signed_numeric::<i32>(v, p), true))
+        b.iter(|| sweep(validate_signed_numeric::<i32>, true))
     });
     c.bench_function("numeric/validate_signed_numeric_f64_keystrokes", |b| {
-        b.iter(|| sweep(|v, p| validate_signed_numeric::<f64>(v, p), true))
+        b.iter(|| sweep(validate_signed_numeric::<f64>, true))
     });
-    c.bench_function("numeric/validate_signed_numeric_f64_keystrokes_no_parse", |b| {
-        b.iter(|| sweep(|v, p| validate_signed_numeric::<f64>(v, p), false))
-    });
+    c.bench_function(
+        "numeric/validate_signed_numeric_f64_keystrokes_no_parse",
+        |b| b.iter(|| sweep(validate_signed_numeric::<f64>, false)),
+    );
     c.bench_function("numeric/validate_unsigned_numeric_u32_keystrokes", |b| {
-        b.iter(|| sweep(|v, p| validate_unsigned_numeric::<u32>(v, p), true))
+        b.iter(|| sweep(validate_unsigned_numeric::<u32>, true))
     });
 }
 

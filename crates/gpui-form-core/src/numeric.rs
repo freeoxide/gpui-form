@@ -12,42 +12,42 @@
 ///
 /// When `require_parse` is true, also validates that the value can be parsed
 /// to the target type T.
+///
+/// The scan is allocation-free: it runs over the input's UTF-8 bytes rather
+/// than a collected `Vec<char>`. Byte and char scans accept/reject
+/// identically here because no byte of a multi-byte UTF-8 character is an
+/// ASCII digit, `.`, or `-`, so a non-ASCII character rejects at its first
+/// byte exactly as it would at its `char` boundary.
 pub fn validate_signed_numeric<T: std::str::FromStr>(value: &str, require_parse: bool) -> bool {
     if value.is_empty() {
         return true;
     }
 
-    let chars: Vec<char> = value.chars().collect();
+    let bytes = value.as_bytes();
 
     // Allow just "-" for intermediate input
-    if chars.len() == 1 && chars[0] == '-' {
+    if bytes.len() == 1 && bytes[0] == b'-' {
         return true;
     }
 
     // First character: must be 0-9 or '-'
-    if !chars[0].is_ascii_digit() && chars[0] != '-' {
+    if !bytes[0].is_ascii_digit() && bytes[0] != b'-' {
         return false;
     }
 
     // If there are more characters, validate from second character onwards
-    if chars.len() > 1 {
-        let start_idx = if chars[0] == '-' { 1 } else { 0 };
+    if bytes.len() > 1 {
+        let rest = if bytes[0] == b'-' { &bytes[1..] } else { bytes };
 
         // Check for invalid leading zeros: "0X" where X is a digit (not decimal point)
         // Allow: "0", "0.", "0.5", "-0", "-0.", "-0.5"
         // Reject: "00", "01", "-00", "-01"
-        if chars[start_idx] == '0'
-            && chars.len() > start_idx + 1
-            && chars[start_idx + 1].is_ascii_digit()
-        {
+        if rest[0] == b'0' && rest.len() > 1 && rest[1].is_ascii_digit() {
             return false;
         }
 
         // Second character onwards: can't be '-'
-        if !chars[start_idx..]
-            .iter()
-            .all(|&c| c.is_ascii_digit() || c == '.')
-        {
+        if !rest.iter().all(|&b| b.is_ascii_digit() || b == b'.') {
             return false;
         }
     }
@@ -72,27 +72,31 @@ pub fn validate_signed_numeric<T: std::str::FromStr>(value: &str, require_parse:
 ///
 /// When `require_parse` is true, also validates that the value can be parsed
 /// to the target type T.
+///
+/// Like [`validate_signed_numeric`], the scan is allocation-free over the
+/// input's UTF-8 bytes; byte and char scans accept/reject identically
+/// because no byte of a multi-byte UTF-8 character is an ASCII digit.
 pub fn validate_unsigned_numeric<T: std::str::FromStr>(value: &str, require_parse: bool) -> bool {
     if value.is_empty() {
         return true;
     }
 
-    let chars: Vec<char> = value.chars().collect();
+    let bytes = value.as_bytes();
 
     // For unsigned types, first character must be 0-9
-    if !chars[0].is_ascii_digit() {
+    if !bytes[0].is_ascii_digit() {
         return false;
     }
 
     // Check for invalid leading zeros: "0X" where X is a digit
     // Allow: "0"
     // Reject: "00", "01", "001"
-    if chars[0] == '0' && chars.len() > 1 && chars[1].is_ascii_digit() {
+    if bytes[0] == b'0' && bytes.len() > 1 && bytes[1].is_ascii_digit() {
         return false;
     }
 
     // All characters must be digits
-    if !chars.iter().all(|&c| c.is_ascii_digit()) {
+    if !bytes.iter().all(|&b| b.is_ascii_digit()) {
         return false;
     }
 

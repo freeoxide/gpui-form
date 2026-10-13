@@ -226,7 +226,8 @@ impl FieldPath {
     /// assert_eq!(path.to_string(), "address.city");
     /// ```
     pub fn push_name(self, name: &'static str) -> Self {
-        let mut segments = self.segments.into_vec();
+        let mut segments = Vec::with_capacity(self.segments.len() + 1);
+        segments.extend_from_slice(&self.segments);
         segments.push(PathSegment::Name(name));
         Self {
             segments: segments.into(),
@@ -249,7 +250,8 @@ impl FieldPath {
     /// assert_eq!(path.to_string(), "tags.2");
     /// ```
     pub fn push_index(self, index: usize) -> Self {
-        let mut segments = self.segments.into_vec();
+        let mut segments = Vec::with_capacity(self.segments.len() + 1);
+        segments.extend_from_slice(&self.segments);
         segments.push(PathSegment::Index(index));
         Self {
             segments: segments.into(),
@@ -273,8 +275,9 @@ impl FieldPath {
     /// assert_eq!(root.join(&inner).to_string(), "address.city.zip");
     /// ```
     pub fn join(mut self, other: &Self) -> Self {
-        let mut segments = self.segments.into_vec();
-        segments.extend(other.segments.iter().copied());
+        let mut segments = Vec::with_capacity(self.segments.len() + other.segments.len());
+        segments.extend_from_slice(&self.segments);
+        segments.extend_from_slice(&other.segments);
         self.segments = segments.into();
         self
     }
@@ -490,6 +493,41 @@ mod tests {
             .push_name("email");
         assert_eq!(path.segments().len(), 3);
         assert_eq!(path.to_string(), "contacts.1.email");
+    }
+
+    #[test]
+    fn deep_push_chains_and_joins_preserve_every_segment() {
+        // The exact-capacity composition path: each step re-allocates once at
+        // exactly `len + 1` (or `len + other_len` for join); long chains must
+        // still preserve segment order and content end to end.
+        let path = FieldPath::new(&["a"])
+            .push_name("b")
+            .push_index(3)
+            .push_name("c")
+            .push_index(4)
+            .push_name("d");
+        assert_eq!(
+            path.segments(),
+            &[
+                PathSegment::Name("a"),
+                PathSegment::Name("b"),
+                PathSegment::Index(3),
+                PathSegment::Name("c"),
+                PathSegment::Index(4),
+                PathSegment::Name("d"),
+            ]
+        );
+        assert_eq!(path.to_string(), "a.b.3.c.4.d");
+
+        // join of an index-bearing self with a multi-segment other.
+        let left = FieldPath::new(&["x"]).push_index(1);
+        let right = FieldPath::new(&["y", "z"]);
+        let joined = left.join(&right);
+        assert_eq!(joined.segments().len(), 4);
+        assert_eq!(joined.to_string(), "x.1.y.z");
+
+        // Joined paths keep composing (the join result feeds further pushes).
+        assert_eq!(joined.push_index(9).to_string(), "x.1.y.z.9");
     }
 
     #[test]

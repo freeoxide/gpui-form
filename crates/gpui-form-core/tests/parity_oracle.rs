@@ -100,8 +100,58 @@ fn numeric_validator_adjacent_semantics_are_pinned() {
     // require_parse is on, and skipped when it is off.
     assert!(validate_unsigned_numeric::<u8>("255", true));
     assert!(!validate_unsigned_numeric::<u8>("256", true));
-    assert!(validate_signed_numeric::<i32>("999999999999999999999", false));
-    assert!(validate_unsigned_numeric::<u32>("999999999999999999999", false));
+    assert!(validate_signed_numeric::<i32>(
+        "999999999999999999999",
+        false
+    ));
+    assert!(validate_unsigned_numeric::<u32>(
+        "999999999999999999999",
+        false
+    ));
+}
+
+/// Multi-byte UTF-8 inputs pin the byte-scan equivalence the allocation-free
+/// keystroke scan relies on: no byte of a multi-byte UTF-8 character is an
+/// ASCII digit, `.`, or `-`, so a byte-level scan must reject exactly where a
+/// `char`-level scan would (every row below rejects in ALL four columns,
+/// including mixed ASCII-leading shapes like `"1٢"` and sign-leading `-é`).
+#[test]
+fn numeric_validator_utf8_inputs_reject_like_char_scans() {
+    const MULTIBYTE_INPUTS: &[&str] = &[
+        "١٢٣",  // Arabic-Indic digits: digit-LOOKING chars, not ASCII digits
+        "1٢",   // valid ASCII lead, multi-byte tail
+        "-1٢",  // valid sign, multi-byte tail
+        "é",    // multi-byte first char (signed first-char check)
+        "-é",   // sign then multi-byte (signed rest scan)
+        "1.2é", // valid float prefix, multi-byte tail
+        "²",    // superscript two: `char::is_numeric`, never `is_ascii_digit`
+    ];
+
+    for &input in MULTIBYTE_INPUTS {
+        assert!(
+            !validate_signed_numeric::<i32>(input, true),
+            "signed i32(require_parse) accepted multibyte input {input:?}"
+        );
+        assert!(
+            !validate_signed_numeric::<f64>(input, true),
+            "signed f64(require_parse) accepted multibyte input {input:?}"
+        );
+        assert!(
+            !validate_unsigned_numeric::<u32>(input, true),
+            "unsigned u32(require_parse) accepted multibyte input {input:?}"
+        );
+        assert!(
+            !validate_signed_numeric::<f64>(input, false),
+            "signed f64(no parse check) accepted multibyte input {input:?}"
+        );
+    }
+
+    // The ASCII neighbors of the rejected shapes stay accepted, so the
+    // multibyte rejections above are about the multi-byte bytes themselves.
+    assert!(validate_signed_numeric::<i32>("123", true));
+    assert!(validate_signed_numeric::<i32>("-12", true));
+    assert!(validate_signed_numeric::<f64>("1.2", true));
+    assert!(validate_unsigned_numeric::<u32>("123", true));
 }
 
 // ── FieldPath Display / equality ───────────────────────────────────────────
@@ -167,7 +217,9 @@ fn field_path_equality_is_pinned() {
         FieldPath::from_segments(&[PathSegment::Name("a"), PathSegment::Name("b")])
     );
     assert_eq!(
-        FieldPath::new(&["contacts"]).push_index(1).push_name("email"),
+        FieldPath::new(&["contacts"])
+            .push_index(1)
+            .push_name("email"),
         FieldPath::from_segments(&[
             PathSegment::Name("contacts"),
             PathSegment::Index(1),
@@ -178,7 +230,9 @@ fn field_path_equality_is_pinned() {
         FieldPath::new(&["contacts"])
             .push_index(2)
             .join(&FieldPath::new(&["name"])),
-        FieldPath::new(&["contacts"]).push_index(2).push_name("name")
+        FieldPath::new(&["contacts"])
+            .push_index(2)
+            .push_name("name")
     );
 
     // Segment-level equality underlies path equality.
