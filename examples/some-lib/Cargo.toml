@@ -5,6 +5,11 @@ edition.workspace = true
 license = "Unlicense"
 publish = false
 
+[lib]
+# Keep the libtest unittest binary out of `cargo bench` runs — libtest
+# rejects criterion's `--save-baseline` arg (see workspace default-members).
+bench = false
+
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true }
