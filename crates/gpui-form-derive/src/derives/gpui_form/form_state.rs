@@ -10,10 +10,9 @@ use crate::derives::gpui_form::errors::participates_in_field_errors;
 use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 use crate::derives::gpui_form::value_holder::form_field_type_tokens;
 
-/// Generates `<Name>FormState` and `<Name>FormPatch` for one form, spliced
-/// into the derive output. `enable_validation` gates the koruma validation
-/// cache and its methods; callers pass the same `needs_koruma_derive` gate
-/// as the holder's `#[derive(Koruma)]`, restricted to non-generic structs.
+/// Generates `<Name>FormState` and `<Name>FormPatch` for one form, spliced into
+/// the derive output. `enable_validation` gates the koruma validation cache and
+/// its methods; callers pass the holder's `needs_koruma_derive` gate, non-generic only.
 pub fn generate_form_state(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],

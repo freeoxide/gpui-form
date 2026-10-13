@@ -542,8 +542,7 @@ pub fn generate_field_errors(
                         quote! {
                             #root_arm
                             // `field.<i>`: `Some` only when item `i` failed its
-                            // `each(..)` validators; the element error itself is
-                            // reachable via `<field>_element_error`.
+                            // `each(..)` validators; see `<field>_element_error`.
                             [
                                 ::gpui_form::core::PathSegment::Name(#name_str),
                                 ::gpui_form::core::PathSegment::Index(index),
