@@ -111,6 +111,33 @@ mod tests {
         }
     }
 
+    /// The two embedded locale table copies (this crate's `locales/` and
+    /// `gpui-form-i18n`'s) must agree on every overlapping key's VALUE, not
+    /// just the key set. The two `rust_i18n` backends coexist in this test
+    /// binary: `I18n::localize_message` resolves through the bridge crate's
+    /// table, this crate's `t!` through the component table — so equality
+    /// here is a cross-crate gate (a miss on either side renders as the
+    /// humanized key vs the raw key and fails the comparison).
+    #[test]
+    fn locale_tables_agree_with_the_bridge_crate_copy() {
+        let _guard = lock_locale();
+        let bridge = I18n::new();
+
+        for &locale in LOCALES {
+            rust_i18n::set_locale(locale);
+            for &key in KEYS {
+                let via_bridge = bridge.localize_message(key);
+                let via_component = t!(key, locale = locale).to_string();
+                assert_eq!(
+                    via_bridge, via_component,
+                    "locale tables disagree for {key} in {locale}"
+                );
+            }
+        }
+
+        rust_i18n::set_locale("en");
+    }
+
     #[test]
     fn resolves_runtime_component_messages() {
         let _guard = lock_locale();

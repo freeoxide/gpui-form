@@ -1155,11 +1155,15 @@ where
 
     /// Keeps the rendered child selects in sync after a selection change.
     ///
-    /// Levels strictly above `changed_depth` still select from the same branch,
-    /// so their entities — each owning a nested list/input entity pair plus its
-    /// blur subscriptions — stay alive and only get their selected row
-    /// re-synced. The changed level and everything below it select from a
-    /// different branch, so those entities are torn down and rebuilt fresh.
+    /// `changed_depth` is the path level whose selection changed (the master
+    /// is level 0; the child covering level `changed_depth` picked a new
+    /// row). Every child at or above that level still chooses from the same
+    /// branch — the changed select itself only picked a different row of the
+    /// same option list — so those entities (each owning a nested list/input
+    /// entity pair plus its blur subscriptions) stay alive and get their
+    /// selected row re-synced. Everything strictly below the changed depth
+    /// selects into a different branch, so those entities are torn down and
+    /// rebuilt fresh from the new path.
     fn sync_child_selects(
         &mut self,
         changed_depth: usize,

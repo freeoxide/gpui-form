@@ -13,8 +13,10 @@
 //! `{form}.{field}_add` / `{form}.{field}_remove` — except when
 //! `list(add_label = "...")` overrides the Add button, in which case the
 //! literal label is emitted and `collect_i18n_keys` omits the `_add` key to
-//! match. List metadata must be `Vec<T>`: the Add button appends
-//! `<T as Default>::default()`, so non-`Vec` value types return a typed
+//! match. Locale misses fall back to action words for the buttons (`Add` /
+//! `Remove`) and to the title-cased field name for labels. List metadata
+//! must be `Vec<T>`: the Add button appends `<T as Default>::default()`, so
+//! non-`Vec` value types return a typed
 //! [`PrototypingError`](crate::error::PrototypingError) instead of emitting
 //! a scaffold that would fail to compile in the consumer crate.
 
@@ -76,9 +78,12 @@ impl FieldCodeGenerator for ListCodeGenerator {
         let item_label = super::localized_text_tokens(field, component, "item_label");
         let add_label = match add_label_override(field) {
             Some(label) => quote! { #label.to_string() },
-            None => super::localized_text_tokens(field, component, "add"),
+            // Locale misses fall back to the action word, not the field
+            // name — both buttons would otherwise read "Tags".
+            None => super::localized_text_tokens_with_fallback(field, component, "add", "Add"),
         };
-        let remove_label = super::localized_text_tokens(field, component, "remove");
+        let remove_label =
+            super::localized_text_tokens_with_fallback(field, component, "remove", "Remove");
 
         Ok(vec![quote! {
             /// Repeatable-row control for this list field: one row per

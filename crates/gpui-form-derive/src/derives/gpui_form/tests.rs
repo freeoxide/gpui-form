@@ -1006,6 +1006,48 @@ mod gpui_form_tests {
         );
     }
 
+    // token-level: schema metadata strings keep canonical token spacing
+    // (M5 export surface — the strings ARE the exported documents, so
+    // `crate :: defaults :: country ()` would pin printer spacing into
+    // every fixture, exactly like the `Vec < String >` value-type
+    // regression)
+    #[test]
+    fn schema_metadata_expr_strings_keep_canonical_spacing() {
+        let expand = |tokens: proc_macro2::TokenStream| {
+            let derive_input: DeriveInput = syn::parse2(tokens).unwrap();
+            expansion::expand_gpui_form(
+                derive_input,
+                structs::GpuiFormOptions {
+                    generate_shape: true,
+                },
+            )
+            .to_string()
+        };
+
+        let expanded = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(select), default = crate::defaults::country())]
+                country: String,
+            }
+        });
+
+        // The raw Display keeps its between-tree spaces, so assert the
+        // exported LITERAL's content: the path must be `::`-glued inside the
+        // `with_default` quotes. The negative check targets the same literal
+        // in its spaced form — the expansion's RUNTIME Default impl
+        // legitimately keeps the printer's spacing (`country : crate ::
+        // defaults :: country ()`), and only the exported string is pinned.
+        assert!(
+            expanded.contains(r#"with_default ("crate::defaults::country()")"#),
+            "the default expression must export in canonical spelling: {expanded}"
+        );
+        assert!(
+            !expanded.contains(r#"with_default ("crate :: defaults :: country ()")"#),
+            "the proc-macro printer's token spacing must not leak into the exported literal: {expanded}"
+        );
+    }
+
     // ── M4: dependency metadata + conditional-required desugaring ──────────
 
     /// Token-level: the FieldVariant chain records both sibling references,

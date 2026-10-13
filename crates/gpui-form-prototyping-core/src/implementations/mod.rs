@@ -12,7 +12,7 @@ pub mod select;
 pub mod switch;
 
 use gpui_form_schema::{
-    components::ComponentsBehaviour,
+    components::{ComponentsBehaviour, NestedBehaviour},
     layout::FieldLayout,
     registry::{FieldVariant, GpuiFormShape},
 };
@@ -81,6 +81,21 @@ impl<'a> ResolvedField<'a> {
                 error: error.to_string(),
             }
         })?;
+
+        // The nested scaffold is composed by convention from raw
+        // `form_struct` metadata (`{form_struct}Form` ident,
+        // `crate::<snake>::{form_struct}Form` import). A malformed name must
+        // fail here with the typed error — never in `format_ident!` inside
+        // the nested generator (the same validate-before-tokenize contract
+        // the import set applies to the composed import path).
+        if let ComponentsBehaviour::Nested(NestedBehaviour { form_struct }) = &field.behaviour {
+            syn::parse_str::<Ident>(&format!("{form_struct}Form")).map_err(|_| {
+                PrototypingError::InvalidIdentifier {
+                    kind: "nested form struct",
+                    value: form_struct.to_string(),
+                }
+            })?;
+        }
 
         let custom_component_path = match field.custom_component {
             Some(component_path) => {
@@ -487,13 +502,27 @@ pub(crate) fn localized_text_tokens(
 ) -> proc_macro2::TokenStream {
     use heck::ToTitleCase as _;
 
+    let fallback = field.field_name().to_title_case();
+    localized_text_tokens_with_fallback(field, component, suffix, &fallback)
+}
+
+/// [`localized_text_tokens`] with an explicit locale-miss fallback.
+///
+/// The list Add/Remove buttons use it to fall back to the action words
+/// ("Add" / "Remove") instead of the title-cased field name — a button
+/// reading "Tags" for both actions names nothing the user can do.
+pub(crate) fn localized_text_tokens_with_fallback(
+    field: &ResolvedField<'_>,
+    component: &GpuiFormShape,
+    suffix: &str,
+    fallback: &str,
+) -> proc_macro2::TokenStream {
     let key = format!(
         "{}.{}_{}",
         component.struct_name().to_snake_case(),
         field.field_name(),
         suffix
     );
-    let fallback = field.field_name().to_title_case();
     quote! {{
         let key: &str = #key;
         let translated = ::rust_i18n::t!(key);
@@ -1180,6 +1209,59 @@ mod tests {
         assert!(
             compact.contains("post_editor.tags_remove"),
             "the Remove button keeps its localized lookup: {compact}"
+        );
+    }
+
+    #[test]
+    fn list_button_labels_fall_back_to_action_words_on_locale_miss() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+
+        let add_fallback = super::localized_text_tokens_with_fallback(&field, &SHAPE, "add", "Add");
+        let remove_fallback =
+            super::localized_text_tokens_with_fallback(&field, &SHAPE, "remove", "Remove");
+        let add = compact(&add_fallback.to_string());
+        let remove = compact(&remove_fallback.to_string());
+
+        assert!(
+            add.contains(r#""Add".to_string()"#) && add.contains("post_editor.tags_add"),
+            "the Add button must resolve tags_add and fall back to the action word: {add}"
+        );
+        assert!(
+            !add.contains("Tags"),
+            "the Add button must not fall back to the title-cased field name: {add}"
+        );
+        assert!(
+            remove.contains(r#""Remove".to_string()"#)
+                && remove.contains("post_editor.tags_remove"),
+            "the Remove button must resolve tags_remove and fall back to the action word: {remove}"
+        );
+        assert!(
+            !remove.contains("Tags"),
+            "the Remove button must not fall back to the title-cased field name: {remove}"
+        );
+        // The per-row label keeps the field-name fallback: it is a label.
+        let item_label =
+            compact(&super::localized_text_tokens(&field, &SHAPE, "item_label").to_string());
+        assert!(
+            item_label.contains(r#""Tags".to_string()"#),
+            "the item label keeps the title-cased field-name fallback: {item_label}"
         );
     }
 

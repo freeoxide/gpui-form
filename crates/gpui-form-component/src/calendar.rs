@@ -193,16 +193,8 @@ impl CalendarState {
     }
 
     fn apply_year_range(&mut self, range: (i32, i32)) {
-        self.years = (range.0..range.1)
-            .collect::<Vec<_>>()
-            .chunks(20)
-            .map(|chunk| chunk.to_vec())
-            .collect::<Vec<_>>();
-        self.year_page = self
-            .years
-            .iter()
-            .position(|years| years.contains(&self.current_year))
-            .unwrap_or(0) as i32;
+        self.years = year_pages(range);
+        self.year_page = year_page_for(&self.years, self.current_year);
     }
 
     fn offset_year_month(&self, offset_month: usize) -> (i32, u32) {
@@ -666,7 +658,9 @@ impl Calendar {
     fn render_years(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
         let current_year = state.current_year;
-        let current_page_years = &self.state.read(cx).years[state.year_page as usize].clone();
+        // Own the page: it borrows through `state`, which borrows `cx`, and
+        // the row closures below need `cx` mutably.
+        let current_page_years = current_year_page(&state.years, state.year_page).to_vec();
 
         h_flex()
             .id("years")
@@ -771,6 +765,35 @@ fn date_outside_bounds(
     max_date: Option<NaiveDate>,
 ) -> bool {
     min_date.is_some_and(|min| *date < min) || max_date.is_some_and(|max| *date > max)
+}
+
+/// The year-picker grid for `range`: years chunked into pages of 20. An
+/// empty or degenerate range (`start >= end`) produces no pages.
+fn year_pages(range: (i32, i32)) -> Vec<Vec<i32>> {
+    (range.0..range.1)
+        .collect::<Vec<_>>()
+        .chunks(20)
+        .map(|chunk| chunk.to_vec())
+        .collect()
+}
+
+/// The page index whose years contain `year`, or the first page when no
+/// page does (an out-of-range `current_year` still needs a page to show).
+fn year_page_for(pages: &[Vec<i32>], year: i32) -> i32 {
+    pages
+        .iter()
+        .position(|years| years.contains(&year))
+        .unwrap_or(0) as i32
+}
+
+/// The years on the year picker's current page, or an empty slice when the
+/// page is out of bounds — an empty/degenerate `year_range` leaves `years`
+/// empty, and a stale `year_page` must render nothing, not panic.
+fn current_year_page(years: &[Vec<i32>], year_page: i32) -> &[i32] {
+    years
+        .get(usize::try_from(year_page).unwrap_or(usize::MAX))
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
 }
 
 fn days_in_month(year: i32, month: u32, first_weekday: Weekday) -> Vec<Vec<NaiveDate>> {
@@ -908,7 +931,10 @@ mod tests {
     use icu_calendar::types::Weekday;
     use icu_locale_core::{Locale, locale};
 
-    use super::{days_in_month, first_weekday, format_day_name, format_month_name, weekday_names};
+    use super::{
+        current_year_page, days_in_month, first_weekday, format_day_name, format_month_name,
+        weekday_names, year_page_for, year_pages,
+    };
 
     fn month_names_for(locale: &Locale) -> Vec<String> {
         (1..=12)
@@ -1006,5 +1032,47 @@ mod tests {
         for day in [below, inside, above] {
             assert!(!date_outside_bounds(&day, None, None));
         }
+    }
+
+    // ── year-range regression guards (empty/degenerate ranges) ──────────────
+
+    #[test]
+    fn empty_year_range_leaves_no_pages_and_renders_no_years() {
+        // `start == end` collects no years at all — the pre-guard code
+        // indexed `years[0]` in the year view and panicked.
+        let pages = year_pages((2026, 2026));
+        assert!(pages.is_empty());
+        assert_eq!(year_page_for(&pages, 2026), 0);
+        assert!(current_year_page(&pages, 0).is_empty());
+
+        // A reversed range degenerates the same way.
+        assert!(year_pages((2100, 1900)).is_empty());
+    }
+
+    #[test]
+    fn year_pages_chunk_by_twenty_and_locate_the_current_year() {
+        let pages = year_pages((2000, 2060));
+        assert_eq!(pages.len(), 3);
+        assert_eq!(pages[0].first(), Some(&2000));
+        assert_eq!(pages[0].last(), Some(&2019));
+        assert_eq!(pages[2].last(), Some(&2059));
+
+        assert_eq!(year_page_for(&pages, 2000), 0);
+        assert_eq!(year_page_for(&pages, 2026), 1);
+        assert_eq!(year_page_for(&pages, 2059), 2);
+        // A year on no page falls back to the first page.
+        assert_eq!(year_page_for(&pages, 3000), 0);
+    }
+
+    #[test]
+    fn out_of_bounds_year_pages_render_nothing_instead_of_panicking() {
+        let pages = year_pages((2000, 2060));
+        assert_eq!(current_year_page(&pages, 0).first(), Some(&2000));
+        assert_eq!(current_year_page(&pages, 1).first(), Some(&2020));
+        // Beyond the last page — e.g. a stale page after the range shrank.
+        assert!(current_year_page(&pages, 3).is_empty());
+        // A negative page must not wrap the `as usize` cast into a valid
+        // index.
+        assert!(current_year_page(&pages, -1).is_empty());
     }
 }

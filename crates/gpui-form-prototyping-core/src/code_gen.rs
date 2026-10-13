@@ -692,6 +692,38 @@ mod tests {
     }
 
     #[test]
+    fn parts_return_error_for_malformed_nested_form_struct() {
+        // The nested scaffold ident and import are composed by convention
+        // from raw `form_struct` metadata; a malformed name must surface as
+        // the typed `InvalidIdentifier` error from `ResolvedField::new`
+        // before the nested generator's `format_ident!` can panic on it.
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "address",
+            "Address",
+            false,
+            ComponentsBehaviour::Nested(gpui_form_schema::components::NestedBehaviour {
+                form_struct: "Address Book",
+            }),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let error = match FormShapeAdapter::new(&SHAPE).parts() {
+            Ok(_) => panic!("malformed nested form_struct should return an error"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error,
+            PrototypingError::InvalidIdentifier {
+                kind: "nested form struct",
+                value: "Address Book".to_string(),
+            },
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
     fn required_imports_validate_before_tokenization_for_malformed_metadata() {
         // The nested scaffold import is composed by convention from raw
         // `form_struct` metadata; a malformed name must fail tokenization

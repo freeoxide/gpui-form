@@ -117,13 +117,15 @@ impl NumberInputKind {
     /// The one numeric-family classifier, shared by every emission path:
     /// `gpui-form-codegen` classifies once per field and feeds the same
     /// [`NumberInputKind`] value to both the recorded
-    /// `NumberInputBehaviour.kind` payload and the emitted input validator
-    /// branch, and prototyping's step arithmetic calls this on the raw
-    /// value type — so the recorded kind can never disagree with the
-    /// generated behavior.
+    /// [`NumberInputBehaviour.kind`] payload and the emitted input validator
+    /// branch, and prototyping's step arithmetic calls this on the recorded
+    /// raw value type — so the recorded kind can never disagree with the
+    /// generated validation branch.
     ///
-    /// `type_str` is the `as = ...` override when the field carries one,
-    /// else the field's own type string.
+    /// `type_str` is the caller's type string: the codegen caller passes the
+    /// number-input `as = ...` override when present, else the field's own
+    /// type; prototyping passes the recorded `value_type` (the raw field
+    /// type), never the `as = ...` override.
     pub fn classify(type_str: &str) -> Self {
         if type_str.starts_with('f') {
             Self::Float

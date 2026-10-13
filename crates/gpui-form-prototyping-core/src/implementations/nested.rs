@@ -133,6 +133,14 @@ fn nested_form_var(field: &ResolvedField<'_>) -> proc_macro2::Ident {
 
 /// The nested form's scaffold ident: `AddressForm` for
 /// `NestedBehaviour { form_struct: "Address" }`.
+///
+/// The composed name cannot be malformed here:
+/// [`ResolvedField::new`](super::ResolvedField::new) rejects a `form_struct`
+/// that does not compose into a valid `{form_struct}Form` identifier with a
+/// typed
+/// [`PrototypingError::InvalidIdentifier`](crate::error::PrototypingError)
+/// before any generator runs, and the matching import path is validated by
+/// `ImportSet::to_token_stream`.
 fn nested_form_ident(field: &ResolvedField<'_>) -> proc_macro2::Ident {
     let form_struct = nested_behaviour(field.raw())
         .map(|behaviour| behaviour.form_struct.to_string())

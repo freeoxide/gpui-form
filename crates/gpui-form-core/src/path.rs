@@ -497,9 +497,11 @@ mod tests {
 
     #[test]
     fn deep_push_chains_and_joins_preserve_every_segment() {
-        // The exact-capacity composition path: each step re-allocates once at
-        // exactly `len + 1` (or `len + other_len` for join); long chains must
-        // still preserve segment order and content end to end.
+        // Composition through the exact-capacity path: every push/join step
+        // rebuilds the boxed segment slice at exactly `len + 1` (or
+        // `len + other_len` for join). This test pins the OBSERVABLE result
+        // — segment order and content preserved end to end — not an
+        // allocator-per-step count, which is a std/allocator detail.
         let path = FieldPath::new(&["a"])
             .push_name("b")
             .push_index(3)

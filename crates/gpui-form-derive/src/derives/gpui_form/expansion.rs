@@ -17,8 +17,8 @@ use crate::derives::gpui_form::structs::{
 };
 use crate::derives::gpui_form::submit::generate_submit_alias;
 use crate::derives::gpui_form::utils::{
-    canonical_type_string, extract_option_inner_type, extract_vec_inner_type,
-    nested_form_holder_type,
+    canonical_token_string, canonical_type_string, extract_option_inner_type,
+    extract_vec_inner_type, nested_form_holder_type,
 };
 use crate::derives::gpui_form::value_holder::{
     form_base_type, generate_value_holder, parse_field_default, should_wrap,
@@ -27,7 +27,9 @@ use crate::derives::gpui_form::value_holder::{
 fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
     match expr {
         Some(expr) => {
-            let expr_str = expr.to_token_stream().to_string();
+            // Canonical Rust spelling, not the proc-macro printer's token
+            // spacing: this string IS the exported schema surface.
+            let expr_str = canonical_token_string(expr.to_token_stream());
             quote! { Some(#expr_str) }
         },
         None => quote! { None },
@@ -443,28 +445,17 @@ pub fn expand_gpui_form(
         return first.to_compile_error();
     }
 
-    let has_fields_needing_required = field_optionality.iter().any(|f| {
-        !f.skip
-            && f.wrap_in_option
-            && !f.was_optional
-            && !f.validation.is_newtype
-            && !f.validation.is_nested
-    });
-
-    let has_any_koruma_validations = field_optionality.iter().any(|f| {
-        !f.skip
-            && (!f.validation.field_validators.is_empty()
-                || !f.validation.element_validators.is_empty()
-                || f.validation.is_nested)
-    });
-
-    let effective_enable_koruma =
-        enable_koruma || (has_fields_needing_required && has_any_koruma_validations);
+    // The holder generation below is fed plain `enable_koruma`: the call
+    // site used to add a `has_fields_needing_required &&
+    // has_any_koruma_validations` disjunct, but that term was absorbed —
+    // every field's `validation` is populated from `parsed_koruma_fields`,
+    // and any entry in that map already forces `enable_koruma` above (the
+    // same absorption as the inner gate inside `generate_value_holder`).
     let (value_holder_tokens, fields_requiring_required, needs_koruma_derive) =
         generate_value_holder(
             &original_input,
             &field_optionality,
-            effective_enable_koruma,
+            enable_koruma,
             enable_koruma_fluent,
         );
     // Feature #8 (FLAT v1): emit the typed `<Name>FormPath` next to the value
@@ -526,7 +517,7 @@ pub fn expand_gpui_form(
                 // the generated validate()) only on koruma forms, so a plain
                 // form must not export required metadata its runtime never
                 // enforces.
-                if effective_enable_koruma
+                if enable_koruma
                     && fields_requiring_required.contains(&field_name_str)
                     && !validation_rules.contains(&"RequiredValidation".to_string())
                 {
@@ -539,7 +530,9 @@ pub fn expand_gpui_form(
                     .collect();
 
                 let default_expr_tokens = field.default.as_ref().map(|expr| {
-                    let expr_str = expr.0.to_token_stream().to_string();
+                    // Canonical spelling: the default expression is exported
+                    // schema metadata, not just a runtime binding.
+                    let expr_str = canonical_token_string(expr.0.to_token_stream());
                     quote! { .with_default(#expr_str) }
                 });
 
@@ -554,7 +547,10 @@ pub fn expand_gpui_form(
                 // async-validation wiring phase.
                 let async_validator_tokens = match &field.validate {
                     Some(async_validate) => {
-                        let path_str = async_validate.async_fn.0.to_token_stream().to_string();
+                        // Canonical spelling: the path is exported schema
+                        // metadata (`::` glued, not `my :: check`).
+                        let path_str =
+                            canonical_token_string(async_validate.async_fn.0.to_token_stream());
                         quote! { .with_async_validator(Some(#path_str)) }
                     },
                     None => quote! {},
@@ -665,7 +661,7 @@ pub fn expand_gpui_form(
                 #(#field_variant_construction_code),*
             ],
             file!(),
-            #effective_enable_koruma
+            #enable_koruma
         ).with_skipped_fields(#has_skipped_fields)
     };
     let schema_ident = format_ident!("{}FormSchema", struct_name);
