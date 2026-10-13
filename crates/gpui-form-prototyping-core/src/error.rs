@@ -19,6 +19,22 @@ pub enum PrototypingError {
         value: String,
         error: String,
     },
+    /// A `component(list(...))` field whose value type is not `Vec<...>`.
+    ///
+    /// The list scaffold appends `<T as Default>::default()` items and reads
+    /// rows from the generated `add_<field>` / `remove_<field>` operations,
+    /// which only exist for `Vec<T>` metadata, so a scalar value type cannot
+    /// produce a compiling scaffold.
+    InvalidListValueType {
+        field_name: String,
+        value: String,
+    },
+    /// One or more import entries in prototyping metadata were not valid
+    /// Rust paths, identifiers, or aliases. Every offender is collected
+    /// before failing, so one pass reports all of them.
+    InvalidImports {
+        errors: Vec<PrototypingError>,
+    },
 }
 
 impl fmt::Display for PrototypingError {
@@ -48,6 +64,19 @@ impl fmt::Display for PrototypingError {
                     f,
                     "invalid value type `{value}` for field `{field_name}` in prototyping metadata: {error}"
                 )
+            },
+            Self::InvalidListValueType { field_name, value } => {
+                write!(
+                    f,
+                    "list field `{field_name}` must have a `Vec<...>` value type in prototyping metadata (the scaffold appends `<T as Default>::default()` items); found `{value}`"
+                )
+            },
+            Self::InvalidImports { errors } => {
+                write!(f, "invalid imports in prototyping metadata:")?;
+                for error in errors {
+                    write!(f, " {error};")?;
+                }
+                Ok(())
             },
         }
     }

@@ -107,7 +107,7 @@ impl<'a> FormShapeAdapter<'a> {
                     subscription,
                     post_subscription_initialization: generator
                         .generate_post_subscription_initialization(&resolved, self.shape_data),
-                    impl_members: generator.generate_impl_members(&resolved, self.shape_data),
+                    impl_members: generator.generate_impl_members(&resolved, self.shape_data)?,
                     scaffold_struct_field: generator
                         .generate_scaffold_struct_field(&resolved, self.shape_data),
                     scaffold_struct_init: generator
@@ -369,7 +369,7 @@ impl<'a> FormShapeAdapter<'a> {
         for field in &generated_fields {
             collected_imports.extend(field.imports.clone());
         }
-        let collected_imports = collected_imports.to_token_stream();
+        let collected_imports = collected_imports.to_token_stream()?;
         // The glob anchors with `::`: source_path_to_use_path builds
         // crate-name-first paths that resolve through the extern prelude.
         let imports = quote! {
@@ -657,6 +657,65 @@ mod tests {
                     ..
                 } if field_name == "country" && value == "Vec<"
             ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
+    fn parts_return_error_for_malformed_custom_component_paths() {
+        // Raw metadata (not derive-produced) can carry a non-Path custom
+        // component string; `parts()` must surface the typed
+        // `InvalidPath` error from `ResolvedField::new`, never a panic.
+        const FIELDS: [FieldVariant; 1] =
+            [
+                FieldVariant::new("tags", "Vec<String>", false, ComponentsBehaviour::Custom)
+                    .with_custom_component("crate::widgets::My Input"),
+            ];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let error = match FormShapeAdapter::new(&SHAPE).parts() {
+            Ok(_) => panic!("malformed custom component paths should return an error"),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(
+                error,
+                PrototypingError::InvalidPath {
+                    kind: "custom component path",
+                    ..
+                }
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
+    fn required_imports_validate_before_tokenization_for_malformed_metadata() {
+        // The nested scaffold import is composed by convention from raw
+        // `form_struct` metadata; a malformed name must fail tokenization
+        // with the collected `InvalidImports` error instead of panicking in
+        // `format_ident!`/`parse_str`.
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "address",
+            "Address",
+            false,
+            ComponentsBehaviour::Nested(gpui_form_schema::components::NestedBehaviour {
+                form_struct: "Address Book",
+            }),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("Demo", &FIELDS, "examples/some-lib/src/demo.rs", false);
+
+        let imports = FormShapeAdapter::new(&SHAPE).required_imports();
+
+        let error = match imports.to_token_stream() {
+            Ok(_) => panic!("malformed import paths must fail before tokenization"),
+            Err(error) => error,
+        };
+        assert!(
+            matches!(error, PrototypingError::InvalidImports { .. }),
             "unexpected error: {error:?}"
         );
     }

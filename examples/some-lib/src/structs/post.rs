@@ -25,7 +25,7 @@ pub struct PostEditor {
     #[koruma(NonEmptyValidation::<_>::builder())]
     pub title: String,
 
-    #[gpui_form(component(list(item = input)))]
+    #[gpui_form(component(list(item = input, add_label = "Add another tag")))]
     #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
     pub tags: Vec<String>,
 

@@ -6,7 +6,6 @@ address:
 address_label: Adresse
 post_editor:
   address_label: Adresse
-  tags_add: Ajouter un tag
   tags_item_label: Tag
   tags_label: Tags
   tags_remove: Retirer

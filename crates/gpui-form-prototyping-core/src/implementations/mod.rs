@@ -285,14 +285,19 @@ pub trait FieldCodeGenerator {
     }
 
     /// Extra `impl` members the scaffold needs for this field (milestone
-    /// M3: list row/add/remove control helpers). Emitted into the
+    /// M3: list row/add/remove controls). Emitted into the
     /// scaffold's impl block next to the event handlers.
+    ///
+    /// Fallible because members are generated from raw metadata (list item
+    /// types, labels): malformed metadata returns a
+    /// [`PrototypingError`](crate::error::PrototypingError) instead of
+    /// emitting tokens that would fail to compile in the consumer crate.
     fn generate_impl_members(
         &self,
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
-    ) -> Vec<TokenStream> {
-        Vec::new()
+    ) -> PrototypingResult<Vec<TokenStream>> {
+        Ok(Vec::new())
     }
 
     /// A struct field on the SCAFFOLD itself (not the generated
@@ -522,13 +527,19 @@ pub fn collect_i18n_keys(component: &GpuiFormShape) -> Vec<String> {
                     }
                     keys
                 },
-                ComponentsBehaviour::List(_) => {
+                ComponentsBehaviour::List(behaviour) => {
                     let mut keys = Vec::with_capacity(4);
                     if field.layout.label.is_none() {
                         keys.push(format!("{form_key}.{}_label", field.field_name));
                     }
                     keys.push(format!("{form_key}.{}_item_label", field.field_name));
-                    keys.push(format!("{form_key}.{}_add", field.field_name));
+                    // An `add_label = "..."` override replaces the Add
+                    // button's localized lookup entirely, so the key is
+                    // omitted to match — the same override-suppresses-key
+                    // contract as `layout.label` above.
+                    if behaviour.add_label.is_none() {
+                        keys.push(format!("{form_key}.{}_add", field.field_name));
+                    }
                     keys.push(format!("{form_key}.{}_remove", field.field_name));
                     keys
                 },
@@ -1018,7 +1029,9 @@ mod tests {
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
         use super::FieldCodeGenerator as _;
 
-        let members = generator.generate_impl_members(&field, &SHAPE);
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<T> list metadata should generate impl members");
         assert_eq!(members.len(), 1, "one list-control helper per field");
         let compact = compact(&members[0].to_string());
 
@@ -1050,6 +1063,153 @@ mod tests {
         assert!(
             generator.generate_cx_new_call(&field, &SHAPE).is_none(),
             "v1 list rows create no entities"
+        );
+    }
+
+    #[test]
+    fn list_generator_rejects_non_vec_value_types_with_a_typed_error() {
+        // Hand-built inventory metadata (the derive rejects non-Vec list
+        // fields at expansion time, but prototyping consumes raw shapes).
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "String",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let error = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect_err("non-Vec list metadata must return the typed error, not c_void tokens");
+
+        assert_eq!(
+            error,
+            crate::error::PrototypingError::InvalidListValueType {
+                field_name: "tags".to_string(),
+                value: "String".to_string(),
+            },
+            "the fallback must be the typed error, never emitting <c_void as Default>::default()"
+        );
+    }
+
+    #[test]
+    fn list_generator_extracts_nested_vec_item_types() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "matrix",
+            "Vec<Option<String>>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<Option<String>> is a legal list value type");
+        let compact = compact(&members[0].to_string());
+
+        assert!(
+            compact.contains("<Option<String>as::core::default::Default>::default()"),
+            "the Add button must append the inner item type, not the Vec: {compact}"
+        );
+    }
+
+    #[test]
+    fn list_generator_emits_the_add_label_override_verbatim() {
+        const LBEHAVIOUR: gpui_form_schema::components::ListBehaviour =
+            gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: Some("Add another tag"),
+            };
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(LBEHAVIOUR),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<T> list metadata should generate impl members");
+        let compact = compact(&members[0].to_string());
+
+        assert!(
+            compact.contains(r#""Addanothertag".to_string()"#),
+            "the Add button must carry the override verbatim: {compact}"
+        );
+        assert!(
+            !compact.contains("tags_add"),
+            "the localized add lookup must be skipped when the override is set: {compact}"
+        );
+        assert!(
+            compact.contains("post_editor.tags_remove"),
+            "the Remove button keeps its localized lookup: {compact}"
+        );
+    }
+
+    #[test]
+    fn collect_i18n_keys_list_fields_skip_add_key_when_add_label_overridden() {
+        const LBEHAVIOUR: gpui_form_schema::components::ListBehaviour =
+            gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: Some("Add another tag"),
+            };
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(LBEHAVIOUR),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("PostEditor", &FIELDS, "src/demo.rs", false);
+
+        let keys = super::collect_i18n_keys(&SHAPE);
+
+        assert_eq!(
+            keys,
+            vec![
+                "post_editor.tags_label".to_string(),
+                "post_editor.tags_item_label".to_string(),
+                "post_editor.tags_remove".to_string(),
+            ],
+            "an add_label override suppresses only the _add key, like layout.label does"
         );
     }
 

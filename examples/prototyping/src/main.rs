@@ -351,7 +351,7 @@ mod i18n_tests {
         );
         for key in &keys {
             let key: &str = key;
-            for locale in LOCALES.iter().copied() {
+            for &locale in LOCALES {
                 let translated = rust_i18n::t!(key, locale = locale);
                 assert_ne!(
                     &*translated, key,

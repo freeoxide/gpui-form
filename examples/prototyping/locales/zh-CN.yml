@@ -6,7 +6,6 @@ address:
 address_label: 地址
 post_editor:
   address_label: 地址
-  tags_add: 添加标签
   tags_item_label: 标签
   tags_label: 标签
   tags_remove: 移除

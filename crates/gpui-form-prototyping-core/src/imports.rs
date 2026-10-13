@@ -7,7 +7,9 @@
 use std::collections::BTreeMap;
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
+
+use crate::error::{PrototypingError, PrototypingResult};
 
 /// The alias applied to an imported item.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -91,42 +93,95 @@ impl ImportSet {
     ///
     /// Items are grouped by parent path (everything before the last `::`),
     /// sorted, and emitted as a single `use` per group.
-    pub fn to_token_stream(&self) -> TokenStream {
+    ///
+    /// Fallible on purpose: parents, names, and aliases come from raw
+    /// metadata strings (custom-component paths, the nested form's
+    /// convention-composed scaffold path), so EVERY entry is parsed before
+    /// any token is emitted, and all malformed entries are collected into
+    /// one [`PrototypingError::InvalidImports`] — never a `format_ident!` /
+    /// `parse_str` panic at the first offender.
+    pub fn to_token_stream(&self) -> PrototypingResult<TokenStream> {
         // Group: parent_path → Vec<(name, alias)> — BTreeMap keeps groups sorted.
-        let mut grouped: BTreeMap<String, Vec<(&'static str, Option<&Alias>)>> = BTreeMap::new();
+        let mut grouped: BTreeMap<&str, Vec<(&'static str, Option<&Alias>)>> = BTreeMap::new();
 
         for item in &self.0 {
             let (parent, name) = item.path.rsplit_once("::").unwrap_or(("", item.path));
             grouped
-                .entry(parent.to_string())
+                .entry(parent)
                 .or_default()
                 .push((name, item.alias.as_ref()));
         }
 
-        let mut tokens = TokenStream::new();
+        // Validate-before-tokenize: parse every group's parent and every
+        // item's name/alias up front, collecting all offenders.
+        let mut errors: Vec<PrototypingError> = Vec::new();
+        let mut parsed_groups: Vec<(syn::Path, Vec<TokenStream>)> = Vec::new();
         for (parent, items) in &grouped {
             if parent.is_empty() {
                 // Bare name with no module prefix — skip (already in scope via glob).
                 continue;
             }
 
-            let parent_path: syn::Path = syn::parse_str(parent).expect("valid import parent path");
+            let parent_path: syn::Path = match syn::parse_str(parent) {
+                Ok(path) => path,
+                Err(error) => {
+                    errors.push(PrototypingError::InvalidPath {
+                        kind: "import parent path",
+                        value: (*parent).to_string(),
+                        error: error.to_string(),
+                    });
+                    continue;
+                },
+            };
 
-            let item_tokens: Vec<TokenStream> = items
-                .iter()
-                .map(|(name, alias)| {
-                    let name_ident = format_ident!("{}", name);
-                    match alias {
-                        Some(Alias::Anonymous) => quote! { #name_ident as _ },
-                        Some(Alias::Rename(a)) => {
-                            let alias_ident = format_ident!("{}", a);
-                            quote! { #name_ident as #alias_ident }
+            let mut item_tokens: Vec<TokenStream> = Vec::with_capacity(items.len());
+            for (name, alias) in items {
+                let name_ident: syn::Ident = match syn::parse_str(name) {
+                    Ok(ident) => ident,
+                    Err(error) => {
+                        errors.push(PrototypingError::InvalidPath {
+                            kind: "import item name",
+                            value: (*name).to_string(),
+                            error: error.to_string(),
+                        });
+                        continue;
+                    },
+                };
+                enum RenderedAlias {
+                    Anonymous,
+                    Named(syn::Ident),
+                    None,
+                }
+                let rendered_alias = match alias {
+                    Some(Alias::Anonymous) => RenderedAlias::Anonymous,
+                    Some(Alias::Rename(alias)) => match syn::parse_str::<syn::Ident>(alias) {
+                        Ok(ident) => RenderedAlias::Named(ident),
+                        Err(error) => {
+                            errors.push(PrototypingError::InvalidPath {
+                                kind: "import alias",
+                                value: (*alias).to_string(),
+                                error: error.to_string(),
+                            });
+                            continue;
                         },
-                        None => quote! { #name_ident },
-                    }
-                })
-                .collect();
+                    },
+                    None => RenderedAlias::None,
+                };
+                item_tokens.push(match rendered_alias {
+                    RenderedAlias::Anonymous => quote! { #name_ident as _ },
+                    RenderedAlias::Named(alias) => quote! { #name_ident as #alias },
+                    RenderedAlias::None => quote! { #name_ident },
+                });
+            }
+            parsed_groups.push((parent_path, item_tokens));
+        }
 
+        if !errors.is_empty() {
+            return Err(PrototypingError::InvalidImports { errors });
+        }
+
+        let mut tokens = TokenStream::new();
+        for (parent_path, item_tokens) in &parsed_groups {
             if item_tokens.len() == 1 {
                 let single = &item_tokens[0];
                 tokens.extend(quote! { use #parent_path::#single; });
@@ -135,6 +190,126 @@ impl ImportSet {
             }
         }
 
-        tokens
+        Ok(tokens)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Alias, ImportItem, ImportSet};
+
+    fn compact(input: &str) -> String {
+        input.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    #[test]
+    fn malformed_parent_paths_return_a_typed_error_instead_of_panicking() {
+        // Mirrors the shape NestedCodeGenerator composes from raw
+        // `form_struct` metadata: `crate::<snake>::<Struct>Form`.
+        let mut set = ImportSet::default();
+        set.add(ImportItem::owned_path(
+            "crate::address book::Address BookForm".to_string(),
+        ));
+
+        let error = set
+            .to_token_stream()
+            .expect_err("malformed import parents must return a typed error, not panic");
+        match &error {
+            crate::error::PrototypingError::InvalidImports { errors } => {
+                assert!(
+                    errors.iter().any(|error| matches!(
+                        error,
+                        crate::error::PrototypingError::InvalidPath { kind, value, .. }
+                            if *kind == "import parent path" && value == "crate::address book"
+                    )),
+                    "the offending parent path must be reported: {error}"
+                );
+            },
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn malformed_item_names_and_aliases_return_typed_errors() {
+        let mut set = ImportSet::default();
+        // A path ending in `::` yields an empty item name (the old
+        // `format_ident!` panicked on it).
+        set.add(ImportItem::path("::gpui_kit::component::button::"));
+        set.add(ImportItem::aliased(
+            "::gpui::prelude::FluentBuilder",
+            Alias::Rename("not an ident"),
+        ));
+
+        let error = set
+            .to_token_stream()
+            .expect_err("malformed item names/aliases must return a typed error, not panic");
+
+        let crate::error::PrototypingError::InvalidImports { errors } = error else {
+            panic!("expected InvalidImports");
+        };
+        assert!(
+            errors.iter().any(|error| matches!(
+                error,
+                crate::error::PrototypingError::InvalidPath { kind, value, .. }
+                    if *kind == "import item name" && value.is_empty()
+            )),
+            "the empty item name must be reported: {errors:?}"
+        );
+        assert!(
+            errors.iter().any(|error| matches!(
+                error,
+                crate::error::PrototypingError::InvalidPath { kind, value, .. }
+                    if *kind == "import alias" && *value == "not an ident"
+            )),
+            "the malformed alias must be reported: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn all_malformed_entries_are_collected_not_just_the_first() {
+        let mut set = ImportSet::default();
+        set.add(ImportItem::path(
+            "::gpui_kit::component::bad button::Button",
+        ));
+        set.add(ImportItem::path(
+            "::gpui_kit::component::other widget::Switch",
+        ));
+
+        let error = set
+            .to_token_stream()
+            .expect_err("malformed imports must return a typed error, not panic");
+
+        let crate::error::PrototypingError::InvalidImports { errors } = error else {
+            panic!("expected InvalidImports");
+        };
+        assert_eq!(
+            errors.len(),
+            2,
+            "every offender must be reported in one pass: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn valid_import_sets_tokenize_as_before() {
+        let mut set = ImportSet::default();
+        set.add(ImportItem::path("::gpui_kit::component::button::Button"));
+        set.add(ImportItem::path("::gpui_kit::component::h_flex"));
+        set.add(ImportItem::aliased(
+            "::gpui::prelude::FluentBuilder",
+            Alias::Anonymous,
+        ));
+
+        let tokens = set.to_token_stream().expect("valid imports must tokenize");
+        let compact = compact(&tokens.to_string());
+
+        assert!(
+            compact.contains("use::gpui_kit::component::button::Button;")
+                && compact.contains("use::gpui_kit::component::h_flex;"),
+            "grouped use statements keep their sorted shape: {compact}"
+        );
+        assert!(
+            compact.contains("use::gpui::prelude::FluentBuilderas_;"),
+            "anonymous aliases keep `as _`: {compact}"
+        );
     }
 }
