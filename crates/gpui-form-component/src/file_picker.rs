@@ -335,15 +335,15 @@ impl RenderOnce for FilePicker {
         let is_focused = self.focus_handle(cx).contains_focused(window, cx);
         let entity_id = self.state.entity_id();
         let state = self.state.read(cx);
-        let paths = state.paths.clone();
-        let last_error = state.last_error.clone();
-        let has_paths = !paths.is_empty();
+        // The path list and error string are read-only here; only the error
+        // message is cloned where the element tree captures it.
+        let has_paths = !state.paths.is_empty();
         let show_clean = self.cleanable && has_paths;
         let placeholder = self
             .placeholder
             .clone()
             .unwrap_or_else(|| self.mode.default_placeholder());
-        let display_title = display_paths(&paths, placeholder);
+        let display_title = display_paths(&state.paths, placeholder);
         let prompt = self
             .prompt
             .clone()
@@ -452,7 +452,7 @@ impl RenderOnce for FilePicker {
                             }),
                     ),
             )
-            .when_some(last_error, |this, message| {
+            .when_some(state.last_error.clone(), |this, message| {
                 this.child(
                     div()
                         .mt_1()

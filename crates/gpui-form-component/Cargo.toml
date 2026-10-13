@@ -51,6 +51,10 @@ serde = { workspace = true }
 # carrying dev-dep on the facade would publish-order-cycle (the facade
 # depends on this crate) and deadlock the first publish of the set.
 criterion = { workspace = true }
+# `#[gpui::test]` entity-identity tests need the GPUI test harness
+# (`TestAppContext`/`VisualTestContext`). Dev-dependency features only apply
+# to this crate's test builds; the normal dependency stays feature-clean.
+gpui = { workspace = true, features = ["test-support"] }
 gpui-form = { package = "freeoxide-gpui-form", path = "../gpui-form" }
 gpui-form-component-derive = { package = "freeoxide-gpui-form-component-derive", path = "../gpui-form-component-derive" }
 serde_json = { workspace = true }

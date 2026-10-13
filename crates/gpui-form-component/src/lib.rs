@@ -16,6 +16,9 @@ pub mod custom;
 
 mod calendar;
 
+/// Shared ICU4X formatter cache for the runtime date surfaces.
+mod date_format;
+
 /// Runtime helpers for the localized date picker component.
 pub mod date_picker;
 

@@ -28,8 +28,16 @@ fn assert_rows_match_current_icu_output(locale: &Locale, rows: &[Row]) {
         let long = format_display_date(*d, locale, DateDisplayStyle::Long)
             .expect("long format must succeed");
 
-        assert_eq!(short.as_ref(), *want_short, "Short changed for {locale:?} {d}");
-        assert_eq!(medium.as_ref(), *want_medium, "Medium changed for {locale:?} {d}");
+        assert_eq!(
+            short.as_ref(),
+            *want_short,
+            "Short changed for {locale:?} {d}"
+        );
+        assert_eq!(
+            medium.as_ref(),
+            *want_medium,
+            "Medium changed for {locale:?} {d}"
+        );
         assert_eq!(long.as_ref(), *want_long, "Long changed for {locale:?} {d}");
     }
 }
@@ -38,10 +46,25 @@ fn assert_rows_match_current_icu_output(locale: &Locale, rows: &[Row]) {
 fn en_outputs_are_pinned() {
     let en = locale!("en");
     let rows: &[Row] = &[
-        (date(2025, 1, 15), "1/15/25", "Jan 15, 2025", "January 15, 2025"),
+        (
+            date(2025, 1, 15),
+            "1/15/25",
+            "Jan 15, 2025",
+            "January 15, 2025",
+        ),
         (date(1970, 1, 1), "1/1/70", "Jan 1, 1970", "January 1, 1970"),
-        (date(2000, 2, 29), "2/29/00", "Feb 29, 2000", "February 29, 2000"),
-        (date(2024, 12, 31), "12/31/24", "Dec 31, 2024", "December 31, 2024"),
+        (
+            date(2000, 2, 29),
+            "2/29/00",
+            "Feb 29, 2000",
+            "February 29, 2000",
+        ),
+        (
+            date(2024, 12, 31),
+            "12/31/24",
+            "Dec 31, 2024",
+            "December 31, 2024",
+        ),
     ];
     assert_rows_match_current_icu_output(&en, rows);
 }
@@ -50,10 +73,30 @@ fn en_outputs_are_pinned() {
 fn fr_fr_outputs_are_pinned() {
     let fr_fr = locale!("fr-FR");
     let rows: &[Row] = &[
-        (date(2025, 1, 15), "15/01/2025", "15 janv. 2025", "15 janvier 2025"),
-        (date(1970, 1, 1), "01/01/1970", "1 janv. 1970", "1 janvier 1970"),
-        (date(2000, 2, 29), "29/02/2000", "29 févr. 2000", "29 février 2000"),
-        (date(2024, 12, 31), "31/12/2024", "31 déc. 2024", "31 décembre 2024"),
+        (
+            date(2025, 1, 15),
+            "15/01/2025",
+            "15 janv. 2025",
+            "15 janvier 2025",
+        ),
+        (
+            date(1970, 1, 1),
+            "01/01/1970",
+            "1 janv. 1970",
+            "1 janvier 1970",
+        ),
+        (
+            date(2000, 2, 29),
+            "29/02/2000",
+            "29 févr. 2000",
+            "29 février 2000",
+        ),
+        (
+            date(2024, 12, 31),
+            "31/12/2024",
+            "31 déc. 2024",
+            "31 décembre 2024",
+        ),
     ];
     assert_rows_match_current_icu_output(&fr_fr, rows);
 }
@@ -62,10 +105,25 @@ fn fr_fr_outputs_are_pinned() {
 fn zh_cn_outputs_are_pinned() {
     let zh_cn = locale!("zh-CN");
     let rows: &[Row] = &[
-        (date(2025, 1, 15), "2025/1/15", "2025年1月15日", "2025年1月15日"),
+        (
+            date(2025, 1, 15),
+            "2025/1/15",
+            "2025年1月15日",
+            "2025年1月15日",
+        ),
         (date(1970, 1, 1), "1970/1/1", "1970年1月1日", "1970年1月1日"),
-        (date(2000, 2, 29), "2000/2/29", "2000年2月29日", "2000年2月29日"),
-        (date(2024, 12, 31), "2024/12/31", "2024年12月31日", "2024年12月31日"),
+        (
+            date(2000, 2, 29),
+            "2000/2/29",
+            "2000年2月29日",
+            "2000年2月29日",
+        ),
+        (
+            date(2024, 12, 31),
+            "2024/12/31",
+            "2024年12月31日",
+            "2024年12月31日",
+        ),
     ];
     assert_rows_match_current_icu_output(&zh_cn, rows);
 }

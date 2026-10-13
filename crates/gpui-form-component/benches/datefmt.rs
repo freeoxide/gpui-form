@@ -3,9 +3,12 @@
 //! Round 0 of the performance campaign: measurement only. Every call goes
 //! through [`gpui_form_component::date_picker::format_display_date`] — the
 //! exact function the picker's button label renders through
-//! (`date_picker.rs`) — which builds a fresh ICU4X
-//! `FixedCalendarDateTimeFormatter` per call. That per-call construction cost
-//! is precisely what later rounds may optimize; this bench is the baseline.
+//! (`date_picker.rs`). Round 3 moved that path onto the crate-internal
+//! formatter cache (`src/date_format.rs`): the first call for a
+//! `(fieldset, locale)` key builds the ICU4X `FixedCalendarDateTimeFormatter`,
+//! every later call is a cache hit. These benches therefore measure the
+//! steady-state cached path (plus one build per key in the sweep's first
+//! pass), against the round-0 per-call-construction baseline.
 
 use std::hint::black_box;
 
