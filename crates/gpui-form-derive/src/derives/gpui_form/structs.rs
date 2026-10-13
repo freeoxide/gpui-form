@@ -282,7 +282,7 @@ impl FromMeta for AsyncFnPath {
 /// `validate(async_fn = ..., debounce = ...)` — the async-validation
 /// attribute surface (M2 emission sketch). The attr parses and records
 /// metadata only in this milestone; execution wiring is deferred to the
-/// GPUI-glue phase behind the reserved `async-validation` feature.
+/// future GPUI-glue phase.
 #[derive(Clone, Debug, FromMeta)]
 pub struct AsyncValidate {
     pub async_fn: AsyncFnPath,
@@ -380,8 +380,8 @@ pub struct ComponentField {
     pub width: Option<LayoutWidthMeta>,
     // Async-validation attribute surface (M2 emission sketch):
     // `#[gpui_form(validate(async_fn = my_check), component(input))]`.
-    // Parse + metadata only; nothing executes until the reserved
-    // `async-validation` wiring phase.
+    // Parse + metadata only; nothing executes it until the future
+    // async-validation wiring phase.
     #[darling(default)]
     pub validate: Option<AsyncValidate>,
     // Milestone M4 (backlog #12): `depends_on = <sibling field>` —

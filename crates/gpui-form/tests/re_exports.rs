@@ -97,8 +97,8 @@ fn schema_export_document_round_trips_through_the_facade() {
             {
                 "name": "tags",
                 "component": {"component": "list", "item": "input"},
-                "value_type": "Vec < String >",
-                "source_value_type": "Vec < String >",
+                "value_type": "Vec<String>",
+                "source_value_type": "Vec<String>",
                 "optional": false,
                 "wraps_in_option": false,
                 "depends_on": "email"

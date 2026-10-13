@@ -536,7 +536,12 @@ pub fn generate_field_errors(
                         }
                     });
 
-                    // Per failing item index: `field.0`, `field.2`, ...
+                    // Per failing item index: `field.0`, `field.2`, ... plus
+                    // the root path — the slot is populated (the whole-field
+                    // wrapper is non-empty) whenever anything failed, so the
+                    // root must be reported even when element failures are
+                    // present (a whole-Vec validator can fail alongside the
+                    // items, and `error_for(root)` already routes there).
                     let name_root_ctor = format_ident!("{}_root", name);
                     let failing_push = has_element_validators.then(|| {
                         quote! {
@@ -547,12 +552,10 @@ pub fn generate_field_errors(
                                         #error_enum_ident::#variant(field),
                                     ));
                                 }
-                                if field.element_errors().is_empty() {
-                                    failing.push((
-                                        #path_ident::#name_root_ctor(),
-                                        #error_enum_ident::#variant(field),
-                                    ));
-                                }
+                                failing.push((
+                                    #path_ident::#name_root_ctor(),
+                                    #error_enum_ident::#variant(field),
+                                ));
                             }
                         }
                     });

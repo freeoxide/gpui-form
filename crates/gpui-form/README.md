@@ -32,7 +32,6 @@ freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 - `inventory`: register `GpuiFormShape` metadata for prototyping and code generation.
 - `phone`: parser-backed phone-number validation helpers (`gpui_form::phone`).
 - `serde`: `Serialize`/`Deserialize` on generated value holders, for persistence and dirty tracking.
-- `async-validation` (reserved, default off): placeholder for the upcoming async validator wiring; `validate(async_fn = ...)` records metadata only today.
 
 ## Documentation
 

@@ -52,6 +52,18 @@ mod gpui_form_tests {
             ),
             "schema() must project the shape through From: {flat}"
         );
+        // The chain is emitted ONCE: the inventory submission references the
+        // exported SHAPE const instead of re-emitting the FieldVariant chain
+        // (single metadata source, made structural).
+        assert_eq!(
+            flat.matches("FieldVariant::new").count(),
+            1,
+            "the FieldVariant chain must be emitted exactly once per form: {flat}"
+        );
+        assert!(
+            flat.contains("inventory::submit!{PlainFormSchema::SHAPE}"),
+            "the inventory submission must reference the exported SHAPE const: {flat}"
+        );
 
         // Same tokens with inventory OFF: the export still emits (only the
         // submit! registration is feature-gated).
@@ -651,9 +663,11 @@ mod gpui_form_tests {
         );
         let layout_count = compact.matches(".with_layout(").count();
         assert_eq!(
-            layout_count, 2,
-            "expected the visible FieldVariant only, in both consumers of the \
-             shape chain (inventory submit + M5 schema-export SHAPE const): {compact}"
+            layout_count, 1,
+            "expected the visible FieldVariant only; the shape chain is emitted \
+             ONCE (the schema-export SHAPE const, which the inventory submission \
+             references), so the skipped field's layout hints can appear exactly \
+             nowhere: {compact}"
         );
     }
 
@@ -1132,6 +1146,21 @@ mod gpui_form_tests {
         assert!(
             unknown_depends_on.contains("must name a non-skipped field of this struct"),
             "unknown depends_on sibling must fail at derive time: {unknown_depends_on}"
+        );
+
+        // The same identity guard `required_if` applies: a field cannot
+        // depend on itself.
+        let self_depends_on = expand(quote! {
+            #[derive(GpuiForm)]
+            struct Form {
+                #[gpui_form(component(input), depends_on = email)]
+                email: Option<String>,
+            }
+        });
+        let self_error = "`depends_on = email` on field `email` must name a different field";
+        assert!(
+            self_depends_on.contains(self_error),
+            "a self-referencing depends_on must fail at derive time: {self_depends_on}"
         );
 
         let non_optional_target = expand(quote! {

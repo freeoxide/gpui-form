@@ -17,7 +17,8 @@ use crate::derives::gpui_form::structs::{
 };
 use crate::derives::gpui_form::submit::generate_submit_alias;
 use crate::derives::gpui_form::utils::{
-    extract_option_inner_type, extract_vec_inner_type, nested_form_holder_type,
+    canonical_type_string, extract_option_inner_type, extract_vec_inner_type,
+    nested_form_holder_type,
 };
 use crate::derives::gpui_form::value_holder::{
     form_base_type, generate_value_holder, parse_field_default, should_wrap,
@@ -74,9 +75,10 @@ pub fn expand_gpui_form(
         // error type.
         let submit_alias_tokens =
             generate_submit_alias(&original_input, parsed.submit, needs_koruma_derive);
-        // Schema export (M5, backlog #14): the same empty shape chain feeds
-        // both the inventory submission and the export accessor (single
-        // metadata source); the export itself needs no inventory feature.
+        // Schema export (M5, backlog #14): the empty shape chain lives once
+        // in the export's `SHAPE` const; the inventory submission references
+        // it (single metadata source). The export itself needs no inventory
+        // feature.
         let empty_shape_construction = quote! {
             ::gpui_form::schema::registry::GpuiFormShape::new(
                 stringify!(#struct_name),
@@ -85,10 +87,11 @@ pub fn expand_gpui_form(
                 #enable_koruma
             ).with_skipped_fields(false)
         };
+        let schema_ident = format_ident!("{}FormSchema", struct_name);
         let shape_impl = if options.generate_shape {
             quote! {
                 ::gpui_form::schema::registry::inventory::submit! {
-                    #empty_shape_construction
+                    #schema_ident::SHAPE
                 }
             }
         } else {
@@ -313,14 +316,29 @@ pub fn expand_gpui_form(
 
             if let Some(depends_on) = field_optionality[index].depends_on.clone() {
                 let depends_on_str = depends_on.to_string();
-                if !field_indexes.contains_key(&depends_on_str) {
-                    composition_errors.push(syn::Error::new_spanned(
-                        &depends_on,
-                        format!(
-                            "`depends_on = {depends_on_str}` on field `{field_name}` must name a \
-                             non-skipped field of this struct"
-                        ),
-                    ));
+                match field_indexes.get(&depends_on_str) {
+                    Some(&sibling_index) if sibling_index == index => {
+                        // Same identity guard `required_if` applies: a field
+                        // cannot depend on itself (it would reset itself on
+                        // its own change).
+                        composition_errors.push(syn::Error::new_spanned(
+                            &depends_on,
+                            format!(
+                                "`depends_on = {depends_on_str}` on field `{field_name}` must \
+                                 name a different field"
+                            ),
+                        ));
+                    },
+                    None => {
+                        composition_errors.push(syn::Error::new_spanned(
+                            &depends_on,
+                            format!(
+                                "`depends_on = {depends_on_str}` on field `{field_name}` must \
+                                 name a non-skipped field of this struct"
+                            ),
+                        ));
+                    },
+                    Some(_) => {},
                 }
             }
 
@@ -492,15 +510,24 @@ pub fn expand_gpui_form(
                     .unwrap_or(false);
 
                 let is_optional = was_optional;
-                let field_type_str = base_type.to_token_stream().to_string();
-                let source_value_type_str = original_inner_type.to_token_stream().to_string();
+                // Canonical Rust spelling (`Vec<String>`), not the
+                // proc-macro printer's token spacing (`Vec < String >`):
+                // these strings ARE the exported schema surface.
+                let field_type_str = canonical_type_string(&base_type);
+                let source_value_type_str = canonical_type_string(&original_inner_type);
                 let behaviour_tokens = component_def.behaviour_tokens(&base_type);
                 let mut validation_rules = koruma_validations
                     .get(&field_name_str)
                     .cloned()
                     .unwrap_or_default();
 
-                if fields_requiring_required.contains(&field_name_str)
+                // Metadata gate mirrors the runtime gate in value_holder.rs:
+                // the RequiredValidation attr is mirrored (and enforced by
+                // the generated validate()) only on koruma forms, so a plain
+                // form must not export required metadata its runtime never
+                // enforces.
+                if effective_enable_koruma
+                    && fields_requiring_required.contains(&field_name_str)
                     && !validation_rules.contains(&"RequiredValidation".to_string())
                 {
                     validation_rules.insert(0, "RequiredValidation".to_string());
@@ -523,8 +550,8 @@ pub fn expand_gpui_form(
                 let into_expr_tokens = option_expr_string_tokens(&field.into);
                 // Async-validation attribute surface (M2 emission sketch):
                 // `validate(async_fn = <path>)` records the validator path as
-                // metadata only — nothing executes it until the reserved
-                // `async-validation` wiring phase.
+                // metadata only — nothing executes it until the future
+                // async-validation wiring phase.
                 let async_validator_tokens = match &field.validate {
                     Some(async_validate) => {
                         let path_str = async_validate.async_fn.0.to_token_stream().to_string();
@@ -622,12 +649,15 @@ pub fn expand_gpui_form(
         })
         .collect();
 
-    // Schema export (M5, backlog #14): one construction chain, two consumers
-    // — the inventory submission (behind the derive crate's `inventory`
-    // feature) and the `<Name>FormSchema::SHAPE` constant the `schema()`
-    // accessor projects from. Feeding both the identical tokens is the
-    // "single metadata source" contract: nested/list (M3) and dependency
-    // (M4) payloads can never drift between the two surfaces.
+    // Schema export (M5, backlog #14): the `FieldVariant` construction
+    // chain is emitted ONCE — as the `<Name>FormSchema::SHAPE` const — and
+    // the inventory submission (behind the derive crate's `inventory`
+    // feature) references that const. `inventory::submit!` evaluates its
+    // value inside a `static` initializer (`value: &{ <expr> }`), so a
+    // const path is a legal value; naming the const instead of re-emitting
+    // the chain is the "single metadata source" contract made structural:
+    // nested/list (M3) and dependency (M4) payloads cannot drift between
+    // the inventory surface and the export because there is only one chain.
     let shape_construction = quote! {
         ::gpui_form::schema::registry::GpuiFormShape::new(
             stringify!(#struct_name),
@@ -638,10 +668,11 @@ pub fn expand_gpui_form(
             #effective_enable_koruma
         ).with_skipped_fields(#has_skipped_fields)
     };
+    let schema_ident = format_ident!("{}FormSchema", struct_name);
     let shape_impl = if options.generate_shape {
         quote! {
             ::gpui_form::schema::registry::inventory::submit! {
-                #shape_construction
+                #schema_ident::SHAPE
             }
         }
     } else {

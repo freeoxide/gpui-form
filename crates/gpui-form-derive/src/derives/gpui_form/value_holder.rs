@@ -190,15 +190,17 @@ fn wrapped_option_try_from(
 }
 
 fn generate_conversion_error_type(error_name: &syn::Ident) -> TokenStream {
+    // The `index` slot essay (generator-side): milestone M3 (backlog #3) —
+    // for list-field conversion failures, the failing item index; v1 scalar
+    // items never fail conversion, so the slot exists for the per-item
+    // conversion paths the backlog sequences after v1. Generated-item docs
+    // stay one-line summaries (the derive output is ~45% #[doc] payload by
+    // bytes otherwise).
     quote! {
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         pub struct #error_name {
             pub field_name: &'static str,
-            /// Milestone M3 (backlog #3): for list-field conversion
-            /// failures, the failing item index (`None` for whole-field
-            /// failures). v1 scalar items never fail conversion — the slot
-            /// exists for the per-item conversion paths the backlog
-            /// sequences after v1.
+            /// Failing list-item index for list-field conversion failures (`None` for whole-field failures).
             pub index: ::core::option::Option<usize>,
         }
 
@@ -545,8 +547,6 @@ pub fn generate_value_holder(
         .map(|f| f.field_name.to_string())
         .collect();
 
-    let has_any_required = fields.iter().any(|f| f.needs_required_validation());
-
     let mut field_attrs: HashMap<String, Vec<TokenStream>> = HashMap::new();
 
     for f in fields {
@@ -648,10 +648,12 @@ pub fn generate_value_holder(
         }
     }
 
-    let needs_koruma_for_required = has_any_required && enable_koruma;
-    // If koruma is enabled on the form, always derive Koruma so validate() is available,
-    // even when there are no inferred validators.
-    let needs_koruma_derive = enable_koruma || needs_koruma_for_required;
+    // If koruma is enabled on the form, always derive Koruma so validate()
+    // is available, even when there are no inferred validators. (This used
+    // to read `enable_koruma || (has_any_required && enable_koruma)`, which
+    // is boolean-identical to `enable_koruma` by absorption — collapsed so
+    // the gate states what it is.)
+    let needs_koruma_derive = enable_koruma;
 
     // Milestone M4 (backlog #13): the shared conditional-required validator.
     // One struct per form (named with the reserved `<Name>Form*` prefix)
@@ -749,22 +751,19 @@ pub fn generate_value_holder(
                 let items_name = format_ident!("{}_items", field_name);
                 if f.was_optional {
                     Some(quote! {
-                        /// Append one item, creating the list if the field
-                        /// was `None`.
+                        /// Append one item, creating the list if the field was `None`.
                         pub fn #add_name(&mut self, value: #item) {
                             self.#field_name.get_or_insert_with(::std::vec::Vec::new).push(value);
                         }
 
-                        /// Remove the item at `index` (same semantics as
-                        /// `Vec::remove`; a no-op when the field is `None`).
+                        /// Remove the item at `index` (same semantics as `Vec::remove`; a no-op when the field is `None`).
                         pub fn #remove_name(&mut self, index: usize) {
                             if let ::core::option::Option::Some(items) = self.#field_name.as_mut() {
                                 items.remove(index);
                             }
                         }
 
-                        /// Borrow the current items; empty when the field is
-                        /// `None`.
+                        /// Borrow the current items; empty when the field is `None`.
                         pub fn #items_name(&self) -> &[#item] {
                             self.#field_name.as_deref().unwrap_or(&[])
                         }
@@ -1004,21 +1003,21 @@ pub fn validation_issue_key_for_kind(kind: &str) -> String {
 /// `#[koruma::validator]` macro provides the bon builder and the
 /// `BuilderWithValueRef` plumbing koruma's generated `validate()` calls.
 fn generate_required_if_validator(validator: &syn::Ident) -> TokenStream {
+    // Validator essay (generator-side): built by koruma's generated
+    // `validate()` with the controlling sibling's live value; a failure
+    // means "this field is required while the controlling field requires
+    // it, but no value is present". Generated-item docs stay one-line
+    // summaries (the derive output is ~45% #[doc] payload by bytes
+    // otherwise).
     quote! {
-        /// Conditional-required validator desugared from
-        /// `#[gpui_form(required_if = <field>)]` (milestone M4). Built by
-        /// koruma's generated `validate()` with the controlling sibling's
-        /// live value; a failure means "this field is required while the
-        /// controlling field requires it, but no value is present".
+        /// Conditional-required validator desugared from `#[gpui_form(required_if = <field>)]` (milestone M4).
         #[doc(hidden)]
         #[derive(Clone, Debug)]
         #[::koruma::validator]
         pub struct #validator<T> {
-            /// Whether the controlling sibling field makes the value
-            /// required (captured per validation run).
+            /// Whether the controlling sibling field makes the value required (captured per validation run).
             when: bool,
-            /// Presence-only slot; never captured — the validated value
-            /// arrives as `validate`'s argument.
+            /// Presence-only slot; never captured — the validated value arrives as `validate`'s argument.
             #[koruma(value, skip_capture)]
             actual: ::core::option::Option<T>,
         }

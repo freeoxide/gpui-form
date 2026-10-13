@@ -1636,13 +1636,12 @@ mod newtype_locale_tests {
     use crate::localized_field_error;
 
     fn rendered_code_error(locale: &str) -> String {
-        let mut holder = SignupFormValueHolder::default();
-        holder.username = Some("ada".to_string());
-        holder.code = Some(RequestCode::from("A".to_string()));
-        let err = holder
-            .validate()
-            .err()
-            .expect("short invite code must fail");
+        let holder = SignupFormValueHolder {
+            username: Some("ada".to_string()),
+            code: Some(RequestCode::from("A".to_string())),
+            ..Default::default()
+        };
+        let err = holder.validate().expect_err("short invite code must fail");
         localized_field_error(&err.code().all(), locale, |v| match v {
             SignupFormValueHolderCodeKorumaValidator::RequiredValidation(_) => {
                 "validation.required"
@@ -1806,12 +1805,14 @@ mod dependency_tests {
         // `required_if = newsletter`: the switch flips email between
         // optional and required, and the violation surfaces as a typed,
         // path-addressable error carrying the localized required key.
-        let mut holder = SignupFormValueHolder::default();
-        holder.username = Some("ada".to_string());
-        holder.code = Some("AB12".parse().unwrap());
-        holder.age = Some(30);
+        let mut holder = SignupFormValueHolder {
+            username: Some("ada".to_string()),
+            code: Some("AB12".parse().unwrap()),
+            age: Some(30),
+            country: Some(crate::Country::France),
+            ..Default::default()
+        };
         holder.address.city = Some("Paris".to_string());
-        holder.country = Some(crate::Country::France);
 
         assert!(
             holder.clone().validate().is_ok(),
@@ -1837,8 +1838,10 @@ mod dependency_tests {
     fn conditional_required_localizes_through_the_shared_key() {
         // The desugared rule reuses `validation.required`, so the app's
         // existing locale entries render it with zero new keys.
-        let mut holder = SignupFormValueHolder::default();
-        holder.newsletter = true;
+        let holder = SignupFormValueHolder {
+            newsletter: true,
+            ..Default::default()
+        };
         let errors = holder.validate_fields();
         let error = errors
             .error_for(&SignupFormPath::email())
@@ -1887,20 +1890,20 @@ mod dependency_tests {
             .collect();
         let patch = state.patch();
         let mut entries: Vec<String> = Vec::new();
-        if touched.contains("email") {
-            if let Some(value) = &patch.email {
-                match value {
-                    Some(value) => entries.push(format!("email = {value:?}")),
-                    None => entries.push("email = null (cleared)".to_string()),
-                }
+        if touched.contains("email")
+            && let Some(value) = &patch.email
+        {
+            match value {
+                Some(value) => entries.push(format!("email = {value:?}")),
+                None => entries.push("email = null (cleared)".to_string()),
             }
         }
-        if touched.contains("age") {
-            if let Some(value) = &patch.age {
-                match value {
-                    Some(value) => entries.push(format!("age = {value:?}")),
-                    None => entries.push("age = null (cleared)".to_string()),
-                }
+        if touched.contains("age")
+            && let Some(value) = &patch.age
+        {
+            match value {
+                Some(value) => entries.push(format!("age = {value:?}")),
+                None => entries.push("age = null (cleared)".to_string()),
             }
         }
         entries.join(", ")
@@ -2031,8 +2034,7 @@ mod submit_lifecycle_tests {
         // A failed validate-then-submit stores the typed koruma error.
         let failure = SignupFormValueHolder::default()
             .validate()
-            .err()
-            .expect("default holder must fail");
+            .expect_err("default holder must fail");
         tracker.begin();
         tracker.finish(Err(failure));
         assert!(!tracker.is_submit_successful());
@@ -2131,12 +2133,14 @@ mod nested_and_list_tests {
 
     #[test]
     fn list_element_errors_carry_indices() {
-        let mut holder = SignupFormValueHolder::default();
-        holder.username = Some("ada".to_string());
+        let mut holder = SignupFormValueHolder {
+            username: Some("ada".to_string()),
+            code: Some("AB12".parse().unwrap()),
+            age: Some(30),
+            tags: vec!["ok".to_string(), "x".to_string(), "gpui".to_string()],
+            ..Default::default()
+        };
         holder.address.city = Some("Paris".to_string());
-        holder.code = Some("AB12".parse().unwrap());
-        holder.age = Some(30);
-        holder.tags = vec!["ok".to_string(), "x".to_string(), "gpui".to_string()];
 
         let errors = holder.validate_fields();
         let failing: Vec<usize> = errors
@@ -2160,13 +2164,15 @@ mod nested_and_list_tests {
         assert!(errors.tags_element_error(0).is_none());
         assert!(errors.tags_element_error(1).is_some());
 
-        // The generic failing-path view expands per failing item index.
+        // The generic failing-path view expands per failing item index and
+        // keeps the root path (the whole-field slot is populated, so
+        // `failing_fields` agrees with `error_for(tags_root)`).
         let names: Vec<String> = errors
             .failing_paths()
             .iter()
             .map(|path| path.to_string())
             .collect();
-        assert_eq!(names, vec!["tags.1"]);
+        assert_eq!(names, vec!["tags.1", "tags"]);
     }
 
     #[test]

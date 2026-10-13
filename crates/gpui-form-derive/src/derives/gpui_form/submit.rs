@@ -53,15 +53,15 @@ pub fn generate_submit_alias(
         quote! { ::gpui_form::core::submit::BoxError }
     };
 
+    // Generated-item docs stay one-line summaries (the derive output is
+    // ~45% #[doc] payload by bytes otherwise); the removed essay lives in
+    // this generator comment: the alias is `::gpui_form::core::submit::
+    // SubmitTracker`; the error parameter is this form's koruma validation
+    // error type, so a failed validate-then-submit carries the typed field
+    // errors. Driving the submit (executor, button wiring) is application
+    // code — the holder stays plain data.
     quote! {
-        /// Headless submit-lifecycle tracker for this form, opt-in via
-        /// `#[gpui_form(submit)]` (backlog #7).
-        ///
-        /// Alias of `::gpui_form::core::submit::SubmitTracker`; the error
-        /// parameter is this form's koruma validation error type, so a
-        /// failed validate-then-submit carries the typed field errors.
-        /// Driving the submit (executor, button wiring) is application
-        /// code — the holder stays plain data.
+        /// Headless submit-lifecycle tracker for this form, opt-in via `#[gpui_form(submit)]` (backlog #7).
         pub type #alias_ident = ::gpui_form::core::submit::SubmitTracker<#error_type>;
     }
 }
