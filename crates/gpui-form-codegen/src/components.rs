@@ -500,18 +500,6 @@ define_component_definition!(FilePickerComponent, FilePickerOptions, FilePicker)
 define_component_definition!(NestedComponent, NestedOptions, Nested);
 define_component_definition!(ListComponent, ListOptions, List);
 
-fn number_input_kind(type_str: &str) -> NumberInputKind {
-    if type_str.starts_with('f') {
-        NumberInputKind::Float
-    } else if type_str.starts_with('u') {
-        NumberInputKind::UnsignedInteger
-    } else if type_str.starts_with('i') {
-        NumberInputKind::SignedInteger
-    } else {
-        NumberInputKind::Custom
-    }
-}
-
 /// The last path segment of a type, as a string literal: `Address` and
 /// `some_lib::Address` both yield `"Address"`. Used for the
 /// `NestedBehaviour::form_struct` metadata — the shared naming-convention
@@ -529,17 +517,32 @@ fn type_last_segment_str(field_type: &syn::Type) -> String {
     }
 }
 
-fn number_input_behaviour_tokens(
+/// The one numeric-family classification for a number-input field: the
+/// `as = ...` override when present, else the field's own type string, run
+/// through [`NumberInputKind::classify`]. Both consumers — the recorded
+/// `NumberInputBehaviour.kind` payload and the emitted input validator
+/// branch — read their behavior from the value this single parse-time call
+/// produces, so recorded metadata and generated validation can never
+/// disagree.
+pub(crate) fn number_input_kind(
     options: &NumberInputOptions,
     field_type: &syn::Type,
-) -> TokenStream {
+) -> NumberInputKind {
     let type_str = options
         .r#as
         .as_ref()
         .map(|ty| ty.to_string())
         .unwrap_or_else(|| field_type.to_token_stream().to_string());
+    NumberInputKind::classify(&type_str)
+}
 
-    let kind_tokens = match number_input_kind(&type_str) {
+fn number_input_behaviour_tokens(
+    options: &NumberInputOptions,
+    field_type: &syn::Type,
+) -> TokenStream {
+    // The recorded kind IS the shared classification (as-override first),
+    // not an independent guess.
+    let kind_tokens = match number_input_kind(options, field_type) {
         NumberInputKind::Float => {
             quote! { ::gpui_form::schema::components::NumberInputKind::Float }
         },
@@ -1085,5 +1088,60 @@ mod tests {
             tokens.contains("item_struct : None"),
             "v1 records no item struct: {tokens}"
         );
+    }
+
+    #[test]
+    fn recorded_number_kind_and_emitted_validator_share_one_classification() {
+        use super::NumberInputOptions;
+
+        // The recorded `NumberInputBehaviour.kind` payload and the emitted
+        // `.validate(...)` branch must both come from the single shared
+        // `number_input_kind` classification: an unsigned family records
+        // `UnsignedInteger` AND emits `validate_unsigned_numeric`; every
+        // other family records its kind and emits the signed branch.
+        let cases: &[(&str, Option<&str>, &str, bool)] = &[
+            ("i64", None, "SignedInteger", false),
+            ("u32", None, "UnsignedInteger", true),
+            ("f64", None, "Float", false),
+            ("rust_decimal :: Decimal", None, "Custom", false),
+            (
+                "rust_decimal :: Decimal",
+                Some("u64"),
+                "UnsignedInteger",
+                true,
+            ),
+            ("rust_decimal :: Decimal", Some("f64"), "Float", false),
+        ];
+
+        for (field_type, as_override, expected_kind, unsigned_validator) in cases {
+            let r#type: syn::Type = syn::parse_str(field_type).expect("field type");
+            let component = Components::NumberInput(NumberInputOptions {
+                r#as: as_override.map(|ident| syn::parse_str(ident).expect("as override")),
+            });
+
+            let behaviour = component.behaviour_tokens(&r#type).to_string();
+            let kind_marker = format!("NumberInputKind :: {expected_kind}");
+            assert!(
+                behaviour.contains(&kind_marker),
+                "{field_type} (as = {as_override:?}) must record {kind_marker}: {behaviour}"
+            );
+
+            let layout =
+                component.generate_field_layout("amount".to_string(), r#type.clone(), None);
+            let validator = layout.field_base_declarations_tokens.to_string();
+            let (expected_validator, unexpected_validator) = if *unsigned_validator {
+                ("validate_unsigned_numeric", "validate_signed_numeric")
+            } else {
+                ("validate_signed_numeric", "validate_unsigned_numeric")
+            };
+            assert!(
+                validator.contains(expected_validator),
+                "{field_type} (as = {as_override:?}) must emit {expected_validator}: {validator}"
+            );
+            assert!(
+                !validator.contains(unexpected_validator),
+                "{field_type} (as = {as_override:?}) must not emit {unexpected_validator}: {validator}"
+            );
+        }
     }
 }

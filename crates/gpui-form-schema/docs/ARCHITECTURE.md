@@ -97,6 +97,14 @@ Important fields:
   (`LayoutWidth`)
 - `async_validator` (`Option<&'static str>`): metadata-only async validator
   path (M2 emission sketch)
+
+`NumberInputKind::classify` is the one numeric-family classifier:
+`gpui-form-codegen` classifies each number-input field once (with the
+`as = ...` override string when present, else the field type) and feeds the
+same `NumberInputKind` value to both the recorded `NumberInputBehaviour.kind`
+payload and the emitted input validator branch; prototyping's step
+arithmetic calls `classify` on the raw value type. Recorded kind and
+generated behavior therefore cannot disagree.
 - `depends_on` (`Option<&'static str>`): the sibling field this field
   depends on (M4, backlog #12) — metadata-only; reset-on-parent-change is
   consumer-authored
@@ -120,9 +128,10 @@ contract (const-callable, `Copy`/`&'static str` payloads only).
 - **Read-only projection.** `From<&GpuiFormShape>`/`From<&FieldVariant>`
   convert the `&'static` inventory model into owned `String` data; there is no
   builder surface and no path back. The derive's `<Name>FormSchema::schema()`
-  emits the SAME `FieldVariant`/`FieldLayout` chain the inventory submits and
-  converts at runtime, so the export cannot drift from the registered shape
-  (the layers do not invent a parallel runtime model).
+  hosts the one `FieldVariant`/`FieldLayout` chain (the inventory submission
+  registers that same const) and converts at runtime, so the export cannot
+  drift from the registered shape (the layers do not invent a parallel
+  runtime model).
 - **Serializable unconditionally.** The view types (and `ComponentKind` /
   `NumberInputKind` / `LayoutWidth`) derive `Serialize`/`Deserialize`
   unconditionally — `serde` is a plain dependency of this crate, NOT an

@@ -113,12 +113,41 @@ impl NumberInputKind {
     pub const fn is_unsigned(self) -> bool {
         matches!(self, Self::UnsignedInteger)
     }
+
+    /// The one numeric-family classifier, shared by every emission path:
+    /// `gpui-form-codegen` classifies once per field and feeds the same
+    /// [`NumberInputKind`] value to both the recorded
+    /// `NumberInputBehaviour.kind` payload and the emitted input validator
+    /// branch, and prototyping's step arithmetic calls this on the raw
+    /// value type — so the recorded kind can never disagree with the
+    /// generated behavior.
+    ///
+    /// `type_str` is the `as = ...` override when the field carries one,
+    /// else the field's own type string.
+    pub fn classify(type_str: &str) -> Self {
+        if type_str.starts_with('f') {
+            Self::Float
+        } else if type_str.starts_with('u') {
+            Self::UnsignedInteger
+        } else if type_str.starts_with('i') {
+            Self::SignedInteger
+        } else {
+            Self::Custom
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct NumberInputBehaviour {
     /// Optional `as = ...` override used for numeric validation semantics.
     pub validation_type: Option<&'static str>,
+    /// The numeric family this field validates as, produced by the shared
+    /// [`NumberInputKind::classify`] run. Not vestigial: the derive's
+    /// emitted validator consumes the same classification value from the
+    /// same parse-time site (one `gpui-form-codegen` helper feeds both), so
+    /// the recorded kind and the generated validation branch cannot
+    /// disagree, and the value is carried through the schema export
+    /// (`FormSchemaComponent::NumberInput`) to tooling and prototyping.
     pub kind: NumberInputKind,
 }
 
@@ -230,8 +259,49 @@ impl ComponentsBehaviour {
 #[cfg(test)]
 mod tests {
     use super::{
-        ComponentKind, ComponentsBehaviour, ListBehaviour, NestedBehaviour, SelectBehaviour,
+        ComponentKind, ComponentsBehaviour, ListBehaviour, NestedBehaviour, NumberInputKind,
+        SelectBehaviour,
     };
+
+    #[test]
+    fn number_input_kind_classifies_the_shared_numeric_families() {
+        // One classifier feeds the derive's recorded `NumberInputBehaviour`
+        // kind, the emitted input validator, and prototyping's step
+        // arithmetic — these cases are the contract all three agree on.
+        // Float family (what a `number_input(as = f32/f64)` override feeds).
+        assert_eq!(NumberInputKind::classify("f32"), NumberInputKind::Float);
+        assert_eq!(NumberInputKind::classify("f64"), NumberInputKind::Float);
+        assert!(!NumberInputKind::classify("f64").is_unsigned());
+
+        // Unsigned family.
+        for ty in ["u8", "u16", "u32", "u64", "u128", "usize"] {
+            assert_eq!(
+                NumberInputKind::classify(ty),
+                NumberInputKind::UnsignedInteger,
+                "{ty} must classify as the unsigned family"
+            );
+            assert!(NumberInputKind::classify(ty).is_unsigned());
+        }
+
+        // Signed family.
+        for ty in ["i8", "i16", "i32", "i64", "i128", "isize"] {
+            assert_eq!(
+                NumberInputKind::classify(ty),
+                NumberInputKind::SignedInteger,
+                "{ty} must classify as the signed family"
+            );
+            assert!(!NumberInputKind::classify(ty).is_unsigned());
+        }
+
+        // Anything else is Custom — including a Decimal reached through the
+        // raw value type (a `number_input(as = f64)` Decimal feeds "f64"
+        // upstream and classifies Float there).
+        assert_eq!(
+            NumberInputKind::classify("::rust_decimal::Decimal"),
+            NumberInputKind::Custom
+        );
+        assert!(!NumberInputKind::classify("::rust_decimal::Decimal").is_unsigned());
+    }
 
     #[test]
     fn nested_and_list_kinds_are_value_only_non_focusable_non_subscribable() {

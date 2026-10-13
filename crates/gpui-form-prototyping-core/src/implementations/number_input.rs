@@ -13,18 +13,6 @@ use super::{
 
 pub struct NumberInputCodeGenerator;
 
-fn number_input_step_kind(type_str: &str) -> NumberInputKind {
-    if type_str.starts_with('f') {
-        NumberInputKind::Float
-    } else if type_str.starts_with('u') {
-        NumberInputKind::UnsignedInteger
-    } else if type_str.starts_with('i') {
-        NumberInputKind::SignedInteger
-    } else {
-        NumberInputKind::Custom
-    }
-}
-
 const IMPORTS: &[ImportItem] = &[
     ImportItem::path("::gpui_kit::component::input::InputEvent"),
     ImportItem::path("::gpui_kit::component::input::InputState"),
@@ -129,7 +117,12 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
             _ => panic!("Expected NumberInput behaviour"),
         }
 
-        let step_kind = number_input_step_kind(field.raw().value_type);
+        // Step arithmetic follows the RAW value type (the value actually
+        // stored in the holder), not the `as = ...` override — an
+        // `as = f64` Decimal steps through Decimal semantics. The family
+        // itself comes from the shared schema classifier, the same one the
+        // derive's metadata and emitted validator use.
+        let step_kind = NumberInputKind::classify(field.raw().value_type);
 
         let (decrement_logic, increment_logic) = match step_kind {
             NumberInputKind::Float => (
@@ -199,7 +192,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{NumberInputCodeGenerator, number_input_step_kind};
+    use super::NumberInputCodeGenerator;
     use crate::implementations::FieldCodeGenerator as _;
     use gpui_form_schema::{
         components::{ComponentsBehaviour, NumberInputBehaviour, NumberInputKind},
@@ -266,7 +259,7 @@ mod tests {
         let compact = compact(&generated.handlers[1].to_string());
 
         assert_eq!(
-            number_input_step_kind(FIELDS[0].value_type),
+            NumberInputKind::classify(FIELDS[0].value_type),
             NumberInputKind::Custom
         );
         assert!(

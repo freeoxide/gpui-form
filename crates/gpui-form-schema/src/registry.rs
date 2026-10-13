@@ -105,7 +105,7 @@ pub struct FieldVariant {
     ///
     /// Metadata-only (M2 emission sketch): the attribute parses and records
     /// the path, but nothing executes it yet — async wiring is deferred to
-    /// the reserved `async-validation` feature. Prototyping consumers no-op.
+    /// a future wiring phase. Prototyping consumers no-op.
     pub async_validator: Option<&'static str>,
     /// Milestone M4 (backlog #12): the sibling field this field depends on,
     /// recorded from `#[gpui_form(depends_on = <field>)]`.
