@@ -84,11 +84,6 @@ paths. Root-level module re-exports remain for compatibility.
   gate); only the holder serde derives require this feature.
 - `phone`: forwards `gpui-form-core/phone` and exposes parser-backed,
   country-matching phone validation helpers at `gpui_form::phone`.
-- `async-validation` (reserved, default off): forwards
-  `gpui-form-derive/async-validation`. Nothing keys on it yet — the
-  `validate(async_fn = ...)` attribute parses and records metadata only;
-  the flag exists so the future async-wiring emission has a stable feature
-  name from day one.
 
 `inventory` and `serde` forward to `gpui-form-derive` via the optional
 dependency (`gpui-form-derive?/...`) and are therefore meaningful only when

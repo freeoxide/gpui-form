@@ -1,14 +1,8 @@
-//! Example of nested infinite select enums for location selection.
-//!
-//! This demonstrates a 3-level hierarchy: Country -> State/Province -> City
-//! using the InfiniteSelect derive macro.
+//! Nested infinite-select enums: a 3-level Country -> State/Province ->
+//! City hierarchy for the `InfiniteSelect` derive.
 
 use gpui_form::InfiniteSelect;
 use strum::EnumIter;
-
-// ============================================================================
-// Level 3: Cities (leaf nodes - no inner values)
-// ============================================================================
 
 #[derive(Clone, Debug, Default, EnumIter, InfiniteSelect, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -76,10 +70,6 @@ pub enum BritishColumbiaCity {
     Richmond,
 }
 
-// ============================================================================
-// Level 2: States/Provinces (contain cities)
-// ============================================================================
-
 #[derive(Clone, Debug, EnumIter, InfiniteSelect, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum USAState {
@@ -108,10 +98,6 @@ impl Default for CanadaProvince {
     }
 }
 
-// ============================================================================
-// Level 1: Countries (contain states/provinces)
-// ============================================================================
-
 #[derive(Clone, Debug, EnumIter, InfiniteSelect, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Country {
@@ -125,20 +111,14 @@ impl Default for Country {
     }
 }
 
-// ============================================================================
-// Form struct using the nested infinite select enum
-// ============================================================================
-
 use gpui_form::GpuiForm;
 
 /// A form that demonstrates tuple select with nested enums.
 #[derive(Clone, Debug, Default, GpuiForm)]
 pub struct LocationForm {
-    /// User's name
     #[gpui_form(component(input))]
     pub name: String,
 
-    /// Location selection using cascading selects
     #[gpui_form(component(infinite_select))]
     pub location: Country,
 }

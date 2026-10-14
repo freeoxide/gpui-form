@@ -13,12 +13,12 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants as _},
     h_flex,
 };
-use icu_calendar::{Date as IcuDate, Gregorian};
-use icu_datetime::{FixedCalendarDateTimeFormatter, fieldsets};
+use icu_calendar::Date as IcuDate;
 use icu_locale_core::{Locale, locale};
 use jiff::civil::Date as JiffDate;
 
 use crate::calendar::{Calendar, CalendarEvent, CalendarState, Date as CalendarDate};
+use crate::date_format::{self, DateFormatKind};
 use crate::i18n::DatePickerText;
 
 /// Localized date display widths for the runtime date picker.
@@ -50,6 +50,8 @@ pub struct DatePickerState {
     calendar: Entity<CalendarState>,
     display_locale: Option<Locale>,
     display_style: DateDisplayStyle,
+    min_date: Option<JiffDate>,
+    max_date: Option<JiffDate>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -70,6 +72,8 @@ pub struct DateRangePickerState {
     calendar: Entity<CalendarState>,
     display_locale: Option<Locale>,
     display_style: DateDisplayStyle,
+    min_date: Option<JiffDate>,
+    max_date: Option<JiffDate>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -109,6 +113,8 @@ impl DatePickerState {
             calendar,
             display_locale: None,
             display_style: DateDisplayStyle::default(),
+            min_date: None,
+            max_date: None,
             _subscriptions: subscriptions,
         }
     }
@@ -126,6 +132,20 @@ impl DatePickerState {
         cx: &mut Context<Self>,
     ) {
         self.update_date(date.into(), false, window, cx);
+    }
+
+    /// Set the earliest selectable date; earlier calendar days render
+    /// disabled and reject clicks. Default: no lower bound.
+    pub fn min_date(mut self, date: impl Into<Option<JiffDate>>) -> Self {
+        self.min_date = date.into();
+        self
+    }
+
+    /// Set the latest selectable date; later calendar days render disabled
+    /// and reject clicks. Default: no upper bound.
+    pub fn max_date(mut self, date: impl Into<Option<JiffDate>>) -> Self {
+        self.max_date = date.into();
+        self
     }
 
     /// Override the locale used for display formatting.
@@ -226,6 +246,8 @@ impl DateRangePickerState {
             calendar,
             display_locale: None,
             display_style: DateDisplayStyle::default(),
+            min_date: None,
+            max_date: None,
             _subscriptions: subscriptions,
         }
     }
@@ -244,6 +266,20 @@ impl DateRangePickerState {
         cx: &mut Context<Self>,
     ) {
         self.update_range(start_date.into(), end_date.into(), false, window, cx);
+    }
+
+    /// Set the earliest selectable date; earlier calendar days render
+    /// disabled and reject clicks. Default: no lower bound.
+    pub fn min_date(mut self, date: impl Into<Option<JiffDate>>) -> Self {
+        self.min_date = date.into();
+        self
+    }
+
+    /// Set the latest selectable date; later calendar days render disabled
+    /// and reject clicks. Default: no upper bound.
+    pub fn max_date(mut self, date: impl Into<Option<JiffDate>>) -> Self {
+        self.max_date = date.into();
+        self
     }
 
     /// Override the locale used for display formatting.
@@ -514,6 +550,7 @@ impl RenderOnce for DatePicker {
             .child(
                 div()
                     .id("date-picker-input")
+                    .debug_selector(|| "gpfd-date-picker-input".to_string())
                     .relative()
                     .flex()
                     .items_center()
@@ -600,6 +637,8 @@ impl RenderOnce for DatePicker {
                                     Calendar::new(&state.calendar)
                                         .display_locale(locale.clone())
                                         .number_of_months(self.number_of_months)
+                                        .min_date(state.min_date.and_then(chrono_date_from_jiff))
+                                        .max_date(state.max_date.and_then(chrono_date_from_jiff))
                                         .border_0()
                                         .rounded_none()
                                         .p_0()
@@ -642,6 +681,7 @@ impl RenderOnce for DateRangePicker {
             .child(
                 div()
                     .id("date-range-picker-input")
+                    .debug_selector(|| "gpfd-date-range-picker-input".to_string())
                     .relative()
                     .flex()
                     .items_center()
@@ -727,6 +767,8 @@ impl RenderOnce for DateRangePicker {
                                     Calendar::new(&state.calendar)
                                         .display_locale(locale.clone())
                                         .number_of_months(self.number_of_months)
+                                        .min_date(state.min_date.and_then(chrono_date_from_jiff))
+                                        .max_date(state.max_date.and_then(chrono_date_from_jiff))
                                         .border_0()
                                         .rounded_none()
                                         .p_0()
@@ -769,20 +811,19 @@ fn active_locale() -> Locale {
     Locale::from_str(&normalized).unwrap_or(locale!("en-US"))
 }
 
-fn format_display_date(
+/// Formats one civil date for `locale` at `display_style` via the shared
+/// ICU4X formatter path. Returns `None` when no formatter can be built for
+/// `locale` or the date is outside the Gregorian range.
+pub fn format_display_date(
     date: JiffDate,
     locale: &Locale,
     display_style: DateDisplayStyle,
 ) -> Option<SharedString> {
-    let formatter = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
-        locale.clone().into(),
-        match display_style {
-            DateDisplayStyle::Short => fieldsets::YMD::short(),
-            DateDisplayStyle::Medium => fieldsets::YMD::medium(),
-            DateDisplayStyle::Long => fieldsets::YMD::long(),
-        },
-    )
-    .ok()?;
+    let kind = match display_style {
+        DateDisplayStyle::Short => DateFormatKind::DateShort,
+        DateDisplayStyle::Medium => DateFormatKind::DateMedium,
+        DateDisplayStyle::Long => DateFormatKind::DateLong,
+    };
 
     let icu_date = IcuDate::try_new_gregorian(
         i32::from(date.year()),
@@ -791,7 +832,7 @@ fn format_display_date(
     )
     .ok()?;
 
-    Some(formatter.format(&icu_date).to_string().into())
+    Some(date_format::format_date(kind, locale, &icu_date)?.into())
 }
 
 fn format_display_range(
@@ -830,10 +871,14 @@ fn format_display_range(
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
+    use gpui::TestAppContext;
     use icu_locale_core::locale;
     use jiff::civil::date;
 
-    use super::{DateDisplayStyle, format_display_date, format_display_range, parse_form_date};
+    use super::{
+        DateDisplayStyle, DatePickerState, DateRangePickerState, format_display_date,
+        format_display_range, parse_form_date,
+    };
 
     #[test]
     fn formats_dates_with_icu4x() {
@@ -865,5 +910,101 @@ mod tests {
         .expect("formatted date range");
 
         assert_eq!(formatted.to_string(), "Jan 15, 2025 - Jan 20, 2025");
+    }
+
+    #[test]
+    fn output_is_identical_after_locale_switch_and_cache_hit() {
+        let d = date(2025, 1, 15);
+        let en_first =
+            format_display_date(d, &locale!("en-US"), DateDisplayStyle::Medium).expect("en first");
+        let fr = format_display_date(d, &locale!("fr-FR"), DateDisplayStyle::Medium).expect("fr");
+        let zh = format_display_date(d, &locale!("zh-CN"), DateDisplayStyle::Medium).expect("zh");
+
+        let en_cached =
+            format_display_date(d, &locale!("en-US"), DateDisplayStyle::Medium).expect("en hit");
+        let fr_cached =
+            format_display_date(d, &locale!("fr-FR"), DateDisplayStyle::Medium).expect("fr hit");
+
+        assert_eq!(en_first, en_cached);
+        assert_eq!(fr, fr_cached);
+        assert_ne!(en_first, fr);
+        assert_eq!(zh.to_string(), "2025年1月15日");
+    }
+
+    #[test]
+    fn output_is_identical_after_display_style_switch_and_cache_hit() {
+        let d = date(2025, 1, 15);
+        let fr = locale!("fr-FR");
+
+        let first_short = format_display_date(d, &fr, DateDisplayStyle::Short).expect("short");
+        let first_medium = format_display_date(d, &fr, DateDisplayStyle::Medium).expect("medium");
+        let first_long = format_display_date(d, &fr, DateDisplayStyle::Long).expect("long");
+
+        let cached_long = format_display_date(d, &fr, DateDisplayStyle::Long).expect("long hit");
+        let cached_medium =
+            format_display_date(d, &fr, DateDisplayStyle::Medium).expect("medium hit");
+        let cached_short = format_display_date(d, &fr, DateDisplayStyle::Short).expect("short hit");
+
+        assert_eq!(first_short, cached_short);
+        assert_eq!(first_medium, cached_medium);
+        assert_eq!(first_long, cached_long);
+        assert_eq!(first_short.to_string(), "15/01/2025");
+        assert_eq!(first_medium.to_string(), "15 janv. 2025");
+        assert_eq!(first_long.to_string(), "15 janvier 2025");
+    }
+
+    #[gpui::test]
+    async fn date_picker_bounds_are_recorded_and_in_bounds_selection_works(
+        cx: &mut TestAppContext,
+    ) {
+        let (state, cx) = cx.add_window_view(|window, cx| {
+            DatePickerState::new(window, cx)
+                .min_date(date(2025, 1, 5))
+                .max_date(date(2025, 1, 20))
+        });
+
+        cx.read(|app| {
+            let state = state.read(app);
+            assert_eq!(state.min_date, Some(date(2025, 1, 5)));
+            assert_eq!(state.max_date, Some(date(2025, 1, 20)));
+        });
+
+        state.update_in(cx, |state, window, cx| {
+            state.set_date(date(2025, 1, 10), window, cx);
+        });
+        assert_eq!(
+            cx.read(|app| state.read(app).date()),
+            Some(date(2025, 1, 10))
+        );
+
+        state.update_in(cx, |state, window, cx| {
+            state.set_date(None, window, cx);
+        });
+        assert_eq!(cx.read(|app| state.read(app).date()), None);
+    }
+
+    #[gpui::test]
+    async fn date_range_picker_bounds_are_recorded_and_in_bounds_selection_works(
+        cx: &mut TestAppContext,
+    ) {
+        let (state, cx) = cx.add_window_view(|window, cx| {
+            DateRangePickerState::new(window, cx)
+                .min_date(date(2025, 1, 5))
+                .max_date(date(2025, 1, 20))
+        });
+
+        cx.read(|app| {
+            let state = state.read(app);
+            assert_eq!(state.min_date, Some(date(2025, 1, 5)));
+            assert_eq!(state.max_date, Some(date(2025, 1, 20)));
+        });
+
+        state.update_in(cx, |state, window, cx| {
+            state.set_range(date(2025, 1, 6), date(2025, 1, 19), window, cx);
+        });
+        assert_eq!(
+            cx.read(|app| state.read(app).range()),
+            (Some(date(2025, 1, 6)), Some(date(2025, 1, 19)))
+        );
     }
 }

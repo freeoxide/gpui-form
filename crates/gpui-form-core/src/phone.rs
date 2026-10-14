@@ -1,8 +1,6 @@
-//! Phone-number validation helpers.
-//!
-//! These helpers wrap the `phonenumber` parser for two common form modes:
-//! general validation for any valid global number, and strict validation where
-//! the parsed number must match the selected country.
+//! Phone-number validation helpers wrapping the `phonenumber` parser:
+//! general validation for any valid global number, and strict validation
+//! where the parsed number must match the selected country.
 
 pub use phonenumber::country;
 
@@ -31,9 +29,8 @@ impl PhoneNumberValidation {
         matches!(self, Self::Empty)
     }
 
-    /// Whether the result is acceptable for an *optional* field: either a valid
-    /// number or empty input. Use this for live input gating where a partially
-    /// typed or cleared field should not be flagged as invalid.
+    /// Whether the result is acceptable for an *optional* field: either a
+    /// valid number or empty input.
     pub fn is_valid_or_empty(&self) -> bool {
         matches!(self, Self::Valid(_) | Self::Empty)
     }
@@ -86,38 +83,9 @@ impl ValidatedPhoneNumber {
     }
 }
 
-/// A type that maps onto a libphonenumber country.
-///
-/// Implement this for an application's own country enum so helper and UI code
-/// can map to a [`country::Id`] and a user-facing label without repeating a
-/// `match` at every call site. The blanket helpers
-/// [`validate_phone_number_for_country_label`] and friends accept the resulting
-/// id and label directly.
-///
-/// ```
-/// use gpui_form_core::phone::{country, PhoneCountry};
-///
-/// enum Country {
-///     UnitedStates,
-///     France,
-/// }
-///
-/// impl PhoneCountry for Country {
-///     fn phone_country_id(&self) -> country::Id {
-///         match self {
-///             Self::UnitedStates => country::US,
-///             Self::France => country::FR,
-///         }
-///     }
-///
-///     fn phone_country_label(&self) -> String {
-///         match self {
-///             Self::UnitedStates => "United States".to_string(),
-///             Self::France => "France".to_string(),
-///         }
-///     }
-/// }
-/// ```
+/// Maps an application's own country enum onto a libphonenumber
+/// [`country::Id`] plus a user-facing label, for helpers such as
+/// [`validate_phone_number_for`].
 pub trait PhoneCountry {
     /// The libphonenumber country id for this value.
     fn phone_country_id(&self) -> country::Id;
@@ -194,10 +162,8 @@ impl core::fmt::Display for PhoneNumberValidationError {
 impl std::error::Error for PhoneNumberValidationError {}
 
 /// Validate a phone number without enforcing a selected-country match.
-///
-/// Pass `default_country` when the UI should also accept national-format input
-/// such as `415 555 2671`. International input such as `+1 415 550 2222` can
-/// be validated with `None` because the country code is present in the input.
+/// Pass `default_country` to also accept national-format input; `None`
+/// still accepts international input with an explicit country code.
 pub fn validate_phone_number(
     raw: &str,
     default_country: Option<country::Id>,
@@ -222,12 +188,9 @@ pub fn validate_phone_number(
     }
 }
 
-/// Validate a phone number against a selected country id.
-///
-/// This is intentionally stricter than `phonenumber::parse(Some(country), raw)`
-/// alone. International input such as `+1 415 550 2222` can parse successfully
-/// even when the selected country is France; this helper rejects it because the
-/// parsed country does not match the selected country.
+/// Validate a phone number against a selected country id: rejects
+/// international input that parses for a different country, unlike
+/// `phonenumber::parse(Some(country), raw)` alone.
 pub fn validate_phone_number_for_country(
     raw: &str,
     selected_country: country::Id,
@@ -272,9 +235,8 @@ pub fn validate_phone_number_for_country_label(
     }
 }
 
-/// Validate a phone number using a [`PhoneCountry`] for both the country id and
-/// the user-facing label. This is the ergonomic entry point for application
-/// country enums that implement [`PhoneCountry`].
+/// Validate a phone number using a [`PhoneCountry`] for both the country
+/// id and the user-facing label.
 pub fn validate_phone_number_for(raw: &str, country: &impl PhoneCountry) -> PhoneNumberValidation {
     validate_phone_number_for_country_label(
         raw,
@@ -283,13 +245,9 @@ pub fn validate_phone_number_for(raw: &str, country: &impl PhoneCountry) -> Phon
     )
 }
 
-/// Validate an *optional* phone number without country matching.
-///
-/// Empty input is treated as acceptable and returns
-/// [`PhoneNumberValidation::Empty`]; combine with
-/// [`PhoneNumberValidation::is_valid_or_empty`] to gate live input. This is the
-/// same as [`validate_phone_number`] but names the intent explicitly so apps no
-/// longer have to decide what empty means.
+/// Validate an *optional* phone number without country matching: empty
+/// input returns [`PhoneNumberValidation::Empty`] and counts as
+/// acceptable for [`PhoneNumberValidation::is_valid_or_empty`].
 pub fn validate_optional_phone_number(
     raw: &str,
     default_country: Option<country::Id>,
@@ -312,10 +270,8 @@ pub fn validate_required_phone_number(
     }
 }
 
-/// Validate an *optional* phone number against a selected country.
-///
-/// Empty input is treated as acceptable and returns
-/// [`PhoneNumberValidation::Empty`].
+/// Validate an *optional* phone number against a selected country: empty
+/// input returns [`PhoneNumberValidation::Empty`].
 pub fn validate_optional_phone_number_for_country_label(
     raw: &str,
     selected_country: country::Id,

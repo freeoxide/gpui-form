@@ -1,45 +1,6 @@
-//! Generator for the per-form state facade (`<Name>FormState`) and the
-//! per-form patch type (`<Name>FormPatch`).
-//!
-//! Milestone 1 of the form feature-parity plan (field-level state model):
-//! the facade *composes* the standalone core primitives —
-//! `::gpui_form::core::FormState<H>` for baseline/current values and
-//! `::gpui_form::core::TouchedFields` for engagement tracking — behind typed
-//! `<Name>FormPath` accessors, so `FormState<H>` itself stays a frozen
-//! two-slot generic and every primitive remains usable standalone.
-//!
-//! Milestone 2 adds the validation-state cache for a live `is_valid`
-//! ([D6]): koruma-gated facades gain a `validation` slot of
-//! `::gpui_form::core::ValidationCache<Holder, <Name>FormFieldErrors>` plus
-//! `validate`/`validation`/`is_valid`/`invalidate_validation`/`error_for`.
-//! Freshness is snapshot-compare, so the cache stays sound even under the
-//! `state_mut()` escape hatch; reset-style mutators still invalidate
-//! explicitly so a reverted-to-same-value form does not keep displaying the
-//! old verdict.
-//!
-//! # Rules
-//!
-//! - Holders stay plain data: the facade and patch are separate generated
-//!   types, never fields or methods-with-state on the value holder.
-//! - Both types carry the source struct's generics verbatim. `<Name>FormPath`
-//!   can be generics-free because a path names no types; the facade names the
-//!   holder (`FormState<<Name>FormValueHolder<..>>`), so dropping generics
-//!   would break source structs that compile today.
-//! - Skipped fields are absent from the patch and from every facade accessor.
-//! - Per-field dirty comparison reuses the holder's unconditional `PartialEq`
-//!   field types (comparison happens on holder types, not source types), so
-//!   `type`/`from`/`into` conversion fields need no special handling here.
-//! - The patch's serde derives are added only when the derive crate is built
-//!   with its `serde` feature (same gate as the holder), with
-//!   `skip_serializing_if = "Option::is_none"` per field so the wire format
-//!   is the PATCH tri-state: absent = unchanged, `null` = cleared,
-//!   value = set.
-//! - The validation cache emits only when the holder derives koruma AND the
-//!   source struct is non-generic (the same combined gate as the
-//!   `<Name>FormFieldErrors` map it stores — koruma's generated error types
-//!   for generic structs carry a usage-analysis subset of the generics that
-//!   cannot be reconstructed here). Empty forms never emit it (nothing to
-//!   validate).
+//! Generates the per-form state facade (`<Name>FormState`) and patch type
+//! (`<Name>FormPatch`) composing the core primitives (`FormState`,
+//! `TouchedFields`, and optionally `ValidationCache`) via `<Name>FormPath`.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -49,17 +10,9 @@ use crate::derives::gpui_form::errors::participates_in_field_errors;
 use crate::derives::gpui_form::structs::{FieldComposition, FieldOptionality};
 use crate::derives::gpui_form::value_holder::form_field_type_tokens;
 
-/// Generates `<Name>FormState` and `<Name>FormPatch` for a single form.
-///
-/// Spliced into BOTH expansion branches (empty-form early return and main
-/// expansion) next to the value-holder and path tokens. Empty forms emit a
-/// facade over an empty holder and a field-less patch — and never a
-/// validation cache (nothing to validate), so `enable_validation` is
-/// meaningless for them.
-///
-/// `enable_validation` gates the koruma validation cache and its methods;
-/// the caller passes the same `needs_koruma_derive` gate that puts
-/// `#[derive(Koruma)]` on the holder, restricted to non-generic structs.
+/// Generates `<Name>FormState` and `<Name>FormPatch` for one form, spliced into
+/// the derive output. `enable_validation` gates the koruma validation cache and
+/// its methods; callers pass the holder's `needs_koruma_derive` gate, non-generic only.
 pub fn generate_form_state(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
@@ -78,11 +31,8 @@ pub fn generate_form_state(
 
     let non_skipped: Vec<&FieldOptionality> = fields.iter().filter(|f| !f.skip).collect();
 
-    // ---- validation cache (M2, koruma-gated) --------------------------------
-
-    // Mirror errors.rs: the borrowing enum only carries its lifetime
-    // parameter when it has at least one variant (a zero-variant enum
-    // cannot reference `'a`).
+    // A zero-variant enum cannot reference `'a`; carry the lifetime only
+    // when at least one field participates (mirrors errors.rs).
     let error_enum_has_variants = fields.iter().any(participates_in_field_errors);
     let error_enum_lifetime = if error_enum_has_variants {
         quote! { <'_> }
@@ -91,8 +41,7 @@ pub fn generate_form_state(
     };
     let validation_field = if enable_validation {
         quote! {
-            /// Outcome cache for a live `is_valid` (fresh iff
-            /// `current == validated snapshot`).
+            /// Outcome cache for a live `is_valid` (fresh iff `current == validated snapshot`).
             validation: ::gpui_form::core::ValidationCache<#holder_ident #ty_generics, #errors_ident>,
         }
     } else {
@@ -110,26 +59,16 @@ pub fn generate_form_state(
     };
     let state_struct_doc = if enable_validation {
         quote! {
-            /// Per-form state facade composing the standalone core primitives:
-            /// baseline/current values via `::gpui_form::core::FormState`,
-            /// touched-field tracking via `::gpui_form::core::TouchedFields`,
-            /// and a validation-outcome cache via
-            /// `::gpui_form::core::ValidationCache` for a live `is_valid` —
-            /// all keyed by typed `<Name>FormPath` values.
+            /// Per-form state facade composing the standalone core primitives (`FormState`, `TouchedFields`, and the validation-outcome cache), keyed by typed `<Name>FormPath` values.
         }
     } else {
         quote! {
-            /// Per-form state facade composing the standalone core primitives:
-            /// baseline/current values via `::gpui_form::core::FormState` and
-            /// touched-field tracking via `::gpui_form::core::TouchedFields`,
-            /// both keyed by typed `<Name>FormPath` values.
+            /// Per-form state facade composing the standalone core primitives (`FormState`, `TouchedFields`), keyed by typed `<Name>FormPath` values.
         }
     };
     let new_method = if enable_validation {
         quote! {
-            /// Create a facade whose baseline and current both start as
-            /// `holder`, whose touched set starts empty, and whose
-            /// validation cache starts empty.
+            /// Create a facade whose baseline and current both start as `holder`, with an empty touched set and validation cache.
             pub fn new(holder: #holder_ident #ty_generics) -> Self {
                 Self {
                     state: ::gpui_form::core::FormState::new(holder),
@@ -140,8 +79,7 @@ pub fn generate_form_state(
         }
     } else {
         quote! {
-            /// Create a facade whose baseline and current both start as
-            /// `holder` and whose touched set starts empty.
+            /// Create a facade whose baseline and current both start as `holder` and whose touched set starts empty.
             pub fn new(holder: #holder_ident #ty_generics) -> Self {
                 Self {
                     state: ::gpui_form::core::FormState::new(holder),
@@ -152,13 +90,7 @@ pub fn generate_form_state(
     };
     let validation_methods = if enable_validation {
         quote! {
-            /// Re-run koruma validation on `current`, cache the outcome,
-            /// and return it. The raw holder `validate()` stays untouched.
-            ///
-            /// Call this whenever validation should refresh (a change
-            /// handler, a Validate button); the cached outcome then serves
-            /// every read — including render-path `is_valid()` — for one
-            /// `PartialEq` until the holder changes again.
+            /// Re-run koruma validation on `current`, cache the outcome, and return it.
             pub fn validate(&mut self) -> &#errors_ident {
                 let outcome = self.state.current().validate_fields();
                 let snapshot = self.state.current().clone();
@@ -171,24 +103,12 @@ pub fn generate_form_state(
                 }
             }
 
-            /// Cached validation outcome: `Some` only when fresh
-            /// (`current` equals the validated snapshot); `None` when the
-            /// holder changed since the last [`Self::validate`].
-            ///
-            /// Invalidation contract: the facade's own mutators
-            /// (`current_mut`, `replace_current`, both resets) invalidate
-            /// up front; `sync_baseline` deliberately does not; the raw
-            /// `state_mut()` escape hatch does not either, but the
-            /// snapshot comparison still detects the value change (and
-            /// [`Self::invalidate_validation`] is the manual recourse).
+            /// Cached validation outcome: `Some` only when fresh (`current` equals the validated snapshot).
             pub fn validation(&self) -> Option<&#errors_ident> {
                 self.validation.get(self.state.current())
             }
 
-            /// Always-accurate validity: the cached verdict when fresh,
-            /// otherwise a fresh `validate_fields()` computed with `&self`
-            /// and *not* cached. Never lies between cache generations, so it
-            /// is safe in render paths even when the cache is stale.
+            /// Always-accurate validity: the cached verdict when fresh, otherwise a fresh, uncached `validate_fields()`.
             pub fn is_valid(&self) -> bool {
                 match self.validation.get(self.state.current()) {
                     Some(errors) => errors.is_empty(),
@@ -196,25 +116,22 @@ pub fn generate_form_state(
                 }
             }
 
-            /// Manual escape for callers that bypass the facade's mutators
-            /// (e.g. `state_mut().current_mut()`): drop the cached outcome
-            /// so the next read recomputes. Not normally needed — the
-            /// snapshot comparison already detects value changes — but it
-            /// forces a recompute even when a mutated value compares equal
-            /// to the validated snapshot.
+            /// Drop the cached outcome so the next read recomputes (escape for callers bypassing the facade's mutators).
             pub fn invalidate_validation(&mut self) {
                 self.validation.invalidate();
             }
 
-            /// Path-keyed error lookup with caching: returns the cached
-            /// verdict when fresh, otherwise validates and caches first
-            /// (hence `&mut self`). `None` for valid fields and unknown
-            /// paths.
+            /// Path-keyed error lookup with caching: serves the cached verdict when fresh, otherwise validates and caches first.
             pub fn error_for(
                 &mut self,
                 field: &#path_ident,
             ) -> Option<#error_enum_ident #error_enum_lifetime> {
-                Self::validate(self).error_for(field)
+                // One trailing shared borrow: a hit returned ahead of
+                // `validate` would pin the borrow across it (E0502).
+                if self.validation.get(self.state.current()).is_none() {
+                    Self::validate(self);
+                }
+                self.validation.stored()?.error_for(field)
             }
         }
     } else {
@@ -222,14 +139,7 @@ pub fn generate_form_state(
     };
     let state_mut_method = if enable_validation {
         quote! {
-            /// Mutably borrow the wrapped core state. Mutating through this
-            /// escape hatch does not touch the touched set.
-            ///
-            /// It also bypasses validation-cache invalidation: the snapshot
-            /// comparison keeps `validation()`/`is_valid()` sound (a changed
-            /// holder stops comparing equal), and
-            /// [`Self::invalidate_validation`] forces a recompute when
-            /// equality alone is not enough.
+            /// Mutably borrow the wrapped core state (escape hatch: no touched-set or validation-cache invalidation).
             pub fn state_mut(
                 &mut self,
             ) -> &mut ::gpui_form::core::FormState<#holder_ident #ty_generics> {
@@ -238,8 +148,7 @@ pub fn generate_form_state(
         }
     } else {
         quote! {
-            /// Mutably borrow the wrapped core state. Mutating through this
-            /// escape hatch does not touch the touched set.
+            /// Mutably borrow the wrapped core state (escape hatch: does not touch the touched set).
             pub fn state_mut(
                 &mut self,
             ) -> &mut ::gpui_form::core::FormState<#holder_ident #ty_generics> {
@@ -257,17 +166,13 @@ pub fn generate_form_state(
                 self.state.current().#field_name != self.state.baseline().#field_name
             };
             match &f.composition {
-                // Flat fields: exact single-segment match.
                 FieldComposition::Flat => quote! {
                     [::gpui_form::core::PathSegment::Name(#field_name_str)] => {
                         #compare
                     },
                 },
-                // Nested/list fields: the facade cannot see inside the
-                // composed value (its fields belong to another form's
-                // holder), so any path rooted at the field compares the
-                // composed value as a whole — a conservative superset that
-                // never asserts on legitimately deeper paths.
+                // Composed values are opaque to this form; any path rooted at
+                // the field compares the value as a whole (deeper paths never assert).
                 FieldComposition::Nested { .. } | FieldComposition::List { .. } => quote! {
                     [::gpui_form::core::PathSegment::Name(#field_name_str), ..] => {
                         #compare
@@ -276,8 +181,8 @@ pub fn generate_form_state(
             }
         })
         .collect();
-    // Empty forms have no valid paths at all, so an unknown path there is
-    // expected rather than a caller bug — no debug assert.
+    // Empty forms have no valid paths, so an unknown path there is expected
+    // rather than a caller bug — no debug assert.
     let is_field_dirty_unknown_arm = if is_field_dirty_arms.is_empty() {
         quote! { _ => false, }
     } else {
@@ -334,8 +239,6 @@ pub fn generate_form_state(
         .iter()
         .map(|f| {
             let field_name = &f.field_name;
-            // Composed fields name their root (`<field>_root()`); flat fields
-            // keep the same-named constructor.
             let ctor_ident = if f.composition.is_flat() {
                 field_name.clone()
             } else {
@@ -374,13 +277,7 @@ pub fn generate_form_state(
         .collect();
 
     quote! {
-        /// Per-form patch: changed holder-typed field values between two
-        /// holders, in declaration order.
-        ///
-        /// Outer `Option` per field = changed; the inner value is the
-        /// holder-typed value, so wrapped or originally-optional fields read
-        /// as `Option<Option<T>>` (`Some(None)` = changed to cleared).
-        /// Skipped fields are absent.
+        /// Per-form patch: changed holder-typed field values between two holders (`Option` per field; `Some(None)` = changed to cleared; skipped fields absent).
         #[allow(clippy::derive_partial_eq_without_eq)]
         #[derive(#(#patch_derives),*)]
         pub struct #patch_ident #generics {
@@ -407,8 +304,7 @@ pub fn generate_form_state(
                 changed
             }
 
-            /// Apply the changed fields onto `holder`; unchanged (`None`)
-            /// fields are left untouched.
+            /// Apply the changed fields onto `holder`; unchanged (`None`) fields are left untouched.
             pub fn apply_to(self, holder: &mut #holder_ident #ty_generics) {
                 #(#patch_apply_stmts)*
             }
@@ -436,11 +332,7 @@ pub fn generate_form_state(
                 self.state.current()
             }
 
-            /// Mutably borrow the live holder value. Touched tracking is
-            /// event-driven and separate: mutate here, then call
-            /// [`Self::touch`] from the component event handler. (On
-            /// koruma-gated facades this also invalidates the validation
-            /// cache — see [`Self::validation`].)
+            /// Mutably borrow the live holder value; touched tracking is event-driven — call [`Self::touch`] from the change handler.
             pub fn current_mut(&mut self) -> &mut #holder_ident #ty_generics {
                 #invalidate_stmt
                 self.state.current_mut()
@@ -451,9 +343,7 @@ pub fn generate_form_state(
                 self.state.baseline()
             }
 
-            /// Overwrite `current` with `holder`; the baseline and the
-            /// touched set are untouched. (On koruma-gated facades the
-            /// validation cache is invalidated — see [`Self::validation`].)
+            /// Overwrite `current` with `holder`; the baseline and the touched set are untouched.
             pub fn replace_current(&mut self, holder: #holder_ident #ty_generics) {
                 #invalidate_stmt
                 self.state.replace_current(holder);
@@ -464,41 +354,30 @@ pub fn generate_form_state(
                 self.state.into_current()
             }
 
-            /// Reset `current` back to the baseline, discard edits, and clear
-            /// the touched set — a fresh canvas. (On koruma-gated facades the
-            /// validation cache is invalidated too, so error display is
-            /// suppressed after a full reset.)
+            /// Reset `current` to the baseline, discard edits, and clear the touched set (a fresh canvas).
             pub fn reset_to_baseline(&mut self) {
                 #invalidate_stmt
                 self.state.reset_to_baseline();
                 self.touched.clear_all();
             }
 
-            /// Reset `current` back to the baseline but keep the touched set
-            /// (undo-style revert: fields stay visited).
+            /// Reset `current` to the baseline but keep the touched set (undo-style revert).
             pub fn reset_to_baseline_keeping_touched(&mut self) {
                 #invalidate_stmt
                 self.state.reset_to_baseline();
             }
 
-            /// Snapshot `current` into `baseline` (call after a successful
-            /// save). The touched set is untouched: a save does not un-visit
-            /// fields. (On koruma-gated facades the validation cache stays
-            /// fresh — validity depends only on `current`, which a sync
-            /// never changes.)
+            /// Snapshot `current` into `baseline` (call after a successful save); the touched set is untouched.
             pub fn sync_baseline(&mut self) {
                 self.state.sync_baseline();
             }
 
-            /// Whether the live holder differs from the baseline
-            /// (whole-value comparison; delegates to the core state).
+            /// Whether the live holder differs from the baseline (whole-value comparison).
             pub fn is_dirty(&self) -> bool {
                 self.state.is_dirty()
             }
 
-            /// Whether one specific field differs between baseline and
-            /// current. Unknown paths return `false` (and assert in debug
-            /// builds).
+            /// Whether one specific field differs between baseline and current; unknown paths return `false` (debug-asserted).
             pub fn is_field_dirty(&self, field: &#path_ident) -> bool {
                 match field.path().segments() {
                     #(#is_field_dirty_arms)*
@@ -506,8 +385,7 @@ pub fn generate_form_state(
                 }
             }
 
-            /// Paths of the fields that differ between baseline and current,
-            /// in declaration order.
+            /// Paths of the fields that differ between baseline and current, in declaration order.
             pub fn changed_fields(&self) -> Vec<#path_ident> {
                 self.patch().changed_fields()
             }
@@ -519,8 +397,7 @@ pub fn generate_form_state(
 
             #validation_methods
 
-            /// Mark a field touched (from a blur or change event). Unknown
-            /// paths are a no-op.
+            /// Mark a field touched (from a blur or change event); unknown paths are a no-op.
             pub fn touch(&mut self, field: &#path_ident) {
                 if let Some(index) = field.field_index() {
                     self.touched.touch_index(index);
@@ -534,8 +411,7 @@ pub fn generate_form_state(
                     .is_some_and(|index| self.touched.is_touched_index(index))
             }
 
-            /// Clear the touched flag for one field. Unknown paths are a
-            /// no-op.
+            /// Clear the touched flag for one field; unknown paths are a no-op.
             pub fn clear_touched(&mut self, field: &#path_ident) {
                 if let Some(index) = field.field_index() {
                     self.touched.clear_index(index);

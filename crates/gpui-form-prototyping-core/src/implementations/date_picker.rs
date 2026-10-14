@@ -85,7 +85,6 @@ impl FieldCodeGenerator for DatePickerCodeGenerator {
         let field_name_ident = field.field_ident();
 
         let value_assign = value_assign(field, field_name_ident);
-        // M4 (backlog #12): reset dependent fields when the picked date changes.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let handler = quote! {

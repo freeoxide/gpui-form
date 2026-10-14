@@ -62,10 +62,21 @@ impl FilePickerText {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+    use std::sync::MutexGuard;
+
     use super::*;
 
     fn langid(tag: &str) -> unic_langid::LanguageIdentifier {
         tag.parse().unwrap()
+    }
+
+    static LOCALE_LOCK: Mutex<()> = Mutex::new(());
+
+    fn lock_locale() -> MutexGuard<'static, ()> {
+        LOCALE_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     const KEYS: &[&str] = &[
@@ -98,7 +109,28 @@ mod tests {
     }
 
     #[test]
+    fn locale_tables_agree_with_the_bridge_crate_copy() {
+        let _guard = lock_locale();
+        let bridge = I18n::new();
+
+        for &locale in LOCALES {
+            rust_i18n::set_locale(locale);
+            for &key in KEYS {
+                let via_bridge = bridge.localize_message(key);
+                let via_component = t!(key, locale = locale).to_string();
+                assert_eq!(
+                    via_bridge, via_component,
+                    "locale tables disagree for {key} in {locale}"
+                );
+            }
+        }
+
+        rust_i18n::set_locale("en");
+    }
+
+    #[test]
     fn resolves_runtime_component_messages() {
+        let _guard = lock_locale();
         rust_i18n::set_locale("en");
         assert_eq!(DatePickerText::SelectDate.default_text(), "Select date");
         assert_eq!(FilePickerText::Browse.default_text(), "Browse");
@@ -143,8 +175,40 @@ mod tests {
 
     #[test]
     fn bridge_helpers_stay_reexported() {
+        let _guard = lock_locale();
         let i18n = I18n::new_with_language(langid("zh-CN"));
         assert_eq!(i18n.localize_message("date_picker.select_date"), "选择日期");
         assert_eq!(i18n.localize_message("missing_key"), "Missing Key");
+
+        rust_i18n::set_locale("en");
+        assert_eq!(&*i18n.locale(), "en");
+        assert_eq!(i18n.localize_message("file_picker.browse"), "Browse");
+        assert_eq!(t!("file_picker.browse"), "Browse");
+
+        rust_i18n::set_locale("zh-CN");
+    }
+
+    #[gpui::test]
+    async fn change_locale_agrees_across_bridge_and_t(cx: &mut gpui::TestAppContext) {
+        cx.update(|cx| {
+            let _guard = lock_locale();
+            init(cx);
+
+            change_locale(cx, langid("fr-FR")).expect("fr-FR is a supported language");
+            assert_eq!(&*rust_i18n::locale(), "fr-FR");
+            assert_eq!(
+                localize_message(cx, "date_picker.select_date"),
+                "Sélectionner une date"
+            );
+            assert_eq!(t!("date_picker.select_date"), "Sélectionner une date");
+
+            change_locale(cx, langid("zh-CN")).expect("zh-CN is a supported language");
+            assert_eq!(localize_message(cx, "file_picker.browse"), "浏览");
+            assert_eq!(t!("file_picker.browse"), "浏览");
+
+            rust_i18n::set_locale("en");
+            assert_eq!(localize_message(cx, "file_picker.browse"), "Browse");
+            assert_eq!(t!("file_picker.browse"), "Browse");
+        });
     }
 }

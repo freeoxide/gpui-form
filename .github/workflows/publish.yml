@@ -48,7 +48,7 @@ jobs:
             packages+=(-p "$crate")
           done
           cargo fmt --all -- --check
-          cargo clippy "${packages[@]}" --all-targets -- -D warnings
+          cargo clippy "${packages[@]}" --all-features --all-targets -- -D warnings
           cargo test "${packages[@]}" --all-targets
           cargo test --workspace --all-features
       - name: Verify version lockstep and dependency satisfiability

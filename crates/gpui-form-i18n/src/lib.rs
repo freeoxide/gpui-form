@@ -13,56 +13,38 @@ pub enum LocalizationError {
     UnsupportedLanguage(#[from] unic_langid::LanguageIdentifierError),
 }
 
-pub struct I18n {
-    locale: rust_i18n::AtomicStr,
-}
-
-impl Clone for I18n {
-    fn clone(&self) -> Self {
-        let locale = self.locale.as_str().to_string();
-        Self {
-            locale: rust_i18n::AtomicStr::from(locale.as_str()),
-        }
-    }
-}
-
-impl Default for I18n {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Thin GPUI-global wrapper over the process-global [`rust_i18n`] locale:
+/// reads delegate to [`rust_i18n::locale()`], writes go through
+/// [`rust_i18n::set_locale`], so every helper observes one locale.
+#[derive(Clone, Debug, Default)]
+pub struct I18n;
 
 impl I18n {
     pub fn new() -> Self {
-        Self {
-            locale: rust_i18n::AtomicStr::from("en"),
-        }
+        Self
     }
 
+    /// Create the wrapper after setting the process-global locale to `language`.
     pub fn new_with_language(language: impl Into<LanguageIdentifier>) -> Self {
-        let locale = language.into().to_string();
-        Self {
-            locale: rust_i18n::AtomicStr::from(locale.as_str()),
-        }
+        set_shared_locale(&language.into().to_string());
+        Self
     }
 
+    /// The current process-global locale.
     pub fn locale(&self) -> impl Deref<Target = str> + '_ {
-        self.locale.as_str()
+        rust_i18n::locale()
     }
 
     pub fn select_language(
         &self,
         language: impl Into<LanguageIdentifier>,
     ) -> Result<(), LocalizationError> {
-        let locale = language.into().to_string();
-        set_shared_locale(&locale);
-        self.locale.replace(locale);
+        set_shared_locale(&language.into().to_string());
         Ok(())
     }
 
     pub fn localize_message(&self, key: &str) -> String {
-        let locale = self.locale.as_str();
-        translate_with_fallback(key, &locale)
+        translate_with_fallback(key, &self.locale())
     }
 
     pub fn localize_label(&self, key: &str) -> String {
@@ -105,6 +87,8 @@ pub struct CurrentLanguage<L: Language>(pub L);
 
 impl<L: Language> gpui::Global for CurrentLanguage<L> {}
 
+/// Install the [`I18n`] global if none is present; the effective locale
+/// stays whatever the process-global `rust_i18n` state already holds.
 pub fn init(cx: &mut App) {
     if cx.try_global::<I18n>().is_none() {
         install(I18n::new(), cx);
@@ -159,8 +143,6 @@ pub fn fallback_label(key: &str) -> String {
 }
 
 fn install(i18n: I18n, cx: &mut App) {
-    let locale = i18n.locale().to_string();
-    set_shared_locale(&locale);
     cx.set_global(i18n);
 }
 
@@ -194,16 +176,28 @@ pub fn humanize_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+    use std::sync::MutexGuard;
+
     use super::*;
     fn langid(tag: &str) -> LanguageIdentifier {
         tag.parse().unwrap()
+    }
+
+    static LOCALE_LOCK: Mutex<()> = Mutex::new(());
+
+    fn lock_locale() -> MutexGuard<'static, ()> {
+        LOCALE_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     const KEYS: &[&str] = &[
         "date_picker.select_date",
         "file_picker.browse",
         "file_picker.dialog_dropped",
-        "file_picker.paths_selected",
+        "file_picker.paths_selected_one",
+        "file_picker.paths_selected_other",
         "file_picker.select_a_directory",
         "file_picker.select_a_file",
         "file_picker.select_a_file_or_directory",
@@ -244,15 +238,35 @@ mod tests {
     #[test]
     fn interpolates_count_arguments() {
         assert_eq!(
-            rust_i18n::t!("file_picker.paths_selected", locale = "en", count = 2),
+            rust_i18n::t!("file_picker.paths_selected_one", locale = "en"),
+            "1 path selected"
+        );
+        assert_eq!(
+            rust_i18n::t!("file_picker.paths_selected_other", locale = "en", count = 2),
             "2 paths selected"
         );
         assert_eq!(
-            rust_i18n::t!("file_picker.paths_selected", locale = "fr-FR", count = 2),
+            rust_i18n::t!("file_picker.paths_selected_one", locale = "fr-FR"),
+            "1 chemin sélectionné"
+        );
+        assert_eq!(
+            rust_i18n::t!(
+                "file_picker.paths_selected_other",
+                locale = "fr-FR",
+                count = 2
+            ),
             "2 chemins sélectionnés"
         );
         assert_eq!(
-            rust_i18n::t!("file_picker.paths_selected", locale = "zh-CN", count = 2),
+            rust_i18n::t!("file_picker.paths_selected_one", locale = "zh-CN"),
+            "已选择 1 个路径"
+        );
+        assert_eq!(
+            rust_i18n::t!(
+                "file_picker.paths_selected_other",
+                locale = "zh-CN",
+                count = 2
+            ),
             "已选择 2 个路径"
         );
     }
@@ -272,13 +286,17 @@ mod tests {
 
     #[test]
     fn localize_message_uses_instance_locale() {
+        let _guard = lock_locale();
         let i18n = I18n::new_with_language(langid("zh-CN"));
         assert_eq!(i18n.localize_message("date_picker.select_date"), "选择日期");
         assert_eq!(i18n.localize_message("missing_key"), "Missing Key");
+
+        i18n.select_language(langid("en")).unwrap();
     }
 
     #[test]
     fn select_language_switches_shared_locale() {
+        let _guard = lock_locale();
         let i18n = I18n::new_with_language(langid("en"));
         i18n.select_language(langid("fr-FR")).unwrap();
         assert_eq!(&*i18n.locale(), "fr-FR");
@@ -290,5 +308,21 @@ mod tests {
 
         i18n.select_language(langid("en")).unwrap();
         assert_eq!(rust_i18n::t!("file_picker.browse"), "Browse");
+    }
+
+    #[test]
+    fn direct_set_locale_is_visible_through_i18n() {
+        let _guard = lock_locale();
+        let i18n = I18n::new();
+        rust_i18n::set_locale("zh-CN");
+        assert_eq!(&*i18n.locale(), "zh-CN");
+        assert_eq!(i18n.localize_message("date_picker.select_date"), "选择日期");
+        assert_eq!(rust_i18n::t!("file_picker.browse"), "浏览");
+
+        rust_i18n::set_locale("fr-FR");
+        assert_eq!(i18n.localize_message("file_picker.browse"), "Parcourir");
+
+        rust_i18n::set_locale("en");
+        assert_eq!(i18n.localize_message("file_picker.browse"), "Browse");
     }
 }

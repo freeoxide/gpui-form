@@ -1,54 +1,13 @@
-//! Non-rendering layout hints for form fields (METADATA-FIRST v1).
-//!
-//! This module exposes metadata that fields can declare through
-//! `#[gpui_form(...)]` attributes so generated or prototyped forms can consume
-//! them. It is deliberately **metadata-only**: nothing here describes how a
-//! field is rendered, painted, or laid out by GPUI. Consumers (application
-//! code, prototyping generators) decide how to interpret each hint.
-//!
-//! # v1 scope
-//!
-//! The v1 attribute set is:
-//!
-//! - `section` — groups consecutive fields under a named section.
-//! - `label` — preferred human-readable label for the field.
-//! - `description` — help text or comment hint for the field.
-//! - `placeholder` — placeholder text for inputs that support it.
-//! - `width` — relative width hint ([`LayoutWidth`]: `full` | `half` | `third`).
-//!
-//! All hints are optional. When `label` is absent, consumers should fall back
-//! to the field name at consumption time.
-//!
-//! # Const constructibility
-//!
-//! Both [`FieldLayout`] and [`LayoutWidth`] are `const`-constructible so that
-//! the derive can emit `FieldVariant::new(...).with_layout(...)` chains inside
-//! `inventory::submit! { ... }` in the user crate. All builder methods are
-//! `const fn`.
-//!
-//! # Order preservation
-//!
-//! `section` grouping is order-preserving: consumers should treat consecutive
-//! fields with the same `section` as a single group, not reorder fields across
-//! the form. This keeps v1 minimal and gives richer layouts (columns,
-//! collapsible sections) a stable foundation to build on later.
+//! Non-rendering layout hints (`section`/`label`/`description`/`placeholder`/
+//! `width`) declared through `#[gpui_form(...)]` attributes; consumers decide
+//! how to interpret each hint. `section` grouping is order-preserving.
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, IntoStaticStr};
 
-/// Relative width hint for a single field.
-///
-/// This is a **hint**, not a layout engine. Consumers are free to ignore it or
-/// map it onto whatever grid/column system they use. The v1 set is intentionally
-/// small so that generators can emit reasonable scaffolds without a full layout
-/// model.
-///
+/// Relative width hint for a single field: a hint, not a layout engine.
 /// Serialized as the snake-case identifier (`full`, `half`, `third`) to match
-/// the bare-ident attribute syntax in `#[gpui_form(width = half)]` (quoted
-/// forms are also accepted by the derive).
-///
-/// Defaults to [`LayoutWidth::Full`] — fields take their natural width unless a
-/// narrower hint is provided.
+/// the bare-ident attribute syntax; defaults to [`LayoutWidth::Full`].
 #[derive(
     Clone,
     Copy,
@@ -68,42 +27,20 @@ pub enum LayoutWidth {
     /// Full available width (the default).
     #[default]
     Full,
-    /// Half of the available width (e.g. one of two columns).
+    /// Half of the available width.
     Half,
-    /// A third of the available width (e.g. one of three columns).
+    /// A third of the available width.
     Third,
 }
 
 /// Non-rendering layout hints attached to a [`crate::registry::FieldVariant`].
-///
-/// All string hints are `&'static str` because the derive emits them as string
-/// literals in the user crate (see [`crate::registry::FieldVariant`]).
-///
-/// Construct with [`FieldLayout::new`] (all hints absent, width full) and chain
-/// the `with_*` builders:
-///
-/// ```
-/// use gpui_form_schema::layout::{FieldLayout, LayoutWidth};
-///
-/// const LAYOUT: FieldLayout = FieldLayout::new()
-///     .with_section(Some("Account"))
-///     .with_label(Some("Username"))
-///     .with_description(Some("Your unique handle"))
-///     .with_placeholder(Some("username"))
-///     .with_width(LayoutWidth::Half);
-///
-/// assert!(!LAYOUT.is_empty());
-/// ```
-///
-/// `is_empty()` returns `true` only when every hint is absent **and** the width
-/// is [`LayoutWidth::Full`]; such a layout carries no information and consumers
-/// may skip emitting anything for it.
+/// String hints are `&'static str` because the derive emits literals; builders
+/// stay `const fn` so the derive can emit chains inside `inventory::submit!`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FieldLayout {
     /// Optional section name for grouping consecutive fields. Order-preserving.
     pub section: Option<&'static str>,
-    /// Preferred human-readable label. When `None`, consumers fall back to the
-    /// field name.
+    /// Preferred label; when `None`, consumers fall back to the field name.
     pub label: Option<&'static str>,
     /// Optional help text / comment hint shown alongside the field.
     pub description: Option<&'static str>,
@@ -161,11 +98,8 @@ impl FieldLayout {
         self
     }
 
-    /// Returns `true` when the layout carries no information.
-    ///
-    /// True exactly when `section`, `label`, `description`, and `placeholder`
-    /// are all `None` **and** `width` is [`LayoutWidth::Full`]. Consumers can
-    /// use this to skip emitting anything for the default case.
+    /// Returns `true` when every hint is `None` and the width is
+    /// [`LayoutWidth::Full`] — consumers can skip emitting for the default case.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.section.is_none()
@@ -289,7 +223,6 @@ mod tests {
 
     #[test]
     fn field_variant_with_layout_is_const_constructible() {
-        // Const chain mirroring what the derive emits.
         const FV: FieldVariant =
             FieldVariant::new("email", "String", false, ComponentsBehaviour::Input).with_layout(
                 FieldLayout::new()

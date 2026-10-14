@@ -1,11 +1,6 @@
-//! Consumer-facing prototyping utilities for gpui-form.
-//!
-//! Generated scaffolds localize labels and descriptions through
-//! `::rust_i18n::t!`, which resolves against the CONSUMER crate's
-//! `rust_i18n::i18n!` backend and `locales/` directory. The `locales/` shipped
-//! here are the reference template for the keys emitted for the example
-//! `User` shape; consumer forms declare their own copies per crate, since
-//! `t!` never resolves across crates.
+//! Consumer-facing prototyping utilities for gpui-form: generated scaffolds
+//! localize through `::rust_i18n::t!`, which resolves against the CONSUMER
+//! crate's `rust_i18n::i18n!` backend — `t!` never resolves across crates.
 
 rust_i18n::i18n!("locales", fallback = "en");
 
@@ -23,8 +18,6 @@ pub use schema_docs::schema_markdown;
 mod tests {
     use rust_i18n::t;
 
-    /// Every key this crate ships, in field order for the `User` example
-    /// shape the scaffolds document.
     const KEYS: &[&str] = &[
         "user.age_label",
         "user.age_description",

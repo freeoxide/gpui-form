@@ -1,0 +1,5 @@
+error: `depends_on = state` on field `state` must name a different field
+  --> tests/ui/depends_on_self.rs:11:48
+   |
+11 |     #[gpui_form(component(input), depends_on = state)]
+   |                                                ^^^^^

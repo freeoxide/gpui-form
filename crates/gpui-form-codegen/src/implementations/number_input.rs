@@ -1,6 +1,6 @@
 use crate::components::*;
 use proc_macro2::TokenStream;
-use quote::{ToTokens as _, quote};
+use quote::quote;
 
 impl super::ComponentLayout for NumberInputComponent {
     fn field_tokens(
@@ -20,19 +20,14 @@ impl super::ComponentLayout for NumberInputComponent {
             pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
-        // Use the `as` option if provided for validation type detection, otherwise use the field type
-        let type_str = options
-            .r#as
-            .as_ref()
-            .map(|ty| ty.to_string())
-            .unwrap_or_else(|| r#type.to_token_stream().to_string());
         let validation_type = options
             .r#as
             .as_ref()
             .map(|ty| quote! { #ty })
             .unwrap_or_else(|| quote! { #r#type });
-        // Treat custom types as signed by default; only explicit `u*` types are unsigned.
-        let is_unsigned = type_str.starts_with('u');
+        // Same shared classification the recorded metadata payload carries,
+        // so an `as = ...` field cannot record one family and validate as another.
+        let is_unsigned = number_input_kind(options, r#type).is_unsigned();
 
         let validation_logic = if is_unsigned {
             quote! {

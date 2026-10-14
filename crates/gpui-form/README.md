@@ -15,14 +15,14 @@ unchanged.
 | `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
-| `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
+| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
 
 ## Installation
 
 ```toml
 [dependencies]
-gpui = { package = "gpui-pre", version = "0.3.7" }
-gpui-kit = "0.7.0"
+gpui = { package = "gpui-pre", version = "0.3.9" }
+gpui-kit = "0.7.3"
 freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 ```
 
@@ -32,7 +32,6 @@ freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 - `inventory`: register `GpuiFormShape` metadata for prototyping and code generation.
 - `phone`: parser-backed phone-number validation helpers (`gpui_form::phone`).
 - `serde`: `Serialize`/`Deserialize` on generated value holders, for persistence and dirty tracking.
-- `async-validation` (reserved, default off): placeholder for the upcoming async validator wiring; `validate(async_fn = ...)` records metadata only today.
 
 ## Documentation
 

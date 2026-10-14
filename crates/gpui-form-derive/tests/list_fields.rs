@@ -34,6 +34,19 @@ struct ScoresForm {
     scores: Vec<u32>,
 }
 
+/// A list with BOTH an `each(...)` element validator and a whole-`Vec`
+/// field-level validator: combined element + whole-field failures must
+/// surface through the root path AND the item paths.
+#[derive(GpuiForm, koruma::Koruma)]
+struct InventoryForm {
+    #[gpui_form(component(list(item = input)))]
+    #[koruma(
+        koruma_collection::collection::LenValidation::<_>::builder().min(2).max(10),
+        each(koruma_collection::collection::NonEmptyValidation::<_>::builder())
+    )]
+    skus: Vec<String>,
+}
+
 /// An originally-optional list: the holder stores `Option<Vec<T>>` and the
 /// mutation API tolerates the absent case.
 #[derive(GpuiForm, koruma::Koruma)]
@@ -180,8 +193,68 @@ fn failing_paths_expand_per_failing_item_index() {
             .collect()
     }
     // `scores.1` is the failing item — index-keyed, index-free of string
-    // formatting.
-    assert_eq!(generic_paths(&errors), vec!["scores.1"]);
+    // formatting — and the root path rides along because the whole-field
+    // slot is populated (`error_for(scores_root)` reports the same failure;
+    // `failing_fields` must agree with it). Item paths first, then the root.
+    assert_eq!(generic_paths(&errors), vec!["scores.1", "scores"]);
+}
+
+#[test]
+fn combined_element_and_whole_vec_failure_reports_root_and_items() {
+    // One element fails its `each(...)` validator AND the whole `Vec` fails
+    // the field-level length validator: `failing_fields`/`failing_paths`
+    // must contain BOTH the item path and the root path — the whole-Vec
+    // error may not be dropped just because element failures exist.
+    let holder = InventoryFormFormValueHolder {
+        skus: vec![String::new()], // len 1 < min 2, and item 0 is empty
+    };
+    let errors = holder.validate_fields();
+
+    fn generic_paths<E: FormFieldErrors>(errors: &E) -> Vec<String> {
+        errors
+            .failing_paths()
+            .iter()
+            .map(|path| path.to_string())
+            .collect()
+    }
+    assert_eq!(
+        generic_paths(&errors),
+        vec!["skus.0", "skus"],
+        "root AND item paths in push order (items first, then root)"
+    );
+
+    let failing = errors.failing_fields().collect::<Vec<_>>();
+    assert_eq!(failing.len(), 2, "item + root");
+    assert_eq!(failing[0].0.to_string(), "skus.0");
+    assert_eq!(failing[1].0.to_string(), "skus");
+    // Both list variants borrow the same whole-field wrapper, so the i18n
+    // keys reflect everything that failed inside it: the whole-Vec rule
+    // plus the element rule.
+    assert_eq!(
+        failing[0].1.issue_keys(),
+        vec!["validation.len", "validation.non_empty"]
+    );
+    assert_eq!(
+        failing[1].1.issue_keys(),
+        vec!["validation.len", "validation.non_empty"],
+        "the root failure carries the whole-Vec key plus the element key"
+    );
+
+    // `error_for(root)` always routed here; pin it alongside.
+    let root = errors
+        .error_for(&InventoryFormFormPath::skus_root())
+        .expect("the root path routes to the populated whole-field slot");
+    assert_eq!(root.path().to_string(), "skus");
+    assert!(errors.error_for(&InventoryFormFormPath::skus(0)).is_some());
+    assert!(errors.error_for(&InventoryFormFormPath::skus(5)).is_none());
+
+    // Element-only failures keep the item paths AND now agree with
+    // `error_for(root)` on the root.
+    let elements_only = InventoryFormFormValueHolder {
+        skus: vec!["ok".to_string(), String::new()], // len 2 passes, item 1 fails
+    };
+    let errors = elements_only.validate_fields();
+    assert_eq!(generic_paths(&errors), vec!["skus.1", "skus"]);
 }
 
 #[test]

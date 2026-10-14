@@ -25,6 +25,9 @@ schema metadata:
   editing
 - `src/calendar.rs`: private calendar popover used by `date_picker`, with
   ICU4X-driven labels and locale-specific week layout
+- `src/date_format.rs`: private ICU4X formatter cache keyed by
+  `(fieldset kind, locale)`; the picker labels and the calendar grid share it
+  so formatters rebuild only on a key miss instead of every render
 - `src/file_picker.rs`: runtime state and element wrapper for native path
   selection with `gpui::PathPromptOptions`
 - `src/i18n.rs`: crate-local `DatePickerText`/`FilePickerText` message enums
@@ -60,6 +63,8 @@ Responsibilities:
 - serialize stable key paths to and from strings for persistence
 - report invalid stored paths with `InfiniteSelectPathError`
 - own the cascading root/child `SelectState`s through `InfiniteSelectState`
+- reuse child `SelectState` entities at depths above the changed selection and
+  rebuild only the changed level and the levels below it
 - expose render-ready `InfiniteSelectLevel` views and
   `form_fields()` helpers for form code
 - reconstruct nested enum values from stored paths
@@ -82,6 +87,13 @@ Responsibilities:
 - format display text with locale-aware ICU4X/Jiff formatting
 - format calendar month names, weekday headers, day/year labels, and week-start
   layout with ICU4X locale data
+- enforce optional selectable bounds: `DatePickerState`/`DateRangePickerState`
+  `min_date`/`max_date` options flow into the calendar grid each render, where
+  out-of-bounds days reuse the existing disabled machinery (muted paint, no
+  click handler), so clicks outside the bounds cannot select
+- serve those ICU4X formatters from the `date_format` cache so repeated
+  renders and locale switches reuse built formatters and return identical
+  output
 - provide plain English fallback placeholder copy and let applications pass
   localized placeholder text explicitly
 - keep generated code independent from `chrono` display formatting details
@@ -131,7 +143,10 @@ Responsibilities:
    for scaffold generation.
 1. When the field opts into `value_binding`, prototyping code calls the
    shape-owned `CustomComponentValueAdapter<T>` hooks instead of inferring any
-   domain-specific event semantics.
+   domain-specific event semantics. Both hooks are required — a defaulted
+   no-op `set_state_value` used to let `value_binding` opt-ins compile while
+   silently dropping the form value, so the trait now demands an explicit
+   implementation (empty body when a hook is intentionally inert).
 
 ### Date picker
 

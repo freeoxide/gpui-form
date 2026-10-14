@@ -2,9 +2,6 @@ use koruma_derive_core::ValidatorAttr;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-/// Convert a ValidatorAttr to a TokenStream for generating koruma attribute.
-/// This produces normalized builder-chain tokens like
-/// `ValidatorPath::<Type>::builder().arg1(val1).arg2(val2)`.
 pub fn validator_attr_to_tokens(validator: &ValidatorAttr) -> TokenStream {
     let path = &validator.validator;
 

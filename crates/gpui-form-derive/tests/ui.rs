@@ -112,6 +112,15 @@ fn required_if_rejects_unknown_sibling_fields() {
 }
 
 #[test]
+fn depends_on_rejects_self_references() {
+    // M4: `depends_on` names the sibling to reset when this field changes;
+    // a field cannot reset itself, so naming its own field is the same
+    // derive error `required_if` already raises for self-references.
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/depends_on_self.rs");
+}
+
+#[test]
 fn gpui_form_koruma_fluent_compiles_against_rust_i18n_locales() {
     seed_trybuild_locales();
 

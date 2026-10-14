@@ -1,8 +1,6 @@
-//! Infinite-select runtime support for nested enum trees.
-//!
-//! This module exposes both the low-level trait and path helpers used by
-//! generated code and a higher-level `InfiniteSelectState` entity that owns the
-//! cascading `SelectState`s for a field.
+//! Infinite-select runtime support for nested enum trees: the
+//! [`InfiniteSelect`] trait and path helpers used by generated code, plus
+//! the `InfiniteSelectState` entity owning the cascading selects of a field.
 
 use gpui::{
     App, AppContext as _, Context, Empty, Entity, EventEmitter, FocusHandle, Focusable,
@@ -17,16 +15,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
 use std::str::FromStr;
 use std::{error::Error, fmt};
 
-/// Trait for infinite-select enums that expose their nested structure.
-///
-/// This trait is derived using `#[derive(InfiniteSelect)]` and provides:
-/// - the variant list at each level
-/// - child variant names, keys, and labels for cascading selects
-/// - index-based and key-based child selection to update nested values
-/// - the current selection paths for a concrete value
-///
-/// Unlike a simple associated-type approach, this trait supports heterogeneous
-/// inner types: each variant can contain a different inner type.
+/// Nested-structure contract for infinite-select enums, derived via
+/// `#[derive(InfiniteSelect)]`. Unlike an associated-type design, each
+/// variant may carry a different inner type.
 pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns all possible variants at this level with default inner values.
     fn variants() -> Vec<Self>;
@@ -34,10 +25,8 @@ pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns the variant name/discriminant as a string.
     fn variant_name(&self) -> &'static str;
 
-    /// Returns a stable key for this variant.
-    ///
-    /// The derived implementation currently mirrors `variant_name()`, which is
-    /// stable across enum reordering and suitable for persisted paths.
+    /// Returns a stable key for this variant. The derived implementation
+    /// mirrors `variant_name()` and is suitable for persisted paths.
     fn variant_key(&self) -> &'static str;
 
     /// Returns the localized label for this specific variant.
@@ -77,9 +66,8 @@ pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns the maximum depth of nesting for this enum type.
     fn depth() -> usize;
 
-    /// Returns the current selection path for this concrete value.
-    ///
-    /// The returned path includes the root variant index at depth 0.
+    /// Returns the current selection path for this concrete value, including
+    /// the root variant index at depth 0.
     fn selection_path(&self) -> InfiniteSelectPath;
 
     /// Returns the current stable key path for this concrete value.
@@ -116,17 +104,15 @@ pub trait InfiniteSelect: Sized + Clone + Default + PartialEq + 'static {
     /// Returns the localized description for the child at the given depth.
     fn child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 
-    /// Internal method to delegate label lookup to the inner value.
+    /// Returns the localized label for the child at `depth` on the inner value.
     fn inner_child_label_at_depth(&self, depth: usize) -> Option<SharedString>;
 
-    /// Internal method to delegate description lookup to the inner value.
+    /// Returns the localized description for the child at `depth` on the inner value.
     fn inner_child_description_at_depth(&self, depth: usize) -> Option<SharedString>;
 }
 
-/// A wrapper for infinite-select enum variants that implements `SelectItem`.
-///
-/// This allows infinite-select enum variants to be displayed in a select dropdown
-/// while preserving access to the nested value.
+/// A wrapper for infinite-select enum variants implementing `SelectItem`,
+/// letting variants render in a dropdown while preserving the nested value.
 #[derive(Clone)]
 pub struct InfiniteSelectItem<T: InfiniteSelect> {
     value: T,
@@ -729,9 +715,8 @@ impl InfiniteSelectStateOptions {
         self
     }
 
-    /// Limits how many levels the state will render.
-    ///
-    /// The stored value and selection paths still preserve deeper default selections.
+    /// Limits how many levels render; the value and selection paths keep
+    /// deeper default selections.
     pub fn max_depth(mut self, max_depth: usize) -> Self {
         self.max_depth = Some(max_depth);
         self
@@ -947,7 +932,7 @@ where
             _master_subscription: master_subscription,
             _child_subscriptions: Vec::new(),
         };
-        this.rebuild_child_selects(window, cx);
+        this.sync_child_selects(0, window, cx);
         this
     }
 
@@ -1131,7 +1116,7 @@ where
         self.path = new_path.clone();
         self.key_path = new_key_path.clone();
         self.sync_master_select(window, cx);
-        self.rebuild_child_selects(window, cx);
+        self.sync_child_selects(changed_depth, window, cx);
         if emit {
             cx.emit(InfiniteSelectEvent {
                 previous_value,
@@ -1153,21 +1138,37 @@ where
         });
     }
 
-    fn rebuild_child_selects(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let child_selects = build_child_selects::<T, D>(
+    fn sync_child_selects(
+        &mut self,
+        changed_depth: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let keep = changed_depth.min(self.child_selects.len());
+        for (index, child) in self.child_selects[..keep].iter().enumerate() {
+            let selected_row = selected_index(self.path.get(index + 1).unwrap_or(0));
+            child.update(cx, |state, cx| {
+                state.set_selected_index(selected_row, window, cx)
+            });
+        }
+        self.child_selects.truncate(keep);
+        self._child_subscriptions.truncate(keep);
+
+        let fresh = build_child_selects::<T, D>(
             &self.value,
             &self.path,
+            keep,
             self.max_depth(),
             self.options.searchable,
             window,
             cx,
         );
-
-        self._child_subscriptions = child_selects
-            .iter()
-            .map(|child| cx.subscribe_in(child, window, Self::on_select_event))
-            .collect();
-        self.child_selects = child_selects;
+        self._child_subscriptions.extend(
+            fresh
+                .iter()
+                .map(|child| cx.subscribe_in(child, window, Self::on_select_event)),
+        );
+        self.child_selects.extend(fresh);
     }
 }
 
@@ -1184,6 +1185,7 @@ where
 fn build_child_selects<T, D>(
     parent: &T,
     path: &InfiniteSelectPath,
+    start_level: usize,
     max_depth: usize,
     searchable: bool,
     window: &mut Window,
@@ -1194,9 +1196,19 @@ where
     D: SelectDelegate<Item = InfiniteSelectItem<T>> + From<Vec<InfiniteSelectItem<T>>> + 'static,
 {
     let mut current_value = parent.clone();
+    for level in 0..start_level {
+        let items = child_items_for_level(&current_value, level);
+        if items.is_empty() {
+            return Vec::new();
+        }
+
+        let selected_row = path.get(level + 1).unwrap_or(0).min(items.len() - 1);
+        current_value = items[selected_row].get_value().clone();
+    }
+
     let mut selects = Vec::new();
 
-    for level in 0..max_depth.saturating_sub(1) {
+    for level in start_level..max_depth.saturating_sub(1) {
         let items = child_items_for_level(&current_value, level);
         if items.is_empty() {
             break;

@@ -7,8 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Runtime selectable bounds for the date pickers: `DatePickerState` and
+  `DateRangePickerState` take `min_date`/`max_date` options (and the
+  underlying `Calendar` element gained the same builders). Days outside the
+  bounds render disabled through the calendar's existing disable machinery
+  and reject clicks; one-sided and default (unbounded) behavior is pinned by
+  click-through tests. Bounds are a runtime capability only — schema/codegen
+  integration is deliberately left for a future feature change.
+
 ### Changed
 
+- **Localization has one source of truth: the process-global `rust-i18n`
+  locale.** The `I18n` GPUI global no longer keeps its own locale copy
+  (previously synced only by `select_language`/`install`, so a direct
+  `rust_i18n::set_locale` was invisible to the bridge while component `t!()`
+  calls followed the global — the two could drift). `I18n` now delegates
+  every read to `rust_i18n::locale()` and every write goes through
+  `rust_i18n::set_locale` exactly once; `init` no longer resets the locale
+  to `"en"`, and `I18n::new_with_language` now selects the global locale.
+  The `gpui-form-i18n` and `gpui-form-component` locale tables are
+  reconciled to identical key sets (the bridge crate gains the pluralized
+  `file_picker.paths_selected_one`/`_other` keys and drops the flat
+  `paths_selected` key the runtime never read); parity tests cover the
+  reconciled keys in both crates, and a GPUI test pins that `change_locale`,
+  `localize_message`, and `t!()` always agree.
+- Derive-emitted numeric metadata gains its consumer: the recorded
+  `NumberInputBehaviour.kind` and the emitted input validator branch are now
+  produced by ONE shared parse-time classification in `gpui-form-codegen`
+  (`number_input_kind`), so a `number_input(as = ...)` field cannot record
+  one numeric family and validate as another. A codegen test pins the
+  kind/validator agreement across bare and `as`-override fields; the field
+  stays undeprecated (it is the schema-export wire surface, and the derive
+  emits its construction into user crates).
+- CI lint gates now combine strictness with feature coverage: the `clippy`
+  job runs `cargo clippy --workspace --all-features --all-targets -- -D
+  warnings` (it previously ran without `-D warnings`), and the publish
+  workflow's release gate adds `--all-features` to its `-D warnings` clippy
+  run. Neither gate previously covered both axes.
+- **Breaking (0.x minor): `CustomComponentValueAdapter::set_state_value` is
+  now a required method.** The `value_binding` opt-in generates calls to it
+  (seeding component state from the form value), and the defaulted no-op let
+  opt-ins compile while silently dropping the form value. Implementations
+  must now provide the hook — an intentionally inert component writes an
+  explicit empty body, so the omission is visible at the impl site. A
+  compile-fail trybuild fixture (`gpui-form-derive`
+  `tests/ui/custom_component_missing_set_state_value.rs`) pins the contract.
+- Prototyping generation hardening (`gpui-form-prototyping-core`): malformed
+  metadata now returns typed `PrototypingError`s instead of panicking or
+  emitting non-compiling scaffolds — non-`Vec` list value types return
+  `InvalidListValueType` (previously a silent `c_void` fallback), and
+  `ImportSet::to_token_stream` is fallible (`InvalidImports`, collecting all
+  offenders) instead of panicking on malformed import strings.
+  `component(list(..., add_label = "..."))` overrides now reach the generated
+  scaffold's Add button (previously derive-side only), and
+  `collect_i18n_keys` omits the `{form}.{field}_add` key when the override
+  is set.
+- Derive-emitted schema metadata spells type strings in canonical Rust form
+  (`"Vec<String>"`, not the proc-macro printer's `"Vec < String >"`), and the
+  non-type exported strings now follow the same rule: `default_expr`,
+  `from_expr`/`into_expr`, and the async-validator path export as
+  `"crate::defaults::country()"`, not `"crate :: defaults :: country ()"`
+  (validation rule names and the M4 sibling names were already plain
+  identifiers). The pinned export fixtures were updated deliberately.
+- Derive-emitted items (`<Name>FormPath`, `<Name>FormState`,
+  `<Name>FormPatch`, the schema export, the submit alias) carry one-line
+  summary docs instead of multi-paragraph essays; the value-holder struct
+  itself emits no doc at all (it is generator-owned plumbing named
+  `<Name>FormValueHolder`). The removed detail lives in the derive
+  generators' source comments, so rustdoc still documents every generated
+  item; after the trim the flat expansion snapshot measures 9,786 chars
+  (~9.8 KB) with a 29.4% `#[doc]` payload share, down from 45.0% (5,806 of
+  12,911 chars) before the trim.
 - Bumped the GPUI stack: `gpui-kit`/`gpui-kit-assets` 0.7.0 → 0.7.3 and
   `gpui-pre`/`gpui-pre-platform` 0.3.7 → 0.3.9 (0.7.1+ hard-pin the newer
   `gpui-pre`, so the two move together). No API changes in this workspace;
@@ -18,6 +89,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its gpui import is pinned with a leading `::`. The two demo-level focus
   workarounds stay: 0.7.3 does not change the Input frame-focus split
   (upstream longbridge/gpui-kit#3183 remains open).
+
+### Removed
+
+- **The `async-validation` feature flags on `freeoxide-gpui-form` and
+  `freeoxide-gpui-form-derive`.** They gated literally nothing: the
+  `validate(async_fn = ...)` attribute parses and records metadata
+  unconditionally, and no code keyed on either flag. Finishing async
+  validation execution remains a future feature; a wiring phase that needs a
+  gate can re-introduce one when emission actually lands.
 
 ## [0.10.0] - 2026-10-11
 

@@ -20,7 +20,6 @@ impl super::ComponentLayout for InputComponent {
             pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
-        // Skip validation for String types since they always parse successfully
         let type_str = r#type.to_token_stream().to_string();
         let validation_logic = if type_str == "String" {
             quote! {}

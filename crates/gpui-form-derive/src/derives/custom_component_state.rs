@@ -8,9 +8,6 @@ use syn::{DeriveInput, Path, parse_macro_input};
 struct CustomComponentStateMeta {
     #[darling(default)]
     new: Option<Path>,
-    /// Optional UI component type path.
-    /// When set, `CustomComponentShape::COMPONENT_PATH` is populated so that
-    /// field annotations do not need to repeat `component = …`.
     #[darling(default)]
     component: Option<Path>,
 }

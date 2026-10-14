@@ -124,7 +124,6 @@ impl FieldCodeGenerator for InfiniteSelectCodeGenerator {
             quote! { cx.subscribe_in(&#field_var_name_ident, window, Self::#event_handler_fn_name_ident) },
         ];
 
-        // M4 (backlog #12): reset dependent fields when the selection changes.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let handler = quote! {

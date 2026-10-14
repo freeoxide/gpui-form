@@ -1,7 +1,6 @@
 use syn::{Attribute, DeriveInput};
 use syn_cfg_attr::{AttributeHelpers as _, ExpandedAttr};
 
-/// Flattens `cfg_attr` attributes in a DeriveInput.
 pub fn flatten_cfg_attr_in_derive_input(mut input: DeriveInput) -> DeriveInput {
     input.attrs = flatten_attrs(input.attrs);
 

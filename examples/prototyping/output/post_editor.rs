@@ -12,7 +12,6 @@ use crate::address::AddressForm;
 /// - post_editor.title_description
 /// - post_editor.tags_label
 /// - post_editor.tags_item_label
-/// - post_editor.tags_add
 /// - post_editor.tags_remove
 /// - post_editor.address_label
 #[allow(dead_code)]
@@ -21,7 +20,6 @@ pub const POST_EDITOR_I18N_KEYS: &[&str] = &[
     "post_editor.title_description",
     "post_editor.tags_label",
     "post_editor.tags_item_label",
-    "post_editor.tags_add",
     "post_editor.tags_remove",
     "post_editor.address_label",
 ];
@@ -137,18 +135,7 @@ impl PostEditorForm {
             .children(rows)
             .child(
                 Button::new("tags-add")
-                    .label(
-                        {
-                            let key: &str = "post_editor.tags_add";
-                            let translated = ::rust_i18n::t!(key);
-                            if &*translated == key {
-                                "Tags".to_string()
-                            } else {
-                                translated.into_owned()
-                            }
-                        }
-                            .clone(),
-                    )
+                    .label("Add another tag".to_string().clone())
                     .on_click(
                         cx
                             .listener(|this, _, _, cx| {

@@ -77,7 +77,6 @@ impl FieldCodeGenerator for InputCodeGenerator {
 
         let field_name_ident = field.field_ident();
         let field_type_path = field.value_type();
-        // M4 (backlog #12): reset dependent fields when this field changes.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let update_current_data = if field.value_holder_wraps_in_option() {

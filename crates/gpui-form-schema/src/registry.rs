@@ -8,15 +8,13 @@ inventory::collect!(GpuiFormShape);
 pub struct GpuiFormShape {
     pub struct_name: &'static str,
     pub components: &'static [FieldVariant],
-    /// The source file path where the struct with #[derive(GpuiForm)] is declared.
-    /// This is the full path from file!() macro, useful for generating imports.
+    /// Source file path where the struct is declared (`file!()`), used to
+    /// generate imports.
     pub source_path: &'static str,
     /// Whether the struct has koruma validation enabled at the struct level.
     pub koruma_enabled: bool,
-    /// Whether the original struct contains any `#[gpui_form(skip)]` fields.
-    ///
-    /// When true, generated `FormValueHolder` cannot be converted back into the
-    /// original struct without additional skipped-field values.
+    /// Whether the struct contains any `#[gpui_form(skip)]` fields; when true,
+    /// `FormValueHolder` cannot convert back without skipped-field values.
     pub has_skipped_fields: bool,
 }
 
@@ -36,7 +34,7 @@ impl GpuiFormShape {
         }
     }
 
-    /// Marks whether the original struct has any `#[gpui_form(skip)]` fields.
+    /// Marks whether the struct has any `#[gpui_form(skip)]` fields.
     pub const fn with_skipped_fields(mut self, has_skipped_fields: bool) -> Self {
         self.has_skipped_fields = has_skipped_fields;
         self
@@ -50,7 +48,7 @@ impl GpuiFormShape {
                 .any(|field| !field.validations.is_empty())
     }
 
-    /// Returns true if the struct has koruma validation enabled at the struct level.
+    /// Returns true when koruma validation is enabled.
     pub const fn has_koruma(&self) -> bool {
         self.koruma_enabled
     }
@@ -64,14 +62,12 @@ impl GpuiFormShape {
 #[derive(Debug)]
 pub struct FieldVariant {
     pub field_name: &'static str,
-    /// Rust type path for the field's value type.
-    ///
-    /// This is the form-side base value type, not including any generated
-    /// `Option<...>` wrapper. It is a full Rust type string (for example
-    /// `Country` or `some_lib::country::Country`), not just a bare identifier.
+    /// Full Rust type string for the field's form-side base value type (e.g.
+    /// `some_lib::country::Country`), excluding any generated `Option<...>`
+    /// wrapper.
     pub value_type: &'static str,
-    /// Rust type path for the source model's base value type before any
-    /// `#[gpui_form(type = ...)]` override is applied.
+    /// The source model's base value type before any `#[gpui_form(type = ...)]`
+    /// override is applied.
     pub source_value_type: &'static str,
     pub optional: bool,
     /// Whether the generated value holder wraps this field in `Option<T>`
@@ -96,35 +92,19 @@ pub struct FieldVariant {
     /// Whether the custom component opted into
     /// `gpui_form::custom::CustomComponentValueAdapter` generation.
     pub custom_value_binding: bool,
-    /// Non-rendering layout hints (section/label/description/placeholder/width).
-    ///
-    /// Metadata-only (METADATA-FIRST v1): consumers decide how to render.
-    /// Defaults to an empty [`FieldLayout`] (all hints absent, width full).
+    /// Non-rendering layout hints; consumers decide how to render. Defaults to
+    /// an empty [`FieldLayout`] (all hints absent, width full).
     pub layout: FieldLayout,
-    /// Async validator path recorded from `#[gpui_form(validate(async_fn = ...))]`.
-    ///
-    /// Metadata-only (M2 emission sketch): the attribute parses and records
-    /// the path, but nothing executes it yet — async wiring is deferred to
-    /// the reserved `async-validation` feature. Prototyping consumers no-op.
+    /// Async validator path from `#[gpui_form(validate(async_fn = ...))]`.
+    /// Metadata-only: the path is recorded but nothing executes it yet.
     pub async_validator: Option<&'static str>,
-    /// Milestone M4 (backlog #12): the sibling field this field depends on,
-    /// recorded from `#[gpui_form(depends_on = <field>)]`.
-    ///
-    /// Stored as the sibling's field name — the same `&'static str`
-    /// representation a [`crate::FieldPath`] name segment carries — so the
-    /// payload stays `const`-constructible for `inventory::submit!` chains
-    /// (the `FieldLayout` precedent: `&'static str`/`Copy` payloads only).
-    /// Metadata-only: conditional loading and reset-on-parent-change
-    /// behavior is consumer-authored (the derive emits no event wiring).
+    /// The sibling field this field depends on
+    /// (`#[gpui_form(depends_on = <field>)]`), stored as the sibling's field
+    /// name; wiring stays consumer-authored.
     pub depends_on: Option<&'static str>,
-    /// Milestone M4 (backlog #13): the controlling sibling field recorded
-    /// from `#[gpui_form(required_if = <field>)]`.
-    ///
-    /// Unlike `depends_on`, this rule is NOT display-only: the derive also
-    /// desugars it to a generated koruma validator closure on the holder
-    /// field, so violations surface through the typed field-error surface.
-    /// This payload records the relationship for tooling (schema export,
-    /// prototyping, docs) alongside that runtime behavior.
+    /// The controlling sibling for `#[gpui_form(required_if = <field>)]`.
+    /// Unlike `depends_on`, the derive also lowers it to a koruma validator,
+    /// so the rule is enforced, not just recorded for tooling.
     pub required_if: Option<&'static str>,
 }
 
@@ -191,11 +171,8 @@ impl FieldVariant {
         self
     }
 
-    /// Attach an optional custom UI component path to this field metadata.
-    ///
-    /// Used when the component path may come from the shape's
-    /// `CustomComponentShape::COMPONENT_PATH` constant rather than an explicit
-    /// field attribute value.
+    /// Attach an optional custom component path, e.g. from the shape's
+    /// `COMPONENT_PATH` constant rather than an explicit attribute value.
     pub const fn with_custom_component_opt(mut self, component: Option<&'static str>) -> Self {
         self.custom_component = component;
         self
@@ -213,64 +190,49 @@ impl FieldVariant {
         self
     }
 
-    /// Attach non-rendering layout hints (section/label/description/placeholder/
-    /// width) to this field metadata. See [`crate::layout::FieldLayout`].
+    /// Attach non-rendering layout hints; see [`crate::layout::FieldLayout`].
     pub const fn with_layout(mut self, layout: FieldLayout) -> Self {
         self.layout = layout;
         self
     }
 
-    /// Record the async validator path parsed from
-    /// `#[gpui_form(validate(async_fn = ...))]`.
-    ///
-    /// Metadata-only (M2 emission sketch): stays `const`-callable with a
-    /// `&'static str` payload so `inventory::submit!` chains keep working.
-    /// `None` (also explicit) clears it.
+    /// Record the async validator path from `validate(async_fn = ...)`. Stays
+    /// `const`-callable with a `&'static str` payload (the inventory contract);
+    /// `None` clears it.
     pub const fn with_async_validator(mut self, path: Option<&'static str>) -> Self {
         self.async_validator = path;
         self
     }
 
-    /// The async validator path recorded for this field, if any
-    /// (`validate(async_fn = ...)`; metadata-only in this milestone).
+    /// The async validator path recorded for this field, if any.
     pub const fn async_validator(&self) -> Option<&'static str> {
         self.async_validator
     }
 
-    /// Record the controlling sibling field parsed from
-    /// `#[gpui_form(depends_on = <field>)]` (backlog #12).
-    ///
-    /// Stays `const`-callable with a `&'static str` payload so
-    /// `inventory::submit!` chains keep working (the inventory contract).
-    /// `None` (also explicit) clears it.
+    /// Record the sibling field from `#[gpui_form(depends_on = <field>)]`.
+    /// Stays `const`-callable with a `&'static str` payload (the inventory
+    /// contract); `None` clears it.
     pub const fn with_depends_on(mut self, sibling: Option<&'static str>) -> Self {
         self.depends_on = sibling;
         self
     }
 
-    /// The controlling sibling field for `depends_on`, if any. The value is
-    /// the sibling's field name — the `FieldPath` name-segment
-    /// representation — not a free-form string.
+    /// The controlling sibling field for `depends_on`, if any: the sibling's
+    /// field name, not a free-form string.
     pub const fn depends_on(&self) -> Option<&'static str> {
         self.depends_on
     }
 
-    /// Record the controlling sibling field parsed from
-    /// `#[gpui_form(required_if = <field>)]` (backlog #13). The derive also
-    /// lowers this attribute to a generated koruma validator, so the rule is
-    /// enforced at validation time, not just recorded here.
-    ///
-    /// Stays `const`-callable with a `&'static str` payload so
-    /// `inventory::submit!` chains keep working (the inventory contract).
-    /// `None` (also explicit) clears it.
+    /// Record the sibling field from `#[gpui_form(required_if = <field>)]`;
+    /// the derive also lowers it to a koruma validator. Stays `const`-callable
+    /// with a `&'static str` payload (the inventory contract); `None` clears it.
     pub const fn with_required_if(mut self, sibling: Option<&'static str>) -> Self {
         self.required_if = sibling;
         self
     }
 
-    /// The controlling sibling field for `required_if`, if any. The value is
-    /// the sibling's field name — the `FieldPath` name-segment
-    /// representation — not a free-form string.
+    /// The controlling sibling field for `required_if`, if any: the sibling's
+    /// field name, not a free-form string.
     pub const fn required_if(&self) -> Option<&'static str> {
         self.required_if
     }
@@ -280,15 +242,14 @@ impl FieldVariant {
         self.optional || self.wraps_in_option
     }
 
-    /// Milestone M3 (backlog #2): this field is a `component(nested)` field
-    /// whose holder stores the nested form's own generated value holder.
+    /// This field is a `component(nested)` field whose holder stores the
+    /// nested form's own generated value holder.
     pub const fn is_nested(&self) -> bool {
         matches!(self.behaviour, ComponentsBehaviour::Nested(_))
     }
 
-    /// Milestone M3 (backlog #3): this field is a `component(list(...))`
-    /// field whose holder stores the plain item `Vec` plus generated
-    /// add/remove/items operations.
+    /// This field is a `component(list(...))` field whose holder stores the
+    /// plain item `Vec` plus generated add/remove/items operations.
     pub const fn is_list(&self) -> bool {
         matches!(self.behaviour, ComponentsBehaviour::List(_))
     }
@@ -328,15 +289,9 @@ impl FieldVariant {
 
 pub use inventory;
 
-/// Owned, serializable mirror of a [`ComponentsBehaviour`] payload
-/// (schema export, backlog #14).
-///
-/// One variant per component kind, carrying the same payload data as the
-/// inventory-side behaviour structs but with owned `String`s so exported
-/// documents outlive the `const` registry chain they were projected from.
-/// Serialized as an internally-tagged enum on `"component"` with snake_case
-/// variant names — the same wire spelling as
-/// [`crate::components::ComponentKind`]'s `Display`.
+/// Owned, serializable mirror of a [`ComponentsBehaviour`] payload for the
+/// schema export: one variant per kind with owned `String`s, serialized as an
+/// internally-tagged enum on `"component"` with snake_case variant names.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case", tag = "component")]
 pub enum FormSchemaComponent {
@@ -367,13 +322,12 @@ pub enum FormSchemaComponent {
     Custom,
     DatePicker,
     FilePicker,
-    /// Milestone M3 (backlog #2): the field composes another
-    /// `#[derive(GpuiForm)]` struct.
+    /// The field composes another `#[derive(GpuiForm)]` struct.
     Nested {
         /// The nested form struct name (e.g. `"Address"`).
         form_struct: String,
     },
-    /// Milestone M3 (backlog #3): an editable `Vec<T>` field.
+    /// An editable `Vec<T>` field.
     List {
         /// The scalar component kind rendered per item.
         item: crate::components::ComponentKind,
@@ -471,15 +425,9 @@ impl From<&FieldLayout> for FormSchemaLayout {
     }
 }
 
-/// Owned, serializable export of one [`FieldVariant`] (schema export,
-/// backlog #14).
-///
-/// A stable consumer shape for documentation generation, test fixtures,
-/// prototyping tools, and non-GPUI consumers: every `&'static str` payload of
-/// the inventory variant is projected to an owned `String`, and the component
-/// behaviour becomes a [`FormSchemaComponent`]. Includes the nested/list
-/// composition metadata from M3 and the dependency metadata from M4
-/// (`depends_on` / `required_if`).
+/// Owned, serializable export of one [`FieldVariant`] for the schema export: a
+/// stable consumer shape for docs, fixtures, prototyping, and non-GPUI tooling
+/// — every `&'static str` payload projected to `String`.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct FormSchemaField {
     pub name: String,
@@ -518,15 +466,15 @@ pub struct FormSchemaField {
     /// Non-rendering layout hints.
     #[serde(default)]
     pub layout: FormSchemaLayout,
-    /// Async validator path recorded from `validate(async_fn = ...)`
-    /// (metadata-only in this milestone).
+    /// Async validator path from `validate(async_fn = ...)`; metadata-only,
+    /// nothing executes it yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub async_validator: Option<String>,
-    /// Milestone M4 (backlog #12): the sibling field this field depends on.
+    /// The sibling field this field depends on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depends_on: Option<String>,
-    /// Milestone M4 (backlog #13): the controlling sibling field for the
-    /// conditional-required rule (also lowered to a koruma validator).
+    /// The controlling sibling field for the conditional-required rule (also
+    /// lowered to a koruma validator).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_if: Option<String>,
 }
@@ -537,12 +485,12 @@ impl FormSchemaField {
         self.component.kind()
     }
 
-    /// Milestone M3 (backlog #2): this field composes another generated form.
+    /// This field composes another generated form.
     pub fn is_nested(&self) -> bool {
         matches!(self.component, FormSchemaComponent::Nested { .. })
     }
 
-    /// Milestone M3 (backlog #3): this field is an editable `Vec<T>` field.
+    /// This field is an editable `Vec<T>` field.
     pub fn is_list(&self) -> bool {
         matches!(self.component, FormSchemaComponent::List { .. })
     }
@@ -576,15 +524,9 @@ impl From<&FieldVariant> for FormSchemaField {
     }
 }
 
-/// Owned, serializable export of a [`GpuiFormShape`] (schema export,
-/// backlog #14).
-///
-/// Generated per form as `<Name>FormSchema::schema()` — a read-only
-/// projection over the same `FieldVariant`/`FieldLayout` chain the inventory
-/// path builds (single metadata source; no parallel runtime model). Consumed
-/// by documentation generation, test fixtures, prototyping tools, and
-/// non-GPUI consumers that want to inspect a form's shape without running
-/// the GPUI runtime.
+/// Owned, serializable export of a [`GpuiFormShape`], generated per form as
+/// `<Name>FormSchema::schema()` — a read-only projection of the inventory
+/// metadata for docs, fixtures, prototyping, and non-GPUI consumers.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct FormSchema {
     /// The source struct name (e.g. `"UserProfile"`).
@@ -646,14 +588,10 @@ mod tests {
 
     #[test]
     fn async_validator_defaults_to_none_and_builder_round_trips() {
-        // Builder default: every existing construction site keeps compiling
-        // and records no async validator.
         let plain = FieldVariant::new("email", "String", false, ComponentsBehaviour::Input);
         assert_eq!(plain.async_validator, None);
         assert_eq!(plain.async_validator(), None);
 
-        // The builder records the path and stays const-callable with
-        // &'static str payloads (the inventory contract).
         const FIELDS: [FieldVariant; 1] =
             [
                 FieldVariant::new("email", "String", false, ComponentsBehaviour::Input)
@@ -664,7 +602,6 @@ mod tests {
         assert_eq!(FIELDS[0].async_validator, Some("my_check"));
         assert_eq!(SHAPE.components[0].async_validator(), Some("my_check"));
 
-        // Explicit None clears it back.
         let cleared = FieldVariant::new("email", "String", false, ComponentsBehaviour::Input)
             .with_async_validator(Some("my_check"))
             .with_async_validator(None);
@@ -673,10 +610,6 @@ mod tests {
 
     #[test]
     fn dependency_payloads_default_to_none_and_round_trip() {
-        // Milestone M4 (backlog #12/#13): builder defaults keep every
-        // existing construction site compiling with no dependencies, and
-        // the builders stay const-callable with &'static str payloads (the
-        // inventory contract — same shape as with_async_validator).
         let plain = FieldVariant::new(
             "state",
             "State",
@@ -709,7 +642,6 @@ mod tests {
         assert_eq!(SHAPE.components[0].depends_on(), Some("country"));
         assert_eq!(SHAPE.components[0].required_if(), Some("subscribe"));
 
-        // Explicit None clears them back.
         let cleared = FieldVariant::new(
             "state",
             "State",
@@ -727,8 +659,6 @@ mod tests {
         assert_eq!(cleared.required_if, None);
     }
 
-    /// The M5 export fixture: a shape covering flat, nested (M3), list (M3),
-    /// and dependency (M4) fields, plus layout hints and behaviour payloads.
     fn export_fixture() -> GpuiFormShape {
         const FIELDS: [FieldVariant; 4] = [
             FieldVariant::new("country", "u8", true, ComponentsBehaviour::Input).with_layout(
@@ -788,14 +718,12 @@ mod tests {
             vec!["country", "state", "address", "tags"]
         );
 
-        // Layout hints survive projection.
         let country = schema.field("country").expect("country entry");
         assert_eq!(country.layout.section.as_deref(), Some("Location"));
         assert_eq!(country.layout.label.as_deref(), Some("Country"));
         assert_eq!(country.layout.width, crate::layout::LayoutWidth::Half);
         assert!(country.layout.description.is_none());
 
-        // M4 dependency metadata (backlog #12/#13).
         let state = schema.field("state").expect("state entry");
         assert_eq!(state.depends_on.as_deref(), Some("country"));
         assert_eq!(state.required_if.as_deref(), Some("country"));
@@ -808,7 +736,6 @@ mod tests {
             }
         );
 
-        // M3 nested metadata (backlog #2).
         let address = schema.field("address").expect("address entry");
         assert!(address.is_nested());
         assert_eq!(address.kind(), crate::components::ComponentKind::Nested);
@@ -819,7 +746,6 @@ mod tests {
             }
         );
 
-        // M3 list metadata (backlog #3): item kind + add-label override.
         let tags = schema.field("tags").expect("tags entry");
         assert!(tags.is_list());
         assert!(!tags.is_nested());
@@ -832,7 +758,6 @@ mod tests {
             }
         );
 
-        // Unknown fields return None (no panics for hand-built lookups).
         assert!(schema.field("missing").is_none());
     }
 
@@ -876,7 +801,6 @@ mod tests {
         let restored: FormSchema = serde_json::from_str(&json).expect("deserialize FormSchema");
         assert_eq!(restored, schema, "exported schema must round-trip");
 
-        // The nested/list/dependency metadata from M3/M4 survives the wire.
         assert_eq!(
             restored.field("state").expect("state entry").required_if,
             Some("country".to_string())
@@ -892,9 +816,6 @@ mod tests {
 
     #[test]
     fn form_schema_json_uses_snake_case_component_tags() {
-        // The wire format spells components like the attribute syntax
-        // (`number_input`, `nested`, `list`) — the same names consumers match
-        // on today via ComponentKind's Display.
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "age",
             "u32",
@@ -918,9 +839,6 @@ mod tests {
 
     #[test]
     fn form_schema_wire_format_omits_absent_hints() {
-        // Option payloads with `skip_serializing_if` keep exported documents
-        // readable for docs/fixture generation: absent hints are simply
-        // missing from the JSON, and deserialization defaults them back.
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "name",
             "String",

@@ -10,7 +10,7 @@ the repository root `README.md` (single source) — do not transcribe them here.
 | `gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
-| `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
+| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
 
 Install from git: `freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }` (the package publishes under the `freeoxide-` names; the lib stays `gpui_form`, so imports are `use gpui_form::...`).
 The crates.io `gpui-form` package is the upstream `freeoxide/gpui-form`
@@ -79,7 +79,7 @@ Field attributes: `default = <expr>`, `skip`, `type = <form_type>`,
 `label = "<str>"`, `description = "<str>"`, `placeholder = "<str>"`,
 `width = full | half | third`, `validate(async_fn = <path>)`
 (metadata-only today: the path is recorded on `FieldVariant`, nothing
-executes until the reserved `async-validation` wiring lands),
+executes it yet — async wiring is a future phase),
 `depends_on = <field>` (sibling dependency metadata, milestone M4), and
 `required_if = <field>` (conditional requiredness, milestone M4 — desugars
 to a generated koruma validator, so violations surface through
@@ -279,10 +279,13 @@ of ad-hoc strings. One constructor per non-skipped field, named identically to
 the field; `#[gpui_form(skip)]` fields have no constructor. `Deref`/`AsRef`/
 `into_path` reach the shared primitive, and the same type carries
 `FIELD_NAMES`/`FIELD_COUNT`/`all_paths()`/`field_index()`/`path_for_index()`
-for declaration-order iteration and dense index mapping. Hand-built
-multi-segment paths via `<Name>FormPath::new(&["a", "b"])` work today; typed
-nested/list composition arrives with backlog #2 ("Nested forms") and #3
-("Repeated fields"). Koruma forms pair the paths with typed error access:
+for declaration-order iteration and dense index mapping. Milestone M3 added
+typed composition: nested fields get `<field>_root()` plus a consuming
+appender `fn <field>(self)`, list fields get `<field>_root()` plus
+`fn <field>(index: usize)` with a typed index segment, and every form gets
+`join` for cross-form composition — prefer these over hand-built paths.
+`<Name>FormPath::new(&["a", "b"])` still works for names-only paths. Koruma
+forms pair the paths with typed error access:
 `holder.validate_fields()` → `errors.error_for(&path)` →
 `field_error.issue_keys()` (`validation.*` keys; inner newtype/nested
 failures report `validation.invalid`). Worked example: root `README.md`

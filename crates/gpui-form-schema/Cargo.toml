@@ -16,6 +16,9 @@ readme = "README.md"
 # unchanged.
 [lib]
 name = "gpui_form_schema"
+# Keep the libtest unittest binary out of `cargo bench` runs — libtest
+# rejects criterion's `--save-baseline` arg (see workspace default-members).
+bench = false
 
 [dependencies]
 heck = { workspace = true }
@@ -24,7 +27,12 @@ serde = { workspace = true }
 strum = { features = [ "derive" ], workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
 serde_json = { workspace = true }
+
+[[bench]]
+name = "export"
+harness = false
 
 [lints]
 workspace = true

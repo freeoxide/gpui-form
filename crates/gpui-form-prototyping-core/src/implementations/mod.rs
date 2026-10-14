@@ -12,7 +12,7 @@ pub mod select;
 pub mod switch;
 
 use gpui_form_schema::{
-    components::ComponentsBehaviour,
+    components::{ComponentsBehaviour, NestedBehaviour},
     layout::FieldLayout,
     registry::{FieldVariant, GpuiFormShape},
 };
@@ -82,6 +82,15 @@ impl<'a> ResolvedField<'a> {
             }
         })?;
 
+        if let ComponentsBehaviour::Nested(NestedBehaviour { form_struct }) = &field.behaviour {
+            syn::parse_str::<Ident>(&format!("{form_struct}Form")).map_err(|_| {
+                PrototypingError::InvalidIdentifier {
+                    kind: "nested form struct",
+                    value: form_struct.to_string(),
+                }
+            })?;
+        }
+
         let custom_component_path = match field.custom_component {
             Some(component_path) => {
                 Some(syn::parse_str::<Path>(component_path).map_err(|error| {
@@ -126,12 +135,8 @@ impl<'a> ResolvedField<'a> {
         &self.field.behaviour
     }
 
-    /// Non-rendering layout hints attached to this field (METADATA-FIRST v1).
-    ///
-    /// Mirrors [`ResolvedField::raw`] / [`ResolvedField::behaviour`]: a thin
-    /// accessor over the underlying [`FieldVariant::layout`]. Consumers use this
-    /// to read `section` / `label` / `description` / `placeholder` / `width`
-    /// hints when emitting scaffolds. See [`FieldLayout`] for the v1 contract.
+    /// Non-rendering layout hints attached to this field; a thin accessor
+    /// over [`FieldVariant::layout`]. See [`FieldLayout`] for the contract.
     pub fn layout(&self) -> &FieldLayout {
         &self.field.layout
     }
@@ -196,16 +201,13 @@ impl<'a> ResolvedField<'a> {
         self.validation_rules().contains(&rule)
     }
 
-    /// Milestone M4 (backlog #12): the sibling field this field depends on
-    /// (`depends_on = <field>`), if any.
+    /// The sibling field this field depends on (`depends_on = <field>`), if any.
     pub fn depends_on(&self) -> Option<&'static str> {
         self.field.depends_on()
     }
 
-    /// Milestone M4 (backlog #13): the controlling sibling field for this
-    /// field's conditional-required rule (`required_if = <field>`), if any.
-    /// The rule itself is enforced by the generated koruma validator; this
-    /// only exposes the recorded relationship.
+    /// The controlling sibling for this field's `required_if = <field>` rule,
+    /// if any; the rule itself is enforced by the generated koruma validator.
     pub fn required_if(&self) -> Option<&'static str> {
         self.field.required_if()
     }
@@ -284,20 +286,20 @@ pub trait FieldCodeGenerator {
         None
     }
 
-    /// Extra `impl` members the scaffold needs for this field (milestone
-    /// M3: list row/add/remove control helpers). Emitted into the
-    /// scaffold's impl block next to the event handlers.
+    /// Extra `impl` members the scaffold needs for this field (the list
+    /// row/add/remove controls), emitted next to the event handlers. Malformed
+    /// metadata returns a [`PrototypingError`] instead of non-compiling tokens.
     fn generate_impl_members(
         &self,
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
-    ) -> Vec<TokenStream> {
-        Vec::new()
+    ) -> PrototypingResult<Vec<TokenStream>> {
+        Ok(Vec::new())
     }
 
-    /// A struct field on the SCAFFOLD itself (not the generated
-    /// `<Name>FormFields`) for this field — milestone M3: nested fields host
-    /// the nested form's scaffold as an `Entity<<Nested>Form>`.
+    /// A struct field on the scaffold itself (not the generated
+    /// `<Name>FormFields`): nested fields host the nested form's scaffold as
+    /// an `Entity<<Nested>Form>`.
     fn generate_scaffold_struct_field(
         &self,
         _field: &ResolvedField<'_>,
@@ -361,15 +363,9 @@ pub fn generate_entity_creation(
     }
 }
 
-/// Milestone M4 (backlog #12): the statements a field's change handling
-/// appends to reset its DEPENDENT fields — every field whose `depends_on`
-/// names this field (reset-on-parent-change scaffolding).
-///
-/// The scaffold resets each dependent's HOLDER value (`None` for
-/// Option-wrapped holders, `Default` otherwise); re-syncing the dependent's
-/// WIDGET stays app-authored ([D5]: scaffolds may wire events, the derive
-/// never does), which the emitted placeholder statement documents. Empty
-/// tokens for fields with no dependents, so existing shapes see zero diff.
+/// The statements a field's change handling appends to reset dependents —
+/// every field whose `depends_on` names this one; empty tokens when none.
+/// Holder values reset to `None`/`Default`; widget re-sync is app-authored.
 pub fn dependent_reset_statements(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
@@ -472,9 +468,6 @@ pub fn generate_label_tokens(
     }
 }
 
-/// `::rust_i18n::t!` tokens for `<form_snake>.<field_name>_<suffix>`, falling
-/// back to the title-cased field name when the key is not translated. The `t!`
-/// expansion resolves against the CONSUMER crate's `rust_i18n::i18n!` backend.
 pub(crate) fn localized_text_tokens(
     field: &ResolvedField<'_>,
     component: &GpuiFormShape,
@@ -482,13 +475,22 @@ pub(crate) fn localized_text_tokens(
 ) -> proc_macro2::TokenStream {
     use heck::ToTitleCase as _;
 
+    let fallback = field.field_name().to_title_case();
+    localized_text_tokens_with_fallback(field, component, suffix, &fallback)
+}
+
+pub(crate) fn localized_text_tokens_with_fallback(
+    field: &ResolvedField<'_>,
+    component: &GpuiFormShape,
+    suffix: &str,
+    fallback: &str,
+) -> proc_macro2::TokenStream {
     let key = format!(
         "{}.{}_{}",
         component.struct_name().to_snake_case(),
         field.field_name(),
         suffix
     );
-    let fallback = field.field_name().to_title_case();
     quote! {{
         let key: &str = #key;
         let translated = ::rust_i18n::t!(key);
@@ -510,39 +512,36 @@ pub fn collect_i18n_keys(component: &GpuiFormShape) -> Vec<String> {
     component
         .components
         .iter()
-        .flat_map(|field| {
-            // Milestone M3 (hazard 11): nested/list keys stay index-free —
-            // per-item messages reuse the one item-label key, never a
-            // per-index key.
-            match &field.behaviour {
-                ComponentsBehaviour::Nested(_) => {
-                    let mut keys = Vec::with_capacity(1);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    keys
-                },
-                ComponentsBehaviour::List(_) => {
-                    let mut keys = Vec::with_capacity(4);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    keys.push(format!("{form_key}.{}_item_label", field.field_name));
+        .flat_map(|field| match &field.behaviour {
+            ComponentsBehaviour::Nested(_) => {
+                let mut keys = Vec::with_capacity(1);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                keys
+            },
+            ComponentsBehaviour::List(behaviour) => {
+                let mut keys = Vec::with_capacity(4);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                keys.push(format!("{form_key}.{}_item_label", field.field_name));
+                if behaviour.add_label.is_none() {
                     keys.push(format!("{form_key}.{}_add", field.field_name));
-                    keys.push(format!("{form_key}.{}_remove", field.field_name));
-                    keys
-                },
-                _ => {
-                    let mut keys = Vec::with_capacity(2);
-                    if field.layout.label.is_none() {
-                        keys.push(format!("{form_key}.{}_label", field.field_name));
-                    }
-                    if field.layout.description.is_none() {
-                        keys.push(format!("{form_key}.{}_description", field.field_name));
-                    }
-                    keys
-                },
-            }
+                }
+                keys.push(format!("{form_key}.{}_remove", field.field_name));
+                keys
+            },
+            _ => {
+                let mut keys = Vec::with_capacity(2);
+                if field.layout.label.is_none() {
+                    keys.push(format!("{form_key}.{}_label", field.field_name));
+                }
+                if field.layout.description.is_none() {
+                    keys.push(format!("{form_key}.{}_description", field.field_name));
+                }
+                keys
+            },
         })
         .collect()
 }
@@ -678,7 +677,6 @@ mod tests {
 
     #[test]
     fn label_falls_back_to_field_name_title_case_when_absent() {
-        // Empty layout (no label) — defaults via FieldLayout::new().
         const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
             "enable_experimental",
             "bool",
@@ -835,7 +833,6 @@ mod tests {
 
     #[test]
     fn resolved_field_layout_accessor_returns_field_layout() {
-        // Guards the public accessor the code_gen section-grouping loop reads.
         const LAYOUT: FieldLayout = FieldLayout::new()
             .with_section(Some("Account"))
             .with_label(Some("Username"))
@@ -921,8 +918,6 @@ mod tests {
             "optional nested errors should map/filter the inner errors before rendering: {compact}"
         );
     }
-
-    // ── M3: composed-field i18n keys stay index-free (hazard 11) ──────────
 
     #[test]
     fn collect_i18n_keys_list_fields_use_index_free_item_keys() {
@@ -1018,7 +1013,9 @@ mod tests {
         let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
         use super::FieldCodeGenerator as _;
 
-        let members = generator.generate_impl_members(&field, &SHAPE);
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<T> list metadata should generate impl members");
         assert_eq!(members.len(), 1, "one list-control helper per field");
         let compact = compact(&members[0].to_string());
 
@@ -1046,10 +1043,206 @@ mod tests {
             compact.contains("cx.notify();"),
             "mutations notify the scaffold view: {compact}"
         );
-        // No per-item entity churn in v1 ([D5]/R17).
         assert!(
             generator.generate_cx_new_call(&field, &SHAPE).is_none(),
             "v1 list rows create no entities"
+        );
+    }
+
+    #[test]
+    fn list_generator_rejects_non_vec_value_types_with_a_typed_error() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "String",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let error = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect_err("non-Vec list metadata must return the typed error, not c_void tokens");
+
+        assert_eq!(
+            error,
+            crate::error::PrototypingError::InvalidListValueType {
+                field_name: "tags".to_string(),
+                value: "String".to_string(),
+            },
+            "the fallback must be the typed error, never emitting <c_void as Default>::default()"
+        );
+    }
+
+    #[test]
+    fn list_generator_extracts_nested_vec_item_types() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "matrix",
+            "Vec<Option<String>>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<Option<String>> is a legal list value type");
+        let compact = compact(&members[0].to_string());
+
+        assert!(
+            compact.contains("<Option<String>as::core::default::Default>::default()"),
+            "the Add button must append the inner item type, not the Vec: {compact}"
+        );
+    }
+
+    #[test]
+    fn list_generator_emits_the_add_label_override_verbatim() {
+        const LBEHAVIOUR: gpui_form_schema::components::ListBehaviour =
+            gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: Some("Add another tag"),
+            };
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(LBEHAVIOUR),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let generator = super::list::ListCodeGenerator;
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+        use super::FieldCodeGenerator as _;
+
+        let members = generator
+            .generate_impl_members(&field, &SHAPE)
+            .expect("Vec<T> list metadata should generate impl members");
+        let compact = compact(&members[0].to_string());
+
+        assert!(
+            compact.contains(r#""Addanothertag".to_string()"#),
+            "the Add button must carry the override verbatim: {compact}"
+        );
+        assert!(
+            !compact.contains("tags_add"),
+            "the localized add lookup must be skipped when the override is set: {compact}"
+        );
+        assert!(
+            compact.contains("post_editor.tags_remove"),
+            "the Remove button keeps its localized lookup: {compact}"
+        );
+    }
+
+    #[test]
+    fn list_button_labels_fall_back_to_action_words_on_locale_miss() {
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: None,
+            }),
+        )];
+        const SHAPE: GpuiFormShape = GpuiFormShape::new(
+            "PostEditor",
+            &FIELDS,
+            "examples/some-lib/src/demo.rs",
+            false,
+        );
+
+        let field = ResolvedField::new(&FIELDS[0]).expect("field metadata should parse");
+
+        let add_fallback = super::localized_text_tokens_with_fallback(&field, &SHAPE, "add", "Add");
+        let remove_fallback =
+            super::localized_text_tokens_with_fallback(&field, &SHAPE, "remove", "Remove");
+        let add = compact(&add_fallback.to_string());
+        let remove = compact(&remove_fallback.to_string());
+
+        assert!(
+            add.contains(r#""Add".to_string()"#) && add.contains("post_editor.tags_add"),
+            "the Add button must resolve tags_add and fall back to the action word: {add}"
+        );
+        assert!(
+            !add.contains("Tags"),
+            "the Add button must not fall back to the title-cased field name: {add}"
+        );
+        assert!(
+            remove.contains(r#""Remove".to_string()"#)
+                && remove.contains("post_editor.tags_remove"),
+            "the Remove button must resolve tags_remove and fall back to the action word: {remove}"
+        );
+        assert!(
+            !remove.contains("Tags"),
+            "the Remove button must not fall back to the title-cased field name: {remove}"
+        );
+        let item_label =
+            compact(&super::localized_text_tokens(&field, &SHAPE, "item_label").to_string());
+        assert!(
+            item_label.contains(r#""Tags".to_string()"#),
+            "the item label keeps the title-cased field-name fallback: {item_label}"
+        );
+    }
+
+    #[test]
+    fn collect_i18n_keys_list_fields_skip_add_key_when_add_label_overridden() {
+        const LBEHAVIOUR: gpui_form_schema::components::ListBehaviour =
+            gpui_form_schema::components::ListBehaviour {
+                item: gpui_form_schema::components::ComponentKind::Input,
+                item_struct: None,
+                add_label: Some("Add another tag"),
+            };
+        const FIELDS: [FieldVariant; 1] = [FieldVariant::new(
+            "tags",
+            "Vec<String>",
+            false,
+            ComponentsBehaviour::List(LBEHAVIOUR),
+        )];
+        const SHAPE: GpuiFormShape =
+            GpuiFormShape::new("PostEditor", &FIELDS, "src/demo.rs", false);
+
+        let keys = super::collect_i18n_keys(&SHAPE);
+
+        assert_eq!(
+            keys,
+            vec![
+                "post_editor.tags_label".to_string(),
+                "post_editor.tags_item_label".to_string(),
+                "post_editor.tags_remove".to_string(),
+            ],
+            "an add_label override suppresses only the _add key, like layout.label does"
         );
     }
 

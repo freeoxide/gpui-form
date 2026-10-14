@@ -1,6 +1,5 @@
-//! Milestone M3 example shapes (backlog #2 "Nested forms" and #3 "Repeated
-//! fields"): a nested form composed by the `component(nested)` attribute and
-//! a scalar-item `Vec` list with `each(...)` element validators.
+//! Example shapes: a nested form composed via `component(nested)` and a
+//! scalar-item `Vec` list with `each(...)` element validators.
 
 use gpui_form::GpuiForm;
 use koruma_collection::collection::{LenValidation, NonEmptyValidation};
@@ -25,7 +24,7 @@ pub struct PostEditor {
     #[koruma(NonEmptyValidation::<_>::builder())]
     pub title: String,
 
-    #[gpui_form(component(list(item = input)))]
+    #[gpui_form(component(list(item = input, add_label = "Add another tag")))]
     #[koruma(each(LenValidation::<_>::builder().min(2).max(32)))]
     pub tags: Vec<String>,
 

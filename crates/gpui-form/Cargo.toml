@@ -19,9 +19,6 @@ name = "gpui_form"
 
 [features]
 default = [ "derive" ]
-# Reserved for the async-validation wiring phase: `validate(async_fn = ...)`
-# parses and records metadata only; no runtime code depends on the flag yet.
-async-validation = [ "gpui-form-derive?/async-validation" ]
 derive = [ "dep:gpui-form-derive", "gpui-form-component/derive" ]
 inventory = [ "gpui-form-derive?/inventory" ]
 phone = [ "gpui-form-core/phone" ]

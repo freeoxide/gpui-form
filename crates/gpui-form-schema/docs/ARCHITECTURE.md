@@ -110,6 +110,22 @@ representation a `FieldPath` name segment carries — through const builders
 (`with_depends_on` / `with_required_if`), keeping the `inventory::submit!`
 contract (const-callable, `Copy`/`&'static str` payloads only).
 
+### `NumberInputKind::classify`, the one numeric-family classifier
+
+`gpui-form-codegen` classifies each number-input field once at parse time —
+with the number-input `as = ...` override string when present, else the
+field type — and feeds the same `NumberInputKind` value to both the
+recorded `NumberInputBehaviour.kind` payload and the emitted input
+validator branch, so recorded metadata and generated validation cannot
+disagree.
+
+Prototyping's step arithmetic is a separate, deliberate caller: it calls
+`classify` on the field's recorded `value_type` string — the raw field type
+(unless a field-level `type = ...` override applies). It never consults the
+number-input `as = ...` override, because the holder stores the raw field
+type and stepping must follow the stored value's semantics (an
+`as = f64` Decimal still steps through Decimal arithmetic).
+
 ### Schema-export view types (M5, backlog #14)
 
 `registry.rs` also owns the export-facing projection of the metadata model:
@@ -120,9 +136,10 @@ contract (const-callable, `Copy`/`&'static str` payloads only).
 - **Read-only projection.** `From<&GpuiFormShape>`/`From<&FieldVariant>`
   convert the `&'static` inventory model into owned `String` data; there is no
   builder surface and no path back. The derive's `<Name>FormSchema::schema()`
-  emits the SAME `FieldVariant`/`FieldLayout` chain the inventory submits and
-  converts at runtime, so the export cannot drift from the registered shape
-  (the layers do not invent a parallel runtime model).
+  hosts the one `FieldVariant`/`FieldLayout` chain (the inventory submission
+  registers that same const) and converts at runtime, so the export cannot
+  drift from the registered shape (the layers do not invent a parallel
+  runtime model).
 - **Serializable unconditionally.** The view types (and `ComponentKind` /
   `NumberInputKind` / `LayoutWidth`) derive `Serialize`/`Deserialize`
   unconditionally — `serde` is a plain dependency of this crate, NOT an

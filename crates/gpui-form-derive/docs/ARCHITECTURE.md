@@ -43,10 +43,11 @@ power the rest of the ecosystem.
 - `src/derives/gpui_form/submit.rs`: the opt-in `#[gpui_form(submit)]`
   `<Name>FormSubmission` alias (backlog #7, M2)
 - `src/derives/gpui_form/schema_export.rs`: the `<Name>FormSchema` unit type
-  and its `schema()` accessor (backlog #14, M5) — projects the SAME
-  `GpuiFormShape` construction chain the inventory path builds into the owned,
-  serializable `::gpui_form::schema::registry::FormSchema` document via
-  `From<&GpuiFormShape>`
+  and its `schema()` accessor (backlog #14, M5) — hosts the form's ONE
+  `GpuiFormShape` construction chain as the `SHAPE` const and projects it
+  into the owned, serializable
+  `::gpui_form::schema::registry::FormSchema` document via
+  `From<&GpuiFormShape>`; the inventory submission references this const
 - `src/derives/gpui_form/errors.rs`: generated `<Name>FormFieldErrors` map,
   `<Name>FormFieldError` borrowing enum, and the holder's `validate_fields()`
   (backlog #6 typed error access, koruma-gated; M3 adds nested-slot routing
@@ -246,7 +247,8 @@ cannot be reconstructed here):
   `current == validated snapshot`), `is_valid(&self)` (cached verdict when
   fresh, fresh compute WITHOUT caching otherwise — render-safe),
   `invalidate_validation(&mut self)`, and `error_for(&mut self, &path)`
-  (validate-and-cache on miss, then the map's lookup);
+  (serves the cached outcome without revalidating when fresh;
+  validate-and-cache on miss, then the map's lookup);
 - explicit invalidation in the facade's own mutators (`current_mut`,
   `replace_current`, both resets) so a reverted-to-same-value form does not
   keep the old verdict; `sync_baseline` deliberately does not invalidate;
@@ -272,8 +274,9 @@ button wiring ([D5]): forms that do not opt in see zero emitted diff.
 `expansion.rs` appends `.with_async_validator(Some("<path>"))` to the
 `FieldVariant` builder chain when a field carries
 `validate(async_fn = <path>)`. Parse-and-record only: nothing executes the
-path, and no cfg keys on the reserved `async-validation` feature yet (the
-flag exists in both Cargo.tomls so the future wiring has a stable name).
+path. (The once-reserved `async-validation` feature flags were removed —
+they gated nothing; a future wiring phase can re-introduce a gate when
+emission actually lands.)
 
 ### Field Dependencies and Conditional Requiredness (backlog #12/#13, M4)
 
@@ -343,7 +346,11 @@ holder field is option-wrapped). Inner failures (newtype `Inner`, nested)
 report the generic `validation.invalid` key in `issue_keys()` — inner
 validator kinds live on the inner type and are invisible to this crate.
 `error_for`/`failing_fields` match on the FULL single-segment path, so
-unknown and multi-segment paths return `None`.
+unknown and multi-segment paths return `None`. `failing_fields` agrees with
+`error_for` at the root: a list slot pushes its `<field>` root path whenever
+the slot is populated (plus one path per failing item index), so a combined
+element + whole-`Vec` failure reports the root alongside the items instead of
+dropping the whole-field error.
 
 Generic source structs are excluded (the emitter returns an empty stream):
 koruma's generated error types carry a subset of the source generics chosen
@@ -365,6 +372,10 @@ The derive layer:
 - preserves shorthand and builder-chain validator forms
 - injects required-value behavior where holder optionality would otherwise lose
   source-model required semantics
+- gates the exported metadata on the same flag: `expansion.rs` records
+  `"RequiredValidation"` in the `FieldVariant` validations list only when the
+  koruma path is active, so plain (non-koruma) forms never export a required
+  rule their runtime cannot enforce
 
 Under `koruma(fluent)` the holder additionally derives `KorumaAllDisplay` and
 emits an i18n surface — `<FORM>_I18N_KEY_PREFIX`,
@@ -388,12 +399,15 @@ When the `inventory` feature is enabled:
    `FieldVariant`-construction `filter_map` returns `None` for skipped fields
    before any layout tokens are built, so no variant (and no layout) is emitted.
 
-The shape-construction chain (a single `TokenStream` built once in
-`expansion.rs`) feeds TWO consumers: the `inventory::submit!` registration
-(feature-gated) and the M5 `<Name>FormSchema::SHAPE` const behind the
-`schema()` accessor (always emitted). Passing the identical tokens to both is
-the single-metadata-source contract — nested/list (M3) and dependency (M4)
-payloads cannot drift between the inventory surface and the export.
+The shape-construction chain is emitted ONCE per form: it lives in the
+`<Name>FormSchema::SHAPE` const (always emitted, built once in
+`expansion.rs`), and the `inventory::submit!` registration (feature-gated)
+references that const by name — `inventory::submit!` evaluates its value
+inside a `static` initializer (`value: &{ <expr> }`), so a const path is a
+legal value and no second copy of the chain is emitted. Naming one const is
+the single-metadata-source contract made structural: nested/list (M3) and
+dependency (M4) payloads cannot drift between the inventory surface and the
+export because there is only one chain.
 
 ## Other Derives
 
@@ -462,7 +476,15 @@ change.
   compute does not cache; `validate` stores and serves; the `state_mut`
   escape is caught by the snapshot comparison; resets invalidate even a
   matching snapshot; `sync_baseline` keeps the cache; `error_for` caches on
-  miss) over both koruma enablement routes.
+  miss) over both koruma enablement routes. Its hit-side contracts
+  (core-hit-tests section) use a counting `#[validator]` whose only
+  observable is a static call counter — revalidation is invisible to a
+  plain form, so the counter is the oracle: one test pins zero revalidation
+  on warm `error_for`/`validation()`/`is_valid` reads (and again after the
+  cache is re-armed), one pins that a hit read does not disturb the cached
+  snapshot (`hit_side_error_for_leaves_the_cached_snapshot_intact`), and
+  one pins mutator→read ordering keeping hit-path verdicts accurate
+  (`error_for_hit_reads_stay_accurate_across_mutator_ordering`).
 - `tests/submit_state.rs` exercises the M2 submit alias (typed koruma error
   parameter on both koruma routes, `BoxError` on plain/empty forms,
   begin→finish(Err)→finish(Ok) transitions, stale-generation completions

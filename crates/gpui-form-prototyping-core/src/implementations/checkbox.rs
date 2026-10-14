@@ -42,7 +42,6 @@ impl FieldCodeGenerator for CheckboxCodeGenerator {
         field: &ResolvedField<'_>,
         component: &GpuiFormShape,
     ) -> TokenStream {
-        // M4 (backlog #12): reset dependent fields when the toggle flips.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("v"));
         let field_name_ident = field.field_ident();
         let component_gpui_type = field.component_ident();

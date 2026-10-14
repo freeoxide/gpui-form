@@ -1,6 +1,6 @@
 use gpui_form_component::infinite_select::{
     InfiniteSelect as _, InfiniteSelectKeyPath, InfiniteSelectPath, InfiniteSelectPathErrorReason,
-    InfiniteSelectPathSegment, build_from_key_path, build_from_path,
+    InfiniteSelectPathSegment, InfiniteSelectState, build_from_key_path, build_from_path,
 };
 use gpui_form_component_derive::InfiniteSelect;
 
@@ -304,4 +304,68 @@ fn child_depth_matches_next_nested_level() {
         1
     );
     assert_eq!(CaliforniaCity::LosAngeles.child_depth(), 0);
+}
+
+fn child_entity_ids(state: &InfiniteSelectState<Country>) -> Vec<gpui::EntityId> {
+    state
+        .child_selects()
+        .iter()
+        .map(|select| select.entity_id())
+        .collect()
+}
+
+#[gpui::test]
+async fn deep_selection_change_preserves_untouched_select_entities(cx: &mut gpui::TestAppContext) {
+    let (state, cx) = cx.add_window_view(|window, cx| {
+        InfiniteSelectState::<Country>::new(Country::default(), window, cx)
+    });
+
+    let child_ids_before = cx.read(|app| child_entity_ids(state.read(app)));
+    assert_eq!(
+        child_ids_before.len(),
+        2,
+        "Country renders two child levels"
+    );
+
+    state.update_in(cx, |state, window, cx| {
+        state
+            .set_selected_index_at_depth(2, 1, window, cx)
+            .expect("depth 2 is inside the rendered path");
+    });
+
+    let (child_ids_deep, depth_1, depth_2) = cx.read(|app| {
+        let state = state.read(app);
+        (
+            child_entity_ids(state),
+            state.selected_index_at_depth(1),
+            state.selected_index_at_depth(2),
+        )
+    });
+    assert_eq!(
+        child_ids_deep[0], child_ids_before[0],
+        "the depth-1 select entity must survive a depth-2 selection change"
+    );
+    assert_eq!(depth_1, Some(0), "depth-1 selection stays on California");
+    assert_eq!(depth_2, Some(1), "depth-2 selection moves to SanFrancisco");
+
+    state.update_in(cx, |state, window, cx| {
+        state
+            .set_selected_index_at_depth(0, 1, window, cx)
+            .expect("depth 0 is the root select");
+    });
+
+    let child_ids_root = cx.read(|app| child_entity_ids(state.read(app)));
+    assert_ne!(
+        child_ids_root[0], child_ids_deep[0],
+        "a root change tears down the depth-1 select"
+    );
+    assert_ne!(
+        child_ids_root[1], child_ids_deep[1],
+        "a root change tears down the depth-2 select"
+    );
+    assert_eq!(
+        cx.read(|app| state.read(app).selected_index_at_depth(1)),
+        Some(0),
+        "Canada branch resets to its default province"
+    );
 }

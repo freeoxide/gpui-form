@@ -20,14 +20,14 @@ It is designed for three things:
 | `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
 | :---------- | :--------- | :----- |
 | **git** | | |
-| `branch = "master"` | `0.7.0` | `0.3.7` (`gpui-pre`) |
+| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
 
 ## Installation
 
 ```toml
 [dependencies]
-gpui = { package = "gpui-pre", version = "0.3.7" }
-gpui-kit = "0.7.0"
+gpui = { package = "gpui-pre", version = "0.3.9" }
+gpui-kit = "0.7.3"
 
 freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 
@@ -808,9 +808,9 @@ error map are owned by the driving layer (GPUI glue or the app), not the
 trait. The derive side is an attribute sketch in this milestone:
 `#[gpui_form(validate(async_fn = my_check), component(input))]` parses and
 records the validator path as field metadata (`FieldVariant::async_validator`)
-— nothing executes it yet; wiring lands behind the reserved
-`async-validation` feature later. The `forms-demo` example drives the
-contract by hand today (generation-guarded spawn per edit).
+— nothing executes it yet; wiring is a future phase. The `forms-demo`
+example drives the contract by hand today (generation-guarded spawn per
+edit).
 
 ## Typed Field Paths
 
@@ -1001,8 +1001,9 @@ Two field-level attributes describe relationships between fields. Both name a
 sibling field of the same struct — a bare ident (`depends_on = country`) or the
 quoted form (`required_if = "subscribe"`) — and the reference is
 existence-checked at derive time, so a typo is a compile-time error rather than
-a silently-dead rule. There is no expression language: the controlling sibling
-is a field, not a condition string.
+a silently-dead rule. Naming the field itself is rejected the same way: a
+field cannot depend on or require itself. There is no expression language: the
+controlling sibling is a field, not a condition string.
 
 ### `required_if = <field>` (conditional requiredness)
 
@@ -1258,6 +1259,25 @@ selected-date label and calendar popover use ICU4X for localized month names,
 weekday headers, day/year labels, and locale-specific week starts. Manual
 runtime code can use `DateRangePicker` and `DateRangePickerState` for range
 selection; generated `component(date_picker)` fields remain single-date fields.
+
+Both picker states accept optional selectable bounds: days outside
+`min_date`/`max_date` render disabled and reject clicks, while the selected
+value is unconstrained. Bounds are a runtime capability of the picker states;
+schema/codegen integration is not wired yet.
+
+```rs
+use gpui_form::date_picker::{DatePickerState, DateRangePickerState};
+
+let picker = cx.new(|cx| {
+    DatePickerState::new(window, cx)
+        .min_date(jiff::civil::date(2026, 1, 1))
+        .max_date(jiff::civil::date(2026, 12, 31))
+});
+
+let range = cx.new(|cx| {
+    DateRangePickerState::new(window, cx).max_date(jiff::civil::date(2026, 12, 31))
+});
+```
 
 ## Prototyping
 

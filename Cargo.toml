@@ -1,5 +1,18 @@
 [workspace]
-default-members = [ "examples/some-lib" ]
+# Bare `cargo bench` from the workspace root is the campaign's measurement
+# entry point (`cargo bench -- --save-baseline main`), so the default members
+# are the packages that own `[[bench]]` targets plus the historical default
+# (`some-lib`). Every default member's `[lib]` sets `bench = false`: a plain
+# `cargo bench` also runs lib unittest binaries, and libtest rejects
+# criterion's `--save-baseline` flag ("Unrecognized option"). Unittests still
+# run under `cargo test` — only `cargo bench` selection changes. The
+# justfile gates pass `--workspace` explicitly and are unaffected.
+default-members = [
+  "crates/gpui-form-component",
+  "crates/gpui-form-core",
+  "crates/gpui-form-schema",
+  "examples/some-lib",
+]
 members = [
   "crates/gpui-form",
   "crates/gpui-form-core",
@@ -29,6 +42,9 @@ version = "0.10.0"
 anyhow = "1.0"
 bon = "3.9"
 chrono = "0.4"
+# Bench-only dev-dependency (workspace pattern): benches in `gpui-form-core`,
+# `gpui-form-component`, and `gpui-form-schema` opt in per crate.
+criterion = "0.8"
 darling = "0.23"
 derive_more = "2.1"
 gpui = { package = "gpui-pre", version = "0.3.9" }

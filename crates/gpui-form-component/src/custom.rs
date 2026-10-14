@@ -1,11 +1,6 @@
-//! Runtime contract for custom components used by `#[derive(GpuiForm)]`.
-//!
-//! Users define a zero-sized "shape" type that implements [`CustomComponentShape`].
-//! The derive macro uses that shape to generate:
-//! - `FormFields` entity state type
-//! - `FormComponents` constructor function body
-//!
-//! Prefer using [`custom_component_shape!`] to define shape types.
+//! Runtime contract for custom components used by `#[derive(GpuiForm)]`:
+//! implement [`crate::custom::CustomComponentShape`] (preferably via
+//! [`crate::custom_component_shape!`]) so the derive can wire your component.
 
 /// Shape contract for user-defined components.
 ///
@@ -17,14 +12,9 @@ pub trait CustomComponentShape {
     /// Build the component state.
     fn new(window: &mut gpui::Window, cx: &mut gpui::Context<'_, Self::State>) -> Self::State;
 
-    /// Optional path to the UI component type (e.g. `"TagsInput"`).
-    ///
-    /// When set here – via [`custom_component_shape!`] `component = …` or
-    /// `#[gpui_form_custom(component = …)]` – the prototyping code generator
-    /// can emit `Component::new(&entity)` without requiring `component = …`
-    /// to be repeated on every field annotation.
-    ///
-    /// A `component = …` on the field attribute always takes precedence.
+    /// Optional UI component type path (e.g. `"TagsInput"`), settable via
+    /// [`crate::custom_component_shape!`] `component = …` or
+    /// `#[gpui_form_custom(component = …)]`; a field-level `component = …` wins.
     const COMPONENT_PATH: Option<&'static str> = None;
 }
 
@@ -53,44 +43,31 @@ impl<T> CustomComponentValueChange<T> {
     }
 }
 
-/// Optional value-binding contract for user-defined custom components.
-///
-/// Implement this alongside [`CustomComponentShape`] when generated
-/// prototyping code should seed the component from the form value holder and
-/// subscribe to component events. The form derive opts into this path with
-/// `component(custom(..., value_binding))`.
+/// Value-binding contract for custom components, opted into with
+/// `component(custom(..., value_binding))`. Both hooks are mandatory: a
+/// defaulted no-op would silently drop the form value.
 pub trait CustomComponentValueAdapter<T>: CustomComponentShape {
     /// Event emitted by the custom component state.
     type Event: 'static;
 
-    /// Seed component state from the current form value.
+    /// Seeds component state from the current form value on every value
+    /// change or rebuild; intentionally ignoring the value must be an
+    /// explicit empty body.
     fn set_state_value(
         _state: &mut Self::State,
         _value: Option<&T>,
         _window: &mut gpui::Window,
         _cx: &mut gpui::Context<'_, Self::State>,
-    ) {
-    }
+    );
 
     /// Convert a component event into a form value update.
     fn value_change(state: &Self::State, event: &Self::Event) -> CustomComponentValueChange<T>;
 }
 
-/// Define a custom component shape with minimal boilerplate.
-///
-/// # Example
-///
-/// ```ignore
-/// gpui_form_component::custom_component_shape!(
-///     pub EmailInputShape,
-///     state = gpui_kit::component::input::InputState,
-///     new = gpui_kit::component::input::InputState::new,
-///     component = gpui_kit::component::input::Input,
-/// );
-/// ```
+/// Defines a custom component shape with an optional UI component path:
+/// `custom_component_shape!(VIS Name, state = T, new = f[, component = P])`.
 #[macro_export]
 macro_rules! custom_component_shape {
-    // With explicit component path
     ($vis:vis $shape:ident, state = $state:ty, new = $new:expr, component = $component:path $(,)?) => {
         $vis struct $shape;
 
@@ -107,7 +84,6 @@ macro_rules! custom_component_shape {
             const COMPONENT_PATH: Option<&'static str> = Some(stringify!($component));
         }
     };
-    // Without component path (original form)
     ($vis:vis $shape:ident, state = $state:ty, new = $new:expr $(,)?) => {
         $vis struct $shape;
 
@@ -122,4 +98,44 @@ macro_rules! custom_component_shape {
             }
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CustomComponentShape;
+
+    pub(crate) struct TestState;
+
+    fn new_test_state(_: &mut gpui::Window, _: &mut gpui::Context<'_, TestState>) -> TestState {
+        TestState
+    }
+
+    crate::custom_component_shape!(
+        pub(crate) PlainTestShape,
+        state = TestState,
+        new = new_test_state,
+    );
+
+    crate::custom_component_shape!(
+        pub(crate) ComponentTestShape,
+        state = TestState,
+        new = new_test_state,
+        component = TestState,
+    );
+
+    #[test]
+    fn custom_component_shape_macro_generates_shape_impls() {
+        fn assert_shape<S: CustomComponentShape>() {}
+
+        assert_shape::<PlainTestShape>();
+        assert_shape::<ComponentTestShape>();
+        assert_eq!(
+            <PlainTestShape as CustomComponentShape>::COMPONENT_PATH,
+            None
+        );
+        assert_eq!(
+            <ComponentTestShape as CustomComponentShape>::COMPONENT_PATH,
+            Some("TestState")
+        );
+    }
 }

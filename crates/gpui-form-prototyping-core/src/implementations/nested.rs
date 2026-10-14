@@ -1,13 +1,6 @@
-//! Milestone M3 (backlog #2): prototyping generator for `component(nested)`
-//! fields.
-//!
-//! A nested field renders as a bordered group hosting the NESTED form's own
-//! generated scaffold (`<Nested>Form`), resolved by the shared
-//! `<Name>Form` / snake-case-module naming convention the prototyping
-//! output uses (one output file per shape: `output/<snake>.rs` exposing
-//! `<Name>Form`). The group carries its own layout, so `code_gen`'s
-//! section-heading logic skips it (plan §3 feature 7), and it manages its
-//! own subscriptions — `generate_subscription` returns `None` ([D5]).
+//! Prototyping generator for `component(nested)` fields: a bordered group
+//! hosting the nested form's own generated scaffold (`<Nested>Form`), resolved
+//! by the `<Name>Form` / snake-case-module naming convention.
 
 use gpui_form_schema::{
     components::{ComponentsBehaviour, NestedBehaviour},
@@ -51,8 +44,6 @@ impl FieldCodeGenerator for NestedCodeGenerator {
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        // The nested form entity lives on the scaffold struct, not on the
-        // generated `<Name>FormFields` (which the derive owns).
         None
     }
 
@@ -104,8 +95,6 @@ impl FieldCodeGenerator for NestedCodeGenerator {
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<TokenStream> {
-        // The nested form is focusable through its own Focusable impl; the
-        // outer scaffold does not add it to its focus cycle in v1.
         None
     }
 
@@ -114,7 +103,6 @@ impl FieldCodeGenerator for NestedCodeGenerator {
         _field: &ResolvedField<'_>,
         _component: &GpuiFormShape,
     ) -> Option<super::GeneratedSubscription> {
-        // Nested manages itself (plan §3 feature 7, prototyping row).
         None
     }
 }
@@ -126,13 +114,10 @@ fn nested_behaviour(field: &FieldVariant) -> Option<NestedBehaviour> {
     }
 }
 
-/// The scaffold struct field / variable holding the nested form entity.
 fn nested_form_var(field: &ResolvedField<'_>) -> proc_macro2::Ident {
     format_ident!("{}_nested_form", field.field_name())
 }
 
-/// The nested form's scaffold ident: `AddressForm` for
-/// `NestedBehaviour { form_struct: "Address" }`.
 fn nested_form_ident(field: &ResolvedField<'_>) -> proc_macro2::Ident {
     let form_struct = nested_behaviour(field.raw())
         .map(|behaviour| behaviour.form_struct.to_string())

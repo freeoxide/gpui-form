@@ -6,7 +6,8 @@ use std::{collections::BTreeSet, fs, path::Path};
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-// import targeted lib to get inventory registrations
+// Linked for its inventory side effects: without this line the shape
+// registry is empty and the generator emits nothing.
 extern crate some_lib;
 
 struct ComponentLayout;
@@ -149,7 +150,6 @@ impl FormLayout for ComponentLayout {
                     field()
                         .label_indent(false)
                         .child(self.action_buttons(cx, |payload, _, _| {
-                            // User-defined submit handler goes here.
                             let _ = payload;
                         })),
                 )
@@ -351,7 +351,7 @@ mod i18n_tests {
         );
         for key in &keys {
             let key: &str = key;
-            for locale in LOCALES.iter().copied() {
+            for &locale in LOCALES {
                 let translated = rust_i18n::t!(key, locale = locale);
                 assert_ne!(
                     &*translated, key,

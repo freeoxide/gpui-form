@@ -1,51 +1,6 @@
-//! Generator for the per-form typed field-error surface (backlog #6).
-//!
-//! Koruma already generates a concrete, typed per-field error struct per
-//! holder (`<Holder>KorumaValidationError` with one getter per field); what
-//! is missing is a *bridge* from those typed structs to `<Name>FormPath`.
-//! This module emits that bridge:
-//!
-//! - `<Name>FormFieldErrors`: a per-form map with one private slot per
-//!   non-skipped holder field, re-keying koruma's getters by typed path.
-//! - `<Name>FormFieldError<'a>`: a borrowing enum with one variant per
-//!   field, for path-addressable/loop code (render all failing fields).
-//! - `validate_fields()` on the holder: run koruma validation once and
-//!   re-key the result. The raw koruma `validate()` stays untouched.
-//!
-//! # Gate
-//!
-//! Emitted only when the holder itself derives `Koruma`
-//! (`needs_koruma_derive` in `value_holder.rs` — NOT
-//! `koruma_options.is_some()`, which would drop field-attr-only koruma
-//! forms), so every koruma error type referenced here is guaranteed to
-//! exist. Generic source structs are excluded in FLAT v1: koruma's
-//! generated error types carry a *subset* of the source generics chosen by
-//! usage analysis, which cannot be reconstructed here; generic koruma forms
-//! keep compiling exactly as before, minus this opt-in surface.
-//!
-//! # Milestone M3 composition
-//!
-//! - Nested fields (`component(nested)` + `#[koruma(nested)]`) route any
-//!   `address...` path to the nested slot, and gain `<field>_error_for`
-//!   accessors that recurse into the NESTED form's own
-//!   `error_for`/`FormFieldErrors` (resolved by the shared
-//!   `<Name>FormValueHolder` naming convention). The recursion accessor
-//!   requires the nested form to be a non-generic koruma form (it must have
-//!   derived its own `FormFieldErrors` map).
-//! - List fields (`component(list(...))` with `each(...)` element
-//!   validators) route `field`/`field.<index>` paths to the wrapper slot —
-//!   `error_for(&TagsFormPath::tags(2))` is `Some` only when item 2 failed —
-//!   and gain `<field>_element_error(index)` exposing the element error
-//!   struct directly.
-//!
-//! # Scope notes
-//!
-//! - Nested/newtype *inner* validator kinds are reachable through the typed
-//!   accessors and the enum payloads; only field-level validator kinds get
-//!   named `issue_keys()` entries (inner failures report the generic
-//!   `validation.invalid` key).
-//! - The map holds owned clones of koruma error structs (koruma errors
-//!   derive `Clone, Debug, Default` only — no `PartialEq`, no serde).
+//! Bridges koruma's per-holder typed error structs to `<Name>FormPath`:
+//! emits `<Name>FormFieldErrors`, `<Name>FormFieldError<'a>`, and the holder's
+//! `validate_fields()`, gated on the holder deriving `Koruma` (non-generic only).
 
 use heck::{ToSnakeCase as _, ToUpperCamelCase as _};
 use proc_macro2::TokenStream;
@@ -57,33 +12,21 @@ use crate::derives::gpui_form::value_holder::{
     form_base_type, should_wrap, validation_issue_key_for_kind,
 };
 
-/// How a field's koruma error surfaces on the generated map.
 enum FieldErrorSlot {
-    /// Regular field or newtype-with-validators: koruma's per-field error
-    /// struct, reached through a `&Wrapper` getter.
     Wrapper,
-    /// `#[koruma(nested)]` field: the nested type's own
-    /// `ValidateExt::Error`, behind an `Option<&..>` getter.
-    Nested { inner: Type },
-    /// `#[koruma(newtype)]` with no mirrored validators: the inner type's
-    /// `ValidateExt::Error`, reached either directly or behind an `Option`.
-    BareNewtype { inner: Type, optional_getter: bool },
-    /// Milestone M3 `component(list(...))` field: koruma's per-field wrapper
-    /// struct carrying `element_errors: Vec<(usize, ElementError)>` plus any
-    /// field-level (whole-`Vec`) validator getters.
+    Nested {
+        inner: Type,
+    },
+    BareNewtype {
+        inner: Type,
+        optional_getter: bool,
+    },
     List {
-        /// `{Holder}{Field}ElementKorumaValidationError` — koruma's
-        /// predictable element-error type name for `each(...)` validators.
         element_error: Ident,
-        /// Whether any element validators exist (drives the element-error
-        /// accessor and index routing).
         has_element_validators: bool,
     },
 }
 
-/// One validator kind mirrored onto the holder field, carrying the getter
-/// name koruma generates (mirroring `koruma-derive`'s
-/// `validator_field_ident`) and the i18n key for its failure.
 struct MirroredValidator {
     getter: Ident,
     key: String,
@@ -98,11 +41,6 @@ fn snake_path(path: &syn::Path) -> String {
 }
 
 fn mirrored_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
-    // The holder's koruma attr list: synthetic required first, then the
-    // source field validators, then element validators mirrored flat
-    // (see `value_holder.rs` — element validators are re-emitted without
-    // `each(..)` on FLAT fields, so koruma parses them as field validators
-    // of the holder).
     let mut names: Vec<String> = Vec::new();
     let mut fallbacks: Vec<String> = Vec::new();
     if field.needs_required_validation() {
@@ -118,10 +56,6 @@ fn mirrored_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
         names.push(validator.name().to_string());
         fallbacks.push(snake_path(&validator.validator));
     }
-    // M4 (backlog #13): the desugared conditional-required validator. Its
-    // koruma error-field getter is the snake_case of the emitted type name
-    // (single-segment path, so the collision fallback is identical), and
-    // `validation_issue_key_for_kind` maps it to `validation.required`.
     if let Some(rule) = &field.required_if {
         let name = rule.validator.to_string();
         fallbacks.push(name.to_snake_case());
@@ -130,9 +64,8 @@ fn mirrored_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
     disambiguate_validators(names, fallbacks)
 }
 
-/// Milestone M3: the wrapper getters of a LIST field — field-level
-/// (whole-`Vec`) validators only. Element validators live on the element
-/// error struct, not the wrapper.
+// List wrapper getters only: element validators surface via the element
+// error struct, not wrapper getters.
 fn mirrored_field_validators(field: &FieldOptionality) -> Vec<MirroredValidator> {
     let mut names: Vec<String> = Vec::new();
     let mut fallbacks: Vec<String> = Vec::new();
@@ -153,10 +86,8 @@ fn mirrored_field_validators(field: &FieldOptionality) -> Vec<MirroredValidator>
 }
 
 fn disambiguate_validators(names: Vec<String>, fallbacks: Vec<String>) -> Vec<MirroredValidator> {
-    // Collision fallback mirrors koruma: snake of the last path segment,
-    // then the full path flattened to snake_case. (The final hash suffix
-    // path only triggers for two validators with identical full paths,
-    // which koruma itself cannot disambiguate.)
+    // Mirrors koruma's getter disambiguation: on a snake_case collision, use
+    // the full path flattened to snake_case.
     let snake_names: Vec<String> = names.iter().map(|n| n.to_snake_case()).collect();
     let mut mirrored = Vec::with_capacity(names.len());
     for (index, name) in names.iter().enumerate() {
@@ -174,19 +105,8 @@ fn disambiguate_validators(names: Vec<String>, fallbacks: Vec<String>) -> Vec<Mi
     mirrored
 }
 
-/// Milestone M3: the nested-form recursion accessor emitted on the map for a
-/// `component(nested)` field — `<field>_errors()` re-keys the field's nested
-/// validation error into the NESTED form's own path-keyed map, so deep typed
-/// access composes: `errors.address_errors()?.error_for(&AddressFormPath::city())`.
-///
-/// The accessor returns the nested map by value (the nested form's borrowing
-/// enum borrows ITS map, not this one), which keeps the borrow chain sound.
-///
-/// `inner` is the slot's inner type. For `component(nested)` fields it is the
-/// nested form's HOLDER (`<Nested>FormValueHolder`, a single-segment path),
-/// from which the nested form's Errors ident resolves by stripping the
-/// `FormValueHolder` suffix. For flat `#[koruma(nested)]` fields `inner` is
-/// the source type — no convention to hook, so no accessor is emitted.
+// Returns the nested map by value (the nested enum borrows its own map, not
+// this one); flat `#[koruma(nested)]` fields resolve no convention, so no accessor.
 fn nested_form_accessor(
     inner: &Type,
     field: &FieldOptionality,
@@ -204,10 +124,8 @@ fn nested_form_accessor(
     let accessor_ident = format_ident!("{name}_errors");
 
     Some(quote! {
-        /// Re-key this field's nested validation error into the nested
-        /// form's own path-keyed map, for deep typed access:
-        /// `errors.#accessor_ident()?.error_for(&..FormPath::city())`
-        /// resolves `#name.city` through the nested form's `error_for`.
+        /// Re-key this field's nested validation error into the nested form's
+        /// own path-keyed map: `errors.#accessor_ident()?.error_for(&..FormPath::city())`.
         pub fn #accessor_ident(&self) -> ::core::option::Option<#nested_errors_ident> {
             self.#name
                 .as_ref()
@@ -216,20 +134,9 @@ fn nested_form_accessor(
     })
 }
 
-/// Whether a field participates in the generated field-error map: koruma
-/// generates a top-level error getter (and per-field error struct) only for
-/// holder fields that actually carry koruma attrs, and `value_holder`
-/// mirrors attrs onto exactly these fields. Shared with the facade emitter
-/// so both surfaces agree on which fields can fail.
-///
-/// Milestone M3: `component(nested)` + `#[koruma(nested)]` fields
-/// participate through their nested slot even with no other validators (the
-/// mirror loop includes the bare nested marker for composed fields only),
-/// and `component(list(...))` fields participate through their wrapper when
-/// they carry field- or element-level validators. FLAT fields with a bare
-/// `#[koruma(nested)]` and no other validators keep their pre-M3 behavior —
-/// no mirrored attr, so no getter, so no slot — which is why the nested
-/// clause checks the composition, not `validation.is_nested` alone.
+/// Whether a field gets an error-map slot: koruma emits a per-field error
+/// getter only for holder fields carrying koruma attrs, and `value_holder`
+/// mirrors attrs onto exactly those fields — both surfaces must agree.
 pub(crate) fn participates_in_field_errors(field: &FieldOptionality) -> bool {
     !field.skip
         && (field.needs_required_validation()
@@ -237,15 +144,12 @@ pub(crate) fn participates_in_field_errors(field: &FieldOptionality) -> bool {
             || !field.validation.element_validators.is_empty()
             || field.validation.is_newtype
             || (field.composition.is_nested() && field.validation.is_nested)
-            // M4 (backlog #13): the desugared conditional-required
-            // validator runs inside koruma's validate(), so the field can
-            // fail and needs an error-map slot.
             || field.required_if.is_some())
 }
 
 /// Generates `<Name>FormFieldErrors`, `<Name>FormFieldError<'a>`, and the
 /// holder's `validate_fields()`. Returns an empty stream for generic source
-/// structs (see module docs).
+/// structs.
 pub fn generate_field_errors(
     original_input: &DeriveInput,
     fields: &[FieldOptionality],
@@ -262,11 +166,6 @@ pub fn generate_field_errors(
     let koruma_error_ident = format_ident!("{}KorumaValidationError", holder_ident);
     let (impl_generics, ty_generics, where_clause) = original_input.generics.split_for_impl();
 
-    // Koruma generates a top-level error getter (and per-field error struct)
-    // only for holder fields that actually carry koruma attrs. `value_holder`
-    // mirrors attrs onto exactly these fields — mirror that predicate here so
-    // the map never references a getter that does not exist. (Attr-less
-    // fields are simply absent from the map; they can never fail.)
     let participating: Vec<&FieldOptionality> = fields
         .iter()
         .filter(|f| participates_in_field_errors(f))
@@ -278,28 +177,16 @@ pub fn generate_field_errors(
         slot_inner: TokenStream,
         populate: TokenStream,
         issue_keys_body: TokenStream,
-        /// Milestone M3: which routing shape `error_for` uses for this slot.
         composition: SlotRouting,
-        /// M3 nested recursion accessor (`<field>_error_for`), when the slot
-        /// is a `component(nested)` field whose nested form's own error map
-        /// can be resolved by naming convention.
         nested_accessor: Option<TokenStream>,
-        /// M3 list element-error accessor (`<field>_element_error`), when the
-        /// slot carries `each(...)` element validators.
         list_element_accessor: Option<TokenStream>,
-        /// M3: custom failing-fields push (per failing item index for lists).
         failing_push: Option<TokenStream>,
     }
 
-    /// How `error_for` routes a path to a slot (milestone M3).
     #[derive(Clone, Copy)]
     enum SlotRouting {
-        /// Exact single-segment match (flat fields).
         Exact,
-        /// Any path starting with the field name (nested fields; deeper
-        /// segments are reachable through the nested form's own accessors).
         Prefix,
-        /// Single-segment root match plus a typed-index item match (lists).
         List { indexed: bool },
     }
 
@@ -328,18 +215,15 @@ pub fn generate_field_errors(
                     }
                 },
                 FieldComposition::Nested { .. } if f.validation.is_nested => {
-                    // component(nested) + #[koruma(nested)]: the slot's inner
-                    // type is the nested form's HOLDER (form_base_type
-                    // resolves it), so ValidateExt::Error is the nested
-                    // form's own koruma error type.
+                    // Same slot as flat `#[koruma(nested)]`, but `inner` is the
+                    // nested form's HOLDER, so `ValidateExt::Error` is the nested form's own.
                     FieldErrorSlot::Nested {
                         inner: form_base_type(f),
                     }
                 },
                 FieldComposition::Nested { .. } => {
-                    // component(nested) without #[koruma(nested)]: no koruma
-                    // getter exists; only reachable when other validators
-                    // put the field on the wrapper path.
+                    // No `#[koruma(nested)]`: no koruma getter exists; other
+                    // validators route this field to the wrapper slot.
                     FieldErrorSlot::Wrapper
                 },
                 FieldComposition::Flat if f.validation.is_newtype && !newtype_with_validators => {
@@ -415,10 +299,6 @@ pub fn generate_field_errors(
                     }
                 },
                 FieldErrorSlot::Nested { inner } => {
-                    // M3: resolve the nested form's generated types by the
-                    // naming convention (`<Nested>FormValueHolder` ->
-                    // `<Nested>FormFieldErrors`) so the accessor recurses
-                    // into the nested form's own `error_for`.
                     let nested_accessor = nested_form_accessor(&inner, f, &name);
                     FieldSlots {
                         slot_inner: quote! { <#inner as ::koruma::ValidateExt>::Error },
@@ -428,8 +308,8 @@ pub fn generate_field_errors(
                                 .filter(|inner| !::koruma::ValidationError::is_empty(*inner))
                                 .cloned()
                         },
-                        // Inner validator kinds live on the nested type and are
-                        // invisible here; report the generic key.
+                        // Inner validator kinds live on the nested type; report
+                        // the generic key here.
                         issue_keys_body: quote! { vec!["validation.invalid"] },
                         composition: SlotRouting::Prefix,
                         nested_accessor,
@@ -481,9 +361,6 @@ pub fn generate_field_errors(
                         (!errors.#name().is_empty()).then(|| errors.#name().clone())
                     };
 
-                    // Field-level (whole-Vec) validators expose wrapper
-                    // getters; element validators surface as keys whenever
-                    // any element failed.
                     let field_validators = mirrored_field_validators(f);
                     let element_keys: Vec<String> = f
                         .validation
@@ -536,7 +413,8 @@ pub fn generate_field_errors(
                         }
                     });
 
-                    // Per failing item index: `field.0`, `field.2`, ...
+                    // Report per-item paths plus the root: the wrapper slot is
+                    // populated whenever anything failed, so the root resolves too.
                     let name_root_ctor = format_ident!("{}_root", name);
                     let failing_push = has_element_validators.then(|| {
                         quote! {
@@ -547,12 +425,10 @@ pub fn generate_field_errors(
                                         #error_enum_ident::#variant(field),
                                     ));
                                 }
-                                if field.element_errors().is_empty() {
-                                    failing.push((
-                                        #path_ident::#name_root_ctor(),
-                                        #error_enum_ident::#variant(field),
-                                    ));
-                                }
+                                failing.push((
+                                    #path_ident::#name_root_ctor(),
+                                    #error_enum_ident::#variant(field),
+                                ));
                             }
                         }
                     });
@@ -576,9 +452,8 @@ pub fn generate_field_errors(
         .collect();
 
     let has_fields = !slots.is_empty();
-    // The borrowing enum only needs its lifetime parameter when it has at
-    // least one variant (an uninhabited zero-field enum cannot reference
-    // `'a`, or it trips E0392).
+    // A zero-variant enum cannot reference `'a` (E0392); carry the lifetime
+    // only when variants exist.
     let enum_lifetime_params = if has_fields {
         quote! { <'a> }
     } else {
@@ -652,10 +527,9 @@ pub fn generate_field_errors(
                     [::gpui_form::core::PathSegment::Name(#name_str)] =>
                         self.#name.as_ref().map(#error_enum_ident::#variant),
                 },
-                // Nested: any `address...` path routes to the nested slot;
-                // deeper segments resolve through the nested form's own
-                // accessors (see `<field>_errors()`).
                 SlotRouting::Prefix => quote! {
+                    // Any `<field>...` path routes to the nested slot; deeper
+                    // segments resolve via `<field>_errors()`.
                     [::gpui_form::core::PathSegment::Name(#name_str), ..] =>
                         self.#name.as_ref().map(#error_enum_ident::#variant),
                 },
@@ -667,13 +541,8 @@ pub fn generate_field_errors(
                     if indexed {
                         quote! {
                             #root_arm
-                            // `field.2` (and deeper, for post-v1 nested
-                            // items): Some only when item 2 failed its
-                            // `each(...)` validators — the typed index
-                            // segment is extracted and used, never matched
-                            // as a string. The variant payload is the
-                            // wrapper; the element error itself is reachable
-                            // via `<field>_element_error`.
+                            // `field.<i>`: `Some` only when item `i` failed its
+                            // `each(..)` validators; see `<field>_element_error`.
                             [
                                 ::gpui_form::core::PathSegment::Name(#name_str),
                                 ::gpui_form::core::PathSegment::Index(index),
@@ -772,9 +641,6 @@ pub fn generate_field_errors(
         })
         .collect::<Vec<_>>();
 
-    // Milestone M3: per-slot composition accessors (nested recursion maps,
-    // list element-error lookups), spliced into the map impl next to the
-    // typed accessors.
     let nested_and_list_accessors: Vec<TokenStream> = slots
         .iter()
         .filter_map(|s| {
@@ -832,14 +698,9 @@ pub fn generate_field_errors(
             #(#map_accessors)*
             #(#nested_and_list_accessors)*
 
-            /// Path-addressable lookup: `Some` only when `field` names a
-            /// failing field. Unknown paths return `None`.
-            ///
-            /// Milestone M3: nested fields route any `<field>...` path to
-            /// their slot (deep access composes via `<field>_errors()`), and
-            /// list fields route `<field>` plus typed-index `<field>.<i>`
-            /// paths (per-item precision through `each(...)` element
-            /// validators).
+            /// Path-addressable lookup: `Some` only when `field` names a failing field.
+            /// Nested fields route any `<field>...` path to their slot; list fields
+            /// route `<field>` plus typed-index `<field>.<i>` paths. Unknown: `None`.
             #error_for_signature {
                 match field.path().segments() {
                     #(#error_for_arms)*
@@ -879,11 +740,9 @@ pub fn generate_field_errors(
                 #enum_path_body
             }
 
-            /// i18n keys for the failed field-level validators (e.g.
-            /// `"validation.required"`), in koruma order. Inner newtype and
-            /// nested failures report the generic `"validation.invalid"` key;
-            /// resolve those through the typed accessors when the app knows
-            /// the inner kinds.
+            /// i18n keys for the failed field-level validators (e.g. `"validation.required"`),
+            /// in koruma order. Inner newtype/nested failures report the
+            /// generic `"validation.invalid"` key; use the typed accessors for those.
             pub fn issue_keys(&self) -> Vec<&'static str> {
                 #enum_issue_keys_body
             }

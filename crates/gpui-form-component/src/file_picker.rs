@@ -1,9 +1,5 @@
-//! Runtime file picker support backed by GPUI's native path prompt.
-//!
-//! This module intentionally uses `gpui::App::prompt_for_paths` from the
-//! pinned GPUI dependency instead of adding a second native-dialog
-//! dependency. The rendered control follows `gpui-kit` styling and emits
-//! form-friendly change events.
+//! Native file picker control backed by GPUI's `prompt_for_paths`, styled
+//! with gpui-kit primitives and emitting form-friendly change events.
 
 use std::path::PathBuf;
 
@@ -335,15 +331,13 @@ impl RenderOnce for FilePicker {
         let is_focused = self.focus_handle(cx).contains_focused(window, cx);
         let entity_id = self.state.entity_id();
         let state = self.state.read(cx);
-        let paths = state.paths.clone();
-        let last_error = state.last_error.clone();
-        let has_paths = !paths.is_empty();
+        let has_paths = !state.paths.is_empty();
         let show_clean = self.cleanable && has_paths;
         let placeholder = self
             .placeholder
             .clone()
             .unwrap_or_else(|| self.mode.default_placeholder());
-        let display_title = display_paths(&paths, placeholder);
+        let display_title = display_paths(&state.paths, placeholder);
         let prompt = self
             .prompt
             .clone()
@@ -452,7 +446,7 @@ impl RenderOnce for FilePicker {
                             }),
                     ),
             )
-            .when_some(last_error, |this, message| {
+            .when_some(state.last_error.clone(), |this, message| {
                 this.child(
                     div()
                         .mt_1()

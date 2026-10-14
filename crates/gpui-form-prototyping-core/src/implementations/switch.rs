@@ -43,7 +43,6 @@ impl FieldCodeGenerator for SwitchCodeGenerator {
         let component_gpui_type = field.component_ident();
 
         let checkbox_id_str = field.kebab_id();
-        // M4 (backlog #12): reset dependent fields when the toggle flips.
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("v"));
 
         render_standard_field(

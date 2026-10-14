@@ -59,6 +59,19 @@ struct Profile {
 #[gpui_form(empty)]
 struct Blank {}
 
+/// A plain form (no koruma derive, no koruma attrs) whose `name` field is
+/// "required-ish" — `component(input)` wraps it in `Option`, so the
+/// required-shaped runtime slot exists but nothing ever enforces required
+/// (there is no Koruma derive). Its export must not claim `RequiredValidation`.
+#[derive(GpuiForm)]
+struct Plain {
+    #[gpui_form(component(input))]
+    name: String,
+
+    #[gpui_form(component(input))]
+    nickname: Option<String>,
+}
+
 #[test]
 fn schema_exports_the_form_shape_and_skipped_field_semantics() {
     let schema = ProfileFormSchema::schema();
@@ -130,7 +143,9 @@ fn schema_includes_m3_nested_and_list_metadata() {
     // FieldVariant records field-level rule names only, and the export is a
     // read-only projection of that chain — it must not reshape metadata.
     assert!(tags.validations.is_empty());
-    assert_eq!(tags.value_type, "Vec < String >");
+    // Type strings are canonical Rust spelling (the derive normalizes the
+    // proc-macro printer's token spacing before storing metadata).
+    assert_eq!(tags.value_type, "Vec<String>");
 }
 
 #[test]
@@ -190,6 +205,50 @@ fn empty_form_exports_an_empty_field_list() {
     let json = serde_json::to_string(&schema).expect("serialize empty schema");
     let restored: FormSchema = serde_json::from_str(&json).expect("deserialize empty schema");
     assert_eq!(restored, schema);
+}
+
+#[test]
+fn non_koruma_forms_do_not_export_required_validation_metadata() {
+    // The RequiredValidation metadata rides the same koruma gate as the
+    // mirrored runtime attr: a form whose holder never derives Koruma never
+    // enforces required, so its exported validations must not record it
+    // either (plain forms keep exporting, without the phantom rule).
+    let schema = PlainFormSchema::schema();
+
+    assert!(!schema.koruma_enabled, "the form has no koruma opt-in");
+    assert_eq!(
+        schema.field_names().collect::<Vec<_>>(),
+        vec!["name", "nickname"]
+    );
+    for field in schema.fields.iter() {
+        assert!(
+            !field
+                .validations
+                .contains(&"RequiredValidation".to_string()),
+            "field `{}` must not export RequiredValidation on a non-koruma form: {:?}",
+            field.name,
+            field.validations
+        );
+    }
+    assert!(
+        !schema.has_validations(),
+        "no field of this form carries any (enforceable) validation rule"
+    );
+
+    // Koruma forms are unchanged: the same projection still records the
+    // required-adjacent rules their runtime enforces.
+    let profile = ProfileFormSchema::schema();
+    let email = profile.field("email").expect("email entry");
+    assert!(
+        email
+            .validations
+            .contains(&"RequiredIfValidation".to_string())
+    );
+    assert!(
+        email
+            .validations
+            .contains(&"NonEmptyValidation".to_string())
+    );
 }
 
 #[test]

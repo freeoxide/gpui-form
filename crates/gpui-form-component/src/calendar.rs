@@ -11,12 +11,13 @@ use gpui_kit::component::{
     h_flex, v_flex,
 };
 use icu_calendar::{
-    Date as IcuDate, Gregorian,
+    Date as IcuDate,
     types::Weekday,
     week::{WeekInformation, WeekPreferences},
 };
-use icu_datetime::{FixedCalendarDateTimeFormatter, fieldsets};
 use icu_locale_core::{Locale, locale};
+
+use crate::date_format::{self, DateFormatKind};
 
 /// Events emitted by the calendar.
 pub enum CalendarEvent {
@@ -127,6 +128,8 @@ pub struct Calendar {
     style: StyleRefinement,
     number_of_months: usize,
     display_locale: Locale,
+    min_date: Option<NaiveDate>,
+    max_date: Option<NaiveDate>,
 }
 
 /// Use to store the state of the calendar.
@@ -190,16 +193,8 @@ impl CalendarState {
     }
 
     fn apply_year_range(&mut self, range: (i32, i32)) {
-        self.years = (range.0..range.1)
-            .collect::<Vec<_>>()
-            .chunks(20)
-            .map(|chunk| chunk.to_vec())
-            .collect::<Vec<_>>();
-        self.year_page = self
-            .years
-            .iter()
-            .position(|years| years.contains(&self.current_year))
-            .unwrap_or(0) as i32;
+        self.years = year_pages(range);
+        self.year_page = year_page_for(&self.years, self.current_year);
     }
 
     fn offset_year_month(&self, offset_month: usize) -> (i32, u32) {
@@ -303,7 +298,23 @@ impl Calendar {
             style: StyleRefinement::default(),
             number_of_months: 1,
             display_locale: locale!("en-US"),
+            min_date: None,
+            max_date: None,
         }
+    }
+
+    /// Set the earliest selectable date; earlier days render disabled and
+    /// reject clicks. Default: no lower bound.
+    pub fn min_date(mut self, date: impl Into<Option<NaiveDate>>) -> Self {
+        self.min_date = date.into();
+        self
+    }
+
+    /// Set the latest selectable date; later days render disabled and reject
+    /// clicks. Default: no upper bound.
+    pub fn max_date(mut self, date: impl Into<Option<NaiveDate>>) -> Self {
+        self.max_date = date.into();
+        self
     }
 
     /// Set number of months to show, default is 1.
@@ -334,7 +345,7 @@ impl Calendar {
 
         let date = *d;
         let is_today = *d == state.today;
-        let disabled = false;
+        let disabled = date_outside_bounds(d, self.min_date, self.max_date);
 
         let date_id: SharedString = format!("{}_{}", date.format("%Y-%m-%d"), offset_month).into();
 
@@ -348,6 +359,7 @@ impl Calendar {
             window,
             cx,
         )
+        .debug_selector(move || format!("gpfd-day-{}", date.format("%Y-%m-%d")))
         .when(is_today && !is_active, |this| {
             this.border_1().border_color(cx.theme().border)
         })
@@ -643,7 +655,9 @@ impl Calendar {
     fn render_years(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
         let current_year = state.current_year;
-        let current_page_years = &self.state.read(cx).years[state.year_page as usize].clone();
+        // Own the page: it borrows through `state`, which borrows `cx`, and
+        // the row closures below need `cx` mutably.
+        let current_page_years = current_year_page(&state.years, state.year_page).to_vec();
 
         h_flex()
             .id("years")
@@ -738,6 +752,36 @@ fn first_weekday(locale: &Locale) -> Weekday {
         .unwrap_or(Weekday::Sunday)
 }
 
+fn date_outside_bounds(
+    date: &NaiveDate,
+    min_date: Option<NaiveDate>,
+    max_date: Option<NaiveDate>,
+) -> bool {
+    min_date.is_some_and(|min| *date < min) || max_date.is_some_and(|max| *date > max)
+}
+
+fn year_pages(range: (i32, i32)) -> Vec<Vec<i32>> {
+    (range.0..range.1)
+        .collect::<Vec<_>>()
+        .chunks(20)
+        .map(|chunk| chunk.to_vec())
+        .collect()
+}
+
+fn year_page_for(pages: &[Vec<i32>], year: i32) -> i32 {
+    pages
+        .iter()
+        .position(|years| years.contains(&year))
+        .unwrap_or(0) as i32
+}
+
+fn current_year_page(years: &[Vec<i32>], year_page: i32) -> &[i32] {
+    years
+        .get(usize::try_from(year_page).unwrap_or(usize::MAX))
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+}
+
 fn days_in_month(year: i32, month: u32, first_weekday: Weekday) -> Vec<Vec<NaiveDate>> {
     let first_day = NaiveDate::from_ymd_opt(year, month, 1).expect("valid calendar month");
     let next_month = if month == 12 {
@@ -769,19 +813,13 @@ fn days_in_month(year: i32, month: u32, first_weekday: Weekday) -> Vec<Vec<Naive
 }
 
 fn weekday_names(locale: &Locale) -> Vec<SharedString> {
-    let formatter = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
-        locale.clone().into(),
-        fieldsets::E::short(),
-    )
-    .ok();
     let first_weekday = first_weekday(locale);
 
     (0..7)
         .map(|offset| {
             let weekday = add_weekdays(first_weekday, offset);
-            formatter
-                .as_ref()
-                .map(|formatter| formatter.format(&weekday).to_string().into())
+            date_format::format_weekday(locale, weekday)
+                .map(SharedString::from)
                 .unwrap_or_else(|| fallback_weekday_name(weekday))
         })
         .collect()
@@ -794,16 +832,12 @@ fn month_names(locale: &Locale) -> Vec<SharedString> {
 }
 
 fn format_month_name(year: i32, month: u32, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
-        locale.clone().into(),
-        fieldsets::M::long(),
-    )
-    .ok()
-    .and_then(|formatter| {
-        let month = u8::try_from(month).ok()?;
-        let icu_date = IcuDate::try_new_gregorian(year, month, 1).ok()?;
-        Some(formatter.format(&icu_date).to_string())
-    });
+    let formatted = u8::try_from(month)
+        .ok()
+        .and_then(|month| IcuDate::try_new_gregorian(year, month, 1).ok())
+        .and_then(|icu_date| {
+            date_format::format_date(DateFormatKind::MonthLong, locale, &icu_date)
+        });
 
     formatted
         .unwrap_or_else(|| fallback_month_name(month).to_string())
@@ -811,31 +845,21 @@ fn format_month_name(year: i32, month: u32, locale: &Locale) -> SharedString {
 }
 
 fn format_year_name(year: i32, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
-        locale.clone().into(),
-        fieldsets::Y::medium(),
-    )
-    .ok()
-    .and_then(|formatter| {
-        let icu_date = IcuDate::try_new_gregorian(year, 1, 1).ok()?;
-        Some(formatter.format(&icu_date).to_string())
-    });
+    let formatted = IcuDate::try_new_gregorian(year, 1, 1)
+        .ok()
+        .and_then(|icu_date| {
+            date_format::format_date(DateFormatKind::YearMedium, locale, &icu_date)
+        });
 
     formatted.unwrap_or_else(|| year.to_string()).into()
 }
 
 fn format_day_name(date: &NaiveDate, locale: &Locale) -> SharedString {
-    let formatted = FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
-        locale.clone().into(),
-        fieldsets::D::short(),
-    )
-    .ok()
-    .and_then(|formatter| {
-        let month = u8::try_from(date.month()).ok()?;
-        let day = u8::try_from(date.day()).ok()?;
-        let icu_date = IcuDate::try_new_gregorian(date.year(), month, day).ok()?;
-        Some(formatter.format(&icu_date).to_string())
-    });
+    let formatted = u8::try_from(date.month())
+        .ok()
+        .zip(u8::try_from(date.day()).ok())
+        .and_then(|(month, day)| IcuDate::try_new_gregorian(date.year(), month, day).ok())
+        .and_then(|icu_date| date_format::format_date(DateFormatKind::DayShort, locale, &icu_date));
 
     formatted.unwrap_or_else(|| date.day().to_string()).into()
 }
@@ -891,9 +915,18 @@ fn fallback_month_name(month: u32) -> &'static str {
 mod tests {
     use chrono::NaiveDate;
     use icu_calendar::types::Weekday;
-    use icu_locale_core::locale;
+    use icu_locale_core::{Locale, locale};
 
-    use super::{days_in_month, first_weekday, format_month_name, weekday_names};
+    use super::{
+        current_year_page, days_in_month, first_weekday, format_day_name, format_month_name,
+        weekday_names, year_page_for, year_pages,
+    };
+
+    fn month_names_for(locale: &Locale) -> Vec<String> {
+        (1..=12)
+            .map(|month| format_month_name(2025, month, locale).to_string())
+            .collect()
+    }
 
     #[test]
     fn formats_month_names_with_icu4x() {
@@ -917,6 +950,36 @@ mod tests {
     }
 
     #[test]
+    fn weekday_names_are_identical_after_locale_switch_and_cache_hit() {
+        let fr_first = weekday_names(&locale!("fr-FR"));
+        let en = weekday_names(&locale!("en-US"));
+        let fr_again = weekday_names(&locale!("fr-FR"));
+
+        assert_eq!(fr_first, fr_again);
+        assert_ne!(fr_first, en);
+    }
+
+    #[test]
+    fn month_and_day_names_are_identical_after_locale_switch_and_cache_hit() {
+        let fr_months_first = month_names_for(&locale!("fr-FR"));
+        let en_months = month_names_for(&locale!("en-US"));
+        let fr_day_first = format_day_name(
+            &NaiveDate::from_ymd_opt(2025, 1, 15).unwrap(),
+            &locale!("fr-FR"),
+        );
+
+        let fr_months_again = month_names_for(&locale!("fr-FR"));
+        let fr_day_again = format_day_name(
+            &NaiveDate::from_ymd_opt(2025, 1, 15).unwrap(),
+            &locale!("fr-FR"),
+        );
+
+        assert_eq!(fr_months_first, fr_months_again);
+        assert_ne!(fr_months_first, en_months);
+        assert_eq!(fr_day_first, fr_day_again);
+    }
+
+    #[test]
     fn lays_out_days_from_locale_first_weekday() {
         let us_days = days_in_month(2025, 9, Weekday::Sunday);
         assert_eq!(us_days[0][0], NaiveDate::from_ymd_opt(2025, 8, 31).unwrap());
@@ -925,5 +988,66 @@ mod tests {
         let fr_days = days_in_month(2025, 9, Weekday::Monday);
         assert_eq!(fr_days[0][0], NaiveDate::from_ymd_opt(2025, 9, 1).unwrap());
         assert_eq!(fr_days[0][6], NaiveDate::from_ymd_opt(2025, 9, 7).unwrap());
+    }
+
+    #[test]
+    fn bounds_disable_only_out_of_bounds_days() {
+        use super::date_outside_bounds;
+
+        let min = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap();
+        let max = NaiveDate::from_ymd_opt(2025, 1, 20).unwrap();
+        let below = NaiveDate::from_ymd_opt(2025, 1, 4).unwrap();
+        let above = NaiveDate::from_ymd_opt(2025, 1, 21).unwrap();
+        let inside_low = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap();
+        let inside_high = NaiveDate::from_ymd_opt(2025, 1, 20).unwrap();
+        let inside = NaiveDate::from_ymd_opt(2025, 1, 10).unwrap();
+
+        assert!(date_outside_bounds(&below, Some(min), Some(max)));
+        assert!(date_outside_bounds(&above, Some(min), Some(max)));
+        assert!(!date_outside_bounds(&inside_low, Some(min), Some(max)));
+        assert!(!date_outside_bounds(&inside_high, Some(min), Some(max)));
+        assert!(!date_outside_bounds(&inside, Some(min), Some(max)));
+
+        assert!(date_outside_bounds(&below, Some(min), None));
+        assert!(!date_outside_bounds(&above, Some(min), None));
+        assert!(date_outside_bounds(&above, None, Some(max)));
+        assert!(!date_outside_bounds(&below, None, Some(max)));
+
+        for day in [below, inside, above] {
+            assert!(!date_outside_bounds(&day, None, None));
+        }
+    }
+
+    #[test]
+    fn empty_year_range_leaves_no_pages_and_renders_no_years() {
+        let pages = year_pages((2026, 2026));
+        assert!(pages.is_empty());
+        assert_eq!(year_page_for(&pages, 2026), 0);
+        assert!(current_year_page(&pages, 0).is_empty());
+
+        assert!(year_pages((2100, 1900)).is_empty());
+    }
+
+    #[test]
+    fn year_pages_chunk_by_twenty_and_locate_the_current_year() {
+        let pages = year_pages((2000, 2060));
+        assert_eq!(pages.len(), 3);
+        assert_eq!(pages[0].first(), Some(&2000));
+        assert_eq!(pages[0].last(), Some(&2019));
+        assert_eq!(pages[2].last(), Some(&2059));
+
+        assert_eq!(year_page_for(&pages, 2000), 0);
+        assert_eq!(year_page_for(&pages, 2026), 1);
+        assert_eq!(year_page_for(&pages, 2059), 2);
+        assert_eq!(year_page_for(&pages, 3000), 0);
+    }
+
+    #[test]
+    fn out_of_bounds_year_pages_render_nothing_instead_of_panicking() {
+        let pages = year_pages((2000, 2060));
+        assert_eq!(current_year_page(&pages, 0).first(), Some(&2000));
+        assert_eq!(current_year_page(&pages, 1).first(), Some(&2020));
+        assert!(current_year_page(&pages, 3).is_empty());
+        assert!(current_year_page(&pages, -1).is_empty());
     }
 }

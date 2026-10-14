@@ -7,7 +7,6 @@ address_label: Address
 empty_label: Empty
 post_editor:
   address_label: Address
-  tags_add: Add tag
   tags_item_label: Tag
   tags_label: Tags
   tags_remove: Remove

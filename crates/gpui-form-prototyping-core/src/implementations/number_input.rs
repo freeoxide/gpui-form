@@ -13,18 +13,6 @@ use super::{
 
 pub struct NumberInputCodeGenerator;
 
-fn number_input_step_kind(type_str: &str) -> NumberInputKind {
-    if type_str.starts_with('f') {
-        NumberInputKind::Float
-    } else if type_str.starts_with('u') {
-        NumberInputKind::UnsignedInteger
-    } else if type_str.starts_with('i') {
-        NumberInputKind::SignedInteger
-    } else {
-        NumberInputKind::Custom
-    }
-}
-
 const IMPORTS: &[ImportItem] = &[
     ImportItem::path("::gpui_kit::component::input::InputEvent"),
     ImportItem::path("::gpui_kit::component::input::InputState"),
@@ -84,8 +72,6 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         component: &GpuiFormShape,
     ) -> Option<GeneratedSubscription> {
         let field_var_name_ident = field.field_ident_with_behaviour();
-        // M4 (backlog #12): reset dependent fields when this field changes
-        // (typing or stepping).
         let dependent_resets = dependent_reset_statements(field, component, &format_ident!("self"));
 
         let on_input_event_handler_fn_name_ident = field.event_handler_ident("input_event");
@@ -123,13 +109,12 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
         };
         handlers.push(on_input_event_handler);
 
-        // Generate increment/decrement logic - value holder always wraps numeric fields in Option
         match field.behaviour() {
             ComponentsBehaviour::NumberInput(_) => {},
             _ => panic!("Expected NumberInput behaviour"),
         }
 
-        let step_kind = number_input_step_kind(field.raw().value_type);
+        let step_kind = NumberInputKind::classify(field.raw().value_type);
 
         let (decrement_logic, increment_logic) = match step_kind {
             NumberInputKind::Float => (
@@ -199,7 +184,7 @@ impl FieldCodeGenerator for NumberInputCodeGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{NumberInputCodeGenerator, number_input_step_kind};
+    use super::NumberInputCodeGenerator;
     use crate::implementations::FieldCodeGenerator as _;
     use gpui_form_schema::{
         components::{ComponentsBehaviour, NumberInputBehaviour, NumberInputKind},
@@ -266,7 +251,7 @@ mod tests {
         let compact = compact(&generated.handlers[1].to_string());
 
         assert_eq!(
-            number_input_step_kind(FIELDS[0].value_type),
+            NumberInputKind::classify(FIELDS[0].value_type),
             NumberInputKind::Custom
         );
         assert!(
@@ -279,7 +264,6 @@ mod tests {
             "custom value step logic should not emit float arithmetic: {compact}"
         );
 
-        // Body paths (not imports): the anchor must survive parse_str + splice.
         assert!(
             input_handler.contains("parse::<::rust_decimal::Decimal>()"),
             "value-type paths must keep their leading `::` anchor through emission: {input_handler}"
