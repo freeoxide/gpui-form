@@ -60,8 +60,8 @@ gpui-form-derive = { package = "freeoxide-gpui-form-derive", path = "crates/gpui
 gpui-form-i18n = { package = "freeoxide-gpui-form-i18n", path = "crates/gpui-form-i18n", version = "0.10.0" }
 gpui-form-prototyping-core = { package = "freeoxide-gpui-form-prototyping-core", path = "crates/gpui-form-prototyping-core", version = "0.10.0" }
 gpui-form-schema = { package = "freeoxide-gpui-form-schema", path = "crates/gpui-form-schema", version = "0.10.0" }
-gpui-kit = "0.7.3"
-gpui-kit-assets = "0.7.3"
+gpui-kit = "0.8.0"
+gpui-kit-assets = "0.8.0"
 gpui_platform = { features = [
   "font-kit",
   "x11",
