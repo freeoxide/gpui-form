@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-23
+
+First release published to crates.io under the `freeoxide-gpui-form*`
+names. Carries the locale single-source-of-truth rework, the
+`set_state_value` contract change, and the GPUI stack bumps since
+0.10.0; the breaking item follows the project's 0.x minor convention.
+
 ### Added
 
 - Runtime selectable bounds for the date pickers: `DatePickerState` and
@@ -89,6 +96,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its gpui import is pinned with a leading `::`. The two demo-level focus
   workarounds stay: 0.7.3 does not change the Input frame-focus split
   (upstream longbridge/gpui-kit#3183 remains open).
+- Bumped the GPUI stack again: `gpui-kit`/`gpui-kit-assets` 0.7.3 → 0.8.0.
+  No source changes in this workspace; workspace check, clippy, and test
+  gates are green on the new stack.
 
 ### Removed
 
@@ -98,6 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unconditionally, and no code keyed on either flag. Finishing async
   validation execution remains a future feature; a wiring phase that needs a
   gate can re-introduce one when emission actually lands.
+
+[0.11.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.11.0
 
 ## [0.10.0] - 2026-10-11
 
