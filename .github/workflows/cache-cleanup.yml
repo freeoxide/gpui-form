@@ -1,0 +1,89 @@
+name: cache-cleanup
+
+on:
+  schedule:
+    # Daily at 03:17 UTC; off the top of the hour to dodge cron congestion.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      older_than_hours:
+        description: "Delete caches not accessed within this many hours (0 purges everything)"
+        required: false
+        default: "72"
+
+concurrency:
+  group: cache-cleanup
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  prune:
+    name: Prune unused Actions caches
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OLDER_THAN_HOURS: ${{ inputs.older_than_hours || '72' }}
+    steps:
+      - name: Prune caches not accessed within the retention window
+        run: |
+          set -euo pipefail
+
+          list_caches() {
+            gh api --paginate "repos/${GH_REPO}/actions/caches?per_page=100" \
+              --jq '.actions_caches[] | [.id, .size_in_bytes, (.last_accessed_at // .created_at), .key] | @tsv'
+          }
+
+          summary() {
+            local tsv count bytes
+            tsv="$(mktemp)"
+            list_caches > "$tsv"
+            count="$(wc -l < "$tsv")"
+            bytes="$(awk -F'\t' '{ s += $2 } END { printf "%.2f", s / 1e9 }' "$tsv")"
+            rm -f "$tsv"
+            echo "${count} caches, ${bytes} GB"
+          }
+
+          echo "retention window: ${OLDER_THAN_HOURS}h"
+          echo "before: $(summary)"
+
+          list_caches > all-caches.tsv
+          python3 - "$OLDER_THAN_HOURS" all-caches.tsv <<'PY' > stale-caches.tsv
+          import sys
+          from datetime import datetime, timezone
+
+          hours = float(sys.argv[1])
+          cutoff = datetime.now(timezone.utc).timestamp() - hours * 3600
+          with open(sys.argv[2]) as fh:
+              for line in fh:
+                  parts = line.rstrip("\n").split("\t", 3)
+                  if len(parts) != 4:
+                      continue
+                  cache_id, size, accessed, _key = parts
+                  # Never-restored caches report an empty access time: stale.
+                  stale = not accessed or datetime.fromisoformat(
+                      accessed.replace("Z", "+00:00")
+                  ).timestamp() < cutoff
+                  if stale:
+                      print(f"{cache_id}\t{size}\t{_key}")
+          PY
+          rm -f all-caches.tsv
+
+          deleted=0
+          freed_bytes=0
+          while IFS=$'\t' read -r cache_id size key; do
+            if gh api -X DELETE "repos/${GH_REPO}/actions/caches/${cache_id}" > /dev/null 2>&1; then
+              deleted=$((deleted + 1))
+              freed_bytes=$((freed_bytes + size))
+            else
+              echo "::warning::failed to delete cache ${key} (id ${cache_id})"
+            fi
+          done < stale-caches.tsv
+          rm -f stale-caches.tsv
+
+          echo "deleted ${deleted} caches, freed $((freed_bytes / 1000000)) MB"
+          echo "after: $(summary)"

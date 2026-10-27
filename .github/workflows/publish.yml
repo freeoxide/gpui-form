@@ -20,6 +20,11 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_DEBUG: line-tables-only
+  # Bump the SCCACHE_GHA_VERSION repository variable to invalidate the
+  # whole sccache pool without touching any workflow file.
+  SCCACHE_GHA_VERSION: ${{ vars.SCCACHE_GHA_VERSION || 'v1' }}
   PUBLISH_SET: >-
     freeoxide-gpui-form-schema freeoxide-gpui-form-core
     freeoxide-gpui-form-i18n freeoxide-gpui-form-component-derive
@@ -36,16 +41,17 @@ jobs:
     # real. Manual dispatches keep the dry_run checkbox semantics.
     env:
       PUBLISH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: publish
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Setup mold
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
       - name: Install Linux dependencies
         uses: ./.github/actions/install-linux-deps
       - name: Test the publish state machine
@@ -387,3 +393,7 @@ jobs:
             exit 1
           fi
           echo "run result: OK"
+      - name: Show sccache stats
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: sccache --show-stats

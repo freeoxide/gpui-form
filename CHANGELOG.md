@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A scheduled `cache-cleanup` workflow prunes Actions caches not accessed
+  for 72 hours (daily cron, plus manual dispatch that accepts a custom
+  window or 0 for a full purge), keeping the shared cache store from
+  growing toward the 10 GB repository cap. It reads the documented
+  `actions_caches` REST field, treats never-restored caches as stale,
+  and runs under a concurrency group with a 30-minute timeout.
+
+### Changed
+
+- CI and publish now share one sccache build cache (GitHub Actions
+  cache backend) across every compiling Linux and macOS job.
+  `Swatinem/rust-cache` was removed from the publish workflow because its
+  multi-GB per-lockfile entries evicted the shared store under the
+  repository's 10 GB cache cap; publish also moved to
+  `actions/checkout@v6`.
+- CI cancels superseded runs per ref; dev/test builds trim debug info to
+  line tables only (faster compiles, smaller cache entries); the
+  `SCCACHE_GHA_VERSION` repository variable is now the one-knob
+  full-pool purge lever; sccache-action moved to v0.0.11.
+- CI also runs nightly on a schedule so quiet weeks cannot let the
+  7-day TTL wipe the shared sccache pool (nightly runs skip the
+  forms-demo artifact upload), and pull-request runs use sccache in
+  read-only mode — their writes are merge-ref scoped and unreadable by
+  master, so saving them only spent quota and the cache-upload rate
+  limit.
+
+### Security
+
+- Every third-party workflow action is pinned by commit SHA:
+  checkout v6.1.0, rust-toolchain (stable), sccache-action v0.0.11,
+  setup-mold v1, upload-artifact v4.6.2, cargo-machete v0.9.2.
+
 ## [0.11.0] - 2026-10-23
 
 First release published to crates.io under the `freeoxide-gpui-form*`
