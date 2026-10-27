@@ -5,10 +5,17 @@ How the nine `freeoxide-gpui-form*` crates land on crates.io, through the
 crates (`some-lib`, `forms-demo`, `prototyping`) set `publish = false` and
 are never uploaded.
 
-## When to dispatch
+## When a publish runs
 
-Dispatch manually: Actions → **Publish crates** → Run workflow. Nothing
-publishes on push; the workflow has no push tag.
+The workflow runs on every push to `master`: **merging a release PR is the
+publish**. The state machine is idempotent — a crate whose current version
+is already indexed skips — so merges that do not change the lockstep
+version are a green no-op, and a run interrupted mid-set resumes where it
+stopped on the next push (or a manual dispatch).
+
+Manual dispatch (Actions → **Publish crates** → Run workflow) remains for
+dry runs and for re-running after a failure; it runs the same pipeline
+against the selected ref.
 
 Prerequisites, checked by the workflow before anything uploads:
 
@@ -21,8 +28,8 @@ Prerequisites, checked by the workflow before anything uploads:
    mid-publish).
 3. The root `CHANGELOG.md` has a `## [<version>]` heading. This workspace
    keeps ONE changelog for all crates, so every new/update crate is gated
-   on the same heading; move the entry out of `[Unreleased]` before
-   dispatching. A crate still under `[Unreleased]` fails the preflight
+   on the same heading; move the entry out of `[Unreleased]` before the
+   release merge. A crate still under `[Unreleased]` fails the preflight
    naming the crate, before anything uploads.
 
 `CARGO_REGISTRY_TOKEN` must exist as a repository secret.
@@ -40,9 +47,10 @@ expected state before the first real publish — the earlier crates in the
 set cannot resolve their intra-set deps until those are uploaded — so it
 is a warning, not a failure. Any other dry-run failure fails the run.
 
-A dry run is the right first dispatch for every release: it exercises the
-gates, the registry preflight, and the packaging of all nine crates with
-zero risk. Uncheck `dry_run` only when it is green.
+A dry run is the right first manual dispatch for a new release shape: it
+exercises the gates, the registry preflight, and the packaging of all nine
+crates with zero risk. Leave `dry_run` checked for that pass; push-triggered
+runs always publish for real.
 
 ## The release set
 
@@ -97,7 +105,7 @@ full workspace test suite:
   counts. The job fails if anything has a `failed:*` disposition or was
   never attempted.
 
-Re-dispatching after any failure resumes where the run stopped: the plan
+Re-running after any failure resumes where the run stopped: the plan
 is rebuilt from the live registry, already-published crates skip, and the
 concurrency group (`publish-crates`) serializes runs.
 
@@ -111,7 +119,7 @@ $ cargo yank freeoxide-gpui-form@0.10.0
 
 A yanked version keeps working for existing lockfiles but cannot be newly
 resolved, and the number can never be re-uploaded — the fix is always
-bump, changelog entry, dispatch.
+bump, changelog entry, merge (or dispatch).
 
 ## Verifying locally
 

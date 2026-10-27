@@ -53,6 +53,14 @@ names. Carries the locale single-source-of-truth rework, the
   warnings` (it previously ran without `-D warnings`), and the publish
   workflow's release gate adds `--all-features` to its `-D warnings` clippy
   run. Neither gate previously covered both axes.
+- The Publish crates workflow now runs on every push to `master`, so merging
+  a release PR is itself the publish: the state machine skips
+  already-indexed versions (non-release merges are a green no-op) and
+  resumes mid-set after a failure on the next push. Manual dispatch remains
+  for dry runs and retries; push-triggered runs always publish for real.
+  The workflow's gate also installs the workspace's Linux dependencies —
+  without them the never-yet-run gate could not have built the GPUI stack
+  on a bare runner.
 - **Breaking (0.x minor): `CustomComponentValueAdapter::set_state_value` is
   now a required method.** The `value_binding` opt-in generates calls to it
   (seeding component state from the form value), and the defaulted no-op let
