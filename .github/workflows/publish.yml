@@ -44,6 +44,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: publish
+      - name: Setup mold
+        uses: rui314/setup-mold@v1
       - name: Install Linux dependencies
         uses: ./.github/actions/install-linux-deps
       - name: Test the publish state machine

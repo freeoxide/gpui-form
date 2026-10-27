@@ -58,9 +58,10 @@ names. Carries the locale single-source-of-truth rework, the
   already-indexed versions (non-release merges are a green no-op) and
   resumes mid-set after a failure on the next push. Manual dispatch remains
   for dry runs and retries; push-triggered runs always publish for real.
-  The workflow's gate also installs the workspace's Linux dependencies —
-  without them the never-yet-run gate could not have built the GPUI stack
-  on a bare runner.
+  The workflow's gate also installs the mold linker and the workspace's
+  Linux dependencies — the repo's `.cargo/config.toml` mandates
+  `-fuse-ld=mold` on Linux, so without both the never-yet-run gate could
+  not have linked (let alone built) the GPUI stack on a bare runner.
 - **Breaking (0.x minor): `CustomComponentValueAdapter::set_state_value` is
   now a required method.** The `value_binding` opt-in generates calls to it
   (seeding component state from the form value), and the defaulted no-op let
