@@ -17,11 +17,10 @@ struct VariantArgs {
 }
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(tuple_enum), forward_attrs(fluent_kv), supports(enum_any))]
+#[darling(attributes(tuple_enum), supports(enum_any))]
 struct InfiniteSelectArgs {
     ident: Ident,
     data: darling::ast::Data<VariantArgs, ()>,
-    attrs: Vec<syn::Attribute>,
 }
 
 struct VariantInfo {
@@ -30,67 +29,6 @@ struct VariantInfo {
     inner_type: Option<Type>,
     field_name: Option<Ident>,
     is_unit: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-struct FluentKvOptions {
-    has_label: bool,
-    has_description: bool,
-    keys_this: bool,
-}
-
-impl FluentKvOptions {
-    fn from_attrs(attrs: &[syn::Attribute]) -> syn::Result<Self> {
-        attrs
-            .iter()
-            .filter(|attr| attr.path().is_ident("fluent_kv"))
-            .try_fold(Self::default(), |options, attr| {
-                Ok(options.merged(Self::from_attr(attr)?))
-            })
-    }
-
-    fn from_attr(attr: &syn::Attribute) -> syn::Result<Self> {
-        let mut options = Self::default();
-
-        attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("keys") {
-                let list: syn::ExprArray = meta.value()?.parse()?;
-                options = options.merged(Self::from_keys(list));
-            } else if meta.path.is_ident("keys_this") {
-                options.keys_this = true;
-            }
-
-            Ok(())
-        })?;
-
-        Ok(options)
-    }
-
-    fn from_keys(list: syn::ExprArray) -> Self {
-        let mut options = Self::default();
-
-        for elem in list.elems {
-            if let syn::Expr::Lit(lit) = elem
-                && let syn::Lit::Str(string) = lit.lit
-            {
-                match string.value().as_str() {
-                    "label" => options.has_label = true,
-                    "description" => options.has_description = true,
-                    _ => {},
-                }
-            }
-        }
-
-        options
-    }
-
-    fn merged(self, other: Self) -> Self {
-        Self {
-            has_label: self.has_label || other.has_label,
-            has_description: self.has_description || other.has_description,
-            keys_this: self.keys_this || other.keys_this,
-        }
-    }
 }
 
 impl VariantInfo {
@@ -222,11 +160,6 @@ pub fn from(input: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
-    let fluent_kv = match FluentKvOptions::from_attrs(&args.attrs) {
-        Ok(options) => options,
-        Err(err) => return err.to_compile_error().into(),
-    };
-
     let type_label_impl = quote! { stringify!(#enum_ident).into() };
 
     let type_description_impl = quote! { stringify!(#enum_ident).into() };
@@ -344,14 +277,8 @@ pub fn from(input: TokenStream) -> TokenStream {
         .iter()
         .map(|variant| {
             let pattern = variant.ignore_pattern();
-
-            if fluent_kv.has_label {
-                let fallback = variant.ident.to_string();
-                quote! { #pattern => #fallback.into(), }
-            } else {
-                let label = variant.ident.to_string();
-                quote! { #pattern => #label.into(), }
-            }
+            let label = variant.ident.to_string();
+            quote! { #pattern => #label.into(), }
         })
         .collect();
 
@@ -916,35 +843,8 @@ pub fn from(input: TokenStream) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::{FluentKvOptions, VariantArgs};
+    use super::VariantArgs;
     use darling::FromVariant as _;
-
-    #[test]
-    fn fluent_kv_options_merge_across_attributes() {
-        let attrs = vec![
-            syn::parse_quote!(#[doc = "ignored"]),
-            syn::parse_quote!(#[fluent_kv(keys = ["label"])]),
-            syn::parse_quote!(#[fluent_kv(keys = ["description"], keys_this)]),
-        ];
-
-        let options = FluentKvOptions::from_attrs(&attrs).expect("fluent_kv attrs should parse");
-
-        assert_eq!(
-            options,
-            FluentKvOptions {
-                has_label: true,
-                has_description: true,
-                keys_this: true,
-            }
-        );
-    }
-
-    #[test]
-    fn fluent_kv_options_report_invalid_keys_syntax() {
-        let attrs = vec![syn::parse_quote!(#[fluent_kv(keys = "label")])];
-
-        assert!(FluentKvOptions::from_attrs(&attrs).is_err());
-    }
 
     #[test]
     fn variant_args_parse_custom_key() {

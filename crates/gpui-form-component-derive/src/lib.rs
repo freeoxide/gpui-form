@@ -1,5 +1,3 @@
-#![allow(clippy::if_same_then_else)]
-
 mod infinite_select;
 
 use proc_macro::TokenStream;
@@ -9,7 +7,7 @@ use proc_macro::TokenStream;
 /// This macro emits an implementation of `gpui_form::infinite_select::InfiniteSelect`
 /// for nested enums composed of unit, single-field tuple, or single-field struct
 /// variants.
-#[proc_macro_derive(InfiniteSelect, attributes(tuple_enum, fluent_kv))]
+#[proc_macro_derive(InfiniteSelect, attributes(tuple_enum))]
 pub fn derive_infinite_select(input: TokenStream) -> TokenStream {
     infinite_select::from(input)
 }

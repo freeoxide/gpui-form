@@ -44,7 +44,7 @@ matching. This avoids repeating the same boilerplate in every UI that has a
 country select plus phone input.
 
 ```toml
-freeoxide-gpui-form-core = { git = "https://github.com/freeoxide/gpui-form", features = ["phone"] }
+freeoxide-gpui-form-core = { version = "0.11", features = ["phone"] }
 ```
 
 ```rs

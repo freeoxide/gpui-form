@@ -7,12 +7,12 @@ the repository root `README.md` (single source) — do not transcribe them here.
 
 ## Compatibility
 
-| `gpui-form` | `gpui-kit` | `gpui` |
-| :---------- | :--------- | :----- |
-| **git** | | |
-| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
+| `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
+| :------------------- | :--------- | :-------------------- |
+| `0.11` (crates.io)   | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
+| `master` (git)       | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
 
-Install from git: `freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }` (the package publishes under the `freeoxide-` names; the lib stays `gpui_form`, so imports are `use gpui_form::...`).
+Install from crates.io: `freeoxide-gpui-form = "0.11"` (the package publishes under the `freeoxide-` names; the lib stays `gpui_form`, so imports are `use gpui_form::...`).
 The crates.io `gpui-form` package is the upstream `freeoxide/gpui-form`
 lineage, not this fork. Optional additive features: `inventory`, `serde`,
 `phone` (see the facade README feature list or root `README.md`

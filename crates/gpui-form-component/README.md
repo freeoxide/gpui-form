@@ -97,10 +97,6 @@ Derived `InfiniteSelect` enums expose:
 - `PartialEq` compatibility with the backing `gpui-kit` select value
   comparison
 - `variant_label()` for user-facing option titles
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
-  compatibility but emits no localization metadata; runtime labels use
-  variant-name fallbacks, and applications localize labels through their own
-  `rust-i18n` locales
 - `variant_key()` plus `selection_key_path()` for order-independent paths
 - `#[tuple_enum(key = "...")]` when persisted keys should not mirror variant names
 - `set_child_by_key(...)` / `set_child_by_key_path(...)` for programmatic updates
