@@ -13,17 +13,17 @@ unchanged.
 ## Compatibility
 
 | `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
-| :---------- | :--------- | :----- |
-| **git** | | |
-| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
+| :------------------- | :--------- | :-------------------- |
+| `0.11` (crates.io)   | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
+| `master` (git)       | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
 
 ## Installation
 
 ```toml
 [dependencies]
 gpui = { package = "gpui-pre", version = "0.3.9" }
-gpui-kit = "0.7.3"
-freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
+gpui-kit = "0.8.1"
+freeoxide-gpui-form = "0.11"
 ```
 
 ## Feature Flags

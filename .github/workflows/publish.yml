@@ -1,6 +1,8 @@
 name: Publish crates
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -30,6 +32,10 @@ jobs:
     name: Publish to crates.io
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    # Push-triggered runs have no `inputs` context: they always publish for
+    # real. Manual dispatches keep the dry_run checkbox semantics.
+    env:
+      PUBLISH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -38,6 +44,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: publish
+      - name: Install Linux dependencies
+        uses: ./.github/actions/install-linux-deps
       - name: Test the publish state machine
         run: bash scripts/test-publish-state.sh
       - name: Gate the release set
@@ -105,7 +113,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          dry_run="${{ inputs.dry_run }}"
+          dry_run="${PUBLISH_DRY_RUN}"
           user_agent="gpui-form-publish-workflow/0.1 (https://github.com/freeoxide/gpui-form)"
           plan="publish-plan.txt"
           dispositions="publish-dispositions.txt"
@@ -321,7 +329,7 @@ jobs:
           fi
           exit "$publish_failed"
       - name: Tag the release
-        if: ${{ !cancelled() && inputs.dry_run == false }}
+        if: ${{ !cancelled() && env.PUBLISH_DRY_RUN != 'true' }}
         run: |
           set -euo pipefail
           if [[ ! -f publish-dispositions.txt ]]; then

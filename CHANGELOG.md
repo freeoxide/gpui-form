@@ -53,6 +53,14 @@ names. Carries the locale single-source-of-truth rework, the
   warnings` (it previously ran without `-D warnings`), and the publish
   workflow's release gate adds `--all-features` to its `-D warnings` clippy
   run. Neither gate previously covered both axes.
+- The Publish crates workflow now runs on every push to `master`, so merging
+  a release PR is itself the publish: the state machine skips
+  already-indexed versions (non-release merges are a green no-op) and
+  resumes mid-set after a failure on the next push. Manual dispatch remains
+  for dry runs and retries; push-triggered runs always publish for real.
+  The workflow's gate also installs the workspace's Linux dependencies —
+  without them the never-yet-run gate could not have built the GPUI stack
+  on a bare runner.
 - **Breaking (0.x minor): `CustomComponentValueAdapter::set_state_value` is
   now a required method.** The `value_binding` opt-in generates calls to it
   (seeding component state from the form value), and the defaulted no-op let
@@ -99,9 +107,18 @@ names. Carries the locale single-source-of-truth rework, the
 - Bumped the GPUI stack again: `gpui-kit`/`gpui-kit-assets` 0.7.3 → 0.8.0.
   No source changes in this workspace; workspace check, clippy, and test
   gates are green on the new stack.
+- Bumped the GPUI stack patch: `gpui-kit`/`gpui-kit-assets` 0.8.0 → 0.8.1
+  ahead of the first crates.io upload, so the release requirement tracks the
+  current patch.
 
 ### Removed
 
+- **The `#[fluent_kv(...)]` attribute on `InfiniteSelect` enums.** It has
+  been a parse-only no-op since the Fluent → rust-i18n migration: both of its
+  code paths emitted identical variant-name fallback labels, it never emitted
+  localization metadata, and nothing in the workspace used it. Runtime labels
+  keep the `variant_label()` variant-name fallback; localize them through
+  your app's `rust-i18n` locales as before.
 - **The `async-validation` feature flags on `freeoxide-gpui-form` and
   `freeoxide-gpui-form-derive`.** They gated literally nothing: the
   `validate(async_fn = ...)` attribute parses and records metadata
@@ -109,7 +126,7 @@ names. Carries the locale single-source-of-truth rework, the
   validation execution remains a future feature; a wiring phase that needs a
   gate can re-introduce one when emission actually lands.
 
-[0.11.0]: https://github.com/freeoxide/gpui-form/releases/tag/v0.11.0
+[0.11.0]: https://github.com/freeoxide/gpui-form/releases/tag/freeoxide-gpui-form-v0.11.0
 
 ## [0.10.0] - 2026-10-11
 

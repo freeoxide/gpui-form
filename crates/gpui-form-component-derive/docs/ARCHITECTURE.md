@@ -24,8 +24,6 @@ Responsibilities:
 - support `#[tuple_enum(skip)]` for variants that should not appear in the
   select tree
 - support `#[tuple_enum(key = "...")]` for persisted key overrides
-- accept `#[fluent_kv(keys = ["label", "description"], keys_this)]` for
-  backward compatibility; it emits no localization tokens
 - emit recursive child traversal methods that match the runtime contract in
   `gpui-form-component`
 - emit variant-name fallback labels from the generated runtime trait methods;

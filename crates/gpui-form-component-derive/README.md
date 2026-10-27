@@ -41,9 +41,6 @@ Variant attributes:
 
 - `#[tuple_enum(skip)]` omits a variant from the select tree
 - `#[tuple_enum(key = "...")]` overrides the stable persisted key for a variant
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
-  compatibility but emits no localization metadata. Runtime labels use
-  variant-name fallbacks; localize them through your app's `rust-i18n` locales.
 
 Behavior notes:
 

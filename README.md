@@ -18,30 +18,36 @@ It is designed for three things:
 ## Compatibility
 
 | `freeoxide-gpui-form` | `gpui-kit` | `gpui` |
-| :---------- | :--------- | :----- |
-| **git** | | |
-| `branch = "master"` | `0.7.3` | `0.3.9` (`gpui-pre`) |
+| :------------------- | :--------- | :-------------------- |
+| `0.11` (crates.io)   | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
+| `master` (git)       | `0.8.1`    | `0.3.9` (`gpui-pre`)  |
 
 ## Installation
 
 ```toml
 [dependencies]
 gpui = { package = "gpui-pre", version = "0.3.9" }
-gpui-kit = "0.7.3"
+gpui-kit = "0.8.1"
 
-freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
+freeoxide-gpui-form = "0.11"
 
 # Optional: inventory registration for prototyping/code generation
-# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["inventory"] }
+# freeoxide-gpui-form = { version = "0.11", features = ["inventory"] }
 
 # Optional: form-state persistence + dirty tracking (serde on the holder)
-# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
+# freeoxide-gpui-form = { version = "0.11", features = ["serde"] }
 
 # Optional: parser-backed phone-number validation helpers
-# freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["phone"] }
+# freeoxide-gpui-form = { version = "0.11", features = ["phone"] }
 
 # Optional: your crate's own locale files (required when the crate calls t!)
 # rust-i18n = "4"
+```
+
+To track `master` instead of a release:
+
+```toml
+freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form" }
 ```
 
 The packages publish to crates.io under the `freeoxide-` names
@@ -152,7 +158,7 @@ field and headless validation helpers that centralize the strict validation
 logic so every phone field uses the same rules.
 
 ```toml
-freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["derive", "phone"] }
+freeoxide-gpui-form = { version = "0.11", features = ["phone"] }
 ```
 
 ### As a generated form field
@@ -371,10 +377,9 @@ The derive/runtime pair also exposes typed option labels, stable key paths, and
 typed path errors:
 
 - root option titles come from `variant_label()` instead of raw `variant_name()`
-- `#[fluent_kv(keys = ["label", "description"], keys_this)]` is accepted for
-  compatibility but emits no localization metadata; generated runtime labels
-  use variant-name fallbacks, and applications localize labels through their
-  own `rust-i18n` locales (see [Localization](#localization-rust-i18n))
+- generated runtime labels use variant-name fallbacks, and applications
+  localize labels through their own `rust-i18n` locales (see
+  [Localization](#localization-rust-i18n))
 - `#[tuple_enum(key = "...")]` overrides persisted keys when enum names should
   stay decoupled from storage
 - `selection_key_path()` / `build_from_key_path(...)` round-trip nested values
@@ -466,7 +471,7 @@ through `rust-i18n`: it emits a `<FORM>_I18N_KEY_PREFIX` const, a
 ## Localization (rust-i18n)
 
 Localization is backed by [`rust-i18n`](https://github.com/longbridge/rust-i18n)
-major 4 (`4.2.1` in this workspace) — the same backend `gpui-kit` 0.7
+major 4 (`4.2.1` in this workspace) — the same backend `gpui-kit` 0.8
 components use, so widget text and form text share ONE active locale.
 
 Locale files live under `locales/` in your crate, one YAML file per locale,
@@ -517,7 +522,7 @@ Enable the optional `serde` feature to make generated forms saveable/restorable
 and to know whether the user edited them. The feature is additive and opt-in.
 
 ```toml
-freeoxide-gpui-form = { git = "https://github.com/freeoxide/gpui-form", features = ["serde"] }
+freeoxide-gpui-form = { version = "0.11", features = ["serde"] }
 ```
 
 With the feature on, `#[derive(GpuiForm)]` adds `Serialize` and `Deserialize`
