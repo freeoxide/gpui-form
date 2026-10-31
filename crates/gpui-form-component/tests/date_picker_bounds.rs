@@ -1,12 +1,3 @@
-//! Behavioral bounds tests for the runtime date pickers: days outside the
-//! configured `min_date`/`max_date` render disabled through the calendar's
-//! existing disable machinery and reject clicks, while in-bounds days keep
-//! selecting exactly as before.
-//!
-//! The tests render real frames (`Window::draw`, which includes the picker's
-//! deferred popup), locate elements through their `debug_selector` hooks, and
-//! dispatch real mouse clicks — no gpui-kit test-module dependency.
-
 use gpui::{
     AppContext as _, Context, Entity, IntoElement, Modifiers, Render, TestAppContext, Window,
 };
@@ -35,8 +26,6 @@ impl Render for DateRangePickerView {
     }
 }
 
-/// One complete frame of the window's root view, including deferred popup
-/// elements, so hitboxes and `debug_bounds` reflect the current state.
 fn draw_frame(cx: &mut gpui::VisualTestContext) {
     cx.update(|window, cx| {
         window.refresh();
@@ -100,8 +89,6 @@ async fn out_of_bounds_days_reject_clicks_and_in_bounds_days_still_select(cx: &m
     let (view, cx) = cx.add_window_view(seeded_date_picker);
     draw_frame(cx);
 
-    // Open the calendar popup; the grid anchors on the seeded January 2025
-    // selection.
     let input = cx
         .debug_bounds("gpfd-date-picker-input")
         .expect("the date picker input must be in the frame")
@@ -110,7 +97,6 @@ async fn out_of_bounds_days_reject_clicks_and_in_bounds_days_still_select(cx: &m
     draw_frame(cx);
     day_bounds(cx, "gpfd-day-2025-01-25");
 
-    // Beyond `max_date`: renders disabled, click is rejected.
     let past_max = day_bounds(cx, "gpfd-day-2025-01-25");
     cx.simulate_click(past_max, Modifiers::none());
     assert_eq!(
@@ -119,7 +105,6 @@ async fn out_of_bounds_days_reject_clicks_and_in_bounds_days_still_select(cx: &m
         "a day past max_date must reject selection"
     );
 
-    // Below `min_date`: renders disabled, click is rejected.
     let before_min = day_bounds(cx, "gpfd-day-2025-01-01");
     cx.simulate_click(before_min, Modifiers::none());
     assert_eq!(
@@ -128,8 +113,6 @@ async fn out_of_bounds_days_reject_clicks_and_in_bounds_days_still_select(cx: &m
         "a day before min_date must reject selection"
     );
 
-    // An in-bounds day keeps selecting through the existing machinery, and
-    // the completed selection closes the popup.
     let inside = day_bounds(cx, "gpfd-day-2025-01-15");
     cx.simulate_click(inside, Modifiers::none());
     assert_eq!(
@@ -153,7 +136,6 @@ async fn range_picker_rejects_out_of_bounds_ends_and_completes_in_bounds_ranges(
     let (view, cx) = cx.add_window_view(seeded_date_range_picker);
     draw_frame(cx);
 
-    // Open the popup; the grid anchors on the seeded range start.
     let input = cx
         .debug_bounds("gpfd-date-range-picker-input")
         .expect("the date range picker input must be in the frame")
@@ -162,16 +144,12 @@ async fn range_picker_rejects_out_of_bounds_ends_and_completes_in_bounds_ranges(
     draw_frame(cx);
     day_bounds(cx, "gpfd-day-2025-01-25");
 
-    // The range start (Jan 10) was seeded programmatically; the picker only
-    // re-commits once the calendar emits a complete range.
     assert_eq!(
         picker_range(cx, &view),
         (Some(date(2025, 1, 10)), None),
         "the seeded partial range is the picker's value"
     );
 
-    // Start an in-bounds range from the grid; an incomplete range does not
-    // commit.
     let start = day_bounds(cx, "gpfd-day-2025-01-06");
     cx.simulate_click(start, Modifiers::none());
     assert_eq!(
@@ -180,7 +158,6 @@ async fn range_picker_rejects_out_of_bounds_ends_and_completes_in_bounds_ranges(
         "the range stays uncommitted until complete"
     );
 
-    // A day past max_date cannot become the range end.
     let past_max = day_bounds(cx, "gpfd-day-2025-01-25");
     cx.simulate_click(past_max, Modifiers::none());
     assert_eq!(
@@ -189,7 +166,6 @@ async fn range_picker_rejects_out_of_bounds_ends_and_completes_in_bounds_ranges(
         "an out-of-bounds day must not complete the range"
     );
 
-    // An in-bounds day completes the range and commits it.
     let end = day_bounds(cx, "gpfd-day-2025-01-18");
     cx.simulate_click(end, Modifiers::none());
     assert_eq!(

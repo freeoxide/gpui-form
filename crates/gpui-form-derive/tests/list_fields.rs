@@ -1,11 +1,3 @@
-//! Milestone M3 (backlog #3, repeated fields): `component(list(item = ...))`
-//! stores the plain item `Vec`, generates the add/remove/items mutation API,
-//! keeps `each(...)` element validators element-scoped so koruma reports
-//! failures per item index, and exposes them through the typed error bridge.
-//!
-//! v1 boundary (backlog's conservative-first rule): scalar items only, no
-//! reorder, no per-item Option.
-
 use gpui_form::PathSegment;
 use gpui_form::core::FormFieldErrors;
 use gpui_form_derive::GpuiForm;
@@ -14,7 +6,6 @@ use koruma_collection::{
     numeric::RangeValidation,
 };
 
-/// Scalar string items with an `each(...)` element validator.
 #[derive(GpuiForm, koruma::Koruma)]
 struct TagsForm {
     #[gpui_form(component(list(item = input)))]
@@ -22,7 +13,6 @@ struct TagsForm {
     tags: Vec<String>,
 }
 
-/// Numeric items with an element range validator plus a flat field.
 #[derive(GpuiForm, koruma::Koruma)]
 struct ScoresForm {
     #[gpui_form(component(input))]
@@ -34,9 +24,6 @@ struct ScoresForm {
     scores: Vec<u32>,
 }
 
-/// A list with BOTH an `each(...)` element validator and a whole-`Vec`
-/// field-level validator: combined element + whole-field failures must
-/// surface through the root path AND the item paths.
 #[derive(GpuiForm, koruma::Koruma)]
 struct InventoryForm {
     #[gpui_form(component(list(item = input)))]
@@ -47,8 +34,6 @@ struct InventoryForm {
     skus: Vec<String>,
 }
 
-/// An originally-optional list: the holder stores `Option<Vec<T>>` and the
-/// mutation API tolerates the absent case.
 #[derive(GpuiForm, koruma::Koruma)]
 #[gpui_form(koruma)]
 struct OptionalListForm {
@@ -88,7 +73,6 @@ fn add_remove_and_items_mutation_api() {
     holder.remove_tags(1);
     assert_eq!(holder.tags_items(), &["alpha", "gamma"]);
 
-    // Same semantics as Vec::remove for the item type.
     holder.remove_tags(0);
     holder.remove_tags(0);
     assert!(holder.tags_items().is_empty());
@@ -100,7 +84,6 @@ fn optional_list_mutation_tolerates_absent() {
     assert!(holder.aliases.is_none());
     assert!(holder.aliases_items().is_empty());
 
-    // Removing from an absent list is a no-op, not a panic.
     holder.remove_aliases(0);
     assert!(holder.aliases.is_none());
 
@@ -121,10 +104,10 @@ fn optional_list_mutation_tolerates_absent() {
 fn element_validator_fires_with_index_in_error() {
     let holder = TagsFormFormValueHolder {
         tags: vec![
-            "ok".to_string(),      // 0 passes min 2
-            "x".to_string(),       // 1 fails
-            "also-ok".to_string(), // 2 passes
-            "y".to_string(),       // 3 fails
+            "ok".to_string(),
+            "x".to_string(),
+            "also-ok".to_string(),
+            "y".to_string(),
         ],
     };
     assert!(holder.validate().is_err());
@@ -133,11 +116,9 @@ fn element_validator_fires_with_index_in_error() {
     assert!(errors.has_errors());
     let wrapper = errors.tags().expect("the list slot holds the wrapper");
 
-    // koruma's element errors carry the failing indices.
     let failing_indices: Vec<usize> = wrapper.element_errors().iter().map(|(i, _)| *i).collect();
     assert_eq!(failing_indices, vec![1, 3]);
 
-    // The generated element-error accessor is index-addressable.
     assert!(errors.tags_element_error(0).is_none());
     assert!(errors.tags_element_error(2).is_none());
     let element = errors
@@ -153,15 +134,12 @@ fn error_for_routes_root_and_typed_item_index() {
     };
     let errors = holder.validate_fields();
 
-    // Root: field-level routing (whole-list failures).
     let root = errors
         .error_for(&TagsFormFormPath::tags_root())
         .expect("the root path routes to the wrapper slot");
     assert_eq!(root.path().to_string(), "tags");
     assert_eq!(root.issue_keys(), vec!["validation.len"]);
 
-    // Item index: Some only for failing items — the typed Index segment is
-    // extracted and used (never a string).
     assert!(errors.error_for(&TagsFormFormPath::tags(0)).is_none());
     let item = errors
         .error_for(&TagsFormFormPath::tags(1))
@@ -169,7 +147,6 @@ fn error_for_routes_root_and_typed_item_index() {
     assert_eq!(item.path().to_string(), "tags");
     assert!(errors.error_for(&TagsFormFormPath::tags(99)).is_none());
 
-    // A passing list has no errors at any path.
     let valid = TagsFormFormValueHolder {
         tags: vec!["ok".to_string()],
     };
@@ -192,21 +169,13 @@ fn failing_paths_expand_per_failing_item_index() {
             .map(|path| path.to_string())
             .collect()
     }
-    // `scores.1` is the failing item — index-keyed, index-free of string
-    // formatting — and the root path rides along because the whole-field
-    // slot is populated (`error_for(scores_root)` reports the same failure;
-    // `failing_fields` must agree with it). Item paths first, then the root.
     assert_eq!(generic_paths(&errors), vec!["scores.1", "scores"]);
 }
 
 #[test]
 fn combined_element_and_whole_vec_failure_reports_root_and_items() {
-    // One element fails its `each(...)` validator AND the whole `Vec` fails
-    // the field-level length validator: `failing_fields`/`failing_paths`
-    // must contain BOTH the item path and the root path — the whole-Vec
-    // error may not be dropped just because element failures exist.
     let holder = InventoryFormFormValueHolder {
-        skus: vec![String::new()], // len 1 < min 2, and item 0 is empty
+        skus: vec![String::new()],
     };
     let errors = holder.validate_fields();
 
@@ -227,9 +196,6 @@ fn combined_element_and_whole_vec_failure_reports_root_and_items() {
     assert_eq!(failing.len(), 2, "item + root");
     assert_eq!(failing[0].0.to_string(), "skus.0");
     assert_eq!(failing[1].0.to_string(), "skus");
-    // Both list variants borrow the same whole-field wrapper, so the i18n
-    // keys reflect everything that failed inside it: the whole-Vec rule
-    // plus the element rule.
     assert_eq!(
         failing[0].1.issue_keys(),
         vec!["validation.len", "validation.non_empty"]
@@ -240,7 +206,6 @@ fn combined_element_and_whole_vec_failure_reports_root_and_items() {
         "the root failure carries the whole-Vec key plus the element key"
     );
 
-    // `error_for(root)` always routed here; pin it alongside.
     let root = errors
         .error_for(&InventoryFormFormPath::skus_root())
         .expect("the root path routes to the populated whole-field slot");
@@ -248,10 +213,8 @@ fn combined_element_and_whole_vec_failure_reports_root_and_items() {
     assert!(errors.error_for(&InventoryFormFormPath::skus(0)).is_some());
     assert!(errors.error_for(&InventoryFormFormPath::skus(5)).is_none());
 
-    // Element-only failures keep the item paths AND now agree with
-    // `error_for(root)` on the root.
     let elements_only = InventoryFormFormValueHolder {
-        skus: vec!["ok".to_string(), String::new()], // len 2 passes, item 1 fails
+        skus: vec!["ok".to_string(), String::new()],
     };
     let errors = elements_only.validate_fields();
     assert_eq!(generic_paths(&errors), vec!["skus.1", "skus"]);
@@ -277,9 +240,6 @@ fn validate_fields_agrees_with_raw_validate_for_lists() {
 
 #[test]
 fn conversion_error_reports_index_when_present() {
-    // The `<Holder>ConversionError` type gained an additive `index` slot for
-    // list-field conversion failures (per-item conversion paths arrive after
-    // v1; whole-field sites construct it with `None`).
     let error = TagsFormFormValueHolderConversionError {
         field_name: "tags",
         index: Some(2),
@@ -303,8 +263,6 @@ fn path_segments_carry_typed_indices() {
     );
     assert_eq!(path.to_string(), "tags.2");
 
-    // Item paths have no dense index in v1 (item-level touched tracking is
-    // out of scope); roots do.
     assert!(path.field_index().is_none());
     assert_eq!(
         TagsFormFormPath::tags_root().field_index(),

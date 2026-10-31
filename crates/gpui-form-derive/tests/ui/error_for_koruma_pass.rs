@@ -14,13 +14,10 @@ struct Seats {
 }
 
 fn main() {
-    // Path tables (feature 1).
     assert_eq!(SeatsFormPath::FIELD_COUNT, 1);
     assert_eq!(SeatsFormPath::FIELD_NAMES, &["seats"]);
     assert_eq!(SeatsFormPath::all_paths().count(), 1);
 
-    // Facade + patch (features 1 + 2) over the same core primitives the
-    // facade crate re-exports.
     let mut state = SeatsFormState::new(SeatsFormValueHolder::default());
     let _: &FormState<SeatsFormValueHolder> = state.state();
     let standalone = TouchedFields::new(SeatsFormPath::FIELD_COUNT);
@@ -34,7 +31,6 @@ fn main() {
     assert!(patch.seats.is_some());
     patch.apply_to(&mut SeatsFormValueHolder::default());
 
-    // Typed error access (feature 3).
     let errors = SeatsFormValueHolder { seats: Some(13) }.validate_fields();
     assert!(errors.has_errors());
     let field_error = errors
@@ -43,7 +39,6 @@ fn main() {
     assert_eq!(field_error.issue_keys(), vec!["validation.range"]);
     assert_eq!(field_error.path().to_string(), "seats");
 
-    // Generic contract over the shared FieldPath primitive.
     fn failing_names<E: FormFieldErrors>(errors: &E) -> Vec<String> {
         errors
             .failing_paths()

@@ -1,23 +1,9 @@
-//! Submit lifecycle (M2, backlog #7): the opt-in `#[gpui_form(submit)]`
-//! attribute emits a `<Name>FormSubmission` alias over the headless core
-//! `gpui_form::core::submit::SubmitTracker`. The error parameter is the
-//! form's koruma validation error type when the holder derives `Koruma`
-//! (reached through `ValidateExt::Error`), and the core `BoxError` alias
-//! otherwise. The holder stays plain data — submitting never touches it.
-//!
-//! Covers BOTH koruma enablement routes for the alias, mirroring
-//! `error_for.rs`: field-attr-only koruma (the SeatsForm-style shape a
-//! `koruma_options.is_some()` gate would silently drop, hazard 6) and
-//! struct-level `#[gpui_form(koruma)]`.
-
 use gpui_form::core::submit::SubmitTracker;
 use gpui_form::{BoxError, SubmitAction};
 use gpui_form_derive::GpuiForm;
 use std::future::Future;
 use std::task::Poll;
 
-/// Field-attr-only koruma (no struct-level `#[gpui_form(koruma)]`) + submit:
-/// the alias must still resolve its error type through `ValidateExt`.
 #[derive(GpuiForm, koruma::Koruma)]
 #[gpui_form(submit)]
 struct SeatsForm {
@@ -26,7 +12,6 @@ struct SeatsForm {
     seats: u32,
 }
 
-/// Struct-level koruma + submit (required-only validation).
 #[derive(GpuiForm, koruma::Koruma)]
 #[gpui_form(koruma, submit)]
 struct NameForm {
@@ -34,7 +19,6 @@ struct NameForm {
     name: String,
 }
 
-/// No koruma at all + submit: the alias falls back to `BoxError`.
 #[derive(GpuiForm)]
 #[gpui_form(submit)]
 struct PlainForm {
@@ -42,13 +26,10 @@ struct PlainForm {
     name: String,
 }
 
-/// Empty form + submit: the alias still emits (nothing to validate).
 #[derive(GpuiForm)]
 #[gpui_form(empty, submit)]
 struct BareForm {}
 
-/// Std-only executor for the `SubmitAction` driving test; the action's
-/// future is immediately ready, so spin-polling a noop waker suffices.
 fn block_on<F: Future>(future: F) -> F::Output {
     let mut future = std::pin::pin!(future);
     let waker = std::task::Waker::noop();
@@ -77,9 +58,6 @@ impl SubmitAction<SeatsFormFormValueHolder> for SaveSeats {
 
 #[test]
 fn alias_exists_and_keys_on_needs_koruma_derive() {
-    // Field-attr-only koruma route: the error parameter resolves to the
-    // holder's koruma error type, so a failed validate-then-submit carries
-    // the typed field errors.
     let mut tracker: SeatsFormFormSubmission = SubmitTracker::new();
     assert!(!tracker.is_submitting());
     assert!(tracker.can_submit());
@@ -93,7 +71,6 @@ fn alias_exists_and_keys_on_needs_koruma_derive() {
     tracker.finish(Err(failure));
     assert!(tracker.last_error().is_some());
 
-    // Struct-level koruma route gets the same alias shape.
     let _: NameFormFormSubmission = SubmitTracker::new();
 }
 
@@ -132,8 +109,6 @@ fn stale_generation_completions_are_ignored() {
     ));
     assert!(tracker.is_submitted());
 
-    // A second attempt goes in flight, then the form is reset mid-flight:
-    // the epoch moves and all state clears.
     tracker.begin();
     assert!(tracker.is_submitting());
     tracker.reset();
@@ -142,8 +117,6 @@ fn stale_generation_completions_are_ignored() {
     assert!(!tracker.is_submitted());
     assert!(tracker.last_error().is_none());
 
-    // The in-flight completion arrives late: ignored entirely (the D7/R12
-    // generation guard) — it must not flip submitting, verdicts, or errors.
     tracker.finish(Ok(()));
     assert!(!tracker.is_submitting());
     assert!(!tracker.is_submitted());
@@ -153,7 +126,6 @@ fn stale_generation_completions_are_ignored() {
     ));
     assert!(tracker.last_error().is_none());
 
-    // The tracker is still usable for a fresh lifecycle afterwards.
     assert!(tracker.begin());
     tracker.finish(Ok(()));
     assert!(tracker.is_submit_successful());
@@ -211,7 +183,6 @@ fn driving_a_submit_action_leaves_the_holder_unchanged() {
     assert!(!tracker.is_submit_successful(), "out-of-range seats fail");
     assert!(tracker.last_error().is_some());
 
-    // The holder flows through `SubmitAction::submit(&H)` untouched.
     assert_eq!(holder, before);
 
     let valid = SeatsFormFormValueHolder { seats: Some(5) };
@@ -223,20 +194,15 @@ fn driving_a_submit_action_leaves_the_holder_unchanged() {
 
 #[test]
 fn submit_gate_composes_with_the_facade_validation_cache() {
-    // The M2 composition: submit gating consumes the facade's live
-    // `is_valid()` plus the tracker's re-entry guard.
     let mut state = SeatsFormFormState::new(SeatsFormFormValueHolder::default());
     let mut tracker: SeatsFormFormSubmission = SubmitTracker::new();
 
-    // Invalid form: no submit attempt starts.
     assert!(!state.is_valid());
     if state.is_valid() && tracker.begin() {
         panic!("invalid form must not begin a submit");
     }
     assert_eq!(tracker.submit_count(), 0);
 
-    // Fix the field through the facade (which also keeps the cache honest)
-    // and try again.
     state.current_mut().seats = Some(7);
     assert!(state.is_valid());
     assert!(tracker.begin());
@@ -244,7 +210,6 @@ fn submit_gate_composes_with_the_facade_validation_cache() {
     tracker.finish(result.map(|_| ()));
     assert!(tracker.is_submit_successful());
 
-    // A successful save re-syncs the baseline through the facade.
     state.sync_baseline();
     assert!(!state.is_dirty());
 }

@@ -1,5 +1,5 @@
 error: list(item = nested) is not supported yet: v1 ships scalar item components only (backlog #3 sequences nested item forms after scalar items)
-  --> tests/ui/list_item_nested_not_yet.rs:15:27
+  --> tests/ui/list_item_nested_not_yet.rs:11:27
    |
-15 |     #[gpui_form(component(list(item = nested)))]
+11 |     #[gpui_form(component(list(item = nested)))]
    |                           ^^^^

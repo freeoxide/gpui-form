@@ -1,7 +1,3 @@
-//! Runtime behavior of koruma validators re-emitted onto the generated
-//! `...FormValueHolder`: builder chains survive codegen, synthetic required
-//! validation fires, and cfg_attr-wrapped koruma attributes reach the holder.
-
 use gpui_form_derive::GpuiForm;
 
 #[derive(GpuiForm, koruma::Koruma)]
