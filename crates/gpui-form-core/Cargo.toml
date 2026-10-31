@@ -11,13 +11,8 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
-# The package is published as `freeoxide-gpui-form-core`; the lib target
-# keeps its historical name so `::gpui_form_core::...` paths compile
-# unchanged.
 [lib]
 name = "gpui_form_core"
-# Keep the libtest unittest binary out of `cargo bench` runs — libtest
-# rejects criterion's `--save-baseline` arg (see workspace default-members).
 bench = false
 
 [lints]
@@ -30,15 +25,6 @@ phone = [ "dep:phonenumber" ]
 [dependencies]
 phonenumber = { optional = true, workspace = true }
 
-# The `state` bench derives a representative koruma holder through the same
-# facade/derive pair applications use (generated code addresses
-# `::gpui_form::core` via the facade, and the generated
-# `<Name>FormComponents` struct references `::gpui`/`::gpui_kit`, hence the
-# dev-deps — the same set `gpui-form-derive`'s own tests carry). Both
-# intra-set dev-deps are deliberately PATH-ONLY (no `version`) so they are
-# dropped from the packaged manifest and never resolve against crates.io
-# during `cargo publish` — the same publish-order-cycle avoidance as
-# `gpui-form-component/Cargo.toml`.
 [dev-dependencies]
 criterion = { workspace = true }
 gpui = { workspace = true }
@@ -47,10 +33,6 @@ gpui-form-derive = { package = "freeoxide-gpui-form-derive", path = "../gpui-for
 gpui-kit = { workspace = true }
 koruma = { workspace = true }
 koruma-collection = { features = [ "email" ], workspace = true }
-# Generated holders gain `#[derive(::serde::Serialize, ::serde::Deserialize)]`
-# whenever the derive crate builds with its `serde` feature (feature
-# unification under `--workspace --all-features`), so the bench target needs
-# the serde derive macros resolvable.
 serde = { workspace = true }
 
 [[bench]]

@@ -22,8 +22,6 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
-  # Bump the SCCACHE_GHA_VERSION repository variable to invalidate the
-  # whole sccache pool without touching any workflow file.
   SCCACHE_GHA_VERSION: ${{ vars.SCCACHE_GHA_VERSION || 'v1' }}
   PUBLISH_SET: >-
     freeoxide-gpui-form-schema freeoxide-gpui-form-core
@@ -37,8 +35,6 @@ jobs:
     name: Publish to crates.io
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    # Push-triggered runs have no `inputs` context: they always publish for
-    # real. Manual dispatches keep the dry_run checkbox semantics.
     env:
       PUBLISH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
       SCCACHE_GHA_ENABLED: "true"
@@ -74,8 +70,6 @@ jobs:
           python3 - <<'PY'
           import json, os, pathlib, sys
           meta = json.loads(pathlib.Path("metadata.json").read_text())
-          # Only crates without `publish = false` (the example crates are
-          # workspace-internal) form the release set.
           members = {p["name"] for p in meta["packages"] if p.get("publish") != []}
           set_names = os.environ["PUBLISH_SET"].split()
           by_name = {p["name"]: p for p in meta["packages"]}
@@ -87,9 +81,6 @@ jobs:
               failed = True
           for name in order:
               for dep in by_name[name]["dependencies"]:
-                  # Same exemption as below: path-only (req "*") intra-set
-                  # dev-dependencies are dropped from the packaged manifest
-                  # and cannot order-block a publish.
                   if dep["name"] in set_names and dep["req"] != "*" and pos.get(dep["name"], len(order)) > pos[name]:
                       print(f"PUBLISH_SET order: {name} precedes its dependency {dep['name']}")
                       failed = True
@@ -101,13 +92,6 @@ jobs:
               version = by_name[name]["version"]
               for dep in by_name[name]["dependencies"]:
                   if dep["name"] in set_names:
-                      # Intra-set dev-dependencies that are path-only
-                      # (req "*") are dropped from the packaged manifest by
-                      # cargo and never resolve against the registry, so
-                      # they neither order nor need to satisfy ^version.
-                      # Every version-carrying dependency (normal, optional,
-                      # build, or dev) IS resolved from the registry during
-                      # `cargo publish` and must be published first.
                       if dep["req"] == "*":
                           continue
                       want = f"^{version}"
@@ -171,7 +155,6 @@ jobs:
 
           changelog_heading_present() {
             local crate="$1" version="$2" changelog
-            # This workspace keeps ONE root CHANGELOG.md for all crates.
             changelog="CHANGELOG.md"
             if [[ ! -f "$changelog" ]]; then
               return 0
