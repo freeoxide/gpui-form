@@ -1,7 +1,3 @@
-// `#[gpui_form(submit)]` compiles end to end: a koruma form gets the
-// typed-error alias (through ValidateExt), plain and empty forms get the
-// BoxError alias. No `koruma(fluent)` here, so no trybuild locale seeding
-// is needed.
 use gpui_form::core::submit::{BoxError, SubmitTracker};
 use gpui_form_derive::GpuiForm;
 
@@ -25,7 +21,6 @@ struct Plain {
 struct Bare {}
 
 fn main() {
-    // Koruma route: the alias's error parameter is the typed koruma error.
     let mut tracker: SignupFormSubmission = SubmitTracker::new();
     assert!(tracker.can_submit());
     let failure: <SignupFormValueHolder as koruma::ValidateExt>::Error =
@@ -38,12 +33,10 @@ fn main() {
     assert!(!tracker.is_submit_successful());
     assert!(tracker.last_error().is_some());
 
-    // Non-koruma route: the BoxError alias.
     let mut plain: PlainFormSubmission = SubmitTracker::<BoxError>::new();
     plain.set_error("boom".into());
     assert!(plain.last_error().is_some());
 
-    // Empty-form route: the alias still emits.
     let bare: BareFormSubmission = SubmitTracker::new();
     assert!(!bare.is_submitted());
 }

@@ -1,6 +1,3 @@
-//! Milestone M3 compile-fail: unknown list item kinds are rejected at parse
-//! time (`item = banana`).
-
 use gpui_form_derive::GpuiForm;
 
 #[derive(GpuiForm)]

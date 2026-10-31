@@ -1,23 +1,3 @@
-//! Criterion benches for the headless form-state layer (`gpui-form-core`).
-//!
-//! Round 0 of the performance campaign: measurement only — nothing here
-//! changes behavior. Three groups are instrumented, because they are the
-//! per-keystroke / per-validate hot paths downstream forms hit:
-//!
-//! 1. `validate_fields` + `error_for` round-trip on a representative
-//!    ~10-field koruma holder, in both a fully valid and a fully default
-//!    (mostly failing) state — including the cached `<Name>FormState`
-//!    facade path the UI hits between keystrokes.
-//! 2. `validate_signed_numeric` / `validate_unsigned_numeric` over the
-//!    representative keystroke strings (the accept/reject oracle set plus
-//!    common accepted input).
-//! 3. `FieldPath::new` + `push_index` + `push_name` chains, bare and with
-//!    `Display` rendering.
-//!
-//! The holder is derived through the same facade/derive pair applications
-//! use, so the bench measures the real generated code
-//! (`StateBenchFormFormValueHolder::validate_fields`), not a re-implementation.
-
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -27,10 +7,6 @@ use gpui_form_core::{
 };
 use gpui_form_derive::GpuiForm;
 
-/// Representative ~10-field form: mixed components (input / number_input /
-/// checkbox / switch), optional and required fields, and a spread of koruma
-/// validators (len, non-empty, range, email) so `validate_fields` has real
-/// per-field work in both directions.
 #[derive(Clone, Debug, Default, GpuiForm, koruma::Koruma)]
 #[gpui_form(koruma)]
 struct StateBenchForm {
@@ -72,7 +48,6 @@ struct StateBenchForm {
     postal_code: u32,
 }
 
-/// Every field present and passing: the state a submit button validates.
 fn valid_holder() -> StateBenchFormFormValueHolder {
     StateBenchFormFormValueHolder {
         username: Some("ada.lovelace".to_string()),
@@ -88,7 +63,6 @@ fn valid_holder() -> StateBenchFormFormValueHolder {
     }
 }
 
-/// Typed paths for all ten fields, in declaration order.
 fn all_field_paths() -> [StateBenchFormFormPath; 10] {
     [
         StateBenchFormFormPath::username(),
@@ -141,10 +115,6 @@ fn bench_error_for_round_trip(c: &mut Criterion) {
 }
 
 fn bench_form_state_cached_error_for(c: &mut Criterion) {
-    // The generated `<Name>FormState` facade is the per-keystroke path:
-    // `error_for` reuses the cached outcome while the holder is unchanged
-    // and recomputes otherwise. Cold measures the recompute, warm the
-    // cache-hit read.
     let invalid = StateBenchFormFormValueHolder::default();
     let paths = all_field_paths();
 
@@ -177,8 +147,6 @@ fn bench_form_state_cached_error_for(c: &mut Criterion) {
     });
 }
 
-/// The oracle keystroke set from the parity oracle (`tests/parity_oracle.rs`)
-/// plus common accepted input, so both validator outcomes are measured.
 const KEYSTROKES: &[&str] = &[
     "", "-", "0.", "1e5", "+3", "12a", "0", "42", "-42", "-0.5", "123.456",
 ];

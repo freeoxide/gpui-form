@@ -20,7 +20,6 @@ pub struct SubmitTracker<E> {
 }
 
 impl<E> SubmitTracker<E> {
-    /// Create a tracker with no attempts, no in-flight submit, and no error.
     pub const fn new() -> Self {
         Self {
             submitting: false,
@@ -32,7 +31,6 @@ impl<E> SubmitTracker<E> {
         }
     }
 
-    /// Whether a submit attempt is currently in flight.
     pub fn is_submitting(&self) -> bool {
         self.submitting
     }
@@ -60,12 +58,10 @@ impl<E> SubmitTracker<E> {
         !self.submitting
     }
 
-    /// The last submit failure, if any.
     pub fn last_error(&self) -> Option<&E> {
         self.last_error.as_ref()
     }
 
-    /// Take the last submit failure, clearing the slot (one-shot banners).
     pub fn take_last_error(&mut self) -> Option<E> {
         self.last_error.take()
     }
@@ -122,7 +118,6 @@ impl<E> SubmitTracker<E> {
         self.last_error = Some(error);
     }
 
-    /// Manually clear an injected or recorded submit failure.
     pub fn clear_error(&mut self) {
         self.last_error = None;
     }
@@ -150,7 +145,6 @@ impl<E> Default for SubmitTracker<E> {
 /// it; there is deliberately no `Send` bound.
 #[allow(async_fn_in_trait)]
 pub trait SubmitAction<H> {
-    /// What a successful submit produces (a saved-record id, a unit, ...).
     type Output;
     /// The submit failure type; becomes the tracker's `E`.
     type Error;

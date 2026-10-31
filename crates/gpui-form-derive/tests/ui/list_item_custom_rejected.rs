@@ -1,6 +1,3 @@
-//! Milestone M3 compile-fail: custom components are app-owned escape
-//! hatches, not list items.
-
 use gpui_form_derive::GpuiForm;
 
 #[derive(GpuiForm)]

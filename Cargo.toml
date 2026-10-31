@@ -1,12 +1,4 @@
 [workspace]
-# Bare `cargo bench` from the workspace root is the campaign's measurement
-# entry point (`cargo bench -- --save-baseline main`), so the default members
-# are the packages that own `[[bench]]` targets plus the historical default
-# (`some-lib`). Every default member's `[lib]` sets `bench = false`: a plain
-# `cargo bench` also runs lib unittest binaries, and libtest rejects
-# criterion's `--save-baseline` flag ("Unrecognized option"). Unittests still
-# run under `cargo test` — only `cargo bench` selection changes. The
-# justfile gates pass `--workspace` explicitly and are unaffected.
 default-members = [
   "crates/gpui-form-component",
   "crates/gpui-form-core",
@@ -42,15 +34,10 @@ version = "0.11.0"
 anyhow = "1.0"
 bon = "3.9"
 chrono = "0.4"
-# Bench-only dev-dependency (workspace pattern): benches in `gpui-form-core`,
-# `gpui-form-component`, and `gpui-form-schema` opt in per crate.
 criterion = "0.8"
 darling = "0.23"
 derive_more = "2.1"
 gpui = { package = "gpui-pre", version = "0.3.9" }
-# The packages publish under `freeoxide-` names; the dependency keys keep
-# their historical names (via `package =`) so member manifests and all
-# `::gpui_form*::` extern-crate paths stay unchanged.
 gpui-form = { package = "freeoxide-gpui-form", path = "crates/gpui-form", version = "0.11.0" }
 gpui-form-codegen = { package = "freeoxide-gpui-form-codegen", path = "crates/gpui-form-codegen", version = "0.11.0" }
 gpui-form-component = { package = "freeoxide-gpui-form-component", path = "crates/gpui-form-component", version = "0.11.0" }

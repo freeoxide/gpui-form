@@ -1,19 +1,6 @@
-//! Field-level state model (M1, feature: per-field typed error access,
-//! backlog #6): koruma-gated holders gain `validate_fields()`, the
-//! `<Name>FormFieldErrors` map, and the `<Name>FormFieldError` borrowing
-//! enum, all keyed by `<Name>FormPath`.
-//!
-//! Mirrors the struct shapes in `koruma_validation_behavior.rs`, covering
-//! BOTH koruma enablement routes:
-//! - field-attr-only koruma (`#[koruma(...)]` on fields, no struct-level
-//!   `#[gpui_form(koruma)]`) — the SeatsForm-style case that a
-//!   `koruma_options.is_some()` gate would silently drop;
-//! - struct-level `#[gpui_form(koruma)]` (NameForm-style, required-only).
-
 use gpui_form::core::FormFieldErrors;
 use gpui_form_derive::GpuiForm;
 
-/// Field-attr-only koruma (no struct-level `#[gpui_form(koruma)]`).
 #[derive(GpuiForm, koruma::Koruma)]
 struct SeatsForm {
     #[gpui_form(component(number_input))]
@@ -21,7 +8,6 @@ struct SeatsForm {
     seats: u32,
 }
 
-/// Struct-level koruma with synthetic required only.
 #[derive(GpuiForm, koruma::Koruma)]
 #[gpui_form(koruma)]
 struct NameForm {
@@ -29,9 +15,6 @@ struct NameForm {
     name: String,
 }
 
-/// Newtype WITH validators (synthetic required + inner) — the wrapper-shape
-/// getter (`&<Holder><Field>KorumaValidationError` with `all()`/`inner()`).
-/// Struct-level `#[koruma(newtype)]` mirrors the demo's `RequestCode` shape.
 #[derive(Clone, Debug, Default, PartialEq, Eq, koruma::Koruma)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[koruma(newtype)]
@@ -56,8 +39,6 @@ struct CodeForm {
     code: RequestCode,
 }
 
-/// Bare newtype (originally optional, no mirrored validators) — the inner
-/// error surfaces directly behind an `Option<&..>` getter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, koruma::Koruma)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[koruma(newtype)]
@@ -84,9 +65,6 @@ struct TicketForm {
 
 #[test]
 fn error_for_surfaces_range_failure_and_none_when_valid() {
-    // Field-attr-only koruma form: the error surface must still be emitted
-    // (enable_koruma is true via parsed_koruma_fields even though
-    // koruma_options is None).
     let failing = SeatsFormFormValueHolder { seats: Some(13) };
     let errors = failing.validate_fields();
     assert!(errors.has_errors());
@@ -143,7 +121,6 @@ fn unknown_and_wrong_name_paths_return_none() {
 
 #[test]
 fn struct_level_koruma_form_gains_the_surface() {
-    // NameForm enables koruma via #[gpui_form(koruma)]: required-only.
     let errors = NameFormFormValueHolder::default().validate_fields();
     let field_error = errors
         .error_for(&NameFormFormPath::name())
@@ -196,8 +173,6 @@ fn newtype_with_validators_reports_required_and_generic_inner_key() {
         .expect("absent newtype must fail synthetic required");
     assert_eq!(field_error.issue_keys(), vec!["validation.required"]);
 
-    // Present but failing inner validators: the derive cannot see inner
-    // kinds, so the generic invalid key is reported.
     let holder = CodeFormFormValueHolder {
         code: Some(RequestCode {
             value: "A".to_string(),
@@ -221,7 +196,6 @@ fn bare_newtype_on_optional_field_surfaces_inner_error() {
         .expect("empty ticket id must fail");
     assert_eq!(field_error.issue_keys(), vec!["validation.invalid"]);
 
-    // A passing inner value clears the slot.
     let holder = TicketFormFormValueHolder {
         ticket: Some(Ticket {
             id: "T-1".to_string(),
@@ -232,8 +206,6 @@ fn bare_newtype_on_optional_field_surfaces_inner_error() {
 
 #[test]
 fn error_enum_payload_borrows_the_koruma_error() {
-    // The Code variant's payload is the koruma wrapper, so koruma's own
-    // typed surface (all()/inner()) is reachable through the enum.
     let errors = CodeFormFormValueHolder::default().validate_fields();
     if let Some(CodeFormFormFieldError::Code(wrapper)) = errors.error_for(&CodeFormFormPath::code())
     {

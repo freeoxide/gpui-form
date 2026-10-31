@@ -6,8 +6,6 @@ license = "Unlicense"
 publish = false
 
 [lib]
-# Keep the libtest unittest binary out of `cargo bench` runs — libtest
-# rejects criterion's `--save-baseline` arg (see workspace default-members).
 bench = false
 
 [dependencies]
@@ -31,8 +29,6 @@ serde_json = { workspace = true }
 
 [features]
 default = [ "ui", "validation" ]
-# Opt into form-state persistence: derives serde + the gpui-form serde feature,
-# and enables the serde representations the example domain types rely on.
 serde = [
     "dep:serde",
     "gpui-form/serde",

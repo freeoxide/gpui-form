@@ -24,12 +24,9 @@ use strum::{Display, EnumString, IntoStaticStr};
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum LayoutWidth {
-    /// Full available width (the default).
     #[default]
     Full,
-    /// Half of the available width.
     Half,
-    /// A third of the available width.
     Third,
 }
 
@@ -44,9 +41,7 @@ pub struct FieldLayout {
     pub label: Option<&'static str>,
     /// Optional help text / comment hint shown alongside the field.
     pub description: Option<&'static str>,
-    /// Optional placeholder text for inputs that support one.
     pub placeholder: Option<&'static str>,
-    /// Relative width hint. See [`LayoutWidth`].
     pub width: LayoutWidth,
 }
 
@@ -91,7 +86,6 @@ impl FieldLayout {
         self
     }
 
-    /// Attach the relative width hint.
     #[must_use]
     pub const fn with_width(mut self, width: LayoutWidth) -> Self {
         self.width = width;

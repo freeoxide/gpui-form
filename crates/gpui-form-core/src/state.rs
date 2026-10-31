@@ -21,17 +21,14 @@ impl<H: Clone> FormState<H> {
         }
     }
 
-    /// Borrow the live (`current`) value.
     pub fn current(&self) -> &H {
         &self.current
     }
 
-    /// Borrow the saved (`baseline`) value.
     pub fn baseline(&self) -> &H {
         &self.baseline
     }
 
-    /// Mutably borrow the live value for in-place UI edits.
     pub fn current_mut(&mut self) -> &mut H {
         &mut self.current
     }
@@ -42,8 +39,6 @@ impl<H: Clone> FormState<H> {
         self.current = holder;
     }
 
-    /// Consume the state and return the live (`current`) value, dropping the
-    /// `baseline`.
     pub fn into_current(self) -> H {
         self.current
     }

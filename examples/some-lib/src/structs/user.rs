@@ -28,9 +28,6 @@ pub enum EnumCountry {
     China,
 }
 
-/// The dependent side of a `depends_on` pair: consumers reset this
-/// selection when `country` changes; the dependency itself is schema
-/// metadata.
 #[derive(Clone, Debug, Default, EnumIter, PartialEq, SelectItem)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[select_item(fluent)]
@@ -98,8 +95,6 @@ pub struct User {
     #[gpui_form(component(select(searchable)), default = EnumCountry::France)]
     pub country: Option<EnumCountry>,
 
-    /// `depends_on = country` records the sibling relationship as metadata
-    /// for conditional loading and reset-on-parent-change consumers.
     #[gpui_form(component(select), depends_on = country)]
     pub state: Option<EnumUsState>,
 

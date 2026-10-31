@@ -13,7 +13,7 @@ inventory = { workspace = true }
 prettyplease = { workspace = true }
 quote = { workspace = true }
 rust-i18n = { workspace = true }
-some-lib = { path = "../some-lib" }
+some-lib = { features = [ "serde" ], path = "../some-lib" }
 syn = { features = [ "full", "parsing" ], workspace = true }
 
 [lints]

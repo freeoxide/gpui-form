@@ -31,12 +31,10 @@ pub enum FilePickerMode {
 }
 
 impl FilePickerMode {
-    /// Returns whether this mode allows files.
     pub fn allows_files(self) -> bool {
         matches!(self, Self::File | Self::FileOrDirectory)
     }
 
-    /// Returns whether this mode allows directories.
     pub fn allows_directories(self) -> bool {
         matches!(self, Self::Directory | Self::FileOrDirectory)
     }
@@ -104,7 +102,6 @@ impl FilePickerState {
         }
     }
 
-    /// Returns the currently selected paths.
     pub fn paths(&self) -> &[PathBuf] {
         &self.paths
     }
@@ -114,7 +111,6 @@ impl FilePickerState {
         self.paths.first()
     }
 
-    /// Returns true when no path is selected.
     pub fn is_empty(&self) -> bool {
         self.paths.is_empty()
     }
@@ -153,12 +149,10 @@ impl FilePickerState {
         self.replace_paths(Vec::new(), false, window, cx);
     }
 
-    /// Get the focus handle owned by this state.
     pub fn focus_handle(&self) -> &FocusHandle {
         &self.focus_handle
     }
 
-    /// Focus the picker.
     pub fn focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.focus_handle.focus(window, cx);
     }
@@ -283,7 +277,6 @@ impl FilePicker {
         self
     }
 
-    /// Set the picker mode.
     pub fn mode(mut self, mode: FilePickerMode) -> Self {
         self.mode = mode;
         self
@@ -295,7 +288,6 @@ impl FilePicker {
         self
     }
 
-    /// Set the native dialog prompt.
     pub fn prompt(mut self, prompt: impl Into<SharedString>) -> Self {
         self.prompt = Some(prompt.into());
         self
@@ -307,7 +299,6 @@ impl FilePicker {
         self
     }
 
-    /// Set the browse button label.
     pub fn browse_label(mut self, label: impl Into<SharedString>) -> Self {
         self.browse_label = Some(label.into());
         self

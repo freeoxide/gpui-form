@@ -135,8 +135,6 @@ impl<'a> ResolvedField<'a> {
         &self.field.behaviour
     }
 
-    /// Non-rendering layout hints attached to this field; a thin accessor
-    /// over [`FieldVariant::layout`]. See [`FieldLayout`] for the contract.
     pub fn layout(&self) -> &FieldLayout {
         &self.field.layout
     }
@@ -201,7 +199,6 @@ impl<'a> ResolvedField<'a> {
         self.validation_rules().contains(&rule)
     }
 
-    /// The sibling field this field depends on (`depends_on = <field>`), if any.
     pub fn depends_on(&self) -> Option<&'static str> {
         self.field.depends_on()
     }

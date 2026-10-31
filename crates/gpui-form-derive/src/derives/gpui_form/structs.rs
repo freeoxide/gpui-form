@@ -79,8 +79,6 @@ impl FromMeta for LayoutWidthMeta {
                     &expr_path.path.to_token_stream().to_string(),
                 )),
             },
-            // darling can wrap attribute values in invisible `Expr::Group`
-            // nodes; recurse through them.
             Expr::Group(group) => Self::from_expr(&group.expr),
             Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
             _ => Err(DarlingError::unexpected_expr_type(expr)),
@@ -236,8 +234,6 @@ impl FromMeta for AsyncFnPath {
 #[derive(Clone, Debug, FromMeta)]
 pub struct AsyncValidate {
     pub async_fn: AsyncFnPath,
-    // Grammar accepted but not yet read by any emitter; the debounce policy
-    // belongs to the future driving layer.
     #[allow(dead_code)]
     #[darling(default)]
     pub debounce: Option<Expr>,
@@ -350,8 +346,6 @@ pub struct ComponentStruct {
     pub empty: bool,
     #[darling(default)]
     pub koruma: Option<KorumaField>,
-    // Opt-in `#[gpui_form(submit)]` word; drives the `<Name>FormSubmission`
-    // alias emitter (submit.rs), never holder state.
     #[darling(default)]
     pub submit: bool,
 }

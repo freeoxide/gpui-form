@@ -53,8 +53,6 @@ fn write_canonical_tokens(out: &mut String, tokens: TokenStream, glue_after_join
             TokenTree::Ident(ident) => out.push_str(&ident.to_string()),
             TokenTree::Punct(punct) => {
                 out.push(punct.as_char());
-                // proc-macro2 marks `.` Alone before an ident, but canonical
-                // Rust always hugs `a.b` / `x.0` / `a..b`.
                 after_joint_punct = punct.spacing() == Spacing::Joint
                     || (glue_after_joint_punct && punct.as_char() == '.');
                 prev_was_punct = true;
@@ -210,8 +208,6 @@ mod tests {
             "crate::defaults::country().to_string()"
         );
         assert_eq!(canonical_expr("0 .. 9"), "0..9");
-        // syn re-emits closure `||` heads with Alone spacing (`| |`), and the
-        // printer cannot tell a unary prefix from a binary operator.
         assert_eq!(canonical_expr("|| -> i32 { 1 }"), "| | -> i32 { 1 }");
     }
 }

@@ -1,7 +1,3 @@
-//! Emits the per-form schema-export surface: `<Name>FormSchema` with a
-//! `SHAPE` const built from the caller's one `GpuiFormShape` chain and a
-//! `schema()` accessor projecting it (`inventory::submit!` stays feature-gated).
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;

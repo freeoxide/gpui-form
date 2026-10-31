@@ -1,7 +1,3 @@
-//! Generates the per-form typed path newtype `<Name>FormPath` wrapping
-//! [`::gpui_form::core::FieldPath`]: flat per-field constructors, nested/list
-//! root-and-composition constructors, and cross-form `join`.
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::DeriveInput;

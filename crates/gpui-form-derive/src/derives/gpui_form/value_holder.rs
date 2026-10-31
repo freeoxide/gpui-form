@@ -40,8 +40,6 @@ pub(crate) fn should_wrap(field: &FieldOptionality) -> bool {
     match field_storage(field) {
         FieldStorage::Plain => false,
         FieldStorage::OriginallyOptional | FieldStorage::WrappedOption => true,
-        // Components never wrap composed fields, so `koruma(nested)` /
-        // `each(..)` apply directly; wrap only when the source was `Option<..>`.
         FieldStorage::Nested | FieldStorage::List => field.was_optional,
     }
 }
@@ -55,7 +53,6 @@ pub(crate) fn form_base_type(field: &FieldOptionality) -> Type {
                 holder.clone()
             }
         },
-        // `inner_type` is already Option-stripped; the holder stores the full `Vec`.
         FieldComposition::List { .. } => field.inner_type.clone(),
         FieldComposition::Flat => {
             if let Some(override_type) = &field.override_type {
@@ -295,8 +292,6 @@ fn optional_value_from_wrapped(field: &FieldOptionality) -> TokenStream {
 fn optional_value_present_json(field: &FieldOptionality) -> TokenStream {
     let field_name = &field.field_name;
     let field_name_str = field_name.to_string();
-    // Nested entries skip into-conversion: `From::from` is inference-ambiguous
-    // in the `format!("{:?}")` dump context (both directions exist).
     if needs_into_conversion(field) && field.composition.is_flat() {
         let converted = apply_into_conversion(field, quote! { value });
         quote! {
@@ -515,8 +510,6 @@ pub fn generate_value_holder(
             let has_existing_validations = !f.validation.field_validators.is_empty()
                 || !f.validation.element_validators.is_empty();
             let has_newtype = f.validation.is_newtype;
-            // Keyed on composition, not `validation.is_nested`: koruma's per-field
-            // error getter exists only when the holder field carries `#[koruma(nested)]`.
             let has_nested = f.composition.is_nested();
             let has_required_if = f.required_if.is_some();
 
@@ -550,8 +543,6 @@ pub fn generate_value_holder(
                     .collect();
                 koruma_items.extend(existing_validations);
 
-                // On list fields `each(..)` keeps element scoping so koruma
-                // reports failures per item index; flat fields mirror whole-value.
                 let element_validations: Vec<TokenStream> = f
                     .validation
                     .element_validators
@@ -573,8 +564,6 @@ pub fn generate_value_holder(
                     attrs.push(quote! { #[koruma(#(#koruma_items),*)] });
                 }
 
-                // newtype/nested must be separate attrs when combined with
-                // other validators, to avoid koruma type-resolution issues.
                 if f.validation.is_newtype {
                     attrs.insert(0, quote! { #[koruma(newtype)] });
                 }
@@ -615,8 +604,6 @@ pub fn generate_value_holder(
             derives.push(quote! { ::koruma::KorumaAllDisplay });
         }
     }
-    // Unconditional `PartialEq` (never `Eq`): `f64` fields are non-`Eq`, and
-    // core's `is_dirty`/`diff_against` require `H: PartialEq`.
     derives.push(quote! { ::core::cmp::PartialEq });
     #[cfg(feature = "serde")]
     {
@@ -846,8 +833,6 @@ pub fn generate_value_holder(
         quote! {}
     };
 
-    // Same gate as the holder's `#[derive(Koruma)]`, so every koruma error
-    // type the emitter references is guaranteed to exist.
     let field_errors_impl = if needs_koruma_derive {
         crate::derives::gpui_form::errors::generate_field_errors(original_input, fields)
     } else {
@@ -894,8 +879,6 @@ pub fn generate_value_holder(
 }
 
 pub fn validation_issue_key_for_kind(kind: &str) -> String {
-    // The per-form `<Name>FormRequiredIfValidation` failure IS a required
-    // failure; reuse the already-localized `validation.required` key.
     if kind.ends_with("FormRequiredIfValidation") {
         return "validation.required".to_string();
     }

@@ -1,10 +1,3 @@
-//! Criterion benches for the schema export projection (`FormSchema`).
-//!
-//! Round 0 of the performance campaign: measurement only. The projection
-//! (`From<&GpuiFormShape> for FormSchema`) is what `<Name>FormSchema::schema()`
-//! returns and what prototyping/docs tooling consumes; benches cover the
-//! projection itself, the JSON wire document, and path-style lookups.
-
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -15,9 +8,6 @@ use gpui_form_schema::components::{
 use gpui_form_schema::layout::{FieldLayout, LayoutWidth};
 use gpui_form_schema::registry::{FieldVariant, FormSchema, GpuiFormShape};
 
-/// A representative 12-field shape: every shipped component kind, layout
-/// hints, validation-rule ids, and M4 dependency metadata — the metadata
-/// spread a real `#[derive(GpuiForm)]` inventory entry carries.
 const FIELDS: [FieldVariant; 12] = [
     FieldVariant::new("username", "String", false, ComponentsBehaviour::Input).with_layout(
         FieldLayout::new()
@@ -124,8 +114,6 @@ fn bench_export_projection(c: &mut Criterion) {
         b.iter(|| serde_json::to_string(&FormSchema::from(black_box(&SHAPE))))
     });
 
-    // Docs/prototyping consumers look fields up by name in a loop; measure
-    // one hit and one miss per iteration.
     let schema = FormSchema::from(&SHAPE);
     c.bench_function("schema/export_field_lookup/hit_and_miss", |b| {
         b.iter(|| {
