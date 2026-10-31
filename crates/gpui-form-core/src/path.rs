@@ -5,14 +5,11 @@
 /// One typed segment of a [`FieldPath`]: a field name or a list-item index.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PathSegment {
-    /// A named field segment (`address`, `city`, `tags`).
     Name(&'static str),
-    /// A repeated-field item index (`contacts.2` names item 2).
     Index(usize),
 }
 
 impl PathSegment {
-    /// The field name, when this segment is a [`PathSegment::Name`].
     pub const fn as_name(&self) -> Option<&'static str> {
         match self {
             Self::Name(name) => Some(*name),
@@ -20,7 +17,6 @@ impl PathSegment {
         }
     }
 
-    /// The list-item index, when this segment is an [`PathSegment::Index`].
     pub const fn as_index(&self) -> Option<usize> {
         match self {
             Self::Name(_) => None,
@@ -54,25 +50,20 @@ impl FieldPath {
         }
     }
 
-    /// Create a path from typed segments (names and indices), copied into
-    /// an owned box.
     pub fn from_segments(segments: &[PathSegment]) -> Self {
         Self {
             segments: segments.into(),
         }
     }
 
-    /// Borrow the ordered segment slice.
     pub fn segments(&self) -> &[PathSegment] {
         &self.segments
     }
 
-    /// Whether the path has zero segments.
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
     }
 
-    /// Consume the path, append a field-name segment, and return the result.
     pub fn push_name(self, name: &'static str) -> Self {
         let mut segments = Vec::with_capacity(self.segments.len() + 1);
         segments.extend_from_slice(&self.segments);
@@ -93,8 +84,6 @@ impl FieldPath {
         }
     }
 
-    /// Consume the path, append every segment of `other`, and return the
-    /// result.
     pub fn join(mut self, other: &Self) -> Self {
         let mut segments = Vec::with_capacity(self.segments.len() + other.segments.len());
         segments.extend_from_slice(&self.segments);

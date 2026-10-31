@@ -30,7 +30,6 @@ pub struct ValidationCache<H, O> {
 }
 
 impl<H: PartialEq, O> ValidationCache<H, O> {
-    /// Create an empty cache (no snapshot, no outcome).
     pub const fn new() -> Self {
         Self { stored: None }
     }
@@ -57,7 +56,6 @@ impl<H: PartialEq, O> ValidationCache<H, O> {
         self.stored = Some((validated, outcome));
     }
 
-    /// Drop the cached snapshot and outcome.
     pub fn invalidate(&mut self) {
         self.stored = None;
     }

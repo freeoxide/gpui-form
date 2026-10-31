@@ -8,7 +8,6 @@ use quote::quote;
 
 use crate::error::{PrototypingError, PrototypingResult};
 
-/// The alias applied to an imported item.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Alias {
     /// Wildcard discard: `use X as _`, for trait imports that only need to be
@@ -25,12 +24,10 @@ pub enum Alias {
 pub struct ImportItem {
     /// Full path to the imported item, e.g. `"::gpui_kit::component::checkbox::Checkbox"`.
     pub path: &'static str,
-    /// Optional alias applied to the import.
     pub alias: Option<Alias>,
 }
 
 impl ImportItem {
-    /// An import with no alias.
     pub const fn path(path: &'static str) -> Self {
         Self { path, alias: None }
     }
@@ -60,17 +57,14 @@ impl ImportItem {
 pub struct ImportSet(std::collections::BTreeSet<ImportItem>);
 
 impl ImportSet {
-    /// Insert a single item.
     pub fn add(&mut self, item: ImportItem) {
         self.0.insert(item);
     }
 
-    /// Insert a slice of items (convenience for per-generator const arrays).
     pub fn extend_items(&mut self, items: &[ImportItem]) {
         self.0.extend(items.iter().cloned());
     }
 
-    /// Insert an iterator of items.
     pub fn extend(&mut self, items: impl IntoIterator<Item = ImportItem>) {
         for item in items {
             self.0.insert(item);

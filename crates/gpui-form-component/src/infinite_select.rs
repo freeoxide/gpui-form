@@ -241,12 +241,10 @@ impl InfiniteSelectPath {
         self.indices.len()
     }
 
-    /// Returns all indices as a slice.
     pub fn indices(&self) -> &[usize] {
         &self.indices
     }
 
-    /// Returns true if the path is empty.
     pub fn is_empty(&self) -> bool {
         self.indices.is_empty()
     }
@@ -295,12 +293,10 @@ impl InfiniteSelectKeyPath {
         self.keys.len()
     }
 
-    /// Returns all keys as a slice.
     pub fn keys(&self) -> &[String] {
         &self.keys
     }
 
-    /// Returns true if the path is empty.
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }

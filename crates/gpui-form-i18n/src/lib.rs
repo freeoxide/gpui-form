@@ -30,7 +30,6 @@ impl I18n {
         Self
     }
 
-    /// The current process-global locale.
     pub fn locale(&self) -> impl Deref<Target = str> + '_ {
         rust_i18n::locale()
     }
