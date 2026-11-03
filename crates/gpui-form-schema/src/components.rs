@@ -113,8 +113,6 @@ impl NumberInputKind {
         matches!(self, Self::UnsignedInteger)
     }
 
-    /// The one numeric-family classifier, shared by every emission path so the
-    /// recorded kind can never disagree with the generated validation branch.
     /// `type_str` is the caller's type string: the `as = ...` override, else raw.
     pub fn classify(type_str: &str) -> Self {
         if type_str.starts_with('f') {

@@ -372,8 +372,6 @@ impl<'a> FormShapeAdapter<'a> {
         })
     }
 
-    /// Generate a `syn::File` from a [`FormLayout`] implementation.
-    ///
     /// Returns a [`PrototypingError`] when the shape metadata is malformed.
     pub fn generate_file(&self, layout: &impl FormLayout) -> PrototypingResult<syn::File> {
         let parts = self.parts()?;
@@ -385,73 +383,42 @@ impl<'a> FormShapeAdapter<'a> {
 /// scaffold, obtained via [`FormShapeAdapter::parts`] and consumed by
 /// [`FormLayout::generate_file`]. Every field is `pub` for custom splicing.
 pub struct FormParts {
-    /// The original struct ident, e.g. `User`.
     pub struct_name_ident: syn::Ident,
-    /// Generated form view ident, e.g. `UserForm`.
     pub form_ident: syn::Ident,
-    /// Generated form fields ident, e.g. `UserFormFields`.
     pub form_fields_ident: syn::Ident,
-    /// Generated value holder ident, e.g. `UserFormValueHolder`.
     pub form_value_holder_ident: syn::Ident,
-    /// Glob import path for the source module, e.g. `some_lib::structs::user`.
     pub source_module_path: syn::Path,
-    /// GPUI key context string, e.g. `"UserForm"`.
     pub context_str: String,
-    /// GPUI element id, e.g. `"user-form"`.
     pub form_id_literal: String,
 
-    /// True when the struct has no component fields.
     pub is_empty: bool,
-    /// True when koruma validation is enabled.
     pub has_koruma: bool,
-    /// True when at least one source field was marked with `#[gpui_form(skip)]`.
     pub has_skipped_fields: bool,
 
-    /// Grouped `use` statements (source module glob + framework base + per-component items).
     pub imports: TokenStream,
     /// Doc-commented `<FORM>_I18N_KEYS` const listing every i18n key this
     /// scaffold resolves; splice at module level so the emitted file doubles as
     /// the locale scaffolding note for en / fr-FR / zh-CN.
     pub i18n_key_items: TokenStream,
-    /// `cx.new(|cx| FormComponents::field(window, cx))` calls.
     pub component_creations: TokenStream,
-    /// Field name tokens for the `FormFields { ... }` struct literal.
     pub field_initializers: TokenStream,
-    /// `.child(field().label(...).child(...))` chains for the form body.
     pub render_children: TokenStream,
-    /// Event handler `fn` items to place in an `impl` block.
     pub event_handlers: TokenStream,
-    /// `let mut _subscriptions = vec![...]` binding.
     pub subscription_calls: TokenStream,
-    /// Post-subscription setup (e.g. populating initial field values).
     pub post_subscription_init: TokenStream,
-    /// `let validation_errors = ...` binding; empty when koruma is disabled.
     pub validation_binding: TokenStream,
 
-    /// `_subscriptions: Vec<Subscription>,` struct field; empty when no subscriptions.
     pub subscriptions_field: TokenStream,
-    /// `_subscriptions,` in `Self { ... }`; empty when no subscriptions.
     pub subscriptions_init: TokenStream,
-    /// `current_data: FormValueHolder,` struct field; empty for empty forms.
     pub current_data_field: TokenStream,
-    /// `let current_data = FormValueHolder::default();` binding; empty for empty forms.
     pub current_data_let: TokenStream,
-    /// `current_data,` in `Self { ... }`; empty for empty forms.
     pub current_data_init: TokenStream,
-    /// `fields: FormFields { #field_initializers }` initializer block.
     pub fields_init: TokenStream,
-    /// Debug rows for value-holder and into-original status; empty for empty forms.
     pub debug_child: TokenStream,
-    /// `replace_current_data(...)` helper method; empty for empty forms.
     pub replace_current_data_fn: TokenStream,
 
-    /// Scaffold-level struct fields for composed fields (nested form
-    /// entities); empty for flat-only forms.
     pub composed_struct_fields: TokenStream,
-    /// Their `Self { ... }` initializers; empty for flat-only forms.
     pub composed_struct_inits: TokenStream,
-    /// Extra impl members (list row/add/remove control helpers); empty for
-    /// flat-only forms.
     pub composed_impl_members: TokenStream,
 }
 

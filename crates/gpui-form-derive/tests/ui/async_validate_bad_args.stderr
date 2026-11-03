@@ -1,11 +1,11 @@
 error: Unexpected type `int`
- --> tests/ui/async_validate_bad_args.rs:8:37
+ --> tests/ui/async_validate_bad_args.rs:5:37
   |
-8 |     #[gpui_form(validate(async_fn = 123), component(input))]
+5 |     #[gpui_form(validate(async_fn = 123), component(input))]
   |                                     ^^^
 
 error: Missing field `async_fn`
-  --> tests/ui/async_validate_bad_args.rs:11:17
-   |
-11 |     #[gpui_form(validate(), component(input))]
-   |                 ^^^^^^^^
+ --> tests/ui/async_validate_bad_args.rs:8:17
+  |
+8 |     #[gpui_form(validate(), component(input))]
+  |                 ^^^^^^^^

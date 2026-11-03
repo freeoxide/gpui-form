@@ -8,8 +8,6 @@ impl super::ComponentLayout for PhoneInputComponent {
         field_structure_tokens: &mut TokenStream,
         field_base_declarations_tokens: &mut TokenStream,
     ) {
-        // The emitted validator ignores `country`: cross-field selected-country
-        // enforcement needs the sibling's value, unavailable in this control.
         let FieldInformation::<PhoneInputOptions> {
             options: _,
             name,
@@ -22,8 +20,6 @@ impl super::ComponentLayout for PhoneInputComponent {
             pub #field_name_ident: ::gpui::Entity<::gpui_kit::component::input::InputState>,
         };
 
-        // Empty input passes so partially typed or cleared fields are not
-        // flagged mid-entry; required-ness is the validation layer's concern.
         let field_base_declaration = quote! {
             pub fn #field_name_ident(
                 window: &mut ::gpui::Window,

@@ -23,7 +23,6 @@ impl TouchedFields {
         }
     }
 
-    /// The field count this bitset was sized for.
     pub fn field_count(&self) -> usize {
         self.field_count
     }
@@ -50,7 +49,6 @@ impl TouchedFields {
         }
     }
 
-    /// Clear every touched flag.
     pub fn clear_all(&mut self) {
         for word in self.bits.iter_mut() {
             *word = 0;
@@ -62,12 +60,10 @@ impl TouchedFields {
         (0..self.field_count).filter(|&index| self.is_touched_index(index))
     }
 
-    /// How many fields are touched.
     pub fn touched_count(&self) -> usize {
         self.touched_indices().count()
     }
 
-    /// Whether any field is touched.
     pub fn is_any_touched(&self) -> bool {
         self.bits.iter().any(|word| *word != 0)
     }

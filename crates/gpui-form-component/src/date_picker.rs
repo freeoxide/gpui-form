@@ -42,7 +42,6 @@ pub enum DateRangePickerEvent {
     Change(Option<JiffDate>, Option<JiffDate>),
 }
 
-/// Use to store the state of the date picker.
 pub struct DatePickerState {
     focus_handle: FocusHandle,
     date: Option<JiffDate>,
@@ -63,7 +62,6 @@ impl Focusable for DatePickerState {
 
 impl EventEmitter<DatePickerEvent> for DatePickerState {}
 
-/// Use to store the state of the date range picker.
 pub struct DateRangePickerState {
     focus_handle: FocusHandle,
     start_date: Option<JiffDate>,
@@ -119,12 +117,10 @@ impl DatePickerState {
         }
     }
 
-    /// Get the selected date.
     pub fn date(&self) -> Option<JiffDate> {
         self.date
     }
 
-    /// Set the selected date.
     pub fn set_date(
         &mut self,
         date: impl Into<Option<JiffDate>>,
@@ -252,12 +248,10 @@ impl DateRangePickerState {
         }
     }
 
-    /// Get the selected date range.
     pub fn range(&self) -> (Option<JiffDate>, Option<JiffDate>) {
         (self.start_date, self.end_date)
     }
 
-    /// Set the selected date range.
     pub fn set_range(
         &mut self,
         start_date: impl Into<Option<JiffDate>>,

@@ -1,17 +1,3 @@
-//! Field-level state model (M1, feature: per-field dirty/changed-fields +
-//! patch, backlog #9): the derive emits `<Name>FormPatch` (one
-//! `Option<holder-typed>` slot per non-skipped field) and the facade's
-//! `is_field_dirty` / `changed_fields` / `patch` accessors.
-//!
-//! Storage tri-state coverage: `WrappedOption` (input on a plain field),
-//! `OriginallyOptional` (input on an `Option` field), `Plain` (checkbox on a
-//! `bool`), plus a `type`/`from`/`into` conversion field (comparison happens
-//! on holder types, so conversions need no special handling).
-//!
-//! Deliberately NOT gated by `#![cfg(feature = "serde")]`: it must compile
-//! under DEFAULT features, mirroring `form_state_dirty_without_serde.rs`
-//! (the patch serde derives are gated in the derive crate, not here).
-
 use gpui_form_derive::GpuiForm;
 
 #[derive(GpuiForm)]
@@ -37,7 +23,7 @@ struct Converted {
     count: u32,
 
     #[gpui_form(skip)]
-    #[allow(dead_code)] // skipped fields are intentionally absent from the patch
+    #[allow(dead_code)]
     audit: bool,
 }
 
@@ -66,8 +52,6 @@ fn two_field_holder_mutating_one_marks_only_that_field() {
 
 #[test]
 fn wrapped_option_slot_reads_as_option_option() {
-    // `name: String` + input => holder field `Option<String>` => patch slot
-    // `Option<Option<String>>`. Some(None) means "changed to cleared".
     let mut state = AccountFormState::new(AccountFormValueHolder::default());
     state.current_mut().name = Some("ada".to_string());
     let slot: Option<Option<String>> = state.patch().name;
@@ -85,8 +69,6 @@ fn wrapped_option_slot_reads_as_option_option() {
 
 #[test]
 fn originally_optional_and_plain_slots_are_holder_typed() {
-    // `age: Option<u32>` (originally optional) => slot Option<Option<u32>>;
-    // `newsletter: bool` (plain) => slot Option<bool>.
     let mut state = AccountFormState::new(AccountFormValueHolder::default());
     state.current_mut().age = Some(7);
     state.current_mut().newsletter = true;
@@ -116,8 +98,6 @@ fn conversion_fields_patch_on_holder_types() {
     let patch = state.patch();
     let slot: Option<Option<String>> = patch.count;
     assert_eq!(slot, Some(Some("id-7".to_string())));
-    // Skipped field has no slot at all (this file only referencing `count`
-    // proves the patch has no `audit` member).
     assert_eq!(state.changed_fields(), vec![ConvertedFormPath::count()]);
 }
 
@@ -149,7 +129,6 @@ fn patch_between_is_pure_and_uses_declaration_order() {
     let patch = AccountFormPatch::between(&from, &to);
     assert!(!patch.is_empty());
     assert_eq!(patch.changed_fields(), vec![AccountFormPath::newsletter()]);
-    // `from` is untouched by the diff.
     assert_eq!(from, AccountFormValueHolder::default());
 }
 

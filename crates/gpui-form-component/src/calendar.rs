@@ -25,7 +25,6 @@ pub enum CalendarEvent {
     Selected(Date),
 }
 
-/// The date of the calendar.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Date {
     Single(Option<NaiveDate>),
@@ -132,7 +131,6 @@ pub struct Calendar {
     max_date: Option<NaiveDate>,
 }
 
-/// Use to store the state of the calendar.
 pub struct CalendarState {
     focus_handle: FocusHandle,
     view_mode: ViewMode,
@@ -145,7 +143,6 @@ pub struct CalendarState {
 }
 
 impl CalendarState {
-    /// Create a new calendar state.
     pub fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         let today = Local::now().naive_local().date();
         Self {
@@ -161,7 +158,6 @@ impl CalendarState {
         .year_range((today.year() - 50, today.year() + 50))
     }
 
-    /// Set the date of the calendar.
     pub fn set_date(&mut self, date: impl Into<Date>, _: &mut Window, cx: &mut Context<Self>) {
         let date = date.into();
 
@@ -181,7 +177,6 @@ impl CalendarState {
         cx.notify()
     }
 
-    /// Get the date of the calendar.
     pub fn date(&self) -> Date {
         self.date
     }
@@ -655,8 +650,6 @@ impl Calendar {
     fn render_years(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
         let current_year = state.current_year;
-        // Own the page: it borrows through `state`, which borrows `cx`, and
-        // the row closures below need `cx` mutably.
         let current_page_years = current_year_page(&state.years, state.year_page).to_vec();
 
         h_flex()

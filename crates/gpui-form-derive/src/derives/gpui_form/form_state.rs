@@ -1,7 +1,3 @@
-//! Generates the per-form state facade (`<Name>FormState`) and patch type
-//! (`<Name>FormPatch`) composing the core primitives (`FormState`,
-//! `TouchedFields`, and optionally `ValidationCache`) via `<Name>FormPath`.
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::DeriveInput;
@@ -31,7 +27,7 @@ pub fn generate_form_state(
 
     let non_skipped: Vec<&FieldOptionality> = fields.iter().filter(|f| !f.skip).collect();
 
-    // A zero-variant enum cannot reference `'a`; carry the lifetime only
+    // A zero-variant enum cannot reference `'a` (E0392); carry the lifetime only
     // when at least one field participates (mirrors errors.rs).
     let error_enum_has_variants = fields.iter().any(participates_in_field_errors);
     let error_enum_lifetime = if error_enum_has_variants {
@@ -126,8 +122,6 @@ pub fn generate_form_state(
                 &mut self,
                 field: &#path_ident,
             ) -> Option<#error_enum_ident #error_enum_lifetime> {
-                // One trailing shared borrow: a hit returned ahead of
-                // `validate` would pin the borrow across it (E0502).
                 if self.validation.get(self.state.current()).is_none() {
                     Self::validate(self);
                 }
@@ -171,8 +165,6 @@ pub fn generate_form_state(
                         #compare
                     },
                 },
-                // Composed values are opaque to this form; any path rooted at
-                // the field compares the value as a whole (deeper paths never assert).
                 FieldComposition::Nested { .. } | FieldComposition::List { .. } => quote! {
                     [::gpui_form::core::PathSegment::Name(#field_name_str), ..] => {
                         #compare
@@ -181,8 +173,6 @@ pub fn generate_form_state(
             }
         })
         .collect();
-    // Empty forms have no valid paths, so an unknown path there is expected
-    // rather than a caller bug — no debug assert.
     let is_field_dirty_unknown_arm = if is_field_dirty_arms.is_empty() {
         quote! { _ => false, }
     } else {

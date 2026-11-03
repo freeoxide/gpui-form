@@ -1,8 +1,3 @@
-//! `value_binding` opts a custom component into the generated seed/event
-//! path; `CustomComponentValueAdapter::set_state_value` is required, so an
-//! impl that omits it must fail to compile (a defaulted no-op would
-//! silently drop the form value).
-
 use gpui_form::custom::{
     CustomComponentShape, CustomComponentValueAdapter, CustomComponentValueChange,
 };
@@ -20,8 +15,6 @@ impl CustomComponentShape for EmailShape {
     }
 }
 
-// Missing `set_state_value`: the value-binding seed path would silently
-// drop the form value, so this impl must not compile.
 impl CustomComponentValueAdapter<String> for EmailShape {
     type Event = ();
 

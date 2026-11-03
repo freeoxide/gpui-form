@@ -11,8 +11,6 @@ publish.workspace = true
 repository.workspace = true
 readme = "README.md"
 
-# The package is published as `freeoxide-gpui-form-derive`; the proc-macro
-# lib target keeps its historical name.
 [lib]
 name = "gpui_form_derive"
 proc-macro = true

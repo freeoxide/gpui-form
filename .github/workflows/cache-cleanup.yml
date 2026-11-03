@@ -2,7 +2,6 @@ name: cache-cleanup
 
 on:
   schedule:
-    # Daily at 03:17 UTC; off the top of the hour to dodge cron congestion.
     - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
@@ -64,7 +63,6 @@ jobs:
                   if len(parts) != 4:
                       continue
                   cache_id, size, accessed, _key = parts
-                  # Never-restored caches report an empty access time: stale.
                   stale = not accessed or datetime.fromisoformat(
                       accessed.replace("Z", "+00:00")
                   ).timestamp() < cutoff

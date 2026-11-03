@@ -1,38 +1,11 @@
-//! Parity oracle (campaign round 0): characterization tests pinning the
-//! CURRENT behavior of `gpui-form-core`'s numeric validators and typed field
-//! paths.
-//!
-//! These tests exist to make every later optimization a visible diff: they
-//! must keep passing UNCHANGED across the whole campaign. When an
-//! optimization legitimately changes behavior, the change must be a
-//! deliberate, reviewed oracle update — never a silent drift.
-//!
-//! Every expected value below was pinned against the pre-optimization tree
-//! (accept/reject traced through `numeric.rs` and confirmed against its
-//! existing unit tests).
-
 use std::collections::{HashMap, HashSet};
 
 use gpui_form_core::numeric::{validate_signed_numeric, validate_unsigned_numeric};
 use gpui_form_core::{FieldPath, PathSegment};
 
-// ── Numeric validator accept/reject table ──────────────────────────────────
-
-/// The campaign's canonical keystroke set: `''`, `'-'`, `'0.'`, `'1e5'`,
-/// `'+3'`, `'12a'` — the intermediate-editing and malformed shapes users
-/// type, where the CURRENT contract is:
-///
-/// - `""` always accepted (empty input is "no value yet"),
-/// - `"-"` accepted for signed types (minus-sign intermediate state),
-/// - `"0."` shape-valid (trailing dot allowed) but only parseable by floats,
-/// - `'e'`/`'+'`/letters rejected by SHAPE even when the target type would
-///   parse the string (`1e5` parses as f64; the validator still rejects it).
 #[test]
 fn numeric_validator_accept_reject_table_is_pinned() {
-    // (input, signed i32 require_parse, signed f64 require_parse,
-    //  unsigned u32 require_parse, signed f64 no parse check)
     const TABLE: &[(&str, bool, bool, bool, bool)] = &[
-        // input, i32+parse, f64+parse, u32+parse, f64-no-parse
         ("", true, true, true, true),
         ("-", true, true, false, true),
         ("0.", false, true, false, true),
@@ -65,13 +38,8 @@ fn numeric_validator_accept_reject_table_is_pinned() {
     }
 }
 
-/// Adjacent semantics the table rides on, pinned so an optimization cannot
-/// shift them while keeping the six canonical rows green: leading-zero
-/// rejection, sign placement, and integer/float parse boundaries.
 #[test]
 fn numeric_validator_adjacent_semantics_are_pinned() {
-    // Leading zeros before a digit are rejected; a lone or dot-following
-    // zero is fine.
     assert!(validate_signed_numeric::<i32>("0", true));
     assert!(validate_signed_numeric::<i32>("-0", true));
     assert!(validate_signed_numeric::<f64>("0.5", true));
@@ -83,21 +51,17 @@ fn numeric_validator_adjacent_semantics_are_pinned() {
     assert!(!validate_unsigned_numeric::<u32>("00", true));
     assert!(!validate_unsigned_numeric::<u32>("001", true));
 
-    // Only ONE leading minus; never anywhere else.
     assert!(validate_signed_numeric::<i32>("-123", true));
     assert!(!validate_signed_numeric::<i32>("--1", true));
     assert!(!validate_signed_numeric::<i32>("1-2", true));
     assert!(!validate_signed_numeric::<i32>("1.2.3", true));
     assert!(validate_signed_numeric::<f64>("1.", true));
 
-    // Unsigned rejects signs and separators outright.
     assert!(!validate_unsigned_numeric::<u32>("-", true));
     assert!(!validate_unsigned_numeric::<u32>("-1", true));
     assert!(!validate_unsigned_numeric::<u32>("1.5", true));
     assert!(!validate_unsigned_numeric::<u32>("1a", true));
 
-    // Parse semantics reach the target type: u8 range is enforced when
-    // require_parse is on, and skipped when it is off.
     assert!(validate_unsigned_numeric::<u8>("255", true));
     assert!(!validate_unsigned_numeric::<u8>("256", true));
     assert!(validate_signed_numeric::<i32>(
@@ -110,22 +74,9 @@ fn numeric_validator_adjacent_semantics_are_pinned() {
     ));
 }
 
-/// Multi-byte UTF-8 inputs pin the byte-scan equivalence the allocation-free
-/// keystroke scan relies on: no byte of a multi-byte UTF-8 character is an
-/// ASCII digit, `.`, or `-`, so a byte-level scan must reject exactly where a
-/// `char`-level scan would (every row below rejects in ALL four columns,
-/// including mixed ASCII-leading shapes like `"1٢"` and sign-leading `-é`).
 #[test]
 fn numeric_validator_utf8_inputs_reject_like_char_scans() {
-    const MULTIBYTE_INPUTS: &[&str] = &[
-        "١٢٣",  // Arabic-Indic digits: digit-LOOKING chars, not ASCII digits
-        "1٢",   // valid ASCII lead, multi-byte tail
-        "-1٢",  // valid sign, multi-byte tail
-        "é",    // multi-byte first char (signed first-char check)
-        "-é",   // sign then multi-byte (signed rest scan)
-        "1.2é", // valid float prefix, multi-byte tail
-        "²",    // superscript two: `char::is_numeric`, never `is_ascii_digit`
-    ];
+    const MULTIBYTE_INPUTS: &[&str] = &["١٢٣", "1٢", "-1٢", "é", "-é", "1.2é", "²"];
 
     for &input in MULTIBYTE_INPUTS {
         assert!(
@@ -146,27 +97,20 @@ fn numeric_validator_utf8_inputs_reject_like_char_scans() {
         );
     }
 
-    // The ASCII neighbors of the rejected shapes stay accepted, so the
-    // multibyte rejections above are about the multi-byte bytes themselves.
     assert!(validate_signed_numeric::<i32>("123", true));
     assert!(validate_signed_numeric::<i32>("-12", true));
     assert!(validate_signed_numeric::<f64>("1.2", true));
     assert!(validate_unsigned_numeric::<u32>("123", true));
 }
 
-// ── FieldPath Display / equality ───────────────────────────────────────────
-
 #[test]
 fn field_path_display_rendering_is_pinned() {
-    // Empty path renders as the empty string.
     assert_eq!(FieldPath::new(&[]).to_string(), "");
-    // Flat name-only paths.
     assert_eq!(FieldPath::new(&["email"]).to_string(), "email");
     assert_eq!(
         FieldPath::new(&["address", "city"]).to_string(),
         "address.city"
     );
-    // Typed index chains render as dotted numbers.
     assert_eq!(
         FieldPath::new(&["contacts"])
             .push_index(2)
@@ -178,11 +122,7 @@ fn field_path_display_rendering_is_pinned() {
         FieldPath::from_segments(&[PathSegment::Name("tags"), PathSegment::Index(4)]).to_string(),
         "tags.4"
     );
-    // A literal name "2" renders IDENTICALLY to an index 2 segment even
-    // though the two paths never compare equal (see the equality oracle):
-    // Display is lossy about segment kind. Pinned as current behavior.
     assert_eq!(FieldPath::new(&["contacts", "2"]).to_string(), "contacts.2");
-    // Join composes with dots in segment order.
     assert_eq!(
         FieldPath::new(&["address"])
             .join(&FieldPath::new(&["city", "zip"]))
@@ -195,23 +135,19 @@ fn field_path_display_rendering_is_pinned() {
 fn field_path_equality_is_pinned() {
     let city = FieldPath::new(&["address", "city"]);
 
-    // Equality is by segment sequence: same segments, same path.
     assert_eq!(city, FieldPath::new(&["address", "city"]));
     assert_eq!(city.clone(), city);
     assert_eq!(FieldPath::new(&[]), FieldPath::from_segments(&[]));
 
-    // Different names, different order, different path.
     assert_ne!(city, FieldPath::new(&["address", "zip"]));
     assert_ne!(city, FieldPath::new(&["city", "address"]));
     assert_ne!(city, FieldPath::new(&["address"]));
 
-    // An Index segment never equals a Name segment, even with equal Display.
     assert_ne!(
         FieldPath::new(&["tags"]).push_index(2),
         FieldPath::new(&["tags", "2"])
     );
 
-    // Distinct construction routes converge on equal paths.
     assert_eq!(
         FieldPath::new(&["a", "b"]),
         FieldPath::from_segments(&[PathSegment::Name("a"), PathSegment::Name("b")])
@@ -235,7 +171,6 @@ fn field_path_equality_is_pinned() {
             .push_name("name")
     );
 
-    // Segment-level equality underlies path equality.
     assert_eq!(PathSegment::Name("tags"), PathSegment::Name("tags"));
     assert_eq!(PathSegment::Index(3), PathSegment::Index(3));
     assert_ne!(PathSegment::Name("3"), PathSegment::Index(3));
@@ -244,8 +179,6 @@ fn field_path_equality_is_pinned() {
 
 #[test]
 fn field_path_hash_contract_is_pinned() {
-    // Equal paths must hash equal (the HashSet/HashMap contract the derive's
-    // error maps and touched-field tracking rely on).
     let mut set = HashSet::new();
     set.insert(FieldPath::new(&["address", "city"]));
     assert!(set.contains(&FieldPath::new(&["address", "city"])));

@@ -19,12 +19,10 @@ pub enum PhoneNumberValidation {
 }
 
 impl PhoneNumberValidation {
-    /// Whether the result is [`PhoneNumberValidation::Valid`].
     pub fn is_valid(&self) -> bool {
         matches!(self, Self::Valid(_))
     }
 
-    /// Whether the input was empty.
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
     }
@@ -35,7 +33,6 @@ impl PhoneNumberValidation {
         matches!(self, Self::Valid(_) | Self::Empty)
     }
 
-    /// The validated number when valid.
     pub fn validated(&self) -> Option<&ValidatedPhoneNumber> {
         match self {
             Self::Valid(number) => Some(number),
@@ -43,12 +40,10 @@ impl PhoneNumberValidation {
         }
     }
 
-    /// The parsed country id when valid.
     pub fn country(&self) -> Option<country::Id> {
         self.validated().and_then(ValidatedPhoneNumber::country)
     }
 
-    /// The parsed E.164 representation when valid.
     pub fn e164(&self) -> Option<&str> {
         match self {
             Self::Valid(number) => Some(number.e164()),
@@ -87,10 +82,8 @@ impl ValidatedPhoneNumber {
 /// [`country::Id`] plus a user-facing label, for helpers such as
 /// [`validate_phone_number_for`].
 pub trait PhoneCountry {
-    /// The libphonenumber country id for this value.
     fn phone_country_id(&self) -> country::Id;
 
-    /// A user-facing label for this country, used in validation messages.
     fn phone_country_label(&self) -> String;
 }
 

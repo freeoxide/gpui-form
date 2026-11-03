@@ -1,5 +1,5 @@
 error: list requires an item component: component(list(item = input))
- --> tests/ui/list_requires_item.rs:8:27
+ --> tests/ui/list_requires_item.rs:5:27
   |
-8 |     #[gpui_form(component(list))]
+5 |     #[gpui_form(component(list))]
   |                           ^^^^

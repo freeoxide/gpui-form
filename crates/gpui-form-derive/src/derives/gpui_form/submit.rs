@@ -1,7 +1,3 @@
-//! Emits the opt-in `#[gpui_form(submit)]` alias:
-//! `type <Name>FormSubmission = ::gpui_form::core::submit::SubmitTracker<E>`,
-//! where `E` is the holder's `ValidateExt::Error` (koruma-gated, non-generic) or `BoxError`.
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::DeriveInput;

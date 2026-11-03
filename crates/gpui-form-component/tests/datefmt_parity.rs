@@ -1,22 +1,7 @@
-//! Parity oracle (campaign round 0): characterization tests pinning the
-//! CURRENT ICU4X date formatting behavior of the date picker's display path.
-//!
-//! These tests exist to make every later optimization a visible diff: they
-//! must keep passing UNCHANGED across the whole campaign (e.g. when the
-//! per-call `FixedCalendarDateTimeFormatter` construction in
-//! `format_display_date` gets cached). A differing value after an
-//! optimization is a behavior change and must be a deliberate oracle update.
-//!
-//! Every expected string below was pinned by running the exact
-//! `format_display_date` code path (icu_datetime 2.2 / icu_calendar 2.2,
-//! compiled CLDR data) against these fixed dates before any optimization
-//! work started.
-
 use gpui_form_component::date_picker::{DateDisplayStyle, format_display_date};
 use icu_locale_core::{Locale, locale};
 use jiff::civil::{Date, date};
 
-/// One locale's pinned outputs: (date, Short, Medium, Long).
 type Row = (Date, &'static str, &'static str, &'static str);
 
 fn assert_rows_match_current_icu_output(locale: &Locale, rows: &[Row]) {
@@ -130,8 +115,6 @@ fn zh_cn_outputs_are_pinned() {
 
 #[test]
 fn locale_is_explicit_not_global() {
-    // The pure path takes the locale as an argument: the same date through
-    // two locales differs in one call, with no global state involved.
     let d = date(2025, 1, 15);
     let en = format_display_date(d, &locale!("en"), DateDisplayStyle::Medium).expect("en");
     let fr = format_display_date(d, &locale!("fr-FR"), DateDisplayStyle::Medium).expect("fr");

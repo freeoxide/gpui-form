@@ -124,8 +124,6 @@ pub fn expand_gpui_form(
 
     let enable_koruma = koruma_options.is_some() || !parsed_koruma_fields.is_empty();
     let enable_koruma_fluent = koruma_options.as_ref().map(|k| k.fluent).unwrap_or(false);
-    // `required_if` desugars to a koruma validator, so it forces a koruma
-    // form even without any other koruma opt-in.
     let has_required_if_fields = fields_iter
         .iter()
         .any(|field| !field.skip() && field.required_if.is_some());
@@ -205,8 +203,6 @@ pub fn expand_gpui_form(
             .unwrap_or_default();
         let default_expr = parse_field_default(field);
 
-        // Their metadata home is the schema `FieldVariant`, only emitted for
-        // component fields.
         if field.component.is_none() && (field.depends_on.is_some() || field.required_if.is_some())
         {
             composition_errors.push(syn::Error::new_spanned(
@@ -410,8 +406,6 @@ pub fn expand_gpui_form(
             enable_koruma_fluent,
         );
     let field_path_tokens = generate_field_path(&original_input, &field_optionality);
-    // Same gate that derives Koruma on the holder (field-attr-only koruma
-    // forms included), non-generic only: the errors map is not emitted for generics.
     let enable_validation_cache = needs_koruma_derive && original_input.generics.params.is_empty();
     let form_state_tokens =
         generate_form_state(&original_input, &field_optionality, enable_validation_cache);
@@ -449,8 +443,6 @@ pub fn expand_gpui_form(
                     .cloned()
                     .unwrap_or_default();
 
-                // Mirror the runtime gate in value_holder.rs: only koruma
-                // forms export required metadata their validate() enforces.
                 if enable_koruma
                     && fields_requiring_required.contains(&field_name_str)
                     && !validation_rules.contains(&"RequiredValidation".to_string())
@@ -563,8 +555,6 @@ pub fn expand_gpui_form(
         })
         .collect();
 
-    // `inventory::submit!` evaluates its value in a `static` initializer
-    // (`&{ expr }`), so the chain is named once as the `SHAPE` const.
     let shape_construction = quote! {
         ::gpui_form::schema::registry::GpuiFormShape::new(
             stringify!(#struct_name),

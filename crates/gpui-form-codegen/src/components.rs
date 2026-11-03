@@ -320,8 +320,6 @@ impl FromMeta for ListItemSpec {
                     &expr_path.path.to_token_stream().to_string(),
                 )),
             },
-            // darling can wrap attribute values in invisible `Expr::Group`
-            // nodes; recurse through them.
             syn::Expr::Group(group) => Self::from_expr(&group.expr),
             syn::Expr::Lit(expr_lit) => Self::from_value(&expr_lit.lit),
             _ => Err(DarlingError::unexpected_expr_type(expr)),
@@ -819,8 +817,6 @@ impl Components {
                     ComponentKind::FilePicker => {
                         quote! { ::gpui_form::schema::components::ComponentKind::FilePicker }
                     },
-                    // `ListItemSpec` rejects these kinds at parse time, so the
-                    // arm is unreachable; kept for match exhaustiveness.
                     ComponentKind::Custom | ComponentKind::Nested | ComponentKind::List => {
                         quote! { ::gpui_form::schema::components::ComponentKind::Input }
                     },

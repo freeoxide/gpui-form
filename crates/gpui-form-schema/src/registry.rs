@@ -11,7 +11,6 @@ pub struct GpuiFormShape {
     /// Source file path where the struct is declared (`file!()`), used to
     /// generate imports.
     pub source_path: &'static str,
-    /// Whether the struct has koruma validation enabled at the struct level.
     pub koruma_enabled: bool,
     /// Whether the struct contains any `#[gpui_form(skip)]` fields; when true,
     /// `FormValueHolder` cannot convert back without skipped-field values.
@@ -34,7 +33,6 @@ impl GpuiFormShape {
         }
     }
 
-    /// Marks whether the struct has any `#[gpui_form(skip)]` fields.
     pub const fn with_skipped_fields(mut self, has_skipped_fields: bool) -> Self {
         self.has_skipped_fields = has_skipped_fields;
         self
@@ -48,12 +46,10 @@ impl GpuiFormShape {
                 .any(|field| !field.validations.is_empty())
     }
 
-    /// Returns true when koruma validation is enabled.
     pub const fn has_koruma(&self) -> bool {
         self.koruma_enabled
     }
 
-    /// Returns true when at least one source field is marked `#[gpui_form(skip)]`.
     pub const fn has_skipped_fields(&self) -> bool {
         self.has_skipped_fields
     }
@@ -77,11 +73,8 @@ pub struct FieldVariant {
     pub behaviour: ComponentsBehaviour,
     /// List of validation rule identifiers applied to this field (for diagnostics/rendering).
     pub validations: &'static [&'static str],
-    /// Default value expression as a string, if one was specified.
     pub default_expr: Option<&'static str>,
-    /// Source-to-form conversion expression, if one was specified.
     pub from_expr: Option<&'static str>,
-    /// Form-to-source conversion expression, if one was specified.
     pub into_expr: Option<&'static str>,
     /// For custom components: the shape type path implementing
     /// `gpui_form::custom::CustomComponentShape`.
@@ -142,13 +135,11 @@ impl FieldVariant {
         self
     }
 
-    /// Attach the component-driven generated value-holder wrapping policy.
     pub const fn with_wraps_in_option(mut self, wraps_in_option: bool) -> Self {
         self.wraps_in_option = wraps_in_option;
         self
     }
 
-    /// Attach optional source/form conversion expressions.
     pub const fn with_conversions(
         mut self,
         from_expr: Option<&'static str>,
@@ -159,13 +150,11 @@ impl FieldVariant {
         self
     }
 
-    /// Attach a default value expression to this field metadata.
     pub const fn with_default(mut self, default_expr: &'static str) -> Self {
         self.default_expr = Some(default_expr);
         self
     }
 
-    /// Attach a custom UI component path to this field metadata.
     pub const fn with_custom_component(mut self, component: &'static str) -> Self {
         self.custom_component = Some(component);
         self
@@ -178,7 +167,6 @@ impl FieldVariant {
         self
     }
 
-    /// Attach the custom component shape type path.
     pub const fn with_custom_shape(mut self, shape: &'static str) -> Self {
         self.custom_shape = Some(shape);
         self
@@ -190,7 +178,6 @@ impl FieldVariant {
         self
     }
 
-    /// Attach non-rendering layout hints; see [`crate::layout::FieldLayout`].
     pub const fn with_layout(mut self, layout: FieldLayout) -> Self {
         self.layout = layout;
         self
@@ -204,7 +191,6 @@ impl FieldVariant {
         self
     }
 
-    /// The async validator path recorded for this field, if any.
     pub const fn async_validator(&self) -> Option<&'static str> {
         self.async_validator
     }
@@ -237,24 +223,18 @@ impl FieldVariant {
         self.required_if
     }
 
-    /// Returns true when the generated value holder stores this field as `Option<T>`.
     pub const fn value_holder_wraps_in_option(&self) -> bool {
         self.optional || self.wraps_in_option
     }
 
-    /// This field is a `component(nested)` field whose holder stores the
-    /// nested form's own generated value holder.
     pub const fn is_nested(&self) -> bool {
         matches!(self.behaviour, ComponentsBehaviour::Nested(_))
     }
 
-    /// This field is a `component(list(...))` field whose holder stores the
-    /// plain item `Vec` plus generated add/remove/items operations.
     pub const fn is_list(&self) -> bool {
         matches!(self.behaviour, ComponentsBehaviour::List(_))
     }
 
-    /// Returns true when generated code should subscribe to this field.
     pub const fn subscribable(&self) -> bool {
         self.behaviour.kind().subscribable() || self.custom_value_binding
     }
@@ -275,12 +255,10 @@ impl FieldVariant {
         self.field_name_with_behaviour().to_kebab_case()
     }
 
-    /// Returns the validation rule identifiers attached to this field.
     pub fn validation_rules(&self) -> &'static [&'static str] {
         self.validations
     }
 
-    /// Attach validation rule identifiers to this field metadata.
     pub const fn with_validations(mut self, validations: &'static [&'static str]) -> Self {
         self.validations = validations;
         self
@@ -342,8 +320,6 @@ pub enum FormSchemaComponent {
 }
 
 impl FormSchemaComponent {
-    /// The component kind of this behaviour, mirroring
-    /// [`crate::components::ComponentsBehaviour::kind`].
     pub fn kind(&self) -> crate::components::ComponentKind {
         match self {
             Self::Input => crate::components::ComponentKind::Input,
@@ -445,32 +421,25 @@ pub struct FormSchemaField {
     /// Validation rule identifiers applied to this field.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validations: Vec<String>,
-    /// Default value expression, if specified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_expr: Option<String>,
-    /// Source-to-form conversion expression, if specified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from_expr: Option<String>,
-    /// Form-to-source conversion expression, if specified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub into_expr: Option<String>,
-    /// Custom component shape type path, if specified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_shape: Option<String>,
-    /// Custom UI component type path, if specified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_component: Option<String>,
     /// Whether the custom component opted into value binding generation.
     #[serde(default)]
     pub custom_value_binding: bool,
-    /// Non-rendering layout hints.
     #[serde(default)]
     pub layout: FormSchemaLayout,
     /// Async validator path from `validate(async_fn = ...)`; metadata-only,
     /// nothing executes it yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub async_validator: Option<String>,
-    /// The sibling field this field depends on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depends_on: Option<String>,
     /// The controlling sibling field for the conditional-required rule (also
@@ -480,17 +449,14 @@ pub struct FormSchemaField {
 }
 
 impl FormSchemaField {
-    /// The component kind of this field.
     pub fn kind(&self) -> crate::components::ComponentKind {
         self.component.kind()
     }
 
-    /// This field composes another generated form.
     pub fn is_nested(&self) -> bool {
         matches!(self.component, FormSchemaComponent::Nested { .. })
     }
 
-    /// This field is an editable `Vec<T>` field.
     pub fn is_list(&self) -> bool {
         matches!(self.component, FormSchemaComponent::List { .. })
     }
@@ -533,10 +499,8 @@ pub struct FormSchema {
     pub form: String,
     /// The source file path where the struct is declared (`file!()`).
     pub source_path: String,
-    /// Whether the struct has koruma validation enabled.
     #[serde(default)]
     pub koruma_enabled: bool,
-    /// Whether the source struct contains `#[gpui_form(skip)]` fields.
     #[serde(default)]
     pub has_skipped_fields: bool,
     /// One entry per non-skipped component field, in declaration order.
@@ -544,7 +508,6 @@ pub struct FormSchema {
 }
 
 impl FormSchema {
-    /// Look up an exported field entry by field name.
     pub fn field(&self, name: &str) -> Option<&FormSchemaField> {
         self.fields.iter().find(|field| field.name == name)
     }

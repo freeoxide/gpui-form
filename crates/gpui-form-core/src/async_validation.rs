@@ -9,7 +9,6 @@ use crate::FieldPath;
 /// a whole form.
 #[allow(async_fn_in_trait)]
 pub trait AsyncFieldValidation<H> {
-    /// The async failure type for this validator.
     type Error;
 
     /// Validate one field of the live holder; return `Ok(())` for fields

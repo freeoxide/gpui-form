@@ -6,8 +6,7 @@ use std::{collections::BTreeSet, fs, path::Path};
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-// Linked for its inventory side effects: without this line the shape
-// registry is empty and the generator emits nothing.
+// Linked for inventory side effects: unlinked crates submit no shapes (docs.rs/inventory).
 extern crate some_lib;
 
 struct ComponentLayout;

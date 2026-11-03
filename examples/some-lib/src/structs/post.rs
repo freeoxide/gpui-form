@@ -16,8 +16,6 @@ pub struct Address {
     pub zip: Option<String>,
 }
 
-/// The outer form: a nested field, a scalar-item list with per-item element
-/// validators, and a flat field so mixed shapes stay covered.
 #[derive(Clone, Debug, Default, GpuiForm, koruma::Koruma)]
 pub struct PostEditor {
     #[gpui_form(component(input))]

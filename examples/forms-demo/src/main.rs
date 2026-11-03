@@ -1,7 +1,5 @@
 #![recursion_limit = "1024"]
 
-// `gpui_kit` re-exports itself as `gpui` (0.7.3); the leading `::` keeps this
-// import bound to the extern crate under the glob import below.
 use ::gpui::{
     App, AppContext as _, Context, Div, Entity, FocusHandle, Focusable, InteractiveElement as _,
     IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
@@ -624,8 +622,8 @@ impl FormsDemo {
         }))
     }
 
-    /// Input's padded wrapper tracks a separate frame-focus handle, so
-    /// border clicks miss the editor (github.com/longbridge/gpui-kit/issues/3183).
+    // Input's padded wrapper tracks a separate frame-focus handle, so
+    // border clicks miss the editor (github.com/longbridge/gpui-kit/issues/3183).
     fn click_to_focus(&self, state: &Entity<InputState>) -> Div {
         let state = state.clone();
         div()
@@ -1146,8 +1144,6 @@ impl Render for FormsDemo {
                         },
                     ))
                     .child(
-                        // The new-tag editor must render: an unrendered input
-                        // can never gain focus or text, so Add would read "".
                         h_flex()
                             .gap_2()
                             .child(

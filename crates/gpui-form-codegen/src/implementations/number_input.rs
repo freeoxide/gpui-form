@@ -25,8 +25,6 @@ impl super::ComponentLayout for NumberInputComponent {
             .as_ref()
             .map(|ty| quote! { #ty })
             .unwrap_or_else(|| quote! { #r#type });
-        // Same shared classification the recorded metadata payload carries,
-        // so an `as = ...` field cannot record one family and validate as another.
         let is_unsigned = number_input_kind(options, r#type).is_unsigned();
 
         let validation_logic = if is_unsigned {

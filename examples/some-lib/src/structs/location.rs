@@ -113,7 +113,6 @@ impl Default for Country {
 
 use gpui_form::GpuiForm;
 
-/// A form that demonstrates tuple select with nested enums.
 #[derive(Clone, Debug, Default, GpuiForm)]
 pub struct LocationForm {
     #[gpui_form(component(input))]

@@ -1,7 +1,7 @@
 error[E0046]: not all trait items implemented, missing: `set_state_value`
-  --> tests/ui/custom_component_missing_set_state_value.rs:25:1
+  --> tests/ui/custom_component_missing_set_state_value.rs:18:1
    |
-25 | impl CustomComponentValueAdapter<String> for EmailShape {
+18 | impl CustomComponentValueAdapter<String> for EmailShape {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `set_state_value` in implementation
    |
    = help: implement the missing item: `fn set_state_value(_: &mut <Self as CustomComponentShape>::State, _: Option<&std::string::String>, _: &mut gpui::Window, _: &mut gpui::Context<'_, <Self as CustomComponentShape>::State>) { todo!() }`

@@ -84,10 +84,6 @@ where
         .collect()
 }
 
-/// The lib target names of the two runtime packages. The packages publish
-/// as `freeoxide-gpui-form[-component]` while their lib targets keep the
-/// historical `gpui_form[_component]` names, so `use gpui_form::...`
-/// consumer code compiles against either dependency spelling.
 fn runtime_lib_name(pkg: &str) -> Option<&'static str> {
     match pkg {
         "freeoxide-gpui-form" | "gpui-form" => Some("gpui_form"),
@@ -100,13 +96,6 @@ fn crate_tokens(pkg: &str, found_crate: FoundCrate) -> proc_macro2::TokenStream 
     match found_crate {
         FoundCrate::Itself => quote! { crate },
         FoundCrate::Name(found) => {
-            // `proc-macro-crate` returns the caller's dependency KEY. That
-            // key is the extern crate name only when the dependency was
-            // RENAMED (`gpui-form = { package = "freeoxide-gpui-form" }`).
-            // When the key equals the package name (the un-renamed
-            // spelling a fresh consumer writes), cargo registers the crate
-            // under the package's LIB TARGET name — `gpui_form`, not the
-            // `freeoxide_gpui_form` the key implies — so correct it.
             let name = match runtime_lib_name(pkg) {
                 Some(lib) if found == pkg.replace('-', "_") => lib,
                 _ => found.as_str(),
@@ -118,12 +107,6 @@ fn crate_tokens(pkg: &str, found_crate: FoundCrate) -> proc_macro2::TokenStream 
 }
 
 fn resolve_runtime_crate() -> syn::Result<proc_macro2::TokenStream> {
-    // The packages publish under `freeoxide-` names; workspace members and
-    // legacy git consumers keep the historical dependency keys via
-    // `package =` renames. Probe each runtime surface under both
-    // spellings: `proc-macro-crate` matches the caller's manifest by
-    // PACKAGE name, and `crate_tokens` maps the found dependency key to
-    // the extern crate name cargo actually registers.
     let mut resolution_errors = Vec::new();
     for name in [
         "freeoxide-gpui-form",

@@ -1,7 +1,3 @@
-//! Runtime behavior of the generated `...FormValueHolder` conversion surface:
-//! `type`/`from`/`into` overrides, skipped-field `into_original`, the
-//! default-expression comparison, and `present_fields_json`.
-
 use gpui_form_derive::GpuiForm;
 
 #[derive(Debug, GpuiForm)]
@@ -15,7 +11,7 @@ struct OverrideForm {
     count: u32,
 
     #[gpui_form(skip)]
-    #[allow(dead_code)] // skipped fields are intentionally absent from the holder
+    #[allow(dead_code)]
     audit: bool,
 }
 
@@ -29,7 +25,7 @@ struct PresentJsonForm {
     note: String,
 
     #[gpui_form(skip)]
-    #[allow(dead_code)] // skipped fields are intentionally absent from the holder
+    #[allow(dead_code)]
     internal: u32,
 }
 
@@ -45,7 +41,7 @@ struct SkippedDefaultForm {
     email: String,
 
     #[gpui_form(skip)]
-    #[allow(dead_code)] // skipped fields are intentionally absent from the holder
+    #[allow(dead_code)]
     audit: bool,
 }
 
