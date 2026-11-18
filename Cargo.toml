@@ -37,7 +37,7 @@ chrono = "0.4"
 criterion = "0.8"
 darling = "0.23"
 derive_more = "2.1"
-gpui = { package = "gpui-pre", version = "0.3.9" }
+gpui = { package = "gpui-pre", version = "0.3.12" }
 gpui-form = { package = "freeoxide-gpui-form", path = "crates/gpui-form", version = "0.11.0" }
 gpui-form-codegen = { package = "freeoxide-gpui-form-codegen", path = "crates/gpui-form-codegen", version = "0.11.0" }
 gpui-form-component = { package = "freeoxide-gpui-form-component", path = "crates/gpui-form-component", version = "0.11.0" }
@@ -47,14 +47,14 @@ gpui-form-derive = { package = "freeoxide-gpui-form-derive", path = "crates/gpui
 gpui-form-i18n = { package = "freeoxide-gpui-form-i18n", path = "crates/gpui-form-i18n", version = "0.11.0" }
 gpui-form-prototyping-core = { package = "freeoxide-gpui-form-prototyping-core", path = "crates/gpui-form-prototyping-core", version = "0.11.0" }
 gpui-form-schema = { package = "freeoxide-gpui-form-schema", path = "crates/gpui-form-schema", version = "0.11.0" }
-gpui-kit = "0.8.1"
-gpui-kit-assets = "0.8.1"
+gpui-kit = "0.10.0"
+gpui-kit-assets = "0.10.0"
 gpui_platform = { features = [
   "font-kit",
   "x11",
   "wayland",
   "runtime_shaders",
-], package = "gpui-pre-platform", version = "0.3.9" }
+], package = "gpui-pre-platform", version = "0.3.12" }
 heck = "0.5.0"
 phonenumber = "0.3.9"
 icu_calendar = "2.2.0"
